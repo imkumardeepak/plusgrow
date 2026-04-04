@@ -1,0 +1,88 @@
+# PlusGrow WMS .gitignore
+
+# Build outputs
+bin/
+obj/
+dist/
+build/
+out/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+Packed*/
+
+# Package directories
+node_modules/
+Frontend/node_modules/
+Backend/PlusgrowWms.Api/bin/
+Backend/PlusgrowWms.Api/obj/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files - DO NOT COMMIT
+.env
+.env.local
+.env.development
+.env.production
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+$RECYCLE.BIN/
+
+# Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# SQL
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+
+# Secrets (DO NOT COMMIT)
+*.pfx
+*.key
+secrets/
+credentials/
+
+# App Settings - Keep base config, ignore sensitive overrides
+# appsettings.json
+# appsettings.Development.json
+# appsettings.Production.json
+
+# Temp
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Azure
+.azure/
+*.publishsettings
+
+# Docker
+docker-compose.override.yml

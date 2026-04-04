@@ -1,0 +1,5 @@
+{
+  "name": "Plusgrow WMS",
+  "description": "A complete frontend-only Warehouse Management System with mock data simulation.",
+  "requestFramePermissions": []
+}
