@@ -71,6 +71,7 @@ builder.Services.AddControllers()
 // Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGenNewtonsoftSupport();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -89,7 +90,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Plusgrow WMS API V1");
+        options.RoutePrefix = "swagger"; // Standard route is /swagger
+    });
 }
 
 app.UseSerilogRequestLogging();
