@@ -4,7 +4,7 @@ import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Plus, Factory, Globe, Loader2, Trash2, Edit2, Building } from 'lucide-react';
+import { Plus, Factory, Globe, Loader2, MapPin, Trash2, Edit2, Building } from 'lucide-react';
 import { toast } from 'sonner';
 import { manufacturersApi, Manufacturer, CreateManufacturerDto } from '../services/masterApi';
 import { format } from 'date-fns';
@@ -21,6 +21,7 @@ export const Manufacturers = memo(function Manufacturers() {
   const [formData, setFormData] = useState<CreateManufacturerDto>({
     name: '',
     country: '',
+    address: '',
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export const Manufacturers = memo(function Manufacturers() {
   };
 
   const openCreateModal = () => {
-    setFormData({ name: '', country: '' });
+    setFormData({ name: '', country: '', address: '' });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -74,6 +75,7 @@ export const Manufacturers = memo(function Manufacturers() {
     setFormData({
       name: manufacturer.name,
       country: manufacturer.country || '',
+      address: manufacturer.address || '',
     });
     setIsEditing(manufacturer);
     setIsModalOpen(true);
@@ -82,7 +84,7 @@ export const Manufacturers = memo(function Manufacturers() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ name: '', country: '' });
+    setFormData({ name: '', country: '', address: '' });
   };
 
   const handleDelete = async () => {
@@ -117,12 +119,20 @@ export const Manufacturers = memo(function Manufacturers() {
             </div>
             <div>
               <p className="font-semibold text-neutral-900">{row.name}</p>
-              {row.country && (
-                <p className="text-xs text-neutral-500 flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-brand-400" />
-                  {row.country}
-                </p>
-              )}
+              <div className="mt-0.5 space-y-1">
+                {row.country && (
+                  <p className="text-xs text-neutral-500 flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-brand-400" />
+                    {row.country}
+                  </p>
+                )}
+                {row.address && (
+                  <p className="text-xs text-neutral-500 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-brand-300" />
+                    {row.address}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         ),
@@ -209,6 +219,16 @@ export const Manufacturers = memo(function Manufacturers() {
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               className="h-10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-neutral-700">Address</label>
+            <textarea
+              placeholder="Manufacturer address"
+              value={formData.address}
+              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              rows={2}
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-all duration-200 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:border-brand-500 resize-none"
             />
           </div>
           <div className="space-y-2">

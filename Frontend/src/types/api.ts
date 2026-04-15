@@ -137,12 +137,14 @@ export interface Manufacturer {
   id: number;
   name: string;
   country: string | null;
+  address: string | null;
   created_at: string;
 }
 
 export interface CreateManufacturerDto {
   name: string;
   country?: string;
+  address?: string;
 }
 
 export interface UpdateManufacturerDto extends Partial<CreateManufacturerDto> {}

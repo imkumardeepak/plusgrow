@@ -18,6 +18,9 @@ public class Manufacturer
     [MaxLength(100)]
     [Column("country")]
     public string? Country { get; set; }
+
+    [Column("address")]
+    public string? Address { get; set; }
     
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

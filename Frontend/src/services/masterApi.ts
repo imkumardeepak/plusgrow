@@ -9,6 +9,7 @@ export interface Manufacturer {
   id: number;
   name: string;
   country?: string;
+  address?: string;
   created_at: string;
 }
 
@@ -48,6 +49,7 @@ export interface Product {
 export interface CreateManufacturerDto {
   name: string;
   country?: string;
+  address?: string;
 }
 
 export interface CreateCommodityDto {
