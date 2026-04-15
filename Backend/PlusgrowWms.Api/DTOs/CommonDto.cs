@@ -25,6 +25,7 @@ public class ManufacturerDto
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Country { get; set; }
+    public string? Address { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -32,6 +33,7 @@ public class CreateManufacturerDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Country { get; set; }
+    public string? Address { get; set; }
 }
 
 public class CommodityDto
