@@ -1,8 +1,8 @@
 import axios, { AxiosError } from 'axios';
 import { LoginRequest, RegisterRequest, ChangePasswordRequest, AuthResponse, ApiError } from '../types';
 
-// Use Vite env variable - no /api suffix needed (services add it)
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5179';
+// Keep the shared client aligned with controller routes under /api.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

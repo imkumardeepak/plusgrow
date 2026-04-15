@@ -1,7 +1,7 @@
 import axios from 'axios';
 import api from './authApi';
 
-// Use Vite env variable - no /api suffix needed (services add it)
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
 
 // Types
