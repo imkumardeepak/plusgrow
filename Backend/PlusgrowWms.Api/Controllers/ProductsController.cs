@@ -77,7 +77,6 @@ public class ProductsController : BaseController
         // Update all fields
         existing.Name = product.Name;
         existing.Sku = product.Sku;
-        existing.HsnCode = product.HsnCode;
         existing.CommodityId = product.CommodityId;
         existing.ManufacturerId = product.ManufacturerId;
         existing.CountryOfOrigin = product.CountryOfOrigin;
@@ -207,7 +206,6 @@ public class ProductsController : BaseController
                     {
                         Name = productName,
                         Sku = sku,
-                        HsnCode = row.Cell("HSN Code").GetString()?.Trim(),
                         ManufacturerId = manufacturerId,
                         CommodityId = commodityId,
                         CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",

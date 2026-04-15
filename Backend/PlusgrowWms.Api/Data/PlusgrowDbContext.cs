@@ -67,9 +67,6 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(p => p.ManufacturerId);
             
         modelBuilder.Entity<Product>()
-            .HasIndex(p => p.HsnCode);
-            
-        modelBuilder.Entity<Product>()
             .HasIndex(p => p.Name);
             
         modelBuilder.Entity<User>()

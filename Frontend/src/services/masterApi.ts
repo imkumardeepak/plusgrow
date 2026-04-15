@@ -31,7 +31,6 @@ export interface Product {
   id: number;
   name: string;
   sku?: string;
-  hsnCode?: string;
   commodityId?: number;
   commodity?: Commodity;
   manufacturerId?: number;
@@ -66,16 +65,16 @@ export interface CreateImporterDto {
 export interface CreateProductDto {
   name: string;
   sku?: string;
-  hsn_code?: string;
-  commodity_id?: number;
-  manufacturer_id?: number;
-  country_of_origin?: string;
-  mrp_quantity?: string;
+  commodityId?: number;
+  manufacturerId?: number;
+  countryOfOrigin?: string;
+  mrpQuantity?: string;
   factor?: number;
-  unit_type?: string;
+  unitType?: string;
   ussp?: number;
   mrp?: number;
-  best_before_months?: number;
+  bestBeforeMonths?: number;
+  id?: number;
 }
 
 export interface ProductUploadResult {

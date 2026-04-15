@@ -102,7 +102,6 @@ export interface Product {
   id: number;
   name: string;
   sku: string | null;
-  hsn_code: string | null;
   commodity_id: number | null;
   country_of_origin: string | null;
   mrp_quantity: string | null;
@@ -120,7 +119,6 @@ export interface Product {
 export interface CreateProductDto {
   name: string;
   sku?: string;
-  hsn_code?: string;
   commodity_id?: number;
   country_of_origin?: string;
   mrp_quantity?: string;

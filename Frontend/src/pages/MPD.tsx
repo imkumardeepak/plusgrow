@@ -34,7 +34,6 @@ export const MPD = memo(function MPD() {
   const [formData, setFormData] = useState<CreateProductDto>({
     name: '',
     sku: '',
-    hsnCode: '',
     commodityId: undefined,
     manufacturerId: undefined,
     countryOfOrigin: 'India',
@@ -77,21 +76,19 @@ export const MPD = memo(function MPD() {
 
     setIsSubmitting(true);
     try {
-      // Convert camelCase to PascalCase for backend, include Id for updates
       const payload = {
-        Id: isEditing?.id || 0,
-        Name: formData.name,
-        Sku: formData.sku,
-        HsnCode: formData.hsnCode || null,
-        CommodityId: formData.commodityId || null,
-        ManufacturerId: formData.manufacturerId || null,
-        CountryOfOrigin: formData.countryOfOrigin || null,
-        MrpQuantity: formData.mrpQuantity || null,
-        Factor: formData.factor || 1,
-        UnitType: (formData.unitType || 'UNIT').toUpperCase(),
-        Ussp: formData.ussp || 0,
-        Mrp: formData.mrp || 0,
-        BestBeforeMonths: formData.bestBeforeMonths || 12,
+        id: isEditing?.id || 0,
+        name: formData.name,
+        sku: formData.sku,
+        commodityId: formData.commodityId || null,
+        manufacturerId: formData.manufacturerId || null,
+        countryOfOrigin: formData.countryOfOrigin || null,
+        mrpQuantity: formData.mrpQuantity || null,
+        factor: formData.factor || 1,
+        unitType: (formData.unitType || 'UNIT').toUpperCase(),
+        ussp: formData.ussp || 0,
+        mrp: formData.mrp || 0,
+        bestBeforeMonths: formData.bestBeforeMonths || 12,
       };
 
       if (isEditing) {
@@ -117,7 +114,6 @@ export const MPD = memo(function MPD() {
     setFormData({
       name: '',
       sku: '',
-      hsnCode: '',
       commodityId: undefined,
       manufacturerId: undefined,
       countryOfOrigin: 'India',
@@ -136,7 +132,6 @@ export const MPD = memo(function MPD() {
     setFormData({
       name: product.name,
       sku: product.sku || '',
-      hsnCode: product.hsnCode || '',
       commodityId: product.commodityId,
       manufacturerId: product.manufacturerId,
       countryOfOrigin: product.countryOfOrigin || 'India',
@@ -397,11 +392,7 @@ export const MPD = memo(function MPD() {
       className="overflow-hidden"
     >
       <div className="bg-gradient-to-r from-brand-50/50 via-brand-50/50 to-brand-50/50 border-t border-b border-brand-100/50 p-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="space-y-1">
-            <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">HSN Code</p>
-            <p className="text-sm font-mono font-medium text-neutral-700">{product.hsnCode || 'N/A'}</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Unit Type</p>
             <p className="text-sm font-medium text-neutral-700">{product.unitType || 'UNIT'}</p>
@@ -521,16 +512,6 @@ export const MPD = memo(function MPD() {
                   className="h-10 pl-10 font-mono"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">HSN Code</label>
-              <Input
-                placeholder="HSN Code"
-                value={formData.hsnCode}
-                onChange={(e) => setFormData({ ...formData, hsnCode: e.target.value })}
-                className="h-10"
-              />
             </div>
 
             <div className="space-y-2">

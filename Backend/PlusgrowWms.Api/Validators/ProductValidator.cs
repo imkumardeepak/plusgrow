@@ -14,9 +14,6 @@ public class ProductValidator : AbstractValidator<CreateProductDto>
         RuleFor(x => x.Sku)
             .MaximumLength(100).WithMessage("SKU cannot exceed 100 characters");
             
-        RuleFor(x => x.HsnCode)
-            .MaximumLength(20).WithMessage("HSN code cannot exceed 20 characters");
-            
         RuleFor(x => x.Mrp)
             .GreaterThanOrEqualTo(0).When(x => x.Mrp.HasValue)
             .WithMessage("MRP must be greater than or equal to 0");
