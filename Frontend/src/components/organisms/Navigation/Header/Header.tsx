@@ -130,7 +130,7 @@ export function Header({
           >
             <Bell className="w-5 h-5" />
             {notificationCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-500 rounded-full ring-2 ring-white" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-400/100 rounded-full ring-2 ring-white" />
             )}
           </Button>
         </div>
@@ -153,7 +153,7 @@ export function Header({
               <p className="flex items-center gap-1.5 text-sm font-semibold leading-none text-white">
                 {userName}
                 {userRole?.toLowerCase() === 'superadmin' && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full shadow-sm">
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full shadow-card">
                     <Crown className="w-3 h-3" />
                     SUPER
                   </span>
@@ -220,7 +220,7 @@ export function Header({
                     setUserMenuOpen(false);
                     onLogout?.();
                   }} 
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger-300 transition-colors hover:bg-danger-500/10"
+                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger-300 transition-colors hover:-/"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign out

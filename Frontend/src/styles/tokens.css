@@ -79,20 +79,20 @@
 
   /* ========================================
      COLOR PALETTE - NEUTRAL
-     Legacy utility names remapped for dark shell.
+     Tinted with deep navy for dark shell.
      ======================================== */
   --color-neutral-0: #ffffff;
-  --color-neutral-50: #0b1322;
-  --color-neutral-100: #101a2e;
-  --color-neutral-200: #16243d;
-  --color-neutral-300: #22324f;
-  --color-neutral-400: #43607f;
-  --color-neutral-500: #7b94ae;
-  --color-neutral-600: #a9bdd0;
-  --color-neutral-700: #cad8e5;
-  --color-neutral-800: #e4edf5;
-  --color-neutral-900: #f7fbff;
-  --color-neutral-950: #ffffff;
+  --color-neutral-50: #f7fbff;
+  --color-neutral-100: #e4edf5;
+  --color-neutral-200: #cad8e5;
+  --color-neutral-300: #a9bdd0;
+  --color-neutral-400: #7b94ae;
+  --color-neutral-500: #43607f;
+  --color-neutral-600: #22324f;
+  --color-neutral-700: #16243d;
+  --color-neutral-800: #101a2e;
+  --color-neutral-900: #0b1322;
+  --color-neutral-950: #060d19;
 
   /* ========================================
      TYPOGRAPHY - FONT FAMILIES
@@ -224,16 +224,38 @@
     @apply bg-neutral-950 text-neutral-100 font-sans;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading text-white tracking-tight;
   }
 
-  h1 { @apply text-3xl font-bold; }
-  h2 { @apply text-2xl font-semibold; }
-  h3 { @apply text-xl font-semibold; }
-  h4 { @apply text-lg font-semibold; }
-  h5 { @apply text-base font-semibold text-neutral-50; }
-  h6 { @apply text-sm font-semibold uppercase tracking-wider text-neutral-300; }
+  h1 {
+    @apply text-3xl font-bold;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold;
+  }
+
+  h3 {
+    @apply text-xl font-semibold;
+  }
+
+  h4 {
+    @apply text-lg font-semibold;
+  }
+
+  h5 {
+    @apply text-base font-semibold text-neutral-50;
+  }
+
+  h6 {
+    @apply text-sm font-semibold uppercase tracking-wider text-neutral-300;
+  }
 
   /* Focus visible styles for accessibility */
   :focus-visible {
@@ -250,6 +272,7 @@
    UTILITY CLASSES
    ======================================== */
 @layer utilities {
+
   /* Glassmorphism effect */
   .glass {
     @apply bg-white/8 backdrop-blur-md border border-white/10;
@@ -367,13 +390,23 @@
    KEYFRAME ANIMATIONS
    ======================================== */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes slide-in-from-bottom {
@@ -381,6 +414,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -392,6 +426,7 @@
     opacity: 0;
     transform: translateX(10px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -403,6 +438,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -410,34 +446,73 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes scan {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(400%); }
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(400%);
+  }
 }
 
 @layer utilities {
@@ -478,7 +553,7 @@
   }
 
   .animate-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }

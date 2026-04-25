@@ -18,9 +18,9 @@ export const buttonVariants = cva(
         outline: "border border-white/14 bg-transparent text-neutral-100 hover:bg-white/8 hover:text-white hover:border-brand-300/40",
         ghost: "text-neutral-200 hover:bg-white/8 hover:text-white active:bg-white/10",
         link: "text-brand-200 underline-offset-4 hover:underline hover:text-brand-100",
-        destructive: "bg-danger-600 text-white shadow-sm hover:bg-danger-700 hover:shadow-md hover:-translate-y-px",
-        success: "bg-success-600 text-white shadow-sm hover:bg-success-700 hover:shadow-md hover:-translate-y-px",
-        warning: "bg-warning-500 text-white shadow-sm hover:bg-warning-600 hover:shadow-md hover:-translate-y-px",
+        destructive: "bg-danger-600 text-white shadow-card hover:bg-danger-700 hover:shadow-float hover:-translate-y-px",
+        success: "bg-success-600 text-white shadow-card hover:bg-success-700 hover:shadow-float hover:-translate-y-px",
+        warning: "bg-warning-400/100 text-white shadow-card hover:bg-warning-600 hover:shadow-float hover:-translate-y-px",
       },
       size: {
         xs: "h-7 px-2.5 text-xs rounded-md gap-1",

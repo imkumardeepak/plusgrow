@@ -14,8 +14,8 @@ export const cardVariants = cva(
     variants: {
       variant: {
         default: "card-base",
-        elevated: "bg-white/[0.05] border-white/10 shadow-float",
-        outlined: "bg-white/[0.03] border-white/12 shadow-card",
+        elevated: "bg-white/[0.04] border-white/10 shadow-float",
+        outlined: "bg-white/[0.04] border-white/12 shadow-card",
         ghost: "border-transparent shadow-none bg-transparent",
         interactive: "card-base card-hover cursor-pointer",
         glass: "glassmorphism",

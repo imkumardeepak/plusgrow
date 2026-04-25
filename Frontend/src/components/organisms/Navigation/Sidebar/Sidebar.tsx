@@ -197,7 +197,7 @@ export function Sidebar({
             collapsed ? "h-16" : "h-20"
           )}
         >
-          <div className={cn("rounded-2xl px-3 py-2", !collapsed && "bg-white/[0.03]")}>
+          <div className={cn("rounded-2xl px-3 py-2", !collapsed && "bg-white/[0.04]")}>
             <Logo width={180} height={180} className={cn("h-auto", collapsed ? "w-9" : "w-36")} />
           </div>
 

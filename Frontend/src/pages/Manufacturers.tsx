@@ -114,11 +114,11 @@ export const Manufacturers = memo(function Manufacturers() {
         header: 'Company',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-sm">
-              <Factory className="w-5 h-5 text-brand-600" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
+              <Factory className="w-5 h-5 text-brand-300" />
             </div>
             <div>
-              <p className="font-semibold text-neutral-900">{row.name}</p>
+              <p className="font-semibold text-white">{row.name}</p>
               <div className="mt-0.5 space-y-1">
                 {row.country && (
                   <p className="text-xs text-neutral-500 flex items-center gap-1.5">
@@ -141,7 +141,7 @@ export const Manufacturers = memo(function Manufacturers() {
         accessorKey: 'created_at',
         header: 'Added',
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-neutral-50 text-neutral-500 text-xs rounded-md border border-neutral-100">
+          <span className="inline-flex items-center px-2 py-1 bg-white/[0.02] text-neutral-500 text-xs rounded-md border border-white/10">
             {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : 'N/A'}
           </span>
         ),
@@ -179,7 +179,7 @@ export const Manufacturers = memo(function Manufacturers() {
           <div className="flex items-center gap-3">
             <Button
               onClick={openCreateModal}
-              className="h-10 w-44 font-bold shadow-sm bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-10 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               ADD NEW

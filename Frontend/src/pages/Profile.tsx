@@ -106,22 +106,22 @@ export const Profile = memo(function Profile() {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-700">{user.email || 'No email set'}</span>
+                <span className="text-neutral-200">{user.email || 'No email set'}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-700">{user.phone || 'No phone set'}</span>
+                <span className="text-neutral-200">{user.phone || 'No phone set'}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-700">
+                <span className="text-neutral-200">
                   Joined {format(new Date(user.createdAt), 'MMM dd, yyyy')}
                 </span>
               </div>
               {user.lastLoginAt && (
                 <div className="flex items-center gap-3 text-sm">
                   <Shield className="w-4 h-4 text-neutral-400" />
-                  <span className="text-neutral-700">
+                  <span className="text-neutral-200">
                     Last login: {format(new Date(user.lastLoginAt), 'MMM dd, yyyy HH:mm')}
                   </span>
                 </div>
@@ -131,19 +131,19 @@ export const Profile = memo(function Profile() {
 
           {/* Account Status */}
           <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-neutral-100">
+            <CardHeader className="py-3 px-4 border-b border-white/10">
               <CardTitle size="sm">Account Status</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-700">Status</span>
+                <span className="text-sm text-neutral-200">Status</span>
                 <Badge variant={user.isActive ? 'success' : 'danger'}>
                   {user.isActive ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-neutral-700">Role ID</span>
-                <span className="text-sm font-mono font-semibold text-neutral-900">{user.roleId || 'N/A'}</span>
+                <span className="text-sm text-neutral-200">Role ID</span>
+                <span className="text-sm font-mono font-semibold text-white">{user.roleId || 'N/A'}</span>
               </div>
             </CardContent>
           </Card>
@@ -153,7 +153,7 @@ export const Profile = memo(function Profile() {
         <div className="lg:col-span-8 space-y-4">
           {/* Change Password */}
           <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-neutral-100 bg-neutral-50/50">
+            <CardHeader className="py-3 px-4 border-b border-white/10 bg-white/[0.02]">
               <div className="flex items-center justify-between">
                 <CardTitle size="sm" className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-neutral-400" />
@@ -174,8 +174,8 @@ export const Profile = memo(function Profile() {
               {message && (
                 <div className={`flex items-center gap-2 p-3 rounded-2xl mb-4 text-sm animate-in fade-in slide-in-from-top-2 ${
                   message.type === 'success' 
-                    ? 'bg-success-500/12 border border-success-400/20 text-success-200'
-                    : 'bg-danger-500/12 border border-danger-400/20 text-danger-200'
+                    ? '-/ border border-success-400/20 text-success-200'
+                    : '-/ border border-danger-400/20 text-danger-200'
                 }`}>
                   {message.type === 'success' ? (
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -262,34 +262,34 @@ export const Profile = memo(function Profile() {
 
           {/* Account Information */}
           <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-neutral-100 bg-neutral-50/50">
+            <CardHeader className="py-3 px-4 border-b border-white/10 bg-white/[0.02]">
               <CardTitle size="sm">Account Information</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">User ID</p>
-                  <p className="text-sm font-mono font-semibold text-neutral-900">{user.id}</p>
+                  <p className="text-sm font-mono font-semibold text-white">{user.id}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Username</p>
-                  <p className="text-sm font-semibold text-neutral-900">@{user.username}</p>
+                  <p className="text-sm font-semibold text-white">@{user.username}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Full Name</p>
-                  <p className="text-sm font-semibold text-neutral-900">{user.fullName}</p>
+                  <p className="text-sm font-semibold text-white">{user.fullName}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</p>
-                  <p className="text-sm font-semibold text-neutral-900">{user.email || 'Not set'}</p>
+                  <p className="text-sm font-semibold text-white">{user.email || 'Not set'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Phone</p>
-                  <p className="text-sm font-semibold text-neutral-900">{user.phone || 'Not set'}</p>
+                  <p className="text-sm font-semibold text-white">{user.phone || 'Not set'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Role</p>
-                  <p className="text-sm font-semibold text-neutral-900">{user.roleName || 'User'}</p>
+                  <p className="text-sm font-semibold text-white">{user.roleName || 'User'}</p>
                 </div>
               </div>
             </CardContent>

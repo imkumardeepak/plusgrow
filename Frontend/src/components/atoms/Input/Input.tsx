@@ -8,12 +8,12 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../../lib/utils";
 
 export const inputVariants = cva(
-  "flex w-full bg-white/[0.04] transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:bg-white/[0.03] disabled:text-neutral-600",
+  "flex w-full bg-white/[0.04] transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:bg-white/[0.04] disabled:text-neutral-300",
   {
     variants: {
       variant: {
-        default: "border border-white/12 text-white hover:border-brand-300/30 focus-visible:border-brand-400",
-        error: "border border-danger-300 text-danger-900 placeholder:text-danger-300 hover:border-danger-400 focus-visible:ring-danger-500",
+        default: "border border-white/10 text-white hover:border-brand-300/30 focus-visible:border-brand-400",
+        error: "border border-danger-300 text-danger-300 placeholder:text-danger-300 hover:border-danger-400 focus-visible:ring-danger-500",
         success: "border border-success-300 text-success-900 hover:border-success-400 focus-visible:ring-success-500",
         ghost: "border-0 bg-transparent hover:bg-white/6 focus-visible:bg-white/8 focus-visible:ring-1",
       },
@@ -50,7 +50,7 @@ export interface InputProps
   inputRef?: React.Ref<HTMLInputElement>;
 }
 
-export const Input = React.forwardRef<HTMLDivElement, InputProps>(
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   (
     {
       className,
@@ -111,12 +111,12 @@ export const Input = React.forwardRef<HTMLDivElement, InputProps>(
           )}
         </div>
         {helperText && !hasError && (
-          <p id={`${inputId}-helper`} className="text-xs text-neutral-300/70">
+          <p id={`${inputId}-helper`} className="text-xs text-neutral-400">
             {helperText}
           </p>
         )}
         {hasError && (
-          <p id={`${inputId}-error`} className="text-xs text-danger-600 flex items-center gap-1">
+          <p id={`${inputId}-error`} className="text-xs text-danger-300 flex items-center gap-1">
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>

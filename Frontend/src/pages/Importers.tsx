@@ -4,7 +4,7 @@ import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Plus, Building2, MapPin, Phone, Mail, Loader2, Trash2, Edit2, Building } from 'lucide-react';
+import { Plus, Building2, MapPin, Phone, Mail, Loader2, Trash2, Edit2, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { importersApi, Importer, CreateImporterDto } from '../services/masterApi';
 import { format } from 'date-fns';
@@ -116,13 +116,13 @@ export const Importers = memo(function Importers() {
       {
         accessorKey: 'name',
         header: 'Company',
-        cell: (row) => (
+cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-sm">
-              <Building className="w-5 h-5 text-brand-600" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
+              <Truck className="w-5 h-5 text-brand-300" />
             </div>
             <div>
-              <p className="font-semibold text-neutral-900">{row.name}</p>
+              <p className="font-semibold text-white">{row.name}</p>
               {row.address && (
                 <p className="text-xs text-neutral-500 flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
@@ -136,8 +136,8 @@ export const Importers = memo(function Importers() {
       {
         accessorKey: 'cin',
         header: 'CIN',
-        cell: (row) => (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-600 text-xs font-mono rounded-lg border border-neutral-200">
+cell: (row) => (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.06] text-brand-300 text-xs font-mono rounded-lg border border-white/10">
             {row.cin || 'N/A'}
           </span>
         ),
@@ -148,7 +148,7 @@ export const Importers = memo(function Importers() {
         cell: (row) => (
           <div className="space-y-1">
             {row.phone && (
-              <p className="text-xs text-neutral-600 flex items-center gap-1.5">
+              <p className="text-xs text-neutral-300 flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-brand-400" /> {row.phone}
               </p>
             )}
@@ -164,7 +164,7 @@ export const Importers = memo(function Importers() {
         accessorKey: 'created_at',
         header: 'Added',
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-neutral-50 text-neutral-500 text-xs rounded-md border border-neutral-100">
+          <span className="inline-flex items-center px-2 py-1 bg-white/[0.02] text-neutral-500 text-xs rounded-md border border-white/10">
             {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : 'N/A'}
           </span>
         ),
@@ -202,7 +202,7 @@ export const Importers = memo(function Importers() {
           <div className="flex items-center gap-3">
             <Button
               onClick={openCreateModal}
-              className="h-10 w-44 font-bold shadow-sm bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-10 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               NEW IMPORTER

@@ -29,23 +29,23 @@ const statusConfig = {
   Pending: {
     variant: "warning" as const,
     icon: Clock,
-    bgColor: "bg-warning-50",
+    bgColor: "bg-warning-400/10",
     borderColor: "border-warning-200",
-    textColor: "text-warning-700",
+    textColor: "text-warning-400",
   },
   Active: {
     variant: "primary" as const,
     icon: Box,
-    bgColor: "bg-brand-50",
+    bgColor: "bg-brand-400/10",
     borderColor: "border-brand-200",
-    textColor: "text-brand-700",
+    textColor: "text-brand-400",
   },
   Complete: {
     variant: "success" as const,
     icon: CheckCircle2,
-    bgColor: "bg-success-50",
+    bgColor: "bg-success-400/10",
     borderColor: "border-success-200",
-    textColor: "text-success-700",
+    textColor: "text-success-400",
   },
 };
 
@@ -63,16 +63,16 @@ export const TaskCard = memo(function TaskCard({
       onClick={onClick}
       className={cn(
         "group relative cursor-pointer rounded-xl border-2 transition-all duration-200",
-        "hover:shadow-md hover:-translate-y-0.5",
+        "hover:shadow-float hover:-translate-y-0.5",
         isSelected
-          ? "border-brand-500 bg-brand-50/50 shadow-md ring-1 ring-brand-500/20"
-          : "border-neutral-200 bg-white hover:border-brand-300",
+          ? "border-brand-500 bg-brand-50/50 shadow-float ring-1 ring-brand-500/20"
+          : "border-white/10 bg-white/[0.04] hover:border-brand-300",
         viewMode === "compact" ? "p-3" : "p-4"
       )}
     >
       {/* Selection Indicator */}
       {isSelected && (
-        <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-500 rounded-r-full" />
+        <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-400/100 rounded-r-full" />
       )}
 
       <div className="flex items-start gap-3">
@@ -95,7 +95,7 @@ export const TaskCard = memo(function TaskCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-neutral-900 text-sm truncate">
+            <span className="font-semibold text-white text-sm truncate">
               {task.sku}
             </span>
             <Badge variant={config.variant} size="sm" className="flex-shrink-0">
@@ -111,12 +111,12 @@ export const TaskCard = memo(function TaskCard({
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
-                  task.progress === 100 ? "bg-success-500" : "bg-brand-500"
+                  task.progress === 100 ? "bg-success-400/100" : "bg-brand-400/100"
                 )}
                 style={{ width: `${task.progress}%` }}
               />
             </div>
-            <span className="text-xs font-medium text-neutral-600 w-8 text-right">
+            <span className="text-xs font-medium text-neutral-300 w-8 text-right">
               {task.progress}%
             </span>
           </div>
@@ -124,14 +124,14 @@ export const TaskCard = memo(function TaskCard({
           {/* Stats */}
           <div className="flex items-center gap-3 mt-2 text-xs">
             <span className="text-neutral-400">
-              Total: <span className="font-medium text-neutral-600">{task.total}</span>
+              Total: <span className="font-medium text-neutral-300">{task.total}</span>
             </span>
             <span className="text-neutral-300">|</span>
-            <span className="text-success-600">
+            <span className="text-success-300">
               Done: <span className="font-medium">{task.putAway}</span>
             </span>
             <span className="text-neutral-300">|</span>
-            <span className="text-brand-600">
+            <span className="text-brand-300">
               Left: <span className="font-medium">{task.unassigned}</span>
             </span>
           </div>

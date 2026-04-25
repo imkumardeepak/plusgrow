@@ -18,6 +18,7 @@ out/
 *.rsuser
 .ralphy
 .jetro
+.agent/
 
 # NuGet
 *.nupkg

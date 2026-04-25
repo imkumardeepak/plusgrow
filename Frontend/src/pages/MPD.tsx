@@ -249,8 +249,8 @@ export const MPD = memo(function MPD() {
       { 
         accessorKey: 'sku', 
         header: 'SKU',
-        cell: (row) => (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-100 text-neutral-600 text-xs font-mono rounded-lg border border-neutral-200">
+cell: (row) => (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.06] text-brand-300 text-xs font-mono rounded-lg border border-white/10">
             {row.sku || 'N/A'}
           </span>
         )
@@ -260,11 +260,11 @@ export const MPD = memo(function MPD() {
         header: 'Product Name',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-sm">
-              <Package className="w-5 h-5 text-brand-600" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
+              <Package className="w-5 h-5 text-brand-300" />
             </div>
             <div>
-              <span className="font-bold text-neutral-900 block text-sm">{row.name}</span>
+              <span className="font-bold text-white block text-sm">{row.name}</span>
               <span className="inline-flex items-center gap-1 text-[10px] text-neutral-400 font-medium uppercase tracking-wider mt-0.5">
                 <Globe className="w-3 h-3" /> {row.countryOfOrigin || 'N/A'}
               </span>
@@ -278,7 +278,7 @@ export const MPD = memo(function MPD() {
         cell: (row) => (
           <div className="flex items-center gap-2">
             <Building className="w-3.5 h-3.5 text-brand-400" />
-            <span className="font-medium text-neutral-700 text-sm">
+            <span className="font-medium text-neutral-200 text-sm">
               {row.manufacturer?.name || 'N/A'}
             </span>
           </div>
@@ -290,7 +290,7 @@ export const MPD = memo(function MPD() {
         cell: (row) => (
           <div className="flex items-center gap-2">
             <Tag className="w-3.5 h-3.5 text-warning-500" />
-            <span className="font-medium text-neutral-700 text-sm">
+            <span className="font-medium text-neutral-200 text-sm">
               {row.commodity?.name || 'N/A'}
             </span>
           </div>
@@ -301,7 +301,7 @@ export const MPD = memo(function MPD() {
         header: 'MRP',
         cell: (row) => (
           <div className="flex flex-col items-end">
-            <span className="font-bold text-success-600 text-sm tracking-tight">
+            <span className="font-bold text-success-300 text-sm tracking-tight">
               ₹{(row.mrp || 0).toFixed(2)}
             </span>
             {row.ussp && row.ussp > 0 && (
@@ -332,7 +332,7 @@ export const MPD = memo(function MPD() {
               e.stopPropagation();
               setExpandedRow(isExpanded ? null : product.id);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-600 hover:bg-brand-50"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
           >
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -349,7 +349,7 @@ export const MPD = memo(function MPD() {
               navigator.clipboard.writeText(`${product.name} (${product.sku})`);
               toast.success('Copied to clipboard');
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-600 hover:bg-brand-50"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
           >
             <Copy className="w-4 h-4" />
           </Button>
@@ -360,7 +360,7 @@ export const MPD = memo(function MPD() {
               e.stopPropagation();
               openEditModal(product);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-600 hover:bg-brand-50"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
           >
             <Edit2 className="w-4 h-4" />
           </Button>
@@ -371,7 +371,7 @@ export const MPD = memo(function MPD() {
               e.stopPropagation();
               setDeleteTarget(product);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-danger-600 hover:bg-danger-50"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-danger-300 hover:bg-danger-400/10"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -395,11 +395,11 @@ export const MPD = memo(function MPD() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Unit Type</p>
-            <p className="text-sm font-medium text-neutral-700">{product.unitType || 'UNIT'}</p>
+            <p className="text-sm font-medium text-neutral-200">{product.unitType || 'UNIT'}</p>
           </div>
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Best Before</p>
-            <p className="text-sm font-medium text-neutral-700">{product.bestBeforeMonths || 12} months</p>
+            <p className="text-sm font-medium text-neutral-200">{product.bestBeforeMonths || 12} months</p>
           </div>
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">USSP</p>
@@ -416,35 +416,26 @@ export const MPD = memo(function MPD() {
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-200">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-float shadow-brand-200">
               <Package className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-neutral-900 leading-tight tracking-tight">Master Product Data</h1>
+              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Master Product Data</h1>
               <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Asset Registration & Catalog</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 border-l border-neutral-200/50 pl-4">
+<div className="flex items-center gap-3 border-l border-neutral-200/50 pl-4">
             <Button
               onClick={() => setIsUploadModalOpen(true)}
               variant="outline"
-              className="h-9 w-auto px-3 font-bold border-brand-200 text-brand-600 hover:bg-brand-50 hover:text-brand-700"
+              className="h-9 w-auto px-3 font-bold border-brand-200 text-brand-300 hover:bg-brand-400/10 hover:text-brand-400"
               leftIcon={<Upload className="w-4 h-4" />}
             >
               IMPORT
             </Button>
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-              <Input
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-sm bg-white focus:bg-white transition-colors border-neutral-200 shadow-sm"
-              />
-            </div>
             <Button
               onClick={openCreateModal}
-              className="h-9 w-40 font-bold shadow-sm bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-9 w-40 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               NEW PRODUCT
@@ -455,13 +446,13 @@ export const MPD = memo(function MPD() {
 
       {/* Data Table */}
       <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden">
-        <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-neutral-50/50">
+        <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center justify-between">
             <CardTitle size="sm" className="flex items-center gap-2">
               <Package className="w-4 h-4 text-brand-500" />
               Products Directory
             </CardTitle>
-            <Badge variant="primary" className="bg-brand-100 text-brand-700">{filteredProducts.length} Products</Badge>
+            <Badge variant="primary" className="bg-brand-400/20 text-brand-400">{filteredProducts.length} Products</Badge>
           </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0">
@@ -488,7 +479,7 @@ export const MPD = memo(function MPD() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-medium text-neutral-700">
+              <label className="text-sm font-medium text-neutral-200">
                 Product Name <span className="text-danger-500">*</span>
               </label>
               <Input
@@ -500,7 +491,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">
+              <label className="text-sm font-medium text-neutral-200">
                 SKU <span className="text-danger-500">*</span>
               </label>
               <div className="relative">
@@ -515,9 +506,9 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">Manufacturer</label>
+              <label className="text-sm font-medium text-neutral-200">Manufacturer</label>
               <select
-                className="w-full h-10 px-3 border rounded-md border-neutral-200 bg-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full h-10 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={formData.manufacturerId || ''}
                 onChange={(e) => setFormData({ ...formData, manufacturerId: e.target.value ? Number(e.target.value) : undefined })}
               >
@@ -529,9 +520,9 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">Commodity</label>
+              <label className="text-sm font-medium text-neutral-200">Commodity</label>
               <select
-                className="w-full h-10 px-3 border rounded-md border-neutral-200 bg-white text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full h-10 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={formData.commodityId || ''}
                 onChange={(e) => setFormData({ ...formData, commodityId: e.target.value ? Number(e.target.value) : undefined })}
               >
@@ -543,7 +534,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">MRP (₹)</label>
+              <label className="text-sm font-medium text-neutral-200">MRP (₹)</label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-success-500" />
                 <Input
@@ -558,7 +549,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">USSP (₹)</label>
+              <label className="text-sm font-medium text-neutral-200">USSP (₹)</label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning-500" />
                 <Input
@@ -573,7 +564,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">Unit Type</label>
+              <label className="text-sm font-medium text-neutral-200">Unit Type</label>
               <Input
                 placeholder="UNIT, KG, LTR, etc."
                 value={formData.unitType}
@@ -583,7 +574,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">Country of Origin</label>
+              <label className="text-sm font-medium text-neutral-200">Country of Origin</label>
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                 <Input
@@ -596,7 +587,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">Best Before (Months)</label>
+              <label className="text-sm font-medium text-neutral-200">Best Before (Months)</label>
               <Input
                 type="number"
                 min="0"
@@ -608,7 +599,7 @@ export const MPD = memo(function MPD() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-700">MRP Quantity</label>
+              <label className="text-sm font-medium text-neutral-200">MRP Quantity</label>
               <Input
                 placeholder="e.g. 1L, 500g"
                 value={formData.mrpQuantity}
@@ -618,7 +609,7 @@ export const MPD = memo(function MPD() {
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4 border-t border-neutral-200">
+          <div className="flex gap-3 pt-4 border-t border-white/10">
             <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
               Cancel
             </Button>
@@ -645,11 +636,11 @@ export const MPD = memo(function MPD() {
           <div className="bg-gradient-to-r from-brand-50/50 to-brand-50/50 rounded-xl p-4 border border-brand-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-100 flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5 text-brand-600" />
+                <div className="w-10 h-10 rounded-lg bg-brand-400/20 flex items-center justify-center">
+                  <FileSpreadsheet className="w-5 h-5 text-brand-300" />
                 </div>
                 <div>
-                  <p className="font-semibold text-neutral-900 text-sm">Product Import Template</p>
+                  <p className="font-semibold text-white text-sm">Product Import Template</p>
                   <p className="text-xs text-neutral-500">Download the template with correct column headers</p>
                 </div>
               </div>
@@ -657,7 +648,7 @@ export const MPD = memo(function MPD() {
                 onClick={handleDownloadTemplate}
                 variant="outline"
                 size="sm"
-                className="border-brand-200 text-brand-600 hover:bg-brand-50"
+                className="border-brand-200 text-brand-300 hover:bg-brand-400/10"
                 leftIcon={<Download className="w-4 h-4" />}
               >
                 Download Template
@@ -686,10 +677,10 @@ export const MPD = memo(function MPD() {
             className={cn(
               "relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200",
               isDragging
-                ? "border-brand-400 bg-brand-50"
+                ? "border-brand-400 bg-brand-400/10"
                 : uploadFile
                 ? "border-success-300 bg-success-50/30"
-                : "border-neutral-300 hover:border-brand-300 hover:bg-brand-50/30"
+                : "border-white/15 hover:border-brand-300 hover:bg-brand-50/30"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -708,7 +699,7 @@ export const MPD = memo(function MPD() {
                     <CheckCircle2 className="w-6 h-6 text-success-500" />
                   </div>
                   <div>
-                    <p className="font-semibold text-neutral-900">{uploadFile.name}</p>
+                    <p className="font-semibold text-white">{uploadFile.name}</p>
                     <p className="text-sm text-neutral-500">{(uploadFile.size / 1024).toFixed(1)} KB</p>
                   </div>
                   <button
@@ -717,7 +708,7 @@ export const MPD = memo(function MPD() {
                       e.stopPropagation();
                       setUploadFile(null);
                     }}
-                    className="text-sm text-danger-500 hover:text-danger-600 flex items-center gap-1"
+                    className="text-sm text-danger-500 hover:text-danger-300 flex items-center gap-1"
                   >
                     <X className="w-4 h-4" /> Remove file
                   </button>
@@ -726,7 +717,7 @@ export const MPD = memo(function MPD() {
                 <>
                   <div className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                    isDragging ? "bg-brand-100" : "bg-neutral-100"
+                    isDragging ? "bg-brand-400/20" : "bg-neutral-100"
                   )}>
                     <Upload className={cn(
                       "w-6 h-6",
@@ -734,7 +725,7 @@ export const MPD = memo(function MPD() {
                     )} />
                   </div>
                   <div>
-                    <p className="font-semibold text-neutral-900">
+                    <p className="font-semibold text-white">
                       {isDragging ? "Drop your file here" : "Drag & drop your Excel file"}
                     </p>
                     <p className="text-sm text-neutral-500">or click to browse</p>

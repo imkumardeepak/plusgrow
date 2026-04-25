@@ -49,11 +49,11 @@ export const ConfirmationForm = memo(function ConfirmationForm({
       {/* Product Info Card */}
       <Card variant="outlined" className="p-4">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-brand-50 rounded-lg">
-            <Package className="w-5 h-5 text-brand-600" />
+          <div className="p-2 bg-brand-400/10 rounded-lg">
+            <Package className="w-5 h-5 text-brand-300" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-neutral-900 text-sm">{sku}</h4>
+            <h4 className="font-semibold text-white text-sm">{sku}</h4>
             <p className="text-xs text-neutral-500 truncate">{title}</p>
           </div>
           <Badge variant="primary" size="sm">
@@ -63,10 +63,10 @@ export const ConfirmationForm = memo(function ConfirmationForm({
       </Card>
 
       {/* Location Info */}
-      <div className="flex items-center gap-2 p-3 bg-brand-50 border border-brand-200 rounded-xl">
-        <MapPin className="w-4 h-4 text-brand-600 flex-shrink-0" />
+      <div className="flex items-center gap-2 p-3 bg-brand-400/10 border border-brand-200 rounded-xl">
+        <MapPin className="w-4 h-4 text-brand-300 flex-shrink-0" />
         <div className="flex items-center gap-1.5 text-sm">
-          <span className="px-2 py-0.5 bg-brand-500 text-white text-xs font-semibold rounded">
+          <span className="px-2 py-0.5 bg-brand-400/100 text-white text-xs font-semibold rounded">
             Rack {location.rack}
           </span>
           <ArrowRight className="w-3 h-3 text-brand-400" />
@@ -82,7 +82,7 @@ export const ConfirmationForm = memo(function ConfirmationForm({
 
       {/* Quantity Input */}
       <div className="space-y-2">
-        <label className="text-sm font-medium text-neutral-700">
+        <label className="text-sm font-medium text-neutral-200">
           Quantity to Put Away
         </label>
         <div className="flex gap-3">
@@ -109,7 +109,7 @@ export const ConfirmationForm = memo(function ConfirmationForm({
           </Button>
         </div>
         <p className="text-xs text-neutral-500">
-          Available: <span className="font-medium text-neutral-700">{maxQuantity}</span> units
+          Available: <span className="font-medium text-neutral-200">{maxQuantity}</span> units
         </p>
       </div>
 

@@ -85,7 +85,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
              <Button
                 onClick={() => setSelectedSku(null)} 
                 variant="outline"
-                className="h-9 shadow-sm"
+                className="h-9 shadow-card"
              >
                 Clear Selection
              </Button>
@@ -97,8 +97,8 @@ export const WarehouseMap = memo(function WarehouseMap() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         
         {/* Left Column: Located SKU List */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col h-full overflow-hidden border-neutral-200 shadow-sm">
-           <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-neutral-50/50 shrink-0">
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col h-full overflow-hidden border-white/10 shadow-card">
+           <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.02] shrink-0">
               <div className="flex items-center justify-between">
                  <CardTitle size="sm" className="flex items-center gap-2">
                     <Crosshair className="w-4 h-4 text-orange-500" />
@@ -109,7 +109,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                  </Badge>
               </div>
            </CardHeader>
-           <CardContent className="flex-1 overflow-y-auto p-2 scrollbar-thin relative z-10 bg-white">
+           <CardContent className="flex-1 overflow-y-auto p-2 scrollbar-thin relative z-10 bg-white/[0.04]">
               <div className="space-y-1.5">
                  {filteredStock.map((item) => (
                     <div 
@@ -118,8 +118,8 @@ export const WarehouseMap = memo(function WarehouseMap() {
                        className={cn(
                           "p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all duration-300",
                           selectedSku === item.sku 
-                           ? "bg-orange-50 border-orange-300 shadow-sm ring-1 ring-orange-500/20" 
-                           : "bg-white border-neutral-100 hover:border-neutral-200 hover:bg-neutral-50/50"
+                           ? "bg-orange-50 border-orange-300 shadow-card ring-1 ring-orange-500/20" 
+                           : "bg-white/[0.04] border-white/10 hover:border-white/10 hover:bg-white/[0.02]"
                        )}
                     >
                        <div className="flex items-start justify-between">
@@ -128,26 +128,26 @@ export const WarehouseMap = memo(function WarehouseMap() {
                                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border",
                                 selectedSku === item.sku 
                                  ? "bg-orange-100 text-orange-600 border-orange-200" 
-                                 : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                                 : "bg-neutral-100 text-neutral-500 border-white/10"
                              )}>
                                 <Box className="w-4 h-4" />
                              </div>
                              <div>
-                                <h4 className="text-sm font-bold text-neutral-900">{item.sku}</h4>
+                                <h4 className="text-sm font-bold text-white">{item.sku}</h4>
                                 <p className="text-[10px] uppercase font-bold text-neutral-500 max-w-[140px] truncate">{item.title}</p>
                              </div>
                           </div>
                           
                           <Badge variant={selectedSku === item.sku ? "warning" : "default"} className={cn(
                              "text-[10px] tracking-wider uppercase shadow-none",
-                             selectedSku !== item.sku && "bg-neutral-100 text-neutral-600 border-transparent"
+                             selectedSku !== item.sku && "bg-neutral-100 text-neutral-300 border-transparent"
                           )}>
                              {item.quantity} Units
                           </Badge>
                        </div>
                        
                        <div className="flex items-center justify-between mt-1 px-1">
-                          <div className="flex items-center gap-1.5 text-xs font-mono font-medium text-neutral-600">
+                          <div className="flex items-center gap-1.5 text-xs font-mono font-medium text-neutral-300">
                              <MapPin className="w-3.5 h-3.5 text-orange-500" />
                              Rack {item.rack} / {item.shelf} / {item.bin}
                           </div>
@@ -162,7 +162,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                  {filteredStock.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                        <Route className="w-10 h-10 text-neutral-300 mb-3" />
-                       <h3 className="text-sm font-bold text-neutral-800">No Located SKU Found</h3>
+                       <h3 className="text-sm font-bold text-neutral-100">No Located SKU Found</h3>
                        <p className="text-xs text-neutral-500 mt-1 max-w-[200px]">Only SKUs that have been assigned to a Rack/Bin appear here.</p>
                     </div>
                  )}
@@ -171,7 +171,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
         </Card>
 
         {/* Right Column: Visual Map */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col h-full overflow-hidden border-neutral-200 shadow-sm bg-neutral-900 text-neutral-100">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col h-full overflow-hidden border-white/10 shadow-card bg-neutral-900 text-neutral-100">
            <CardHeader className="py-2.5 px-4 border-b border-neutral-800 bg-neutral-950/50 shrink-0">
               <div className="flex items-center justify-between">
                  <CardTitle size="sm" className="flex items-center gap-2 text-white">
@@ -258,7 +258,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                           )}
 
                           {totalItems === 0 && (
-                             <div className="absolute inset-x-0 bottom-2 text-center text-[10px] font-bold tracking-widest uppercase text-neutral-600">
+                             <div className="absolute inset-x-0 bottom-2 text-center text-[10px] font-bold tracking-widest uppercase text-neutral-300">
                                 Empty
                              </div>
                           )}

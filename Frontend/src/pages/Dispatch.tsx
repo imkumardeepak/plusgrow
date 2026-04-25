@@ -93,20 +93,20 @@ export const Dispatch = memo(function Dispatch() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         
         {/* ================= LEFT PANEL: ORDER DIRECTORY ================= */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-sm h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-neutral-50/50">
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full">
+          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.02]">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
                 <Box className="w-4 h-4 text-brand-500" />
                 Awaiting Dispatch
               </CardTitle>
-              <Badge variant="primary" size="sm" className="bg-brand-100 text-brand-700">
+              <Badge variant="primary" size="sm" className="bg-brand-400/20 text-brand-400">
                 {openOrders.length}
               </Badge>
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin bg-neutral-50/30">
+          <CardContent className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin bg-white/[0.01]">
             {openOrders.map((si) => {
               const isSelected = selectedSi === si.id;
 
@@ -116,36 +116,36 @@ export const Dispatch = memo(function Dispatch() {
                   onClick={() => setSelectedSi(si.id)}
                   className={cn(
                     "group relative cursor-pointer rounded-xl border-2 transition-all duration-200 animate-in slide-in-from-left-2",
-                    "hover:shadow-md hover:-translate-y-0.5",
+                    "hover:shadow-float hover:-translate-y-0.5",
                     isSelected
-                      ? 'border-brand-500 bg-brand-50/50 shadow-md ring-1 ring-brand-500/20'
-                      : 'border-neutral-200 bg-white hover:border-brand-300'
+                      ? 'border-brand-500 bg-brand-50/50 shadow-float ring-1 ring-brand-500/20'
+                      : 'border-white/10 bg-white/[0.04] hover:border-brand-300'
                   )}
                 >
                   {isSelected && (
-                    <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-500 rounded-r-full" />
+                    <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-400/100 rounded-r-full" />
                   )}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-2">
                        <div className="flex items-center gap-2">
-                         <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", isSelected ? 'bg-brand-100 text-brand-600' : 'bg-neutral-100 text-neutral-500')}>
+                         <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", isSelected ? 'bg-brand-400/20 text-brand-300' : 'bg-neutral-100 text-neutral-500')}>
                            <Package className="w-3.5 h-3.5" />
                          </div>
-                         <span className="font-semibold text-neutral-900 text-sm tracking-tight">{si.siNumber}</span>
+                         <span className="font-semibold text-white text-sm tracking-tight">{si.siNumber}</span>
                        </div>
-                       <Badge variant="warning" size="sm" className="bg-warning-50 text-warning-700 border-warning-200 shadow-sm animate-pulse">
+                       <Badge variant="warning" size="sm" className="bg-warning-400/10 text-warning-400 border-warning-200 shadow-card animate-pulse">
                          Packed
                        </Badge>
                     </div>
                     
-                    <div className="bg-neutral-50/50 p-2 rounded-lg border border-neutral-100">
-                       <div className="flex items-center gap-2 text-xs text-neutral-600 mb-1.5 font-medium">
+                    <div className="bg-white/[0.02] p-2 rounded-lg border border-white/10">
+                       <div className="flex items-center gap-2 text-xs text-neutral-300 mb-1.5 font-medium">
                          <User className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                          <span className="truncate">{si.customerName}</span>
                        </div>
                        <div className="flex items-center justify-between mt-2">
-                         <Badge variant="default" size="sm" className="font-mono bg-white border-neutral-200 shadow-sm">{si.sku}</Badge>
-                         <span className="text-xs font-bold text-neutral-700 bg-white px-2 py-0.5 rounded border border-neutral-200 shadow-sm">{si.quantity} units</span>
+                         <Badge variant="default" size="sm" className="font-mono bg-white/[0.04] border-white/10 shadow-card">{si.sku}</Badge>
+                         <span className="text-xs font-bold text-neutral-200 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 shadow-card">{si.quantity} units</span>
                        </div>
                     </div>
                   </div>
@@ -155,10 +155,10 @@ export const Dispatch = memo(function Dispatch() {
             
             {openOrders.length === 0 && (
               <div className="flex flex-col items-center justify-center h-[50vh] text-center animate-in fade-in duration-500">
-                <div className="w-20 h-20 bg-success-50 rounded-full flex items-center justify-center mb-4 shadow-sm ring-1 ring-success-100">
+                <div className="w-20 h-20 bg-success-400/10 rounded-full flex items-center justify-center mb-4 shadow-card ring-1 ring-success-100">
                   <Truck className="w-10 h-10 text-success-500" />
                 </div>
-                <h3 className="text-xl font-heading font-bold text-neutral-900 mb-1">
+                <h3 className="text-xl font-heading font-bold text-white mb-1">
                   All Clear!
                 </h3>
                 <p className="text-xs text-neutral-500 max-w-[200px]">
@@ -170,8 +170,8 @@ export const Dispatch = memo(function Dispatch() {
         </Card>
 
         {/* ================= RIGHT PANEL: OUTBOUND CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-white/[0.03] h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-white z-10">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-float z-10 border-white/10 ring-1 ring-white/[0.03] h-full">
+          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
                 <Truck className="w-4 h-4 text-neutral-400" />
@@ -180,7 +180,7 @@ export const Dispatch = memo(function Dispatch() {
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 p-0 flex flex-col relative bg-neutral-50 overflow-hidden">
+          <CardContent className="flex-1 p-0 flex flex-col relative bg-white/[0.02] overflow-hidden">
             {/* Dotted Workspace Background */}
             <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-30 mix-blend-multiply pointer-events-none"></div>
 
@@ -189,11 +189,11 @@ export const Dispatch = memo(function Dispatch() {
               {!activeOrder ? (
                 /* Empty State */
                 <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
-                  <div className="w-24 h-24 bg-white shadow-sm ring-1 ring-neutral-200 rounded-full flex items-center justify-center mb-5 relative group">
+                  <div className="w-24 h-24 bg-white/[0.04] shadow-card ring-1 ring-white/10 rounded-full flex items-center justify-center mb-5 relative group">
                     <Truck className="w-10 h-10 text-neutral-300 group-hover:text-brand-400 transition-colors duration-300 relative z-10" />
-                    <div className="absolute inset-0 border-[3px] border-neutral-100 border-dashed rounded-full group-hover:border-brand-200 animate-[spin_15s_linear_infinite]" />
+                    <div className="absolute inset-0 border-[3px] border-white/10 border-dashed rounded-full group-hover:border-brand-200 animate-[spin_15s_linear_infinite]" />
                   </div>
-                  <h4 className="text-xl font-heading font-bold text-neutral-800 mb-2">
+                  <h4 className="text-xl font-heading font-bold text-neutral-100 mb-2">
                     Awaiting Selection
                   </h4>
                   <p className="text-sm text-neutral-500 max-w-sm">
@@ -205,44 +205,44 @@ export const Dispatch = memo(function Dispatch() {
                 <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full animate-in slide-in-from-bottom-4 duration-500">
                   
                   {/* Digital Outbound Docket */}
-                  <div className="bg-white rounded-3xl border border-neutral-200/60 shadow-xl shadow-neutral-200/40 overflow-hidden mb-6 relative">
+                  <div className="bg-white/[0.04] rounded-3xl border border-neutral-200/60 shadow-xl shadow-neutral-200/40 overflow-hidden mb-6 relative">
                      {/* Decorative Header */}
                      <div className="h-2 w-full bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600"></div>
                      <div className="absolute top-5 right-5 text-neutral-100">
                         <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
                      </div>
                      
-                     <div className="p-8 pb-6 border-b border-neutral-100 relative z-10">
-                        <div className="inline-flex items-center gap-2 bg-brand-50 text-brand-700 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-6 shadow-sm ring-1 ring-brand-200">
+                     <div className="p-8 pb-6 border-b border-white/10 relative z-10">
+                        <div className="inline-flex items-center gap-2 bg-brand-400/10 text-brand-400 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-6 shadow-card ring-1 ring-brand-200">
                           <CheckCircle2 className="w-3.5 h-3.5" /> Ready For Transport
                         </div>
                         
                         <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Commercial Invoice</p>
-                        <h2 className="text-4xl font-black text-neutral-900 font-mono tracking-tighter mb-8">{activeOrder.siNumber}</h2>
+                        <h2 className="text-4xl font-black text-white font-mono tracking-tighter mb-8">{activeOrder.siNumber}</h2>
                         
                         <div className="grid grid-cols-2 gap-8">
                            <div>
                               <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2 flex items-center gap-1"><User className="w-3 h-3"/> Ship To</p>
-                              <p className="text-base font-bold text-neutral-800 leading-tight">{activeOrder.customerName}</p>
+                              <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.customerName}</p>
                            </div>
                            <div>
                               <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2 flex items-center gap-1"><Calendar className="w-3 h-3"/> Order Date</p>
-                              <p className="text-base font-bold text-neutral-800 leading-tight">{activeOrder.siDate}</p>
+                              <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.siDate}</p>
                            </div>
                         </div>
                      </div>
                      
-                     <div className="bg-neutral-50 px-8 py-6">
-                        <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex items-center gap-6">
-                           <div className="bg-brand-50 p-4 rounded-lg shrink-0">
-                              <Package className="w-8 h-8 text-brand-600" />
+                     <div className="bg-white/[0.02] px-8 py-6">
+                        <div className="bg-white/[0.04] rounded-xl border border-white/10 p-5 shadow-card flex items-center gap-6">
+                           <div className="bg-brand-400/10 p-4 rounded-lg shrink-0">
+                              <Package className="w-8 h-8 text-brand-300" />
                            </div>
                            <div className="flex-1 min-w-0">
                               <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Contents</p>
                               <div className="flex items-center justify-between">
-                                 <Badge variant="default" className="font-mono text-base px-3 py-1 shadow-sm">{activeOrder.sku}</Badge>
+                                 <Badge variant="default" className="font-mono text-base px-3 py-1 shadow-card">{activeOrder.sku}</Badge>
                                  <div className="text-right">
-                                    <span className="text-3xl font-black text-neutral-900 leading-none">{activeOrder.quantity}</span>
+                                    <span className="text-3xl font-black text-white leading-none">{activeOrder.quantity}</span>
                                     <span className="text-sm font-bold text-neutral-400 ml-1">UNITS</span>
                                  </div>
                               </div>
@@ -251,7 +251,7 @@ export const Dispatch = memo(function Dispatch() {
                      </div>
                      
                      {/* Logistics Tracker info */}
-                     <div className="px-8 py-5 border-t border-neutral-100 flex items-center justify-between bg-neutral-900 text-white">
+                     <div className="px-8 py-5 border-t border-white/10 flex items-center justify-between bg-neutral-900 text-white">
                         <div>
                            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-0.5">Physical Tracking ID</p>
                            <p className="font-mono text-xl font-bold tracking-widest text-brand-400">{getCartonId(activeOrder.id)}</p>
@@ -264,12 +264,12 @@ export const Dispatch = memo(function Dispatch() {
                   </div>
 
                   {/* Action Dashboard */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-6 bg-white p-6 rounded-2xl border border-neutral-200/60 shadow-sm animate-in slide-in-from-bottom-6 duration-700">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-6 bg-white/[0.04] p-6 rounded-2xl border border-neutral-200/60 shadow-card animate-in slide-in-from-bottom-6 duration-700">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="bg-brand-50 p-2 rounded-full shrink-0 mt-0.5">
-                        <AlertCircle className="w-4 h-4 text-brand-600" />
+                      <div className="bg-brand-400/10 p-2 rounded-full shrink-0 mt-0.5">
+                        <AlertCircle className="w-4 h-4 text-brand-300" />
                       </div>
-                      <p className="text-sm text-neutral-600 font-medium leading-relaxed">
+                      <p className="text-sm text-neutral-300 font-medium leading-relaxed">
                         Completing this dispatch will permanently deduct matching inventory levels and finalize the sales order lifecycle.
                       </p>
                     </div>

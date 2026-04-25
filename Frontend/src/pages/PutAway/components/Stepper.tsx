@@ -37,7 +37,7 @@ export const Stepper = memo(function Stepper({
 
         {/* Progress Line Fill */}
         <div
-          className="absolute left-0 top-5 h-1 bg-brand-500 rounded-full transition-all duration-500"
+          className="absolute left-0 top-5 h-1 bg-brand-400/100 rounded-full transition-all duration-500"
           style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
         />
 
@@ -58,11 +58,11 @@ export const Stepper = memo(function Stepper({
                 className={cn(
                   "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border-2",
                   isCompleted &&
-                    "bg-brand-500 border-brand-500 text-white shadow-md",
+                    "bg-brand-400/100 border-brand-500 text-white shadow-float",
                   isCurrent &&
-                    "bg-white border-brand-500 text-brand-600 shadow-lg shadow-brand-500/25 scale-110",
+                    "bg-white/[0.04] border-brand-500 text-brand-300 shadow-lg shadow-brand-500/25 scale-110",
                   isPending &&
-                    "bg-white border-neutral-200 text-neutral-400"
+                    "bg-white/[0.04] border-white/10 text-neutral-400"
                 )}
               >
                 {isCompleted ? (
@@ -76,8 +76,8 @@ export const Stepper = memo(function Stepper({
               <span
                 className={cn(
                   "mt-2 text-xs font-medium transition-colors duration-200",
-                  isCompleted && "text-brand-600",
-                  isCurrent && "text-brand-700 font-semibold",
+                  isCompleted && "text-brand-300",
+                  isCurrent && "text-brand-400 font-semibold",
                   isPending && "text-neutral-400"
                 )}
               >

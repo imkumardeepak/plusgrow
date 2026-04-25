@@ -115,10 +115,10 @@ export const Commodities = memo(function Commodities() {
         header: 'Commodity Name',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-sm">
-              <Tag className="w-5 h-5 text-brand-600" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
+              <Tag className="w-5 h-5 text-brand-300" />
             </div>
-            <p className="font-semibold text-neutral-900">{row.name}</p>
+            <p className="font-semibold text-white">{row.name}</p>
           </div>
         ),
       },
@@ -155,7 +155,7 @@ export const Commodities = memo(function Commodities() {
           <div className="flex items-center gap-3">
             <Button
               onClick={openCreateModal}
-              className="h-10 w-44 font-bold shadow-sm bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-10 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               NEW COMMODITY

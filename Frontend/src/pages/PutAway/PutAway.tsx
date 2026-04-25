@@ -205,10 +205,10 @@ export const PutAway = () => {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center animate-in fade-in duration-500">
-        <div className="w-24 h-24 bg-success-50 rounded-full flex items-center justify-center mb-6 shadow-sm ring-1 ring-success-100">
+        <div className="w-24 h-24 bg-success-400/10 rounded-full flex items-center justify-center mb-6 shadow-card ring-1 ring-success-100">
           <CheckCircle2 className="w-12 h-12 text-success-500" />
         </div>
-        <h3 className="text-2xl font-heading font-bold text-neutral-900 mb-2">
+        <h3 className="text-2xl font-heading font-bold text-white mb-2">
           All Caught Up!
         </h3>
         <p className="text-neutral-500 max-w-sm text-sm">
@@ -229,7 +229,7 @@ export const PutAway = () => {
               <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                 Pipeline Progress
               </span>
-              <Badge variant="success" size="sm" className="font-mono bg-success-50 text-success-600 border border-success-200">
+              <Badge variant="success" size="sm" className="font-mono bg-success-400/10 text-success-300 border border-success-200">
                 {overallProgress}%
               </Badge>
             </div>
@@ -249,8 +249,8 @@ export const PutAway = () => {
                 className={cn(
                   "p-1.5 rounded-md transition-all duration-200",
                   viewMode === "grid"
-                    ? "bg-white shadow-sm text-brand-600 ring-1 ring-black/5"
-                    : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50"
+                    ? "bg-white/[0.04] shadow-card text-brand-300 ring-1 ring-black/5"
+                    : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-200/50"
                 )}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -260,8 +260,8 @@ export const PutAway = () => {
                 className={cn(
                   "p-1.5 rounded-md transition-all duration-200",
                   viewMode === "list"
-                    ? "bg-white shadow-sm text-brand-600 ring-1 ring-black/5"
-                    : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/50"
+                    ? "bg-white/[0.04] shadow-card text-brand-300 ring-1 ring-black/5"
+                    : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-200/50"
                 )}
               >
                 <List className="w-4 h-4" />
@@ -273,7 +273,7 @@ export const PutAway = () => {
                 placeholder="Search inward items..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-sm bg-neutral-50/50 focus:bg-white transition-colors border-neutral-200"
+                className="pl-9 h-9 text-sm bg-white/[0.02] focus:bg-white/[0.04] transition-colors border-white/10"
               />
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
             </div>
@@ -285,20 +285,20 @@ export const PutAway = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         
         {/* ================= LEFT PANEL: TASK DIRECTORY ================= */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-sm h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-neutral-50/50">
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full">
+          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.02]">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
                 <ArrowDownToLine className="w-4 h-4 text-brand-500" />
                 Pending Items
               </CardTitle>
-              <Badge variant="primary" size="sm" className="bg-brand-100 text-brand-700">
+              <Badge variant="primary" size="sm" className="bg-brand-400/20 text-brand-400">
                 {tasks.length}
               </Badge>
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin bg-neutral-50/30">
+          <CardContent className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin bg-white/[0.01]">
             {tasks.map((task) => (
               <div key={task.sku} className="animate-in slide-in-from-left-2 duration-300">
                 <TaskCard
@@ -313,39 +313,39 @@ export const PutAway = () => {
         </Card>
 
         {/* ================= RIGHT PANEL: WORKFLOW CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-black/[0.02] h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-white z-10">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-float z-10 border-white/10 ring-1 ring-black/[0.02] h-full">
+          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-neutral-400" />
                 Put-Away Execution
               </CardTitle>
               {activeTask && (
-                <div className="flex items-center gap-2 text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-1 rounded-md animate-in fade-in">
+                <div className="flex items-center gap-2 text-xs font-semibold text-brand-300 bg-brand-400/10 px-2 py-1 rounded-md animate-in fade-in">
                   <span>Step {currentStep} of 4</span>
                 </div>
               )}
             </div>
           </CardHeader>
 
-          <CardContent className="flex-1 p-0 flex flex-col relative bg-neutral-50 overflow-hidden">
+          <CardContent className="flex-1 p-0 flex flex-col relative bg-white/[0.02] overflow-hidden">
             {/* Dotted Workspace Background */}
             <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-30 mix-blend-multiply pointer-events-none"></div>
             
             <div className="relative z-10 flex flex-col h-full overflow-y-auto p-6 scrollbar-thin">
               {/* Central Stepper */}
-              <div className="mb-8 w-full max-w-2xl mx-auto bg-white/60 backdrop-blur-md p-4 rounded-2xl shadow-sm border border-neutral-100 animate-in fade-in duration-500">
+              <div className="mb-8 w-full max-w-2xl mx-auto bg-white/60 backdrop-blur-md p-4 rounded-2xl shadow-card border border-white/10 animate-in fade-in duration-500">
                 <Stepper currentStep={currentStep} className="w-full" />
               </div>
 
               {/* Step 1: Select Task (Empty State) */}
               {!selectedSku && (
                 <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
-                  <div className="w-24 h-24 bg-white shadow-sm ring-1 ring-neutral-200 rounded-full flex items-center justify-center mb-5 relative group">
+                  <div className="w-24 h-24 bg-white/[0.04] shadow-card ring-1 ring-white/10 rounded-full flex items-center justify-center mb-5 relative group">
                     <ArrowDownToLine className="w-10 h-10 text-neutral-300 group-hover:text-brand-400 transition-colors duration-300 relative z-10" />
-                    <div className="absolute inset-0 border-[3px] border-neutral-100 border-dashed rounded-full group-hover:border-brand-200 animate-[spin_15s_linear_infinite]" />
+                    <div className="absolute inset-0 border-[3px] border-white/10 border-dashed rounded-full group-hover:border-brand-200 animate-[spin_15s_linear_infinite]" />
                   </div>
-                  <h4 className="text-xl font-heading font-bold text-neutral-800 mb-2">
+                  <h4 className="text-xl font-heading font-bold text-neutral-100 mb-2">
                     Awaiting Selection
                   </h4>
                   <p className="text-sm text-neutral-500 max-w-sm">
@@ -359,12 +359,12 @@ export const PutAway = () => {
                 <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full animate-in slide-in-from-bottom-4 duration-500">
                   
                   {/* Floating Context Banner */}
-                  <div className="mb-6 bg-white shadow-lg shadow-neutral-200/40 border border-neutral-200/60 rounded-xl p-4 flex items-center gap-4 sticky top-0 z-20">
-                    <div className="w-12 h-12 bg-brand-50 rounded-xl flex items-center justify-center ring-1 ring-brand-100">
-                      <Package className="w-6 h-6 text-brand-600" />
+                  <div className="mb-6 bg-white/[0.04] shadow-lg shadow-neutral-200/40 border border-neutral-200/60 rounded-xl p-4 flex items-center gap-4 sticky top-0 z-20">
+                    <div className="w-12 h-12 bg-brand-400/10 rounded-xl flex items-center justify-center ring-1 ring-brand-100">
+                      <Package className="w-6 h-6 text-brand-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-mono text-base font-bold text-neutral-900 tracking-tight">
+                      <p className="font-mono text-base font-bold text-white tracking-tight">
                         {activeTask.sku}
                       </p>
                       <p className="text-sm text-neutral-500 truncate">
@@ -372,13 +372,13 @@ export const PutAway = () => {
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-4 bg-neutral-50 pl-4 py-2 pr-5 rounded-lg border border-neutral-100">
+                    <div className="flex items-center gap-4 bg-white/[0.02] pl-4 py-2 pr-5 rounded-lg border border-white/10">
                       <div className="text-right">
                         <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-wider mb-0.5">
                           Requires Assignment
                         </p>
                         <div className="flex items-center justify-end gap-1.5">
-                          <span className="text-2xl font-bold text-brand-600 leading-none">
+                          <span className="text-2xl font-bold text-brand-300 leading-none">
                             {activeTask.unassigned}
                           </span>
                           <span className="text-xs text-neutral-500 font-medium">units</span>
@@ -399,7 +399,7 @@ export const PutAway = () => {
                     {/* Step 3: Select Warehouse Location */}
                     {currentStep === 3 && (
                       <div className="w-full animate-in fade-in duration-300">
-                        <div className="bg-white rounded-xl shadow-sm border border-neutral-200/60 p-1">
+                        <div className="bg-white/[0.04] rounded-xl shadow-card border border-neutral-200/60 p-1">
                           <WarehouseMap
                             racks={RACKS}
                             shelves={SHELVES}
@@ -425,11 +425,11 @@ export const PutAway = () => {
                     {/* Step 4: Final Confirmation */}
                     {currentStep === 4 && selectedLocation && (
                       <div className="w-full max-w-md mx-auto mt-4 animate-in slide-in-from-right-4 duration-300">
-                        <div className="bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-neutral-200 overflow-hidden">
+                        <div className="bg-white/[0.04] rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-white/10 overflow-hidden">
                            {/* Journey summary header */}
-                           <div className="bg-neutral-50 border-b border-neutral-100 px-6 py-4 flex items-center justify-between">
-                              <span className="text-sm font-semibold text-neutral-600">Review Assignment</span>
-                              <Badge variant="primary" className="bg-brand-100 text-brand-700 pointer-events-none">Final Step</Badge>
+                           <div className="bg-white/[0.02] border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                              <span className="text-sm font-semibold text-neutral-300">Review Assignment</span>
+                              <Badge variant="primary" className="bg-brand-400/20 text-brand-400 pointer-events-none">Final Step</Badge>
                            </div>
                            <div className="p-6">
                               <ConfirmationForm

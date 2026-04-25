@@ -90,9 +90,9 @@ export const Login = memo(function Login() {
     <div className="theme-shell relative min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="theme-grid-bg absolute inset-x-0 top-0 h-[52vh] opacity-20" />
-        <div className="absolute left-[-8rem] top-16 h-72 w-72 rounded-full bg-brand-500/16 blur-[130px]" />
+        <div className="absolute left-[-8rem] top-16 h-72 w-72 rounded-full -/ blur-[130px]" />
         <div className="absolute right-[-4rem] top-8 h-80 w-80 rounded-full bg-brand-300/12 blur-[130px]" />
-        <div className="absolute bottom-[-8rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-brand-500/10 blur-[150px]" />
+        <div className="absolute bottom-[-8rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full -/ blur-[150px]" />
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
@@ -135,7 +135,7 @@ export const Login = memo(function Login() {
                 ['Put Away', 'Route stock to the right mapped zones'],
                 ['Dispatch', 'Monitor outbound execution in real time'],
               ].map(([title, description]) => (
-                <div key={title} className="rounded-[24px] border border-white/10 bg-white/[0.03] p-5">
+                <div key={title} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
                   <p className="text-sm font-semibold text-white">{title}</p>
                   <p className="mt-2 text-sm leading-6 text-neutral-300">{description}</p>
                 </div>
@@ -174,7 +174,7 @@ export const Login = memo(function Login() {
               <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                  <div className="animate-in fade-in slide-in-from-top-2 flex items-start gap-2 rounded-[22px] border border-danger-500/25 bg-danger-500/10 px-4 py-3 text-sm text-danger-200">
+                  <div className="animate-in fade-in slide-in-from-top-2 flex items-start gap-2 rounded-[22px] border border-danger-500/25 -/ px-4 py-3 text-sm text-danger-200">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{error}</span>
                   </div>
@@ -276,7 +276,7 @@ export const Login = memo(function Login() {
                     </div>
                   </div>
 
-                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-3">
+                  <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-white">Demo account</p>

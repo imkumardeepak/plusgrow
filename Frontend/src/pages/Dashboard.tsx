@@ -148,7 +148,7 @@ export const Dashboard = memo(function Dashboard() {
             >
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-warning-400/20 bg-warning-500/12 text-warning-100">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-warning-400/20 -/ text-warning-100">
                     <Clock className="h-7 w-7" />
                   </div>
                   <div>
@@ -263,12 +263,12 @@ export const Dashboard = memo(function Dashboard() {
               {recentActivities.map((activity, idx) => (
                 <div
                   key={activity.id}
-                  className="animate-in fade-in slide-in-from-right-4 group flex items-start gap-3 rounded-[22px] border border-white/6 bg-white/[0.03] p-3 transition-all duration-200 hover:border-white/12 hover:bg-white/[0.05]"
+                  className="animate-in fade-in slide-in-from-right-4 group flex items-start gap-3 rounded-[22px] border border-white/6 bg-white/[0.04] p-3 transition-all duration-200 hover:border-white/12 hover:bg-white/[0.04]"
                   style={{ animationFillMode: 'both', animationDelay: `${idx * 60}ms` }}
                 >
                   <div className="relative mt-0.5 shrink-0">
                     <div className={cn(
-                      'relative z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-white/[0.05] transition-transform duration-300 group-hover:scale-105',
+                      'relative z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-white/[0.04] transition-transform duration-300 group-hover:scale-105',
                       activity.type === 'Inward'
                         ? 'border-brand-300/20 text-brand-200'
                         : activity.type === 'Outward'

@@ -51,15 +51,15 @@ export function createTableColumns<T>(
           switch (variant) {
             case 'destructive': return 'text-danger-500';
             case 'info': return 'text-brand-500';
-            default: return 'text-neutral-600';
+            default: return 'text-neutral-300';
           }
         };
 
         const getHoverColor = (variant?: string) => {
           switch (variant) {
-            case 'destructive': return 'hover:bg-danger-50 hover:text-danger-600';
-            case 'info': return 'hover:bg-brand-50 hover:text-brand-600';
-            default: return 'hover:bg-brand-50 hover:text-brand-600';
+            case 'destructive': return 'hover:bg-danger-400/10 hover:text-danger-300';
+            case 'info': return 'hover:bg-brand-400/10 hover:text-brand-300';
+            default: return 'hover:bg-brand-400/10 hover:text-brand-300';
           }
         };
 
@@ -71,7 +71,7 @@ export function createTableColumns<T>(
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-neutral-400 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-brand-50 focus:outline-none focus-visible:ring-0 active:ring-0"
+                    className="h-8 w-8 p-0 text-neutral-400 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-brand-400/10 focus:outline-none focus-visible:ring-0 active:ring-0"
                   >
                     <motion.div
                       whileHover={{ scale: 1.1 }}
@@ -91,10 +91,10 @@ export function createTableColumns<T>(
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                    className="bg-white rounded-xl border border-neutral-200/60 shadow-xl shadow-brand-100/20 overflow-hidden"
+                    className="bg-white/[0.04] rounded-xl border border-neutral-200/60 shadow-xl shadow-brand-100/20 overflow-hidden"
                   >
                     {/* Header */}
-                    <div className="px-3 py-2 border-b border-neutral-100">
+                    <div className="px-3 py-2 border-b border-white/10">
                       <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Actions</p>
                     </div>
 
@@ -108,7 +108,7 @@ export function createTableColumns<T>(
                           transition={{ delay: index * 0.05, duration: 0.15 }}
                         >
                           {index > 0 && (
-                            <div className="mx-3 my-1 border-t border-neutral-100" />
+                            <div className="mx-3 my-1 border-t border-white/10" />
                           )}
                           <DropdownMenuItem
                             onClick={() => action.onClick(row.original)}

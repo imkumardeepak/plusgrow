@@ -86,7 +86,7 @@ export const Register = memo(function Register() {
     return (
       <div className="theme-shell flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md relative z-10 text-center">
-          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full border border-success-400/30 bg-success-500/15">
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full border border-success-400/30 -/">
             <CheckCircle2 className="h-8 w-8 text-success-300" />
           </div>
           <h2 className="mb-2 text-2xl font-heading font-bold text-white">Registration Successful!</h2>
@@ -103,7 +103,7 @@ export const Register = memo(function Register() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="theme-grid-bg absolute inset-x-0 top-0 h-[48vh] opacity-20" />
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-brand-400/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-brand-500/12 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full -/ blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
@@ -128,7 +128,7 @@ export const Register = memo(function Register() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Error message */}
               {error && (
-                <div className="animate-in fade-in slide-in-from-top-2 flex items-center gap-2 rounded-2xl border border-danger-500/20 bg-danger-500/10 p-3 text-sm text-danger-200">
+                <div className="animate-in fade-in slide-in-from-top-2 flex items-center gap-2 rounded-2xl border border-danger-500/20 -/ p-3 text-sm text-danger-200">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>

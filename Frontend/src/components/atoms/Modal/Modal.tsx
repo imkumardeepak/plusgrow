@@ -107,9 +107,9 @@ export function Modal({
                   {variant !== 'default' && (
                     <div className={cn(
                       'w-10 h-10 rounded-xl flex items-center justify-center',
-                      variant === 'danger' && 'bg-danger-500/12 text-danger-200 border border-danger-400/20',
-                      variant === 'success' && 'bg-success-500/12 text-success-200 border border-success-400/20',
-                      variant === 'warning' && 'bg-warning-500/12 text-warning-100 border border-warning-400/20'
+                      variant === 'danger' && '-/ text-danger-200 border border-danger-400/20',
+                      variant === 'success' && '-/ text-success-200 border border-success-400/20',
+                      variant === 'warning' && '-/ text-warning-100 border border-warning-400/20'
                     )}>
                       {variant === 'danger' && <AlertTriangle className="w-5 h-5" />}
                       {variant === 'success' && <CheckCircle className="w-5 h-5" />}
@@ -179,19 +179,19 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const variantStyles = {
     danger: {
-      icon: 'bg-danger-100 text-danger-600',
+      icon: 'bg-danger-100 text-danger-300',
       button: 'bg-gradient-to-br from-danger-500 to-danger-600 hover:from-danger-600 hover:to-danger-700 shadow-danger-200',
-      dot: 'bg-danger-500',
+      dot: 'bg-danger-400/100',
     },
     warning: {
-      icon: 'bg-warning-100 text-warning-600',
+      icon: 'bg-warning-100 text-warning-300',
       button: 'bg-gradient-to-br from-warning-500 to-amber-500 hover:from-warning-600 hover:to-amber-600 shadow-warning-200',
-      dot: 'bg-warning-500',
+      dot: 'bg-warning-400/100',
     },
     default: {
-      icon: 'bg-brand-100 text-brand-600',
+      icon: 'bg-brand-400/20 text-brand-300',
       button: 'bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 shadow-brand-200',
-      dot: 'bg-brand-500',
+      dot: 'bg-brand-400/100',
     },
   };
 

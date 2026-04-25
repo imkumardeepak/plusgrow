@@ -111,7 +111,7 @@ export function DataTable<TData, TValue>({
               <button
                 type="button"
                 onClick={() => handleSearch('')}
-                className="rounded-full bg-white/8 p-1.5 text-neutral-500 transition-colors hover:bg-white/12 hover:text-neutral-800"
+                className="rounded-full bg-white/8 p-1.5 text-neutral-500 transition-colors hover:bg-white/12 hover:text-neutral-100"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -133,7 +133,7 @@ export function DataTable<TData, TValue>({
                   {headerGroup.headers.map((header, index) => (
                     <th
                       key={header.id}
-                      className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-neutral-500 [&:has([role=checkbox])]:pr-0"
+                      className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-neutral-300 [&:has([role=checkbox])]:pr-0"
                     >
                       <div className="flex items-center gap-2">
                         {index === 0 && (
@@ -141,7 +141,7 @@ export function DataTable<TData, TValue>({
                         )}
                         <button
                           onClick={header.column.getToggleSortingHandler()}
-                          className="inline-flex items-center gap-1.5 hover:text-brand-600 transition-colors group"
+                          className="inline-flex items-center gap-1.5 hover:text-brand-300 transition-colors group"
                         >
                           {header.isPlaceholder ? null : flexRender(
                             header.column.columnDef.header,
@@ -150,8 +150,8 @@ export function DataTable<TData, TValue>({
                           {header.column.getCanSort() && (
                             <span className="p-0.5 rounded transition-colors">
                               {{
-                                asc: <ArrowUp className="w-3.5 h-3.5 text-brand-600" />,
-                                desc: <ArrowDown className="w-3.5 h-3.5 text-brand-600" />,
+                                asc: <ArrowUp className="w-3.5 h-3.5 text-brand-300" />,
+                                desc: <ArrowDown className="w-3.5 h-3.5 text-brand-300" />,
                               }[header.column.getIsSorted() as string] ?? (
                                 <ArrowUpDown className="w-3.5 h-3.5 text-neutral-300 group-hover:text-neutral-400" />
                               )}
@@ -164,7 +164,7 @@ export function DataTable<TData, TValue>({
                 </tr>
               ))}
             </thead>
-            <tbody className="divide-y divide-neutral-100/60">
+            <tbody className="divide-y divide-white/">
               <AnimatePresence mode="wait">
                 {loading ? (
                   <tr>
@@ -179,7 +179,7 @@ export function DataTable<TData, TValue>({
                         <div className="relative">
                           <div className="w-10 h-10 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" />
                         </div>
-                        <span className="text-sm font-medium text-neutral-600">Loading data...</span>
+                        <span className="text-sm font-medium text-neutral-300">Loading data...</span>
                       </motion.div>
                     </td>
                   </tr>
@@ -197,7 +197,7 @@ export function DataTable<TData, TValue>({
                           <FileX className="w-8 h-8 text-neutral-500" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-neutral-800">No results found</p>
+                          <p className="text-sm font-medium text-neutral-100">No results found</p>
                           <p className="mt-1 text-xs text-neutral-500">Try adjusting your search or filter</p>
                         </div>
                       </motion.div>
@@ -241,7 +241,7 @@ export function DataTable<TData, TValue>({
               <>
                 <span className="mx-1 text-neutral-300">|</span>
                 <span>
-                  Showing <span className="font-medium text-neutral-700">{startRow}-{endRow}</span>
+                  Showing <span className="font-medium text-neutral-200">{startRow}-{endRow}</span>
                 </span>
               </>
             )}
@@ -253,7 +253,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
-              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-600 hover:bg-brand-50 disabled:opacity-40 disabled:hover:bg-transparent"
+              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-300 hover:bg-brand-400/10 disabled:opacity-40 disabled:hover:bg-transparent"
             >
               <ChevronsLeft className="w-4 h-4" />
             </Button>
@@ -262,7 +262,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
-              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-600 hover:bg-brand-50 disabled:opacity-40 disabled:hover:bg-transparent"
+              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-300 hover:bg-brand-400/10 disabled:opacity-40 disabled:hover:bg-transparent"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -288,7 +288,7 @@ export function DataTable<TData, TValue>({
                     className={`w-8 h-8 rounded-lg text-xs font-medium transition-all duration-200 ${
                       isActive
                         ? 'bg-gradient-to-br from-brand-400 to-brand-600 text-slate-950 shadow-brand'
-                        : 'text-neutral-600 hover:bg-white/8'
+                        : 'text-neutral-300 hover:bg-white/8'
                     }`}
                   >
                     {pageNum + 1}
@@ -302,7 +302,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
-              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-600 hover:bg-brand-50 disabled:opacity-40 disabled:hover:bg-transparent"
+              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-300 hover:bg-brand-400/10 disabled:opacity-40 disabled:hover:bg-transparent"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -311,7 +311,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.setPageIndex(pageCount - 1)}
               disabled={!table.getCanNextPage()}
-              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-600 hover:bg-brand-50 disabled:opacity-40 disabled:hover:bg-transparent"
+              className="w-8 h-8 p-0 text-neutral-500 hover:text-brand-300 hover:bg-brand-400/10 disabled:opacity-40 disabled:hover:bg-transparent"
             >
               <ChevronsRight className="w-4 h-4" />
             </Button>

@@ -70,13 +70,13 @@ export function StatCard({
               "p-2.5 rounded-xl",
               isGradient
                 ? "bg-white/20 backdrop-blur-sm"
-                : "bg-brand-50"
+                : "bg-brand-400/10"
             )}
           >
             <Icon
               className={cn(
                 "w-5 h-5",
-                isGradient ? "text-white" : "text-brand-600"
+                isGradient ? "text-white" : "text-brand-300"
               )}
             />
           </div>
@@ -118,7 +118,7 @@ export function StatCard({
           <p
             className={cn(
               "text-3xl font-bold mt-1 font-accent",
-              isGradient ? "text-white" : "text-neutral-900"
+              isGradient ? "text-white" : "text-white"
             )}
           >
             {value}

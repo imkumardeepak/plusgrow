@@ -15,9 +15,9 @@ export const badgeVariants = cva(
         default: "border border-white/10 bg-white/6 text-neutral-100",
         primary: "border border-brand-300/20 bg-brand-400/12 text-brand-100",
         secondary: "border border-white/10 bg-white/6 text-neutral-100",
-        success: "border border-success-400/20 bg-success-500/12 text-success-200",
-        warning: "border border-warning-400/20 bg-warning-500/12 text-warning-100",
-        danger: "border border-danger-400/20 bg-danger-500/12 text-danger-200",
+        success: "border border-success-400/20 -/ text-success-200",
+        warning: "border border-warning-400/20 -/ text-warning-100",
+        danger: "border border-danger-400/20 -/ text-danger-200",
         info: "border border-info-400/20 bg-info-500/12 text-info-100",
         outline: "bg-transparent border border-white/14 text-neutral-100",
         ghost: "bg-transparent text-neutral-200 hover:bg-white/8",
@@ -87,11 +87,11 @@ export function Badge({
           className={cn(
             "flex-shrink-0 rounded-full",
             size === "sm" ? "w-1 h-1" : size === "lg" ? "w-2 h-2" : "w-1.5 h-1.5",
-            dotColor || (variant === "success" ? "bg-success-500" : 
-                       variant === "warning" ? "bg-warning-500" :
-                       variant === "danger" ? "bg-danger-500" :
-                       variant === "primary" ? "bg-brand-500" :
-                       "bg-neutral-500")
+            dotColor || (variant === "success" ? "bg-success-400/100" : 
+                       variant === "warning" ? "bg-warning-400/100" :
+                       variant === "danger" ? "bg-danger-400/100" :
+                       variant === "primary" ? "bg-brand-400/100" :
+                       "bg-white/[0.02]0")
           )}
         />
       )}

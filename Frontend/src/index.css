@@ -73,19 +73,19 @@
   --color-info-800: #052D52;
   --color-info-900: #001D39;
 
-  /* Neutral Colors: legacy classes mapped to dark shell */
+  /* Neutral Colors: Standard scale where 50 is light and 950 is dark */
   --color-neutral-0: #ffffff;
-  --color-neutral-50: #0b1322;
-  --color-neutral-100: #101a2e;
-  --color-neutral-200: #16243d;
-  --color-neutral-300: #22324f;
-  --color-neutral-400: #43607f;
-  --color-neutral-500: #7b94ae;
-  --color-neutral-600: #a9bdd0;
-  --color-neutral-700: #cad8e5;
-  --color-neutral-800: #e4edf5;
-  --color-neutral-900: #f7fbff;
-  --color-neutral-950: #ffffff;
+  --color-neutral-50: #f8fafc;
+  --color-neutral-100: #f1f5f9;
+  --color-neutral-200: #e2e8f0;
+  --color-neutral-300: #cbd5e1;
+  --color-neutral-400: #94a3b8;
+  --color-neutral-500: #64748b;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1e293b;
+  --color-neutral-900: #0f172a;
+  --color-neutral-950: #020617;
 
   --shadow-card: 0 18px 45px rgba(2, 8, 23, 0.28);
   --shadow-card-hover: 0 24px 55px rgba(2, 8, 23, 0.36), 0 0 0 1px rgba(67, 212, 255, 0.08);
@@ -163,7 +163,7 @@
     @apply mt-0.5 text-xs font-medium uppercase tracking-[0.2em] text-neutral-500;
   }
   .field-label {
-    @apply text-sm font-medium text-neutral-800;
+    @apply text-sm font-medium text-neutral-300;
   }
   .theme-textarea {
     @apply w-full resize-none rounded-2xl border border-white/12 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-500 transition-all duration-200 hover:border-brand-300/30 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400;
