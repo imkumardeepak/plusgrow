@@ -118,7 +118,7 @@ export const Manufacturers = memo(function Manufacturers() {
               <Factory className="w-5 h-5 text-brand-300" />
             </div>
             <div>
-              <p className="font-semibold text-white">{row.name}</p>
+              <p className="font-semibold text-neutral-900">{row.name}</p>
               <div className="mt-0.5 space-y-1">
                 {row.country && (
                   <p className="text-xs text-neutral-500 flex items-center gap-1.5">
@@ -222,17 +222,17 @@ export const Manufacturers = memo(function Manufacturers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="field-label">Address</label>
+            <label className="text-sm font-medium text-neutral-700">Address</label>
             <textarea
               placeholder="Manufacturer address"
               value={formData.address}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
               rows={2}
-              className="theme-textarea"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-all duration-200 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:border-brand-500 resize-none"
             />
           </div>
           <div className="space-y-2">
-            <label className="field-label">Country</label>
+            <label className="text-sm font-medium text-neutral-700">Country</label>
             <Input
               placeholder="Country of origin"
               value={formData.country}

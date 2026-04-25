@@ -34,6 +34,10 @@ builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+builder.Services.AddScoped<IStickerService, StickerService>();
+
+// Add HttpClient for StickerService
+builder.Services.AddHttpClient();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
