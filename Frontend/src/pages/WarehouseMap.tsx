@@ -64,22 +64,22 @@ export const WarehouseMap = memo(function WarehouseMap() {
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center shrink-0 border border-orange-200 shadow-sm">
-              <Map className="w-5 h-5 text-orange-600" />
+            <div className="page-icon-chip">
+              <Map className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-neutral-900 leading-tight tracking-tight">Facility Mapping</h1>
+              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Facility Mapping</h1>
               <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Asset & Inventory Locator</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 border-l border-neutral-200/50 pl-4">
+          <div className="flex items-center gap-3 border-l border-white/10 pl-4">
              <div className="relative w-64">
                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                <Input
                  placeholder="Search SKU or Location..."
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
-                 className="pl-9 h-9 text-sm bg-white focus:bg-white transition-colors border-neutral-200 shadow-sm"
+                 className="pl-9 h-9 text-sm"
                />
              </div>
              <Button

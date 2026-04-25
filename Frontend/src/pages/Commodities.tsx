@@ -141,15 +141,15 @@ export const Commodities = memo(function Commodities() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-neutral-200 px-6 py-4">
+      <div className="page-toolbar">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-200">
-              <Tag className="w-5 h-5 text-white" />
+            <div className="page-icon-chip">
+              <Tag className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-neutral-900 leading-tight tracking-tight">Commodities</h1>
-              <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Product Categories</p>
+              <h1 className="page-title">Commodities</h1>
+              <p className="page-subtitle">Product Categories</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export const Commodities = memo(function Commodities() {
       </div>
 
       {/* Data Table */}
-      <div className="flex-1 bg-white mx-6 mb-6 rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      <div className="page-table-shell">
         <div className="p-6">
           <DataTable
             columns={columns}
@@ -187,7 +187,7 @@ export const Commodities = memo(function Commodities() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">
+            <label className="field-label">
               Commodity Name <span className="text-danger-500">*</span>
             </label>
             <Input
@@ -197,7 +197,7 @@ export const Commodities = memo(function Commodities() {
               className="h-10"
             />
           </div>
-          <div className="flex gap-3 pt-4 border-t border-neutral-200">
+          <div className="flex gap-3 pt-4 border-t border-white/10">
             <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
               Cancel
             </Button>

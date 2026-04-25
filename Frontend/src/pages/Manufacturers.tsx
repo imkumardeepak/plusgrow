@@ -165,15 +165,15 @@ export const Manufacturers = memo(function Manufacturers() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
+      <div className="page-toolbar">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-200">
-              <Factory className="w-5 h-5 text-white" />
+            <div className="page-icon-chip">
+              <Factory className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-neutral-900 leading-tight tracking-tight">Manufacturers</h1>
-              <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Production Partners</p>
+              <h1 className="page-title">Manufacturers</h1>
+              <p className="page-subtitle">Production Partners</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -189,7 +189,7 @@ export const Manufacturers = memo(function Manufacturers() {
       </div>
 
       {/* Data Table */}
-      <div className="flex-1 bg-white mx-6 mb-6 rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      <div className="page-table-shell">
         <div className="p-6">
           <DataTable
             columns={columns}
@@ -211,7 +211,7 @@ export const Manufacturers = memo(function Manufacturers() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">
+            <label className="field-label">
               Company Name <span className="text-danger-500">*</span>
             </label>
             <Input
@@ -222,17 +222,17 @@ export const Manufacturers = memo(function Manufacturers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Address</label>
+            <label className="field-label">Address</label>
             <textarea
               placeholder="Manufacturer address"
               value={formData.address}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
               rows={2}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-all duration-200 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:border-brand-500 resize-none"
+              className="theme-textarea"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Country</label>
+            <label className="field-label">Country</label>
             <Input
               placeholder="Country of origin"
               value={formData.country}
@@ -240,7 +240,7 @@ export const Manufacturers = memo(function Manufacturers() {
               className="h-10"
             />
           </div>
-          <div className="flex gap-3 pt-4 border-t border-neutral-200">
+          <div className="flex gap-3 pt-4 border-t border-white/10">
             <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
               Cancel
             </Button>

@@ -8,20 +8,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../../lib/utils";
 
 export const inputVariants = cva(
-  "flex w-full bg-white transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-500",
+  "flex w-full bg-white/[0.04] transition-all duration-200 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:bg-white/[0.03] disabled:text-neutral-600",
   {
     variants: {
       variant: {
-        default: "border border-neutral-300 text-neutral-900 hover:border-neutral-400",
+        default: "border border-white/12 text-white hover:border-brand-300/30 focus-visible:border-brand-400",
         error: "border border-danger-300 text-danger-900 placeholder:text-danger-300 hover:border-danger-400 focus-visible:ring-danger-500",
         success: "border border-success-300 text-success-900 hover:border-success-400 focus-visible:ring-success-500",
-        ghost: "border-0 bg-transparent hover:bg-neutral-50 focus-visible:bg-white focus-visible:ring-1",
+        ghost: "border-0 bg-transparent hover:bg-white/6 focus-visible:bg-white/8 focus-visible:ring-1",
       },
       size: {
-        sm: "h-9 px-3 text-sm rounded-lg",
-        md: "h-11 px-4 text-sm rounded-xl",
-        lg: "h-12 px-4 text-base rounded-xl",
-        xl: "h-14 px-5 text-base rounded-xl",
+        sm: "h-10 px-3.5 text-sm rounded-2xl",
+        md: "h-11 px-4 text-sm rounded-2xl",
+        lg: "h-12 px-4 text-base rounded-2xl",
+        xl: "h-14 px-5 text-base rounded-2xl",
       },
     },
     defaultVariants: {
@@ -78,7 +78,7 @@ export const Input = React.forwardRef<HTMLDivElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-neutral-700"
+            className="text-sm font-medium text-neutral-100"
           >
             {label}
             {props.required && <span className="text-danger-500 ml-0.5">*</span>}
@@ -86,7 +86,7 @@ export const Input = React.forwardRef<HTMLDivElement, InputProps>(
         )}
         <div className={cn("relative flex items-center", fullWidth && "w-full")}>
           {leftElement && (
-            <div className="absolute left-3 flex items-center pointer-events-none text-neutral-400">
+            <div className="absolute left-3 flex items-center pointer-events-none text-neutral-500">
               {leftElement}
             </div>
           )}
@@ -105,13 +105,13 @@ export const Input = React.forwardRef<HTMLDivElement, InputProps>(
             {...props}
           />
           {rightElement && (
-            <div className="absolute right-3 flex items-center text-neutral-400">
+            <div className="absolute right-3 flex items-center text-neutral-500">
               {rightElement}
             </div>
           )}
         </div>
         {helperText && !hasError && (
-          <p id={`${inputId}-helper`} className="text-xs text-neutral-500">
+          <p id={`${inputId}-helper`} className="text-xs text-neutral-300/70">
             {helperText}
           </p>
         )}

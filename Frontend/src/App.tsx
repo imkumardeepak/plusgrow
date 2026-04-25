@@ -38,10 +38,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+      <div className="theme-shell flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-3 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-neutral-500">Loading...</p>
+          <div className="h-10 w-10 rounded-full border-[3px] border-brand-400 border-t-transparent animate-spin" />
+          <p className="text-neutral-300">Loading...</p>
         </div>
       </div>
     );

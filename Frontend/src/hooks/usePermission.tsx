@@ -1,6 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ComponentType } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { isSuperadmin, SUPERADMIN_PAGES, PAGE_KEYS } from '../config/superadmin';
+import { isSuperadmin, SUPERADMIN_PAGES } from '../config/superadmin';
 
 /**
  * Hook for role-based permission checking
@@ -83,7 +83,7 @@ export function usePermission() {
  * Component wrapper for page-level access control
  */
 export function withPermission<P extends object>(
-  WrappedComponent: React.ComponentType<P>,
+  WrappedComponent: ComponentType<P>,
   requiredRole?: string | string[]
 ) {
   return function PermissionWrapper(props: P) {

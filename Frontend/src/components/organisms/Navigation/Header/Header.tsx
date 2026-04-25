@@ -67,7 +67,7 @@ export function Header({
   return (
     <header
       className={cn(
-        "h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-neutral-200 sticky top-0 z-30 px-4 lg:px-8 flex items-center justify-between gap-4",
+        "sticky top-0 z-30 mx-4 mt-4 flex h-16 items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(22,33,52,0.88)_0%,rgba(15,24,40,0.92)_100%)] px-4 backdrop-blur-xl shadow-card lg:mx-6 lg:mt-5 lg:h-20 lg:px-6",
         className
       )}
     >
@@ -91,7 +91,7 @@ export function Header({
             leftElement={<Search className="w-4 h-4" />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-neutral-50 border-neutral-200"
+            className="theme-input"
           />
         </div>
       </div>
@@ -138,19 +138,19 @@ export function Header({
         {/* User Menu */}
         <div className="relative">
             <button
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-neutral-100 transition-colors"
+          onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex items-center gap-3 rounded-full border border-transparent p-1.5 transition-colors hover:border-white/10 hover:bg-white/6"
             aria-expanded={userMenuOpen}
             aria-haspopup="true"
           >
             {/* Avatar */}
-            <div className="w-9 h-9 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-brand-700 font-bold text-sm">
+            <div className="theme-glow flex h-9 w-9 items-center justify-center rounded-full border border-brand-300/30 bg-gradient-to-br from-brand-300 to-brand-500 text-sm font-bold text-neutral-950">
               {userInitials}
             </div>
 
             {/* User Info (hidden on mobile) */}
             <div className="hidden md:block text-left">
-              <p className="text-sm font-semibold text-neutral-900 leading-none flex items-center gap-1.5">
+              <p className="flex items-center gap-1.5 text-sm font-semibold leading-none text-white">
                 {userName}
                 {userRole?.toLowerCase() === 'superadmin' && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full shadow-sm">
@@ -159,12 +159,12 @@ export function Header({
                   </span>
                 )}
               </p>
-              <p className="text-xs text-neutral-500 mt-0.5">{userRole}</p>
+              <p className="mt-0.5 text-xs text-neutral-300">{userRole}</p>
             </div>
 
             <ChevronDown
               className={cn(
-                "w-4 h-4 text-neutral-400 hidden md:block transition-transform duration-200",
+                "hidden w-4 h-4 text-neutral-300 md:block transition-transform duration-200",
                 userMenuOpen && "rotate-180"
               )}
             />
@@ -180,13 +180,13 @@ export function Header({
               />
 
               {/* Menu */}
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl border border-neutral-200 shadow-lg z-50 py-1 animate-scale-in">
+              <div className="animate-scale-in absolute right-0 top-full z-50 mt-3 w-56 rounded-3xl border border-white/10 bg-neutral-900/96 py-1 shadow-float backdrop-blur-xl">
                 {/* User Header */}
-                <div className="px-4 py-3 border-b border-neutral-100">
-                  <p className="text-sm font-semibold text-neutral-900">
+                <div className="border-b border-white/10 px-4 py-3">
+                  <p className="text-sm font-semibold text-white">
                     {userName}
                   </p>
-                  <p className="text-xs text-neutral-500">{userRole}</p>
+                  <p className="text-xs text-neutral-300">{userRole}</p>
                 </div>
 
                 {/* Menu Items */}
@@ -196,23 +196,23 @@ export function Header({
                       setUserMenuOpen(false);
                       onProfileClick?.();
                     }} 
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors"
+                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6"
                   >
-                    <User className="w-4 h-4 text-neutral-400" />
+                    <User className="w-4 h-4 text-neutral-300" />
                     Profile
                   </button>
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                    <Settings className="w-4 h-4 text-neutral-400" />
+                  <button className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6">
+                    <Settings className="w-4 h-4 text-neutral-300" />
                     Settings
                   </button>
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                    <HelpCircle className="w-4 h-4 text-neutral-400" />
+                  <button className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6">
+                    <HelpCircle className="w-4 h-4 text-neutral-300" />
                     Help & Support
                   </button>
                 </nav>
 
                 {/* Divider */}
-                <div className="border-t border-neutral-100 my-1" />
+                <div className="my-1 border-t border-white/10" />
 
                 {/* Logout */}
                 <button 
@@ -220,7 +220,7 @@ export function Header({
                     setUserMenuOpen(false);
                     onLogout?.();
                   }} 
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-danger-600 hover:bg-danger-50 transition-colors"
+                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger-300 transition-colors hover:bg-danger-500/10"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign out

@@ -9,13 +9,13 @@ import { cn } from "../../../lib/utils";
 
 // Card Container
 export const cardVariants = cva(
-  "rounded-2xl border transition-all duration-300",
+  "rounded-[26px] border transition-all duration-300",
   {
     variants: {
       variant: {
         default: "card-base",
-        elevated: "bg-white border-neutral-200 shadow-float",
-        outlined: "bg-white border-neutral-300 shadow-sm",
+        elevated: "bg-white/[0.05] border-white/10 shadow-float",
+        outlined: "bg-white/[0.03] border-white/12 shadow-card",
         ghost: "border-transparent shadow-none bg-transparent",
         interactive: "card-base card-hover cursor-pointer",
         glass: "glassmorphism",
@@ -83,7 +83,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
         ref={ref}
         className={cn(
           "flex items-start justify-between gap-4",
-          divider && "border-b border-neutral-200 pb-4",
+          divider && "border-b border-white/10 pb-4",
           className
         )}
         {...props}
@@ -114,7 +114,7 @@ export const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
     return (
       <h3
         ref={ref}
-        className={cn("text-neutral-900 tracking-tight", sizeClasses[size], className)}
+        className={cn("text-white tracking-tight", sizeClasses[size], className)}
         {...props}
       />
     );
@@ -131,7 +131,7 @@ export const CardDescription = React.forwardRef<HTMLParagraphElement, CardDescri
     return (
       <p
         ref={ref}
-        className={cn("text-sm text-neutral-500 mt-1", className)}
+        className={cn("text-sm text-neutral-300 mt-1", className)}
         {...props}
       />
     );
@@ -182,7 +182,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
         ref={ref}
         className={cn(
           "flex items-center gap-3",
-          divider && "border-t border-neutral-200 pt-4 mt-4",
+          divider && "border-t border-white/10 pt-4 mt-4",
           alignClasses[align],
           className
         )}
@@ -205,12 +205,12 @@ function CardSkeleton({ padding }: { padding?: "none" | "sm" | "md" | "lg" }) {
 
   return (
     <div className={cn("animate-pulse", paddingClass[padding || "none"])}>
-      <div className="h-5 bg-neutral-200 rounded w-1/3 mb-2" />
-      <div className="h-4 bg-neutral-200 rounded w-2/3 mb-4" />
+      <div className="h-5 bg-white/10 rounded w-1/3 mb-2" />
+      <div className="h-4 bg-white/10 rounded w-2/3 mb-4" />
       <div className="space-y-2">
-        <div className="h-3 bg-neutral-200 rounded w-full" />
-        <div className="h-3 bg-neutral-200 rounded w-5/6" />
-        <div className="h-3 bg-neutral-200 rounded w-4/6" />
+        <div className="h-3 bg-white/10 rounded w-full" />
+        <div className="h-3 bg-white/10 rounded w-5/6" />
+        <div className="h-3 bg-white/10 rounded w-4/6" />
       </div>
     </div>
   );

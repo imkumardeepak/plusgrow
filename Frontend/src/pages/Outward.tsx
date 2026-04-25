@@ -138,16 +138,16 @@ export const Outward = memo(function Outward() {
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0 border border-brand-200 shadow-sm">
-              <ArrowUpFromLine className="w-5 h-5 text-brand-600 mb-0.5" />
+            <div className="page-icon-chip shrink-0">
+              <ArrowUpFromLine className="mb-0.5 w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-neutral-900 leading-tight tracking-tight">Outward Logistics Center</h1>
+              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Outward Logistics Center</h1>
               <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Sales Order Synchronization</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 px-4 font-bold border-neutral-200" leftIcon={<Filter className="w-4 h-4" />}>
+            <Button variant="outline" size="sm" className="h-9 px-4 font-bold" leftIcon={<Filter className="w-4 h-4" />}>
               Filters
             </Button>
             <Button 
@@ -222,7 +222,7 @@ export const Outward = memo(function Outward() {
       </div>
 
       {/* Main Content Workspace */}
-      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden border-neutral-200 shadow-sm ring-1 ring-black/[0.02] min-h-0">
+      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden border-neutral-200 shadow-sm ring-1 ring-white/[0.03] min-h-0">
         <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-neutral-50/50 z-10 shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle size="sm" className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export const Outward = memo(function Outward() {
                 placeholder="Search SI/Customer/SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-sm bg-white focus:bg-white transition-colors border-neutral-200/80 shadow-sm"
+                className="pl-9 h-9 text-sm"
               />
             </div>
           </div>

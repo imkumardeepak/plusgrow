@@ -56,13 +56,13 @@ export const Dispatch = memo(function Dispatch() {
       <Card variant="glass" className="p-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 min-w-0 flex items-center gap-3 pr-4">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0 border border-brand-200 shadow-sm">
-              <Send className="w-5 h-5 text-brand-600 ml-0.5" />
+            <div className="page-icon-chip">
+              <Send className="ml-0.5 w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
                <div className="flex items-center justify-between mb-1.5">
                  <h1 className="text-xs font-bold text-neutral-500 uppercase tracking-wider leading-tight">Daily Dispatch Progress</h1>
-                 <Badge variant="success" size="sm" className="font-mono bg-success-50 text-success-600 border border-success-200">
+                 <Badge variant="success" size="sm" className="font-mono">
                    {overallProgress}%
                  </Badge>
                </div>
@@ -75,14 +75,14 @@ export const Dispatch = memo(function Dispatch() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-shrink-0 border-l border-neutral-200/50 pl-4">
+          <div className="flex items-center gap-3 flex-shrink-0 border-l border-white/10 pl-4">
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <Input
                 placeholder="Search orders, clients..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-sm bg-neutral-50/50 focus:bg-white transition-colors border-neutral-200"
+                className="pl-9 h-9 text-sm"
               />
             </div>
           </div>
@@ -170,7 +170,7 @@ export const Dispatch = memo(function Dispatch() {
         </Card>
 
         {/* ================= RIGHT PANEL: OUTBOUND CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-black/[0.02] h-full">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-white/[0.03] h-full">
           <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-white z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">

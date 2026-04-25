@@ -68,12 +68,12 @@ export function Breadcrumbs({
       aria-label="Breadcrumb"
       className={cn("flex items-center text-sm", className)}
     >
-      <ol className="flex items-center flex-wrap gap-1">
+      <ol className="theme-pill flex flex-wrap items-center gap-1.5 text-sm">
         {showHome && (
           <li>
             <Link
               to={homeHref}
-              className="flex items-center text-neutral-400 hover:text-brand-600 transition-colors"
+              className="flex items-center text-neutral-300 transition-colors hover:text-brand-200"
               aria-label="Home"
             >
               <Home className="w-4 h-4" />
@@ -89,13 +89,13 @@ export function Breadcrumbs({
             <React.Fragment key={index}>
               {(showHome || !isFirst) && (
                 <li aria-hidden="true">
-                  <ChevronRight className="w-4 h-4 text-neutral-300 mx-1" />
+                  <ChevronRight className="mx-0.5 w-4 h-4 text-neutral-400/70" />
                 </li>
               )}
               <li>
                 {isLast || !item.href ? (
                   <span
-                    className="font-medium text-neutral-900"
+                    className="font-medium text-white"
                     aria-current="page"
                   >
                     {item.label}
@@ -103,7 +103,7 @@ export function Breadcrumbs({
                 ) : (
                   <Link
                     to={item.href}
-                    className="text-neutral-500 hover:text-brand-600 transition-colors"
+                    className="text-neutral-300 transition-colors hover:text-brand-200"
                   >
                     {item.label}
                   </Link>

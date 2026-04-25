@@ -114,7 +114,7 @@ export const Receiving = memo(function Receiving() {
               <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
                 Shift Receiving Progress
               </span>
-              <Badge variant="success" size="sm" className="font-mono bg-success-50 text-success-600 border border-success-200">
+              <Badge variant="success" size="sm" className="font-mono">
                 {overallProgress}%
               </Badge>
             </div>
@@ -127,14 +127,14 @@ export const Receiving = memo(function Receiving() {
           </div>
 
           {/* Search Toggle */}
-          <div className="flex items-center gap-3 flex-shrink-0 border-l border-neutral-200/50 pl-4">
+          <div className="flex items-center gap-3 flex-shrink-0 border-l border-white/10 pl-4">
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
               <Input
                 placeholder="Search invoices, suppliers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-sm bg-neutral-50/50 focus:bg-white transition-colors border-neutral-200"
+                className="pl-9 h-9 text-sm"
               />
               <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
             </div>
@@ -225,7 +225,7 @@ export const Receiving = memo(function Receiving() {
         </Card>
 
         {/* ================= RIGHT PANEL: WORKFLOW CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-black/[0.02] h-full">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-white/[0.03] h-full">
           <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-white z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">

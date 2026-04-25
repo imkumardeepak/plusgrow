@@ -8,29 +8,29 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../../lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-md hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:-translate-y-px",
-        primary: "bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-md hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:-translate-y-px",
-        secondary: "bg-white text-neutral-800 border border-neutral-200 shadow-sm hover:bg-neutral-50 hover:border-neutral-300 hover:shadow active:bg-neutral-100",
-        outline: "border border-neutral-200 bg-transparent text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900",
-        ghost: "text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900 active:bg-neutral-100",
-        link: "text-brand-600 underline-offset-4 hover:underline hover:text-brand-800",
+        default: "bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 text-neutral-950 shadow-brand hover:from-brand-200 hover:via-brand-300 hover:to-brand-400 hover:shadow-brand-lg hover:-translate-y-px",
+        primary: "bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 text-neutral-950 shadow-brand hover:from-brand-200 hover:via-brand-300 hover:to-brand-400 hover:shadow-brand-lg hover:-translate-y-px",
+        secondary: "border border-white/12 bg-white/6 text-white shadow-card hover:bg-white/10 hover:border-brand-300/30 hover:shadow-card-hover active:bg-white/12",
+        outline: "border border-white/14 bg-transparent text-neutral-100 hover:bg-white/8 hover:text-white hover:border-brand-300/40",
+        ghost: "text-neutral-200 hover:bg-white/8 hover:text-white active:bg-white/10",
+        link: "text-brand-200 underline-offset-4 hover:underline hover:text-brand-100",
         destructive: "bg-danger-600 text-white shadow-sm hover:bg-danger-700 hover:shadow-md hover:-translate-y-px",
         success: "bg-success-600 text-white shadow-sm hover:bg-success-700 hover:shadow-md hover:-translate-y-px",
         warning: "bg-warning-500 text-white shadow-sm hover:bg-warning-600 hover:shadow-md hover:-translate-y-px",
       },
       size: {
         xs: "h-7 px-2.5 text-xs rounded-md gap-1",
-        sm: "h-9 px-3 text-sm rounded-lg gap-1.5",
-        md: "h-11 px-4 text-sm rounded-xl gap-2",
-        lg: "h-12 px-6 text-base rounded-xl gap-2",
-        xl: "h-14 px-8 text-base rounded-xl gap-2.5",
-        icon: "h-10 w-10 rounded-lg",
-        "icon-sm": "h-8 w-8 rounded-md",
-        "icon-lg": "h-12 w-12 rounded-xl",
+        sm: "h-9 px-3 text-sm rounded-full gap-1.5",
+        md: "h-11 px-5 text-sm rounded-full gap-2",
+        lg: "h-12 px-6 text-base rounded-full gap-2",
+        xl: "h-14 px-8 text-base rounded-full gap-2.5",
+        icon: "h-10 w-10 rounded-full",
+        "icon-sm": "h-9 w-9 rounded-full",
+        "icon-lg": "h-12 w-12 rounded-full",
       },
       width: {
         auto: "w-auto",

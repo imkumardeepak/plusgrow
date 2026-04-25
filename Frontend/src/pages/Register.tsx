@@ -5,8 +5,7 @@ import { Button } from '../components/atoms/Button';
 import { Input } from '../components/atoms/Input';
 import { Logo } from '../components/atoms/Logo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
-import { Eye, EyeOff, Lock, User, Mail, Phone, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Eye, EyeOff, Lock, User, Mail, Phone, AlertCircle, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export const Register = memo(function Register() {
   const [formData, setFormData] = useState({
@@ -85,25 +84,26 @@ export const Register = memo(function Register() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-brand-50/30 to-neutral-100 flex items-center justify-center p-4">
+      <div className="theme-shell flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md relative z-10 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-success-100 rounded-full mb-4">
-            <CheckCircle2 className="w-8 h-8 text-success-600" />
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full border border-success-400/30 bg-success-500/15">
+            <CheckCircle2 className="h-8 w-8 text-success-300" />
           </div>
-          <h2 className="text-2xl font-heading font-bold text-neutral-900 mb-2">Registration Successful!</h2>
-          <p className="text-neutral-500 mb-6">Redirecting you to login page...</p>
-          <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full mx-auto" />
+          <h2 className="mb-2 text-2xl font-heading font-bold text-white">Registration Successful!</h2>
+          <p className="mb-6 text-neutral-300">Redirecting you to login page...</p>
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-brand-400 border-t-transparent" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-brand-50/30 to-neutral-100 flex items-center justify-center p-4">
+    <div className="theme-shell flex min-h-screen items-center justify-center p-4">
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-brand-100/50 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-brand-200/30 rounded-full blur-3xl" />
+        <div className="theme-grid-bg absolute inset-x-0 top-0 h-[48vh] opacity-20" />
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-brand-400/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-brand-500/12 blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
@@ -112,11 +112,14 @@ export const Register = memo(function Register() {
           <div className="inline-flex items-center justify-center mb-4">
             <Logo width={160} height={160} />
           </div>
-          <h1 className="text-2xl font-heading font-bold text-neutral-900">Create Account</h1>
-          <p className="text-neutral-500 mt-1">Join Plusgrow WMS today</p>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] border border-brand-300/20 bg-gradient-to-br from-brand-300 to-brand-500 shadow-brand">
+            <ShieldCheck className="h-7 w-7 text-slate-950" />
+          </div>
+          <h1 className="text-3xl font-heading font-bold text-white">Create Account</h1>
+          <p className="mt-1 text-neutral-300">Join PlusGrow WMS with the new premium control theme</p>
         </div>
 
-        <Card variant="elevated" className="shadow-xl border-neutral-200/50">
+        <Card variant="elevated" className="border-white/10 bg-[linear-gradient(180deg,rgba(18,29,46,0.95)_0%,rgba(10,18,32,0.98)_100%)] shadow-float">
           <CardHeader className="pb-4">
             <CardTitle size="md" className="text-center">Register</CardTitle>
           </CardHeader>
@@ -125,7 +128,7 @@ export const Register = memo(function Register() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Error message */}
               {error && (
-                <div className="flex items-center gap-2 p-3 bg-danger-50 border border-danger-200 rounded-lg text-danger-700 text-sm animate-in fade-in slide-in-from-top-2">
+                <div className="animate-in fade-in slide-in-from-top-2 flex items-center gap-2 rounded-2xl border border-danger-500/20 bg-danger-500/10 p-3 text-sm text-danger-200">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -133,11 +136,11 @@ export const Register = memo(function Register() {
 
               {/* Username */}
               <div className="space-y-2">
-                <label htmlFor="username" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="username" className="block text-sm font-medium text-neutral-100">
                   Username <span className="text-danger-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <User className="w-5 h-5" />
                   </div>
                   <Input
@@ -147,7 +150,7 @@ export const Register = memo(function Register() {
                     placeholder="Choose a username"
                     value={formData.username}
                     onChange={handleChange}
-                    className="pl-10 h-11"
+                    className="theme-input h-11 pl-10"
                     autoComplete="username"
                   />
                 </div>
@@ -155,11 +158,11 @@ export const Register = memo(function Register() {
 
               {/* Full Name */}
               <div className="space-y-2">
-                <label htmlFor="fullName" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="fullName" className="block text-sm font-medium text-neutral-100">
                   Full Name <span className="text-danger-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <User className="w-5 h-5" />
                   </div>
                   <Input
@@ -169,18 +172,18 @@ export const Register = memo(function Register() {
                     placeholder="Enter your full name"
                     value={formData.fullName}
                     onChange={handleChange}
-                    className="pl-10 h-11"
+                    className="theme-input h-11 pl-10"
                   />
                 </div>
               </div>
 
               {/* Email */}
               <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="email" className="block text-sm font-medium text-neutral-100">
                   Email
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <Mail className="w-5 h-5" />
                   </div>
                   <Input
@@ -190,7 +193,7 @@ export const Register = memo(function Register() {
                     placeholder="Enter your email (optional)"
                     value={formData.email}
                     onChange={handleChange}
-                    className="pl-10 h-11"
+                    className="theme-input h-11 pl-10"
                     autoComplete="email"
                   />
                 </div>
@@ -198,11 +201,11 @@ export const Register = memo(function Register() {
 
               {/* Phone */}
               <div className="space-y-2">
-                <label htmlFor="phone" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="phone" className="block text-sm font-medium text-neutral-100">
                   Phone
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <Phone className="w-5 h-5" />
                   </div>
                   <Input
@@ -212,7 +215,7 @@ export const Register = memo(function Register() {
                     placeholder="Enter your phone (optional)"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="pl-10 h-11"
+                    className="theme-input h-11 pl-10"
                     autoComplete="tel"
                   />
                 </div>
@@ -220,11 +223,11 @@ export const Register = memo(function Register() {
 
               {/* Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="password" className="block text-sm font-medium text-neutral-100">
                   Password <span className="text-danger-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <Lock className="w-5 h-5" />
                   </div>
                   <Input
@@ -234,27 +237,27 @@ export const Register = memo(function Register() {
                     placeholder="Create a password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="pl-10 pr-10 h-11"
+                    className="theme-input h-11 pl-10 pr-10"
                     autoComplete="new-password"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300/60 transition-colors hover:text-white"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500">Must be at least 6 characters</p>
+                <p className="text-xs text-neutral-300/70">Must be at least 6 characters</p>
               </div>
 
               {/* Confirm Password */}
               <div className="space-y-2">
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-neutral-700">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-neutral-100">
                   Confirm Password <span className="text-danger-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300/60">
                     <Lock className="w-5 h-5" />
                   </div>
                   <Input
@@ -264,7 +267,7 @@ export const Register = memo(function Register() {
                     placeholder="Confirm your password"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="pl-10 h-11"
+                    className="theme-input h-11 pl-10"
                     autoComplete="new-password"
                   />
                 </div>
@@ -288,11 +291,11 @@ export const Register = memo(function Register() {
 
               {/* Login link */}
               <div className="text-center pt-2">
-                <p className="text-sm text-neutral-500">
+                <p className="text-sm text-neutral-300">
                   Already have an account?{' '}
                   <Link
                     to="/login"
-                    className="font-semibold text-brand-600 hover:text-brand-700 hover:underline"
+                    className="font-semibold text-brand-200 hover:text-brand-100 hover:underline"
                   >
                     Sign In
                   </Link>

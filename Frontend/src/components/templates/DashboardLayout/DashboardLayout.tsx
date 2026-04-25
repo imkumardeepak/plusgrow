@@ -53,7 +53,7 @@ export function DashboardLayout({
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex overflow-hidden">
+    <div className="theme-shell min-h-screen flex overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -65,7 +65,7 @@ export function DashboardLayout({
       {/* Main Content Area */}
       <div
         className={cn(
-          "flex-1 flex flex-col min-w-0 transition-all duration-300 h-screen overflow-hidden",
+          "flex-1 flex min-w-0 flex-col transition-all duration-300 h-screen overflow-hidden",
           sidebarCollapsed ? "lg:ml-0" : "lg:ml-0"
         )}
       >
@@ -85,25 +85,25 @@ export function DashboardLayout({
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className={cn("p-6", contentClassName)}>
-            <div className="max-w-[1600px] mx-auto">
+          <div className={cn("p-4 lg:p-6", contentClassName)}>
+            <div className="mx-auto max-w-[1680px]">
               {/* Breadcrumbs */}
               {showBreadcrumbs && (
-                <div className="mb-6">
+                <div className="mb-5">
                   <Breadcrumbs items={breadcrumbs} />
                 </div>
               )}
 
               {/* Page Header */}
               {(pageTitle || pageDescription) && (
-                <div className="mb-8">
+                <div className="theme-panel mb-8 px-6 py-6 lg:px-8">
                   {pageTitle && (
-                    <h1 className="text-2xl lg:text-3xl font-heading font-bold text-neutral-900">
+                    <h1 className="text-2xl lg:text-3xl font-heading font-bold text-white">
                       {pageTitle}
                     </h1>
                   )}
                   {pageDescription && (
-                    <p className="text-neutral-500 mt-2">{pageDescription}</p>
+                    <p className="mt-2 text-neutral-300">{pageDescription}</p>
                   )}
                 </div>
               )}

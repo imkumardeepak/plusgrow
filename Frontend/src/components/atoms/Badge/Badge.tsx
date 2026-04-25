@@ -8,19 +8,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../../lib/utils";
 
 export const badgeVariants = cva(
-  "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+  "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-neutral-950",
   {
     variants: {
       variant: {
-        default: "bg-neutral-100 text-neutral-700 border border-neutral-200",
-        primary: "bg-brand-50 text-brand-700 border border-brand-200",
-        secondary: "bg-neutral-100 text-neutral-700 border border-neutral-200",
-        success: "bg-success-50 text-success-700 border border-success-200",
-        warning: "bg-warning-50 text-warning-700 border border-warning-200",
-        danger: "bg-danger-50 text-danger-700 border border-danger-200",
-        info: "bg-info-50 text-info-700 border border-info-200",
-        outline: "bg-transparent border border-neutral-300 text-neutral-700",
-        ghost: "bg-transparent text-neutral-600 hover:bg-neutral-100",
+        default: "border border-white/10 bg-white/6 text-neutral-100",
+        primary: "border border-brand-300/20 bg-brand-400/12 text-brand-100",
+        secondary: "border border-white/10 bg-white/6 text-neutral-100",
+        success: "border border-success-400/20 bg-success-500/12 text-success-200",
+        warning: "border border-warning-400/20 bg-warning-500/12 text-warning-100",
+        danger: "border border-danger-400/20 bg-danger-500/12 text-danger-200",
+        info: "border border-info-400/20 bg-info-500/12 text-info-100",
+        outline: "bg-transparent border border-white/14 text-neutral-100",
+        ghost: "bg-transparent text-neutral-200 hover:bg-white/8",
       },
       size: {
         sm: "px-2 py-0.5 text-[10px] leading-4 rounded-md gap-1",

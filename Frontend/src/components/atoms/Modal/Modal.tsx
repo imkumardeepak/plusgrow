@@ -25,10 +25,10 @@ const sizeClasses = {
 };
 
 const variantHeaderStyles = {
-  default: 'from-neutral-50 to-white',
-  danger: 'from-danger-50/50 to-danger-50/20',
-  success: 'from-success-50/50 to-success-50/20',
-  warning: 'from-warning-50/50 to-warning-50/20',
+  default: 'from-white/[0.04] to-transparent',
+  danger: 'from-danger-500/10 to-transparent',
+  success: 'from-success-500/10 to-transparent',
+  warning: 'from-warning-500/10 to-transparent',
 };
 
 export function Modal({
@@ -72,7 +72,7 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-gradient-to-br from-neutral-900/60 via-neutral-900/40 to-neutral-900/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-gradient-to-br from-neutral-950/78 via-neutral-950/66 to-neutral-950/80 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -83,7 +83,7 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              'relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden',
+              'relative w-full overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(19,27,45,0.96)_0%,rgba(10,18,32,0.98)_100%)] shadow-float',
               sizeClasses[size],
               className
             )}
@@ -99,7 +99,7 @@ export function Modal({
 
             {/* Header */}
             <div className={cn(
-              'px-6 py-5 border-b border-neutral-100/80',
+              'border-b border-white/10 px-6 py-5',
               variantHeaderStyles[variant]
             )}>
               <div className="flex items-center justify-between">
@@ -107,9 +107,9 @@ export function Modal({
                   {variant !== 'default' && (
                     <div className={cn(
                       'w-10 h-10 rounded-xl flex items-center justify-center',
-                      variant === 'danger' && 'bg-danger-100 text-danger-600',
-                      variant === 'success' && 'bg-success-100 text-success-600',
-                      variant === 'warning' && 'bg-warning-100 text-warning-600'
+                      variant === 'danger' && 'bg-danger-500/12 text-danger-200 border border-danger-400/20',
+                      variant === 'success' && 'bg-success-500/12 text-success-200 border border-success-400/20',
+                      variant === 'warning' && 'bg-warning-500/12 text-warning-100 border border-warning-400/20'
                     )}>
                       {variant === 'danger' && <AlertTriangle className="w-5 h-5" />}
                       {variant === 'success' && <CheckCircle className="w-5 h-5" />}
@@ -117,8 +117,8 @@ export function Modal({
                     </div>
                   )}
                   <div>
-                    <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
-                    <p className="text-xs text-neutral-400 mt-0.5">Fill in the details below</p>
+                    <h2 className="text-lg font-semibold text-white">{title}</h2>
+                    <p className="mt-0.5 text-xs text-neutral-500">Fill in details below</p>
                   </div>
                 </div>
                 {showCloseButton && (
@@ -126,7 +126,7 @@ export function Modal({
                     variant="ghost"
                     size="sm"
                     onClick={onClose}
-                    className="h-8 w-8 p-0 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-lg transition-all"
+                    className="h-8 w-8 rounded-full p-0 text-neutral-500 transition-all hover:bg-white/8 hover:text-white"
                   >
                     <X className="w-5 h-5" />
                   </Button>
@@ -135,13 +135,13 @@ export function Modal({
             </div>
 
             {/* Body */}
-            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+            <div className="scrollbar-thin max-h-[60vh] overflow-y-auto px-6 py-5">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="px-6 py-5 bg-gradient-to-b from-neutral-50/30 to-neutral-100/30">
+              <div className="px-6 py-5 bg-gradient-to-b from-white/[0.02] to-transparent">
                 {footer}
               </div>
             )}
@@ -207,7 +207,7 @@ export function ConfirmDialog({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-gradient-to-br from-neutral-900/60 via-neutral-900/40 to-neutral-900/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-gradient-to-br from-neutral-950/78 via-neutral-950/66 to-neutral-950/80 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -217,7 +217,7 @@ export function ConfirmDialog({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+            className="relative w-full max-w-sm overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(19,27,45,0.96)_0%,rgba(10,18,32,0.98)_100%)] shadow-float"
           >
             {/* Top gradient line */}
             <div className={cn(
@@ -241,8 +241,8 @@ export function ConfirmDialog({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-neutral-900">{title}</h3>
-                  <p className="mt-2 text-sm text-neutral-500 leading-relaxed">{message}</p>
+                  <h3 className="text-base font-semibold text-white">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-500">{message}</p>
                 </div>
               </div>
             </div>
@@ -254,7 +254,7 @@ export function ConfirmDialog({
                   variant="outline"
                   onClick={onClose}
                   disabled={isLoading}
-                  className="flex-1 h-11 border-neutral-200 hover:bg-neutral-50 hover:border-neutral-300 rounded-xl font-medium"
+                  className="flex-1 h-11 rounded-full font-medium"
                 >
                   {cancelText}
                 </Button>

@@ -188,15 +188,15 @@ export const Importers = memo(function Importers() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
-      <div className="bg-white border-b border-neutral-200 px-6 py-4">
+      <div className="page-toolbar">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-md shadow-brand-200">
-              <Building2 className="w-5 h-5 text-white" />
+            <div className="page-icon-chip">
+              <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-neutral-900 leading-tight tracking-tight">Importers</h1>
-              <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">Supplier Management</p>
+              <h1 className="page-title">Importers</h1>
+              <p className="page-subtitle">Supplier Management</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ export const Importers = memo(function Importers() {
       </div>
 
       {/* Data Table */}
-      <div className="flex-1 bg-white mx-6 mb-6 rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      <div className="page-table-shell">
         <div className="p-6">
           <DataTable
             columns={columns}
@@ -234,7 +234,7 @@ export const Importers = memo(function Importers() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">
+            <label className="field-label">
               Company Name <span className="text-danger-500">*</span>
             </label>
             <Input
@@ -245,7 +245,7 @@ export const Importers = memo(function Importers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Address</label>
+            <label className="field-label">Address</label>
             <Input
               placeholder="Enter address"
               value={formData.address}
@@ -254,7 +254,7 @@ export const Importers = memo(function Importers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">CIN Number</label>
+            <label className="field-label">CIN Number</label>
             <Input
               placeholder="Corporate Identity Number"
               value={formData.cin}
@@ -263,7 +263,7 @@ export const Importers = memo(function Importers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Phone</label>
+            <label className="field-label">Phone</label>
             <Input
               placeholder="Phone number"
               value={formData.phone}
@@ -272,7 +272,7 @@ export const Importers = memo(function Importers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Email</label>
+            <label className="field-label">Email</label>
             <Input
               type="email"
               placeholder="Email address"
@@ -281,7 +281,7 @@ export const Importers = memo(function Importers() {
               className="h-10"
             />
           </div>
-          <div className="flex gap-3 pt-4 border-t border-neutral-200">
+          <div className="flex gap-3 pt-4 border-t border-white/10">
             <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
               Cancel
             </Button>

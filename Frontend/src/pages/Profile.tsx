@@ -58,7 +58,7 @@ export const Profile = memo(function Profile() {
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -77,11 +77,11 @@ export const Profile = memo(function Profile() {
       {/* Header Bar */}
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0 border border-brand-200 shadow-sm">
-            <User className="w-5 h-5 text-brand-600" />
+          <div className="page-icon-chip shrink-0">
+            <User className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-neutral-900 leading-tight tracking-tight">My Profile</h1>
+            <h1 className="text-base font-bold text-white leading-tight tracking-tight">My Profile</h1>
             <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase">Account Settings</p>
           </div>
         </div>
@@ -93,7 +93,7 @@ export const Profile = memo(function Profile() {
         <div className="lg:col-span-4 space-y-4">
           <Card variant="elevated" className="overflow-hidden">
             <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-6 text-white text-center">
-              <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-4 flex items-center justify-center text-3xl font-bold">
+              <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-white">
                 {getInitials(user.fullName)}
               </div>
               <h2 className="text-xl font-bold">{user.fullName}</h2>
@@ -106,22 +106,22 @@ export const Profile = memo(function Profile() {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-600">{user.email || 'No email set'}</span>
+                <span className="text-neutral-700">{user.email || 'No email set'}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-600">{user.phone || 'No phone set'}</span>
+                <span className="text-neutral-700">{user.phone || 'No phone set'}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-600">
+                <span className="text-neutral-700">
                   Joined {format(new Date(user.createdAt), 'MMM dd, yyyy')}
                 </span>
               </div>
               {user.lastLoginAt && (
                 <div className="flex items-center gap-3 text-sm">
                   <Shield className="w-4 h-4 text-neutral-400" />
-                  <span className="text-neutral-600">
+                  <span className="text-neutral-700">
                     Last login: {format(new Date(user.lastLoginAt), 'MMM dd, yyyy HH:mm')}
                   </span>
                 </div>
@@ -136,14 +136,14 @@ export const Profile = memo(function Profile() {
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-600">Status</span>
+                <span className="text-sm text-neutral-700">Status</span>
                 <Badge variant={user.isActive ? 'success' : 'danger'}>
                   {user.isActive ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-neutral-600">Role ID</span>
-                <span className="text-sm font-mono font-semibold">{user.roleId || 'N/A'}</span>
+                <span className="text-sm text-neutral-700">Role ID</span>
+                <span className="text-sm font-mono font-semibold text-neutral-900">{user.roleId || 'N/A'}</span>
               </div>
             </CardContent>
           </Card>
@@ -172,10 +172,10 @@ export const Profile = memo(function Profile() {
             </CardHeader>
             <CardContent className="p-4">
               {message && (
-                <div className={`flex items-center gap-2 p-3 rounded-lg mb-4 text-sm animate-in fade-in slide-in-from-top-2 ${
+                <div className={`flex items-center gap-2 p-3 rounded-2xl mb-4 text-sm animate-in fade-in slide-in-from-top-2 ${
                   message.type === 'success' 
-                    ? 'bg-success-50 border border-success-200 text-success-700'
-                    : 'bg-danger-50 border border-danger-200 text-danger-700'
+                    ? 'bg-success-500/12 border border-success-400/20 text-success-200'
+                    : 'bg-danger-500/12 border border-danger-400/20 text-danger-200'
                 }`}>
                   {message.type === 'success' ? (
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
@@ -189,7 +189,7 @@ export const Profile = memo(function Profile() {
               {showPasswordForm ? (
                 <form onSubmit={handlePasswordChange} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-neutral-700">
+                    <label htmlFor="currentPassword" className="field-label block">
                       Current Password
                     </label>
                     <Input
@@ -202,7 +202,7 @@ export const Profile = memo(function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-neutral-700">
+                    <label htmlFor="newPassword" className="field-label block">
                       New Password
                     </label>
                     <Input
@@ -216,7 +216,7 @@ export const Profile = memo(function Profile() {
                     <p className="text-xs text-neutral-500">Must be at least 6 characters</p>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-neutral-700">
+                    <label htmlFor="confirmPassword" className="field-label block">
                       Confirm New Password
                     </label>
                     <Input

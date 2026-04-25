@@ -68,11 +68,11 @@ export const StockCheck = memo(function StockCheck() {
       <Card variant="glass" className="p-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 min-w-0 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0 border border-brand-200 shadow-sm">
-              <ClipboardCheck className="w-5 h-5 text-brand-600" />
+            <div className="page-icon-chip">
+              <ClipboardCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-neutral-900 leading-tight tracking-tight">Cycle Counting & Stock Verify</h1>
+              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Cycle Counting & Stock Verify</h1>
               <p className="text-xs text-neutral-500 font-medium">Instantly reconcile physical vs system stock quantities</p>
             </div>
           </div>
@@ -152,7 +152,7 @@ export const StockCheck = memo(function StockCheck() {
         </Card>
 
         {/* ================= RIGHT PANEL: VERIFICATION CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-black/[0.02] h-full">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-md z-10 border-neutral-200 ring-1 ring-white/[0.03] h-full">
           <CardHeader className="py-2.5 px-4 border-b border-neutral-100 bg-white z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">

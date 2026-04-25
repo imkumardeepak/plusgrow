@@ -24,6 +24,7 @@ import {
   FileX,
 } from 'lucide-react';
 import { Button } from '../../atoms/Button';
+import { Input } from '../../atoms/Input';
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -98,33 +99,29 @@ export function DataTable<TData, TValue>({
     <div className="flex flex-col gap-5">
       {/* Search Bar */}
       {onSearch && (
-        <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-500/20 via-brand-500/20 to-brand-500/20 rounded-xl blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-          <div className="relative flex items-center gap-3 bg-white rounded-xl border border-neutral-200/80 shadow-sm transition-all duration-200 group-focus-within:border-brand-300 group-focus-within:shadow-brand-100/50 group-focus-within:ring-2 group-focus-within:ring-brand-100">
-            <div className="pl-4 text-neutral-400">
-              <Search className="w-5 h-5" />
-            </div>
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={globalFilter}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="flex-1 h-12 bg-transparent text-sm text-neutral-700 placeholder:text-neutral-400 focus:outline-none"
-            />
-            {globalFilter && (
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder={searchPlaceholder}
+            value={globalFilter}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="h-12 rounded-2xl pr-12"
+            leftElement={<Search className="w-5 h-5" />}
+            rightElement={globalFilter ? (
               <button
+                type="button"
                 onClick={() => handleSearch('')}
-                className="mr-3 p-1.5 rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-700 transition-colors"
+                className="rounded-full bg-white/8 p-1.5 text-neutral-500 transition-colors hover:bg-white/12 hover:text-neutral-800"
               >
                 <X className="w-4 h-4" />
               </button>
-            )}
-          </div>
+            ) : null}
+          />
         </div>
       )}
 
       {/* Table Container */}
-      <div className="relative overflow-hidden rounded-xl border border-neutral-200/80 bg-white shadow-sm">
+      <div className="relative overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] shadow-card">
         {/* Subtle gradient overlay at top */}
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-500/30 to-transparent" />
         
@@ -132,11 +129,11 @@ export function DataTable<TData, TValue>({
           <table className="w-full caption-bottom text-sm">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b border-neutral-100/60 bg-gradient-to-b from-neutral-50/80 to-white">
+                <tr key={headerGroup.id} className="border-b border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent">
                   {headerGroup.headers.map((header, index) => (
                     <th
                       key={header.id}
-                      className="h-12 px-4 text-left align-middle font-semibold text-xs text-neutral-500 uppercase tracking-wider [&:has([role=checkbox])]:pr-0"
+                      className="h-12 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-neutral-500 [&:has([role=checkbox])]:pr-0"
                     >
                       <div className="flex items-center gap-2">
                         {index === 0 && (
@@ -182,7 +179,7 @@ export function DataTable<TData, TValue>({
                         <div className="relative">
                           <div className="w-10 h-10 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" />
                         </div>
-                        <span className="text-sm text-neutral-500 font-medium">Loading data...</span>
+                        <span className="text-sm font-medium text-neutral-600">Loading data...</span>
                       </motion.div>
                     </td>
                   </tr>
@@ -197,11 +194,11 @@ export function DataTable<TData, TValue>({
                         className="flex flex-col items-center justify-center gap-3"
                       >
                         <div className="w-16 h-16 rounded-2xl bg-neutral-100 flex items-center justify-center">
-                          <FileX className="w-8 h-8 text-neutral-300" />
+                          <FileX className="w-8 h-8 text-neutral-500" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-neutral-700">No results found</p>
-                          <p className="text-xs text-neutral-400 mt-1">Try adjusting your search or filter</p>
+                          <p className="text-sm font-medium text-neutral-800">No results found</p>
+                          <p className="mt-1 text-xs text-neutral-500">Try adjusting your search or filter</p>
                         </div>
                       </motion.div>
                     </td>
@@ -214,7 +211,7 @@ export function DataTable<TData, TValue>({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -5 }}
                       transition={{ duration: 0.15, delay: mounted ? 0 : rowIndex * 0.02 }}
-                      className="group hover:bg-gradient-to-r hover:from-brand-50/40 hover:to-brand-50/40 transition-all duration-200 cursor-pointer"
+                      className="group cursor-pointer transition-all duration-200 hover:bg-gradient-to-r hover:from-brand-500/8 hover:to-brand-300/6"
                       onClick={() => onRowClick?.(row.original as TData)}
                     >
                       {row.getVisibleCells().map((cell) => (
@@ -236,13 +233,13 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {pageCount > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1">
+        <div className="flex flex-col items-center justify-between gap-4 px-1 sm:flex-row">
           <div className="flex items-center gap-2 text-sm text-neutral-500">
             <span className="font-medium">{totalRows}</span>
             <span className="text-neutral-400">total results</span>
             {totalRows > 0 && (
               <>
-                <span className="text-neutral-300 mx-1">|</span>
+                <span className="mx-1 text-neutral-300">|</span>
                 <span>
                   Showing <span className="font-medium text-neutral-700">{startRow}-{endRow}</span>
                 </span>
@@ -290,8 +287,8 @@ export function DataTable<TData, TValue>({
                     onClick={() => table.setPageIndex(pageNum)}
                     className={`w-8 h-8 rounded-lg text-xs font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-lg shadow-brand-200'
-                        : 'text-neutral-600 hover:bg-neutral-100'
+                        ? 'bg-gradient-to-br from-brand-400 to-brand-600 text-slate-950 shadow-brand'
+                        : 'text-neutral-600 hover:bg-white/8'
                     }`}
                   >
                     {pageNum + 1}

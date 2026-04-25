@@ -12,13 +12,11 @@ import {
   LayoutDashboard,
   ArrowDownToLine,
   ArrowUpFromLine,
-  Users,
   Package,
   ClipboardCheck,
   ScanLine,
   Tags,
   Truck,
-  CheckSquare,
   Move,
   Box,
   Warehouse,
@@ -185,7 +183,7 @@ export function Sidebar({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 flex flex-col h-screen transition-all duration-300 ease-out",
+          "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r transition-all duration-300 ease-out lg:static",
           collapsed ? "w-20" : "w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
@@ -195,12 +193,13 @@ export function Sidebar({
         {/* Logo Section */}
         <div
           className={cn(
-            "flex items-center justify-center transition-all duration-300",
+            "flex items-center justify-center border-b border-white/8 transition-all duration-300",
             collapsed ? "h-16" : "h-20"
           )}
-          style={{ borderColor: 'var(--color-sidebar-border)' }}
         >
-          <Logo width={180} height={180} />
+          <div className={cn("rounded-2xl px-3 py-2", !collapsed && "bg-white/[0.03]")}>
+            <Logo width={180} height={180} className={cn("h-auto", collapsed ? "w-9" : "w-36")} />
+          </div>
 
           {/* Mobile Close Button */}
           <button
@@ -214,13 +213,13 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-thin">
+        <nav className="scrollbar-thin flex-1 overflow-y-auto overflow-x-hidden py-4">
           {navigationGroups.map((group) => (
             <div key={group.id} className={cn("mb-2", collapsed && "mb-4")}>
               {!collapsed && (
                 <div className="flex items-center justify-between px-4 py-2">
                   <h3
-                    className="text-xs font-semibold uppercase tracking-wider"
+                    className="text-[11px] font-semibold uppercase tracking-[0.24em]"
                     style={{ color: 'var(--color-sidebar-text)' }}
                   >
                     {group.label}
@@ -255,15 +254,16 @@ export function Sidebar({
                         to={item.href}
                         onClick={onMobileClose}
                         className={cn(
-                          "flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 group relative",
+                          "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
                           isActive
-                            ? "text-white"
+                            ? "theme-glow text-white"
                             : "hover:text-white",
                           collapsed && "justify-center px-2"
                         )}
-                        style={isActive 
-                          ? { backgroundColor: 'var(--color-sidebar-bg-active)' } 
-                          : { color: 'var(--color-sidebar-text)' }
+                        style={
+                          isActive
+                            ? { background: 'linear-gradient(90deg, #17b9ec 0%, #0a8bbf 100%)' }
+                            : { color: 'var(--color-sidebar-text)' }
                         }
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -280,8 +280,8 @@ export function Sidebar({
                             <span className="truncate">{item.label}</span>
                             {item.badge && (
                               <span
-                                className={cn(
-                                  "ml-auto text-xs font-semibold px-2 py-0.5 rounded-full",
+                              className={cn(
+                                  "ml-auto rounded-full px-2 py-0.5 text-xs font-semibold",
                                   item.badgeVariant === "success" && "bg-success-900/50 text-success-400",
                                   item.badgeVariant === "warning" && "bg-warning-900/50 text-warning-400",
                                   item.badgeVariant === "danger" && "bg-danger-900/50 text-danger-400",
@@ -297,8 +297,7 @@ export function Sidebar({
                         )}
                         {/* Tooltip for collapsed state */}
                         {collapsed && (
-                          <span className="absolute left-full ml-2 px-2 py-1 text-white text-xs rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50"
-                            style={{ backgroundColor: 'var(--color-sidebar-text)' }}>
+                          <span className="invisible absolute left-full z-50 ml-2 whitespace-nowrap rounded-full border border-white/10 bg-neutral-900 px-3 py-1 text-xs text-white opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
                             {item.label}
                           </span>
                         )}
@@ -312,16 +311,15 @@ export function Sidebar({
         </nav>
 
         {/* Collapse Toggle (Desktop only) */}
-        <div className="hidden lg:flex p-3" style={{ borderColor: 'var(--color-sidebar-border)' }}>
+        <div className="hidden border-t border-white/8 p-3 lg:flex">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleCollapseToggle}
             className={cn(
-              "w-full justify-center",
+              "w-full justify-center text-neutral-200 hover:bg-white/8",
               !collapsed && "justify-between"
             )}
-            style={{ color: 'var(--color-sidebar-text)' }}
             leftIcon={collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           >
             {!collapsed && "Collapse"}
