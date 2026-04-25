@@ -6,8 +6,6 @@ using PlusgrowWms.Api.Models;
 
 namespace PlusgrowWms.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 public class ImportersController : BaseController
 {
     private readonly PlusgrowDbContext _context;

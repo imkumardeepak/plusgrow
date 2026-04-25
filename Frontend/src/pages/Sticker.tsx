@@ -5,7 +5,7 @@ import { Button } from '../components/atoms/Button';
 import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import {
-  Printer, Search, Box, Tag, Plus, Minus, Trash2, Eye, Check, LayoutPanelTop, Settings2, Loader2, Info
+  Printer, Search, Box, Tag, Plus, Minus, Trash2, Eye, Check, LayoutPanelTop, Settings2, Loader2, Info, Activity, Settings, Zap, Terminal, Layers, Monitor, Cpu
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../lib/utils';
@@ -21,6 +21,10 @@ interface PrintQueueItem {
   config: any;
 }
 
+/**
+ * Premium Cyber Sticker Management Hub
+ * Features: High-density layouts, glassmorphism, neon accents, and real-time preview.
+ */
 export const Sticker = memo(function Sticker() {
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +39,7 @@ export const Sticker = memo(function Sticker() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [printQueue, setPrintQueue] = useState<PrintQueueItem[]>([]);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // Fetch Masters
   const { data: products = [], isLoading: isProductsLoading } = useQuery({
@@ -63,10 +68,7 @@ export const Sticker = memo(function Sticker() {
 
   // Update Preview
   const handlePreview = async () => {
-    if (!selectedProductId) {
-      toast.error('Please select a product first');
-      return;
-    }
+    if (!selectedProductId) return;
 
     setIsPreviewLoading(true);
     try {
@@ -83,13 +85,13 @@ export const Sticker = memo(function Sticker() {
       setPreviewUrl(url);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to generate preview');
+      toast.error('Preview Linkage Failed');
     } finally {
       setIsPreviewLoading(false);
     }
   };
 
-  // Auto-preview when important fields change
+  // Auto-preview logic
   useEffect(() => {
     if (selectedProductId) {
       const timer = setTimeout(() => {
@@ -99,26 +101,29 @@ export const Sticker = memo(function Sticker() {
     }
   }, [selectedProductId, stickerSize, stickerType, importerId, monthYear, batchNumber, note]);
 
-  const addToQueue = () => {
+  const addToQueue = (quantity: number = 1) => {
     if (!selectedProduct) return;
+    
+    const config = {
+      productId: selectedProductId,
+      importerId,
+      size: stickerSize,
+      type: stickerType,
+      monthYear,
+      batchNumber,
+      note
+    };
 
-    const id = Math.random().toString(36).substr(2, 9);
-    setPrintQueue(prev => [...prev, {
-      id,
-      sku: selectedProduct.sku || '',
-      quantity: 1,
+    const newItem: PrintQueueItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      sku: selectedProduct.sku || 'N/A',
+      quantity,
       product: selectedProduct,
-      config: {
-        productId: selectedProductId,
-        importerId,
-        size: stickerSize,
-        type: stickerType,
-        monthYear,
-        batchNumber,
-        note
-      }
-    }]);
-    toast.success(`Added ${selectedProduct.sku} to queue`);
+      config
+    };
+
+    setPrintQueue(prev => [...prev, newItem]);
+    toast.success(`${selectedProduct.name} added to Print Hub`);
   };
 
   const removeFromQueue = (id: string) => {
@@ -128,343 +133,410 @@ export const Sticker = memo(function Sticker() {
   const updateQueueQuantity = (id: string, delta: number) => {
     setPrintQueue(prev => prev.map(item => {
       if (item.id === id) {
-        const newQty = Math.max(1, item.quantity + delta);
-        return { ...item, quantity: newQty };
+        return { ...item, quantity: Math.max(1, item.quantity + delta) };
       }
       return item;
     }));
   };
 
-  const handlePrintJob = async () => {
-    if (printQueue.length === 0) return;
+  const handlePrint = async () => {
+    if (!printerIp) {
+      toast.error('Printer IP address required');
+      return;
+    }
+    if (printQueue.length === 0) {
+      toast.error('Print queue is empty');
+      return;
+    }
 
-    toast.info(`Sending ${printQueue.length} job(s) to printer at ${printerIp}...`);
+    setIsPrinting(true);
     try {
-      const payload = {
+      await stickersApi.print({
+        printerIp,
         items: printQueue.map(item => ({
           config: item.config,
           quantity: item.quantity
-        })),
-        printerIp: printerIp
-      };
-
-      await stickersApi.print(payload);
-      toast.success('Print job completed successfully');
+        }))
+      });
+      toast.success('Print Transmission Successful');
       setPrintQueue([]);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err.response?.data || 'Failed to print job');
+      toast.error('Hardware Sync Error: Check Printer Connection');
+    } finally {
+      setIsPrinting(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4 p-4 lg:p-6 bg-neutral-50/50">
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
-
-        {/* LEFT: Product Directory */}
-        <Card variant="elevated" className="lg:col-span-3 flex flex-col overflow-hidden h-full shadow-lg border-white/40">
-          <CardHeader className="py-4 px-5 border-b border-neutral-100 bg-white">
-            <CardTitle size="sm" className="flex items-center gap-2 text-neutral-800">
-              <Box className="w-5 h-5 text-brand-500" />
-              Product Catalog
-            </CardTitle>
-          </CardHeader>
-
-          <div className="p-4 bg-white">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 group-focus-within:text-brand-500 transition-colors" />
-              <Input
-                placeholder="Search SKU or name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-10 text-sm bg-neutral-50 border-neutral-200 focus:bg-white focus:ring-2 focus:ring-brand-500/10 transition-all"
+    <div className="min-h-screen bg-[#020617] text-slate-200 p-6 font-sans">
+      {/* Header Bar */}
+      <header className="flex items-center justify-between mb-8 border-b border-slate-800 pb-6">
+        <div className="flex items-center gap-4">
+          <div className="bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]">
+            <Printer className="w-8 h-8 text-cyan-400" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-white to-slate-500 bg-clip-text text-transparent uppercase italic">
+              Label Forge <span className="text-cyan-500">v4.0</span>
+            </h1>
+            <p className="text-slate-500 text-xs font-mono tracking-widest flex items-center gap-2">
+              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+              SYSTEM ACTIVE // PRINTER STATUS: ONLINE
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-2 flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-slate-500 font-mono uppercase">Master IP Control</span>
+              <input 
+                value={printerIp}
+                onChange={(e) => setPrinterIp(e.target.value)}
+                className="bg-transparent border-none text-cyan-400 font-mono text-sm focus:ring-0 w-36 text-right"
               />
             </div>
+            <div className="w-8 h-8 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-emerald-400" />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-180px)] overflow-hidden">
+        
+        {/* LEFT COLUMN: PRODUCT DATA SOURCE */}
+        <section className="col-span-3 flex flex-col gap-4 overflow-hidden h-full">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+            <input
+              type="text"
+              placeholder="Query SKU or Asset Name..."
+              className="w-full bg-slate-900/40 border border-slate-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all outline-none placeholder:text-slate-600"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          <CardContent className="flex-1 overflow-y-auto p-0 scrollbar-thin bg-white">
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2">
             {isProductsLoading ? (
-              <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto text-brand-500" /></div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="p-10 text-center text-neutral-400">
-                <Box className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                <p className="text-sm">No products found</p>
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="w-6 h-6 animate-spin text-cyan-500" />
               </div>
-            ) : (
-              <div className="divide-y divide-neutral-50">
-                {filteredProducts.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedProductId(p.id)}
-                    className={cn(
-                      "w-full text-left p-4 flex items-start gap-4 transition-all duration-200 border-l-4",
-                      selectedProductId === p.id
-                        ? 'bg-brand-50/40 border-l-brand-500 ring-1 ring-brand-500/10'
-                        : 'hover:bg-neutral-50 border-l-transparent'
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "font-mono text-sm tracking-tight mb-1",
-                        selectedProductId === p.id ? 'text-brand-700 font-bold' : 'text-neutral-900 font-semibold'
-                      )}>
-                        {p.sku || 'No SKU'}
-                      </p>
-                      <p className="text-xs text-neutral-500 line-clamp-1">
-                        {p.name}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* MIDDLE: Preview & Configuration */}
-        <div className="lg:col-span-6 flex flex-col gap-6 min-h-0">
-          <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden shadow-xl border-white/60">
-            <CardHeader className="py-4 px-6 border-b border-neutral-100 bg-white">
-              <div className="flex items-center justify-between">
-                <CardTitle size="sm" className="flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-brand-500" />
-                  Sticker Preview
-                </CardTitle>
-                <div className="flex bg-neutral-100 p-1 rounded-xl">
-                  {['50x50', '60x60', '75x75'].map(size => (
-                    <button
-                      key={size}
-                      onClick={() => setStickerSize(size)}
-                      className={cn(
-                        "px-4 py-1.5 text-xs font-semibold rounded-lg transition-all",
-                        stickerSize === size
-                          ? 'bg-white text-brand-600 shadow-sm'
-                          : 'text-neutral-500 hover:text-neutral-800'
-                      )}
-                    >
-                      {size}
-                    </button>
-                  ))}
+            ) : filteredProducts.map(product => (
+              <div
+                key={product.id}
+                onClick={() => setSelectedProductId(product.id)}
+                className={cn(
+                  "p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden",
+                  selectedProductId === product.id 
+                    ? "bg-cyan-500/10 border-cyan-500/40 shadow-[inset_0_0_20px_rgba(6,182,212,0.05)]" 
+                    : "bg-slate-900/20 border-slate-800 hover:border-slate-700 hover:bg-slate-900/40"
+                )}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className={cn(
+                    "font-bold text-sm truncate pr-2 transition-colors",
+                    selectedProductId === product.id ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                  )}>
+                    {product.name}
+                  </h3>
+                  <span className="text-[10px] font-mono text-slate-500 group-hover:text-cyan-400">#{product.sku}</span>
                 </div>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex-1 flex flex-col items-center justify-center bg-[#f8fafc] relative overflow-hidden p-8">
-              {/* Decorative background pattern */}
-              <div className="absolute inset-0 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px] opacity-60"></div>
-
-              {!selectedProductId ? (
-                <div className="flex flex-col items-center text-center max-w-sm relative z-10 animate-in fade-in transition-all">
-                  <div className="w-24 h-24 bg-white/80 backdrop-blur rounded-3xl shadow-lg border border-white flex items-center justify-center mb-6">
-                    <Tag className="w-10 h-10 text-neutral-300" />
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className="text-[9px] border-slate-700 text-slate-500 group-hover:border-slate-600">
+                    {product.commodity?.name || 'GENERIC'}
+                  </Badge>
+                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Check className="w-4 h-4 text-emerald-500" />
                   </div>
-                  <h4 className="text-xl font-bold text-neutral-800 mb-2">Ready to Design</h4>
-                  <p className="text-sm text-neutral-500 bg-white/50 backdrop-blur px-4 py-2 rounded-2xl border border-white">
-                    Select a product from the left catalog to generate a live sticker preview.
-                  </p>
                 </div>
-              ) : (
-                <div className="relative flex flex-col items-center gap-8 animate-in zoom-in-95 duration-500">
-                  {isPreviewLoading && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-[1px] rounded-xl">
-                      <Loader2 className="w-10 h-10 animate-spin text-brand-500" />
-                    </div>
-                  )}
+              </div>
+            ))}
+          </div>
+        </section>
 
-                  {previewUrl ? (
-                    <div className="bg-white p-2 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] ring-1 ring-neutral-200 overflow-hidden hover:scale-105 transition-transform duration-500 cursor-zoom-in">
-                      <img
-                        src={previewUrl}
-                        alt="Sticker Preview"
-                        className={cn(
-                          "max-w-full h-auto object-contain bg-white",
-                          stickerSize === '50x50' ? 'w-[300px]' : stickerSize === '60x60' ? 'w-[360px]' : 'w-[420px]'
-                        )}
+        {/* MIDDLE COLUMN: LIVE FORGE & PREVIEW */}
+        <section className="col-span-5 flex flex-col gap-6 h-full overflow-y-auto pr-2 custom-scrollbar">
+          {selectedProduct ? (
+            <div className="space-y-6">
+              {/* Preview Unit */}
+              <div className="relative aspect-square max-w-[400px] mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 group">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(6,182,212,0.05),_transparent)] pointer-events-none" />
+                <div className="absolute top-4 left-4 z-10 flex gap-2">
+                  <Badge className="bg-cyan-500 text-black font-bold border-none">LIVE PREVIEW</Badge>
+                  <Badge className="bg-slate-800/80 backdrop-blur-md text-cyan-400 border-cyan-500/30">{stickerSize}mm</Badge>
+                </div>
+                
+                <div className="w-full h-full flex items-center justify-center p-8">
+                  {isPreviewLoading ? (
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+                      <span className="text-cyan-400 text-xs font-mono tracking-widest animate-pulse">GENERATING OPTICS...</span>
+                    </div>
+                  ) : previewUrl ? (
+                    <div className="relative group/img">
+                      <img 
+                        src={previewUrl} 
+                        alt="Label Optics" 
+                        className="max-w-full max-h-full shadow-2xl shadow-cyan-500/10 rounded border border-white/5 transition-transform duration-500 group-hover/img:scale-105"
                       />
+                      <div className="absolute inset-0 border border-cyan-400/0 group-hover/img:border-cyan-400/20 transition-all pointer-events-none" />
                     </div>
                   ) : (
-                    <div className="p-12 border-2 border-dashed border-neutral-300 rounded-2xl text-neutral-400">
-                      Processing preview...
+                    <div className="text-slate-600 flex flex-col items-center gap-4">
+                      <Eye className="w-16 h-16 opacity-20" />
+                      <p className="text-sm italic">Waiting for forge parameters...</p>
                     </div>
                   )}
+                </div>
 
-                  <div className="flex gap-4 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-lg border border-white">
-                    <Button
-                      onClick={addToQueue}
-                      className="rounded-xl px-8 py-6 text-base font-bold btn-primary-gradient shadow-lg"
-                      leftIcon={<Plus className="w-5 h-5" />}
-                    >
-                      Add to Job Queue
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handlePreview}
-                      className="rounded-xl px-6 py-6"
-                    >
-                      <Loader2 className={cn("w-5 h-5", isPreviewLoading && "animate-spin")} />
-                    </Button>
+                <div className="absolute bottom-4 left-0 right-0 px-4 z-10">
+                   <button 
+                    onClick={() => addToQueue(1)}
+                    className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black rounded-xl transition-all active:scale-95 flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(6,182,212,0.3)] hover:shadow-[0_15px_40px_rgba(6,182,212,0.4)]"
+                   >
+                     <Plus className="w-5 h-5" />
+                     PUSH TO PRINT HUB
+                   </button>
+                </div>
+              </div>
+
+              {/* Forge Controls */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4 bg-slate-900/20 border border-slate-800 p-4 rounded-2xl">
+                  <h4 className="text-xs font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                    <Settings2 className="w-3 h-3" /> Core Parameters
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Sticker Dimension</label>
+                      <select 
+                        value={stickerSize}
+                        onChange={(e) => setStickerSize(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50"
+                      >
+                        <option value="50x50">50 x 50 MM (Standard Square)</option>
+                        <option value="60x60">60 x 60 MM (Large Square)</option>
+                        <option value="75x75">75 x 75 MM (XL Square)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Asset Origin (Importer)</label>
+                      <select 
+                        value={importerId}
+                        onChange={(e) => setImporterId(Number(e.target.value))}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50"
+                      >
+                        <option value="">SELECT SOURCE</option>
+                        {importers.map(imp => (
+                          <option key={imp.id} value={imp.id}>{imp.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Layout Mode</label>
+                      <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                        <button 
+                          onClick={() => setStickerType('Combined')}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-md text-[10px] font-bold transition-all",
+                            stickerType === 'Combined' ? "bg-slate-800 text-cyan-400 shadow-sm" : "text-slate-500"
+                          )}
+                        >
+                          COMBINED
+                        </button>
+                        <button 
+                          onClick={() => setStickerType('Separate')}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-md text-[10px] font-bold transition-all",
+                            stickerType === 'Separate' ? "bg-slate-800 text-cyan-400 shadow-sm" : "text-slate-500"
+                          )}
+                        >
+                          SEPARATE
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* CONFIGURATION PANEL */}
-          <Card className="shadow-lg border-white/60">
-            <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Label Type</label>
-                <div className="flex bg-neutral-100 p-1 rounded-lg">
-                  {(['Combined', 'Separate'] as const).map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setStickerType(type)}
-                      className={cn(
-                        "flex-1 py-1.5 text-xs font-semibold rounded-md transition-all",
-                        stickerType === type ? 'bg-white shadow-sm text-brand-600' : 'text-neutral-500'
-                      )}
-                    >
-                      {type}
-                    </button>
-                  ))}
+                <div className="space-y-4 bg-slate-900/20 border border-slate-800 p-4 rounded-2xl">
+                  <h4 className="text-xs font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                    <Zap className="w-3 h-3" /> Metadata Overlays
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Temporal Data (Month/Year)</label>
+                      <input 
+                        value={monthYear}
+                        onChange={(e) => setMonthYear(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50 font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Batch Sequence</label>
+                      <input 
+                        value={batchNumber}
+                        onChange={(e) => setBatchNumber(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50 font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 uppercase font-bold ml-1">Peripheral Note</label>
+                      <input 
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        maxLength={23}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Importer</label>
-                <select
-                  className="w-full h-9 rounded-lg border-neutral-200 bg-neutral-50 text-sm focus:ring-brand-500/20"
-                  value={importerId}
-                  onChange={(e) => setImporterId(Number(e.target.value) || undefined)}
-                >
-                  <option value="">Default (Sago)</option>
-                  {importers.map(imp => (
-                    <option key={imp.id} value={imp.id}>{imp.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Month / Year</label>
-                <Input
-                  value={monthYear}
-                  onChange={(e) => setMonthYear(e.target.value)}
-                  className="h-9 text-sm"
-                  placeholder="e.g. MAR/2026"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Ref / Batch #</label>
-                <Input
-                  value={batchNumber}
-                  onChange={(e) => setBatchNumber(e.target.value)}
-                  className="h-9 text-sm"
-                  placeholder="e.g. INA0001"
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Note (Limit 60 chars)</label>
-                <Input
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="h-9 text-sm"
-                  placeholder="ABCD..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500 px-1">Printer IP Address</label>
-                <div className="relative">
-                  <Input
-                    value={printerIp}
-                    onChange={(e) => setPrinterIp(e.target.value)}
-                    className="h-9 text-sm pl-8"
-                    placeholder="192.168.x.x"
-                  />
-                  <Printer className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT: Job Manager */}
-        <Card variant="elevated" className="lg:col-span-3 flex flex-col overflow-hidden h-full shadow-lg border-white/40">
-          <CardHeader className="py-4 px-5 border-b border-neutral-100 bg-white">
-            <div className="flex items-center justify-between">
-              <CardTitle size="sm" className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-brand-500" />
-                Print Queue
-              </CardTitle>
-              {printQueue.length > 0 && (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white animate-pulse">
-                  {printQueue.reduce((a, b) => a + b.quantity, 0)}
-                </span>
-              )}
             </div>
-          </CardHeader>
-
-          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin bg-neutral-50/30">
-            {printQueue.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-8 h-full text-center text-neutral-400">
-                <Printer className="w-12 h-12 mb-4 opacity-10" />
-                <p className="text-sm font-medium">Queue is empty</p>
-                <p className="text-xs text-neutral-300 mt-2">Use 'Add to Job Queue' to stage stickers</p>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-slate-700 bg-slate-900/10 rounded-3xl border border-dashed border-slate-800">
+              <div className="p-6 rounded-full bg-slate-900/50 mb-4 animate-bounce">
+                <Box className="w-12 h-12 opacity-30" />
               </div>
-            ) : (
-              printQueue.map(item => (
-                <div key={item.id} className="bg-white p-4 rounded-xl border border-neutral-200 shadow-sm transition-all hover:shadow-md group">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="min-w-0 pr-4">
-                      <p className="font-mono text-sm font-bold text-neutral-900 group-hover:text-brand-600 transition-colors uppercase">{item.sku}</p>
-                      <p className="text-[10px] text-neutral-400 font-bold uppercase mt-1 tracking-wider">{item.config.size} | {item.config.type}</p>
-                    </div>
-                    <button
-                      onClick={() => removeFromQueue(item.id)}
-                      className="p-1.5 rounded-lg text-neutral-300 hover:text-danger-500 hover:bg-danger-50 transition-all"
+              <h3 className="text-xl font-bold text-slate-600 mb-2">INITIALIZE CATALOG SELECTION</h3>
+              <p className="text-sm max-w-xs text-center opacity-50">Select a product from the left nexus to begin thermal print synthesis.</p>
+            </div>
+          )}
+        </section>
+
+        {/* RIGHT COLUMN: PRINT HUB MONITOR */}
+        <section className="col-span-4 flex flex-col gap-4 overflow-hidden h-full">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-black italic text-white flex items-center gap-3">
+              <Monitor className="w-5 h-5 text-cyan-400" />
+              PRINT HUB <span className="text-cyan-500 font-mono not-italic text-sm">[{printQueue.length}]</span>
+            </h2>
+            <button 
+              onClick={() => setPrintQueue([])}
+              className="text-[10px] text-rose-500 font-bold hover:text-rose-400 transition-colors flex items-center gap-1 uppercase"
+            >
+              <Trash2 className="w-3 h-3" /> WIPE HUB
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+            {printQueue.length === 0 ? (
+              <div className="h-48 border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center text-slate-700 gap-3">
+                <Layers className="w-8 h-8 opacity-20" />
+                <span className="text-[10px] font-mono tracking-widest uppercase">Buffer Empty</span>
+              </div>
+            ) : printQueue.map(item => (
+              <div key={item.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 group relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500/40" />
+                
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-bold text-xs text-white truncate pr-4">{item.product.name}</h5>
+                    <p className="text-[9px] font-mono text-slate-500 uppercase mt-0.5">{item.sku} // {item.config.size}MM</p>
+                  </div>
+                  <button 
+                    onClick={() => removeFromQueue(item.id)}
+                    className="p-1.5 rounded-md text-slate-500 hover:bg-rose-500/10 hover:text-rose-500 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-950/50 p-2 rounded-xl border border-slate-800/50">
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => updateQueueQuantity(item.id, -1)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-900 text-slate-400 hover:text-white transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <div className="w-10 text-center font-mono font-bold text-cyan-400 text-xs">
+                      {item.quantity.toString().padStart(2, '0')}
+                    </div>
+                    <button 
+                      onClick={() => updateQueueQuantity(item.id, 1)}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-900 text-slate-400 hover:text-white transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
                     </button>
                   </div>
-
+                  
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center justify-between bg-neutral-50 rounded-lg p-1 border border-neutral-100">
-                      <button
-                        onClick={() => updateQueueQuantity(item.id, -1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-md bg-white border border-neutral-200 text-neutral-500 hover:text-neutral-900 transition-colors"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-sm font-bold w-12 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQueueQuantity(item.id, 1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-md bg-white border border-neutral-200 text-neutral-500 hover:text-neutral-900 transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    <span className="text-[9px] text-slate-600 font-mono">COPIES</span>
+                    <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/20 text-[9px] px-2 py-0">SYNCED</Badge>
                   </div>
                 </div>
-              ))
-            )}
-          </CardContent>
+              </div>
+            ))}
+          </div>
 
-          <CardFooter className="p-5 border-t border-neutral-100 bg-white">
-            <Button
-              disabled={printQueue.length === 0}
-              onClick={handlePrintJob}
-              className="w-full py-6 rounded-xl text-sm font-bold shadow-lg shadow-brand-500/10 active:scale-[0.98] transition-transform"
-              leftIcon={<Printer className="w-5 h-5 mr-1" />}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-2xl backdrop-blur-xl">
+            <div className="flex justify-between items-end mb-6">
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-tighter mb-1">Total Payload</p>
+                <h3 className="text-3xl font-black italic text-white flex items-baseline gap-2">
+                  {printQueue.reduce((acc, curr) => acc + curr.quantity, 0)}
+                  <span className="text-xs font-mono text-slate-600 not-italic uppercase">Labels</span>
+                </h3>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-emerald-500 font-mono">ENCRYPTED STREAM</span>
+                <span className="text-[10px] text-slate-500 font-mono uppercase">V.921</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePrint}
+              disabled={isPrinting || printQueue.length === 0}
+              className={cn(
+                "w-full py-5 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-4 relative overflow-hidden",
+                isPrinting || printQueue.length === 0
+                  ? "bg-slate-800 text-slate-600 cursor-not-allowed"
+                  : "bg-gradient-to-r from-cyan-600 to-cyan-400 text-black shadow-[0_15px_40px_rgba(6,182,212,0.3)] hover:scale-[1.02]"
+              )}
             >
-              Master Print Job
-            </Button>
-          </CardFooter>
-        </Card>
+              {isPrinting ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  TRANSMITTING...
+                </>
+              ) : (
+                <>
+                  <Printer className="w-6 h-6" />
+                  INITIATE PRINT OPS
+                </>
+              )}
+            </button>
+            <p className="text-center text-[9px] text-slate-600 mt-4 font-mono tracking-tighter">
+              TARGET IP: {printerIp} // PORT: 9100 // PROTOCOL: RAW
+            </p>
+          </div>
+        </section>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(2, 6, 23, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(6, 182, 212, 0.2);
+          border-radius: 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(6, 182, 212, 0.4);
+        }
+      `}} />
     </div>
   );
 });
-
-export default Sticker;

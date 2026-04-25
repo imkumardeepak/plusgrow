@@ -66,9 +66,9 @@ export const Dispatch = memo(function Dispatch() {
                    {overallProgress}%
                  </Badge>
                </div>
-               <div className="h-2 bg-neutral-100/80 rounded-full overflow-hidden shadow-inner">
+               <div className="h-2 bg-white/5 rounded-full overflow-hidden shadow-inner border border-white/5">
                  <div
-                   className="h-full bg-gradient-to-r from-brand-400 to-brand-500 rounded-full transition-all duration-700"
+                   className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(30,192,243,0.4)]"
                    style={{ width: `${overallProgress}%` }}
                  />
                </div>
@@ -93,16 +93,16 @@ export const Dispatch = memo(function Dispatch() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         
         {/* ================= LEFT PANEL: ORDER DIRECTORY ================= */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.02]">
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full border-brand-500/10">
+          <CardHeader className="py-2.5 px-4 border-b border-brand-500/10 bg-brand-500/5">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
-                <Box className="w-4 h-4 text-brand-500" />
+                <Box className="w-4 h-4 text-brand-400 shadow-neon-cyan" />
                 Awaiting Dispatch
               </CardTitle>
-              <Badge variant="primary" size="sm" className="bg-brand-400/20 text-brand-400">
-                {openOrders.length}
-              </Badge>
+               <Badge variant="primary" size="sm" className="bg-brand-500/20 text-brand-400 border border-brand-500/30 font-bold">
+                 {openOrders.length}
+               </Badge>
             </div>
           </CardHeader>
           
@@ -116,36 +116,36 @@ export const Dispatch = memo(function Dispatch() {
                   onClick={() => setSelectedSi(si.id)}
                   className={cn(
                     "group relative cursor-pointer rounded-xl border-2 transition-all duration-200 animate-in slide-in-from-left-2",
-                    "hover:shadow-float hover:-translate-y-0.5",
+                    "hover:-translate-y-0.5",
                     isSelected
-                      ? 'border-brand-500 bg-brand-50/50 shadow-float ring-1 ring-brand-500/20'
-                      : 'border-white/10 bg-white/[0.04] hover:border-brand-300'
+                      ? 'border-brand-500 bg-brand-500/10 shadow-neon-cyan/10 ring-1 ring-brand-500/20'
+                      : 'border-white/5 bg-white/[0.02] hover:border-brand-500/30'
                   )}
                 >
                   {isSelected && (
-                    <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-400/100 rounded-r-full" />
+                    <div className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-500 rounded-r-full shadow-neon-cyan" />
                   )}
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-2">
                        <div className="flex items-center gap-2">
-                         <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", isSelected ? 'bg-brand-400/20 text-brand-300' : 'bg-neutral-100 text-neutral-500')}>
+                         <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0 border transition-all", isSelected ? 'bg-brand-500/20 text-brand-400 border-brand-500/40 shadow-neon-cyan/20' : 'bg-white/5 text-neutral-500 border-white/10')}>
                            <Package className="w-3.5 h-3.5" />
                          </div>
-                         <span className="font-semibold text-white text-sm tracking-tight">{si.siNumber}</span>
+                         <span className="font-semibold text-neutral-100 text-sm tracking-tight group-hover:text-brand-400 transition-colors">{si.siNumber}</span>
                        </div>
-                       <Badge variant="warning" size="sm" className="bg-warning-400/10 text-warning-400 border-warning-200 shadow-card animate-pulse">
-                         Packed
-                       </Badge>
+                        <Badge variant="warning" size="sm" className="bg-warning-500/10 text-warning-400 border-warning-500/20 animate-pulse font-bold">
+                          Packed
+                        </Badge>
                     </div>
                     
-                    <div className="bg-white/[0.02] p-2 rounded-lg border border-white/10">
-                       <div className="flex items-center gap-2 text-xs text-neutral-300 mb-1.5 font-medium">
-                         <User className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-                         <span className="truncate">{si.customerName}</span>
-                       </div>
+                    <div className="bg-brand-500/5 p-2 rounded-lg border border-brand-500/10">
+                        <div className="flex items-center gap-2 text-xs text-neutral-400 mb-1.5 font-medium">
+                          <User className="w-3.5 h-3.5 text-brand-400/50 shrink-0" />
+                          <span className="truncate text-neutral-300 group-hover:text-neutral-200 transition-colors">{si.customerName}</span>
+                        </div>
                        <div className="flex items-center justify-between mt-2">
-                         <Badge variant="default" size="sm" className="font-mono bg-white/[0.04] border-white/10 shadow-card">{si.sku}</Badge>
-                         <span className="text-xs font-bold text-neutral-200 bg-white/[0.04] px-2 py-0.5 rounded border border-white/10 shadow-card">{si.quantity} units</span>
+                         <Badge variant="default" size="sm" className="font-mono bg-brand-500/10 border-brand-500/20 text-brand-400">{si.sku}</Badge>
+                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest">{si.quantity} units</span>
                        </div>
                     </div>
                   </div>
@@ -170,117 +170,116 @@ export const Dispatch = memo(function Dispatch() {
         </Card>
 
         {/* ================= RIGHT PANEL: OUTBOUND CANVAS ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-float z-10 border-white/10 ring-1 ring-white/[0.03] h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden z-10 border-brand-500/10 h-full">
+          <CardHeader className="py-2.5 px-4 border-b border-brand-500/10 bg-brand-500/5 z-10">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-neutral-400" />
+                <Truck className="w-4 h-4 text-brand-400 shadow-neon-cyan" />
                 Outbound Logistics
               </CardTitle>
             </div>
           </CardHeader>
           
           <CardContent className="flex-1 p-0 flex flex-col relative bg-white/[0.02] overflow-hidden">
-            {/* Dotted Workspace Background */}
-            <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-30 mix-blend-multiply pointer-events-none"></div>
-
+            <div className="absolute inset-0 bg-[radial-gradient(rgba(30,192,243,0.06)_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none" />
+ 
             <div className="relative z-10 flex flex-col h-full overflow-y-auto p-6 scrollbar-thin">
-              
-              {!activeOrder ? (
-                /* Empty State */
-                <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
-                  <div className="w-24 h-24 bg-white/[0.04] shadow-card ring-1 ring-white/10 rounded-full flex items-center justify-center mb-5 relative group">
-                    <Truck className="w-10 h-10 text-neutral-300 group-hover:text-brand-400 transition-colors duration-300 relative z-10" />
-                    <div className="absolute inset-0 border-[3px] border-white/10 border-dashed rounded-full group-hover:border-brand-200 animate-[spin_15s_linear_infinite]" />
-                  </div>
-                  <h4 className="text-xl font-heading font-bold text-neutral-100 mb-2">
-                    Awaiting Selection
-                  </h4>
-                  <p className="text-sm text-neutral-500 max-w-sm">
-                    Select a ready order from the dock queue to finalize dispatch operations.
-                  </p>
-                </div>
-              ) : (
-                /* Active Workspace */
-                <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full animate-in slide-in-from-bottom-4 duration-500">
-                  
-                  {/* Digital Outbound Docket */}
-                  <div className="bg-white/[0.04] rounded-3xl border border-neutral-200/60 shadow-xl shadow-neutral-200/40 overflow-hidden mb-6 relative">
-                     {/* Decorative Header */}
-                     <div className="h-2 w-full bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600"></div>
-                     <div className="absolute top-5 right-5 text-neutral-100">
-                        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                     </div>
-                     
-                     <div className="p-8 pb-6 border-b border-white/10 relative z-10">
-                        <div className="inline-flex items-center gap-2 bg-brand-400/10 text-brand-400 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-6 shadow-card ring-1 ring-brand-200">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Ready For Transport
-                        </div>
-                        
-                        <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Commercial Invoice</p>
-                        <h2 className="text-4xl font-black text-white font-mono tracking-tighter mb-8">{activeOrder.siNumber}</h2>
-                        
-                        <div className="grid grid-cols-2 gap-8">
-                           <div>
-                              <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2 flex items-center gap-1"><User className="w-3 h-3"/> Ship To</p>
-                              <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.customerName}</p>
-                           </div>
-                           <div>
-                              <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-2 flex items-center gap-1"><Calendar className="w-3 h-3"/> Order Date</p>
-                              <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.siDate}</p>
-                           </div>
-                        </div>
-                     </div>
-                     
-                     <div className="bg-white/[0.02] px-8 py-6">
-                        <div className="bg-white/[0.04] rounded-xl border border-white/10 p-5 shadow-card flex items-center gap-6">
-                           <div className="bg-brand-400/10 p-4 rounded-lg shrink-0">
-                              <Package className="w-8 h-8 text-brand-300" />
-                           </div>
-                           <div className="flex-1 min-w-0">
-                              <p className="text-[10px] uppercase tracking-widest text-neutral-400 font-bold mb-1">Contents</p>
-                              <div className="flex items-center justify-between">
-                                 <Badge variant="default" className="font-mono text-base px-3 py-1 shadow-card">{activeOrder.sku}</Badge>
-                                 <div className="text-right">
-                                    <span className="text-3xl font-black text-white leading-none">{activeOrder.quantity}</span>
-                                    <span className="text-sm font-bold text-neutral-400 ml-1">UNITS</span>
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                     
-                     {/* Logistics Tracker info */}
-                     <div className="px-8 py-5 border-t border-white/10 flex items-center justify-between bg-neutral-900 text-white">
-                        <div>
-                           <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-widest mb-0.5">Physical Tracking ID</p>
-                           <p className="font-mono text-xl font-bold tracking-widest text-brand-400">{getCartonId(activeOrder.id)}</p>
-                        </div>
-                        <div className="w-12 h-12 bg-neutral-800 rounded flex items-center justify-center p-2">
-                           {/* Decorative barcode icon */}
-                           <svg className="w-full h-full text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M2,4H4V20H2V4M6,4H10V20H6V4M12,4H14V20H12V4M16,4H22V20H16V4Z" /></svg>
-                        </div>
-                     </div>
-                  </div>
-
-                  {/* Action Dashboard */}
-                  <div className="flex flex-col sm:flex-row justify-between items-center gap-6 bg-white/[0.04] p-6 rounded-2xl border border-neutral-200/60 shadow-card animate-in slide-in-from-bottom-6 duration-700">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className="bg-brand-400/10 p-2 rounded-full shrink-0 mt-0.5">
-                        <AlertCircle className="w-4 h-4 text-brand-300" />
-                      </div>
-                      <p className="text-sm text-neutral-300 font-medium leading-relaxed">
-                        Completing this dispatch will permanently deduct matching inventory levels and finalize the sales order lifecycle.
-                      </p>
-                    </div>
+               
+               {!activeOrder ? (
+                 /* Empty State */
+                 <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-300">
+                   <div className="w-24 h-24 bg-brand-500/5 shadow-neon-cyan/5 ring-1 ring-brand-500/20 rounded-full flex items-center justify-center mb-5 relative group">
+                     <Truck className="w-10 h-10 text-brand-400 group-hover:text-brand-300 transition-colors duration-300 relative z-10 shadow-neon-cyan" />
+                     <div className="absolute inset-0 border-[3px] border-brand-500/10 border-dashed rounded-full group-hover:border-brand-500/30 animate-[spin_15s_linear_infinite]" />
+                   </div>
+                   <h4 className="text-xl font-heading font-bold text-neutral-100 mb-2">
+                     Awaiting Selection
+                   </h4>
+                   <p className="text-sm text-neutral-500 max-w-sm">
+                     Select a ready order from the dock queue to finalize dispatch operations.
+                   </p>
+                 </div>
+               ) : (
+                 /* Active Workspace */
+                  <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full animate-in slide-in-from-bottom-4 duration-500">
                     
-                    <Button onClick={handleDispatch} size="lg" className="h-14 px-8 shrink-0 text-base shadow-lg shadow-brand-500/20 w-full sm:w-auto overflow-hidden group relative">
-                       <span className="relative z-10 flex items-center justify-center gap-2">
-                         <Truck className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> Confirm Dispatch
-                       </span>
-                       <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
-                    </Button>
-                  </div>
+                    {/* Digital Outbound Docket */}
+                    <div className="bg-brand-500/[0.03] rounded-3xl border border-brand-500/20 shadow-neon-cyan/10 overflow-hidden mb-6 relative glassmorphism">
+                      {/* Decorative Header */}
+                      <div className="h-1.5 w-full bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600 shadow-neon-cyan"></div>
+                      <div className="absolute top-5 right-5 text-brand-400/20">
+                         <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                      </div>
+                      
+                      <div className="p-8 pb-6 border-b border-brand-500/10 relative z-10">
+                         <div className="inline-flex items-center gap-2 bg-brand-500/10 text-brand-400 px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase mb-6 shadow-neon-cyan/10 ring-1 ring-brand-500/20">
+                           <CheckCircle2 className="w-3.5 h-3.5" /> Ready For Transport
+                         </div>
+                         
+                         <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-1">Commercial Invoice</p>
+                         <h2 className="text-4xl font-black text-neutral-100 font-mono tracking-tighter mb-8 shadow-neon-cyan/5">{activeOrder.siNumber}</h2>
+                         
+                         <div className="grid grid-cols-2 gap-8">
+                            <div>
+                               <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-2 flex items-center gap-1"><User className="w-3 h-3 text-brand-400"/> Ship To</p>
+                               <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.customerName}</p>
+                            </div>
+                            <div>
+                               <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-2 flex items-center gap-1"><Calendar className="w-3 h-3 text-brand-400"/> Order Date</p>
+                               <p className="text-base font-bold text-neutral-100 leading-tight">{activeOrder.siDate}</p>
+                            </div>
+                         </div>
+                      </div>
+                      
+                      <div className="bg-brand-500/[0.02] px-8 py-6">
+                         <div className="bg-brand-500/5 rounded-xl border border-brand-500/20 p-5 shadow-neon-cyan/5 flex items-center gap-6">
+                            <div className="bg-brand-500/10 p-4 rounded-lg shrink-0 border border-brand-500/20">
+                               <Package className="w-8 h-8 text-brand-400 shadow-neon-cyan" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                               <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-bold mb-1">Contents</p>
+                               <div className="flex items-center justify-between">
+                                  <Badge variant="default" className="font-mono text-base px-3 py-1 shadow-neon-cyan/10 bg-brand-500/10 text-brand-400 border-brand-500/20">{activeOrder.sku}</Badge>
+                                  <div className="text-right">
+                                     <span className="text-3xl font-black text-neutral-100 leading-none">{activeOrder.quantity}</span>
+                                     <span className="text-[10px] font-bold text-neutral-500 ml-1">UNITS</span>
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                      
+                      {/* Logistics Tracker info */}
+                      <div className="px-8 py-5 border-t border-brand-500/20 flex items-center justify-between bg-brand-500/10 text-neutral-100">
+                         <div>
+                            <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest mb-0.5">Physical Tracking ID</p>
+                            <p className="font-mono text-xl font-bold tracking-widest text-brand-400 shadow-neon-cyan/20">{getCartonId(activeOrder.id)}</p>
+                         </div>
+                         <div className="w-12 h-12 bg-brand-500/10 border border-brand-500/20 rounded flex items-center justify-center p-2">
+                            {/* Decorative barcode icon */}
+                            <svg className="w-full h-full text-brand-400/50" fill="currentColor" viewBox="0 0 24 24"><path d="M2,4H4V20H2V4M6,4H10V20H6V4M12,4H14V20H12V4M16,4H22V20H16V4Z" /></svg>
+                         </div>
+                      </div>
+                   </div>
+
+                    {/* Action Dashboard */}
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-6 bg-brand-500/5 p-6 rounded-2xl border border-brand-500/20 shadow-neon-cyan/5 animate-in slide-in-from-bottom-6 duration-700 glassmorphism">
+                     <div className="flex items-start gap-3 flex-1">
+                       <div className="bg-brand-500/10 p-2 rounded-full shrink-0 mt-0.5 border border-brand-500/20">
+                         <AlertCircle className="w-4 h-4 text-brand-400" />
+                       </div>
+                       <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest leading-relaxed">
+                         Completing this dispatch will permanently deduct matching inventory levels and finalize the sales order lifecycle.
+                       </p>
+                     </div>
+                     
+                     <Button onClick={handleDispatch} size="lg" className="h-14 px-8 shrink-0 text-base shadow-neon-cyan/20 w-full sm:w-auto overflow-hidden group relative">
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                          <Truck className="w-5 h-5 group-hover:translate-x-1 transition-transform" /> Confirm Dispatch
+                        </span>
+                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                     </Button>
+                   </div>
                   
                 </div>
               )}

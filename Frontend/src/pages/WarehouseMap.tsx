@@ -104,7 +104,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                     <Crosshair className="w-4 h-4 text-orange-500" />
                     Asset Coordinates
                  </CardTitle>
-                 <Badge variant="primary" size="sm" className="bg-orange-100 text-orange-700 border-orange-200">
+                 <Badge variant="primary" size="sm" className="bg-orange-500/20 text-orange-400 border-orange-500/20">
                     {filteredStock.length} Placed
                  </Badge>
               </div>
@@ -115,20 +115,20 @@ export const WarehouseMap = memo(function WarehouseMap() {
                     <div 
                        key={`${item.sku}-${item.rack}-${item.shelf}-${item.bin}`}
                        onClick={() => setSelectedSku(item.sku)}
-                       className={cn(
-                          "p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all duration-300",
-                          selectedSku === item.sku 
-                           ? "bg-orange-50 border-orange-300 shadow-card ring-1 ring-orange-500/20" 
-                           : "bg-white/[0.04] border-white/10 hover:border-white/10 hover:bg-white/[0.02]"
-                       )}
+                        className={cn(
+                           "p-3 rounded-xl border flex flex-col gap-2 cursor-pointer transition-all duration-300",
+                           selectedSku === item.sku 
+                            ? "bg-orange-500/10 border-orange-500 shadow-[0_0_15px_-5px_rgba(249,115,22,0.3)] ring-1 ring-orange-500/20" 
+                            : "bg-white/[0.04] border-white/10 hover:border-white/20 hover:bg-white/[0.06]"
+                        )}
                     >
                        <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2.5">
                              <div className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border",
                                 selectedSku === item.sku 
-                                 ? "bg-orange-100 text-orange-600 border-orange-200" 
-                                 : "bg-neutral-100 text-neutral-500 border-white/10"
+                                 ? "bg-orange-500/20 text-orange-400 border-orange-500/30" 
+                                 : "bg-white/5 text-neutral-400 border-white/10"
                              )}>
                                 <Box className="w-4 h-4" />
                              </div>
@@ -140,7 +140,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                           
                           <Badge variant={selectedSku === item.sku ? "warning" : "default"} className={cn(
                              "text-[10px] tracking-wider uppercase shadow-none",
-                             selectedSku !== item.sku && "bg-neutral-100 text-neutral-300 border-transparent"
+                             selectedSku !== item.sku && "bg-white/5 text-neutral-400 border-white/10"
                           )}>
                              {item.quantity} Units
                           </Badge>

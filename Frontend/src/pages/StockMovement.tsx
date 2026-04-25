@@ -91,9 +91,9 @@ export const StockMovement = memo(function StockMovement() {
         cell: (row) => (
           <span className={cn(
             "inline-flex items-center justify-center min-w-[3rem] px-2 py-1 rounded-lg font-bold text-sm",
-            row.quantity > 50 ? "bg-success-400/10 text-success-400 border border-success-100" :
-            row.quantity > 10 ? "bg-brand-400/10 text-brand-400 border border-brand-100" :
-            "bg-warning-400/10 text-warning-400 border border-warning-200"
+            row.quantity > 50 ? "bg-success-500/10 text-success-400 border border-success-500/20" :
+            row.quantity > 10 ? "bg-brand-500/10 text-brand-400 border border-brand-500/20" :
+            "bg-warning-500/10 text-warning-400 border border-warning-500/20"
           )}>
             {row.quantity}
           </span>
@@ -129,11 +129,11 @@ export const StockMovement = memo(function StockMovement() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
         
         {/* ================= LEFT PANEL: ADJUSTMENT FORM ================= */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full border-brand-200 ring-1 ring-brand-500/10">
-          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-brand-50/50">
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full border-brand-500/20 ring-1 ring-brand-500/5">
+          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-brand-500/10">
             <CardTitle size="sm" className="flex items-center gap-2">
-              <Move className="w-4 h-4 text-brand-300" />
-              <span className="text-brand-900">Execute Adjustment</span>
+              <Move className="w-4 h-4 text-brand-400" />
+              <span className="text-brand-300 font-bold">Execute Adjustment</span>
             </CardTitle>
           </CardHeader>
           
@@ -152,7 +152,7 @@ export const StockMovement = memo(function StockMovement() {
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                     required
-                    className="block w-full h-12 pl-12 pr-4 rounded-xl border-2 border-brand-100 bg-white/[0.04] shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none font-mono text-base uppercase placeholder:normal-case"
+                    className="block w-full h-12 pl-12 pr-4 rounded-xl border-2 border-brand-500/20 bg-white/[0.04] shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none font-mono text-base uppercase placeholder:normal-case text-white"
                   />
                 </div>
               </div>
@@ -160,7 +160,7 @@ export const StockMovement = memo(function StockMovement() {
               <div className="space-y-2">
                 <div className="flex justify-between items-end">
                    <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Adjustment Delta</label>
-                   <span className="text-[10px] bg-neutral-100 text-neutral-500 px-2 py-0.5 rounded-full font-bold">Use - for deductions</span>
+                   <span className="text-[10px] bg-white/10 text-neutral-400 px-2 py-0.5 rounded-full font-bold">Use - for deductions</span>
                 </div>
                 <div className="relative">
                   {qtyChange !== '' && (
@@ -182,9 +182,9 @@ export const StockMovement = memo(function StockMovement() {
                        "block w-full h-14 pr-4 rounded-xl border-2 shadow-card focus:ring-4 transition-all outline-none text-2xl font-bold font-mono",
                        qtyChange !== '' ? 'pl-12' : 'pl-4',
                        Number(qtyChange) > 0 
-                         ? 'border-success-200 text-success-400 bg-success-50/30 focus:border-success-500 focus:ring-success-500/20' 
+                         ? 'border-success-500/30 text-success-400 bg-success-500/5 focus:border-success-500 focus:ring-success-500/20' 
                          : Number(qtyChange) < 0 
-                           ? 'border-danger-200 text-danger-400 bg-danger-50/30 focus:border-danger-500 focus:ring-danger-500/20'
+                           ? 'border-danger-500/30 text-danger-400 bg-danger-500/5 focus:border-danger-500 focus:ring-danger-500/20'
                            : 'border-white/10 bg-white/[0.04] focus:border-brand-500 focus:ring-brand-500/20 text-white'
                     )}
                   />
@@ -223,11 +223,11 @@ export const StockMovement = memo(function StockMovement() {
               </div>
             </form>
             
-            <div className="mt-8 flex items-start gap-3 bg-warning-400/10 p-4 rounded-xl border border-warning-200 shadow-card animate-in fade-in duration-500">
-              <div className="w-8 h-8 rounded-full bg-warning-100 flex items-center justify-center shrink-0 border border-warning-300">
-                <AlertCircle className="w-4 h-4 text-warning-300" />
+            <div className="mt-8 flex items-start gap-3 bg-warning-500/10 p-4 rounded-xl border border-warning-500/20 shadow-card animate-in fade-in duration-500">
+              <div className="w-8 h-8 rounded-full bg-warning-500/20 flex items-center justify-center shrink-0 border border-warning-500/30">
+                <AlertCircle className="w-4 h-4 text-warning-400" />
               </div>
-              <p className="text-xs text-warning-800 leading-relaxed font-medium">
+              <p className="text-xs text-warning-200/70 leading-relaxed font-medium">
                 Manual adjustments directly manipulate the ledger and bypass standard inward/outward workflows. Use this exclusively for discrepancy corrections.
               </p>
             </div>

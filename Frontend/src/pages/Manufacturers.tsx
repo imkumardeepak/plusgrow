@@ -114,21 +114,21 @@ export const Manufacturers = memo(function Manufacturers() {
         header: 'Company',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
-              <Factory className="w-5 h-5 text-brand-300" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Factory className="w-5 h-5 text-brand-400" />
             </div>
             <div>
-              <p className="font-semibold text-neutral-900">{row.name}</p>
+              <p className="font-semibold text-white">{row.name}</p>
               <div className="mt-0.5 space-y-1">
                 {row.country && (
-                  <p className="text-xs text-neutral-500 flex items-center gap-1.5">
+                  <p className="text-xs text-neutral-400 flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-brand-400" />
                     {row.country}
                   </p>
                 )}
                 {row.address && (
-                  <p className="text-xs text-neutral-500 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-brand-300" />
+                  <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-brand-400" />
                     {row.address}
                   </p>
                 )}
@@ -141,7 +141,7 @@ export const Manufacturers = memo(function Manufacturers() {
         accessorKey: 'created_at',
         header: 'Added',
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-white/[0.02] text-neutral-500 text-xs rounded-md border border-white/10">
+          <span className="inline-flex items-center px-2 py-1 bg-white/5 text-neutral-400 text-xs rounded-md border border-white/10 font-medium">
             {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : 'N/A'}
           </span>
         ),
@@ -222,17 +222,17 @@ export const Manufacturers = memo(function Manufacturers() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Address</label>
+            <label className="field-label">Address</label>
             <textarea
               placeholder="Manufacturer address"
               value={formData.address}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
               rows={2}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 transition-all duration-200 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 focus:border-brand-500 resize-none"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white placeholder:text-neutral-500 transition-all duration-200 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500/50 resize-none"
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-neutral-700">Country</label>
+            <label className="field-label">Country</label>
             <Input
               placeholder="Country of origin"
               value={formData.country}

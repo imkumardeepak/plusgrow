@@ -54,7 +54,7 @@ export const Outward = memo(function Outward() {
       accessorKey: 'siNumber',
       header: 'Order No.',
       cell: (row) => (
-        <span className="font-mono text-sm font-bold text-brand-300 bg-brand-400/10 px-2 py-1 rounded-md border border-brand-400/20">
+        <span className="font-mono text-sm font-bold text-brand-400 bg-brand-500/10 px-2 py-1 rounded-md border border-brand-500/20">
           {row.siNumber}
         </span>
       ),
@@ -97,12 +97,12 @@ export const Outward = memo(function Outward() {
       header: 'Lifecycle Status',
       cell: (row) =>
         row.status === 'Dispatched' ? (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-success-400/10 border border-success-400/25 text-success-300 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-success-400" /> Dispatched
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-success-500/10 border border-success-500/20 text-success-400 rounded-full font-bold text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-success-500" /> Dispatched
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-warning-400/10 border border-warning-400/25 text-warning-300 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse" /> Pending Picking
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-warning-500/10 border border-warning-500/20 text-warning-400 rounded-full font-bold text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" /> Pending Picking
           </div>
         ),
     },
@@ -146,45 +146,45 @@ export const Outward = memo(function Outward() {
             <p className="text-2xl font-black text-white leading-none">{totalOrders}</p>
           </div>
         </Card>
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group cursor-pointer hover:-translate-y-0.5 transition-all relative overflow-hidden"
-          style={{ background: 'rgba(251,191,36,0.04)', borderColor: 'rgba(251,191,36,0.15)' }} onClick={() => navigate('/packing')}>
+        <Card variant="elevated" className="p-5 flex items-center gap-4 group cursor-pointer hover:-translate-y-0.5 transition-all relative overflow-hidden bg-warning-500/[0.03] border-warning-500/10"
+           onClick={() => navigate('/packing')}>
           <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
             <ChevronRight className="w-4 h-4 text-warning-400" />
           </div>
-          <div className="w-12 h-12 rounded-xl bg-warning-400/10 border border-warning-400/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
             <Package className="w-5 h-5 text-warning-400" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-warning-400/80 mb-1">Pending Packing</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-warning-400/60 mb-1">Pending Packing</p>
             <p className="text-2xl font-black text-white leading-none">{pendingPacking}</p>
           </div>
         </Card>
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group cursor-pointer hover:-translate-y-0.5 transition-all relative overflow-hidden"
-          style={{ background: 'rgba(52,211,153,0.04)', borderColor: 'rgba(52,211,153,0.15)' }} onClick={() => navigate('/dispatch')}>
+        <Card variant="elevated" className="p-5 flex items-center gap-4 group cursor-pointer hover:-translate-y-0.5 transition-all relative overflow-hidden bg-success-500/[0.03] border-success-500/10"
+           onClick={() => navigate('/dispatch')}>
           <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
             <ChevronRight className="w-4 h-4 text-success-400" />
           </div>
-          <div className="w-12 h-12 rounded-xl bg-success-400/10 border border-success-400/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <div className="w-12 h-12 rounded-xl bg-success-500/10 border border-success-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
             <Truck className="w-5 h-5 text-success-400" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-success-400/80 mb-1">Dock Ready</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-success-400/60 mb-1">Dock Ready</p>
             <p className="text-2xl font-black text-white leading-none font-mono">{readyToDispatch}</p>
           </div>
         </Card>
-        <Card variant="elevated" className="p-5 flex flex-col justify-center" style={{ background: 'rgba(30,192,243,0.04)', borderColor: 'rgba(30,192,243,0.15)' }}>
+        <Card variant="elevated" className="p-5 flex flex-col justify-center bg-brand-500/[0.03] border-brand-500/10">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-400/80">Completion</p>
-            <span className="text-sm font-black text-brand-300">{overallProgress}%</span>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-400/60">Completion</p>
+            <span className="text-sm font-black text-brand-400">{overallProgress}%</span>
           </div>
           <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-brand-400 to-brand-500 rounded-full transition-all duration-1000 ease-out" style={{ width: `${overallProgress}%` }} />
+            <div className="h-full bg-gradient-to-r from-brand-500 to-brand-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${overallProgress}%` }} />
           </div>
         </Card>
       </div>
 
-      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden min-h-0">
-        <CardHeader className="py-2.5 px-4 border-b border-white/8 bg-white/[0.04] z-10 shrink-0">
+      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden min-h-0 border-white/10">
+        <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10 shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle size="sm" className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-brand-400" />

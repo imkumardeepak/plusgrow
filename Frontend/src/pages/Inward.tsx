@@ -56,7 +56,7 @@ export const Inward = memo(function Inward() {
       accessorKey: 'piNumber',
       header: 'Document No.',
       cell: (row) => (
-        <span className="font-mono text-sm font-bold text-brand-300 bg-brand-400/10 px-2 py-1 rounded-md border border-brand-400/20">
+        <span className="font-mono text-sm font-bold text-brand-400 bg-brand-500/10 px-2 py-1 rounded-md border border-brand-500/20">
           {row.piNumber}
         </span>
       ),
@@ -73,7 +73,7 @@ export const Inward = memo(function Inward() {
       header: 'Origin Supplier',
       cell: (row) => (
         <div className="flex items-center gap-2">
-          <Building2 className="w-3.5 h-3.5 text-neutral-500" />
+          <Building2 className="w-3.5 h-3.5 text-brand-400" />
           <span className="font-semibold text-neutral-100 text-sm whitespace-nowrap">{row.supplierName}</span>
         </div>
       ),
@@ -82,7 +82,7 @@ export const Inward = memo(function Inward() {
       accessorKey: 'sku',
       header: 'Target SKU',
       cell: (row) => (
-        <Badge variant="default" size="sm" className="font-mono bg-white/[0.04] text-neutral-100 border-white/10 tracking-wider">
+        <Badge variant="default" size="sm" className="font-mono bg-brand-500/10 text-brand-400 border-brand-500/20 tracking-wider">
           {row.sku}
         </Badge>
       ),
@@ -91,7 +91,7 @@ export const Inward = memo(function Inward() {
       accessorKey: 'quantity',
       header: 'Yield Qty',
       cell: (row) => (
-        <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md font-bold text-sm bg-white/[0.04] border border-white/10 text-white">
+        <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md font-bold text-sm bg-brand-500/10 border border-brand-500/20 text-brand-400">
           {row.quantity}
         </span>
       ),
@@ -101,12 +101,12 @@ export const Inward = memo(function Inward() {
       header: 'Status',
       cell: (row) => (
         row.status === 'Completed' ? (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-success-400/10 border border-success-400/25 text-success-300 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-success-400" /> Put Away Complete
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-success-500/10 border border-success-500/20 text-success-400 rounded-full font-bold text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-success-500" /> Put Away Complete
           </div>
         ) : (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-warning-400/10 border border-warning-400/25 text-warning-300 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-warning-400 animate-pulse" /> Open / Pending
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-warning-500/10 border border-warning-500/20 text-warning-400 rounded-full font-bold text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" /> Open / Pending
           </div>
         )
       ),
@@ -141,7 +141,7 @@ export const Inward = memo(function Inward() {
               onClick={handlePullInwards}
               disabled={isPulling}
               size="sm"
-              className="h-9 px-5 font-bold shadow-brand-500/20 w-40 relative truncate"
+              className="h-9 px-5 font-bold shadow-neon-cyan/20 w-40 relative truncate"
               leftIcon={!isPulling ? <ArrowDownToLine className="w-4 h-4" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
             >
               {isPulling ? 'SYNCING ERP...' : 'PULL FROM ERP'}
@@ -153,40 +153,40 @@ export const Inward = memo(function Inward() {
       {/* KPI Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
         <Card variant="elevated" className="p-5 flex items-center gap-4 group">
-          <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <FileText className="w-5 h-5 text-neutral-500 group-hover:text-brand-300 transition-colors" />
+          <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 group-hover:shadow-neon-cyan/20 transition-all">
+            <FileText className="w-5 h-5 text-brand-400 group-hover:text-brand-300 transition-colors" />
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Total Invoices</p>
             <p className="text-2xl font-black text-white leading-none">{totalInvoices}</p>
           </div>
         </Card>
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group" style={{ background: 'rgba(251,191,36,0.04)', borderColor: 'rgba(251,191,36,0.15)' }}>
-          <div className="w-12 h-12 rounded-xl bg-warning-400/10 border border-warning-400/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+        <Card variant="elevated" className="p-5 flex items-center gap-4 group bg-warning-500/[0.03] border-warning-500/10">
+          <div className="w-12 h-12 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
             <Package className="w-5 h-5 text-warning-400 group-hover:text-warning-300 transition-colors" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-warning-400/80 mb-1">Pending Put Away</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-warning-400/60 mb-1">Pending Put Away</p>
             <p className="text-2xl font-black text-white leading-none">{pendingCount}</p>
           </div>
         </Card>
         <Card variant="elevated" className="p-5 flex items-center gap-4 group">
-          <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Hash className="w-5 h-5 text-neutral-500 group-hover:text-brand-300 transition-colors" />
+          <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 group-hover:shadow-neon-cyan/20 transition-all">
+            <Hash className="w-5 h-5 text-brand-400 group-hover:text-brand-300 transition-colors" />
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Units Received</p>
             <p className="text-2xl font-black text-white leading-none font-mono">{itemsReceived.toLocaleString()}</p>
           </div>
         </Card>
-        <Card variant="elevated" className="p-5 flex flex-col justify-center" style={{ background: 'rgba(52,211,153,0.04)', borderColor: 'rgba(52,211,153,0.15)' }}>
+        <Card variant="elevated" className="p-5 flex flex-col justify-center bg-success-500/[0.03] border-success-500/10">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-success-400/80">Completion</p>
-            <span className="text-sm font-black text-success-300">{overallProgress}%</span>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-success-400/60">Completion</p>
+            <span className="text-sm font-black text-success-400">{overallProgress}%</span>
           </div>
           <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-success-400 to-success-500 rounded-full transition-all duration-1000 ease-out"
+              className="h-full bg-gradient-to-r from-success-500 to-success-400 rounded-full transition-all duration-1000 ease-out"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -194,8 +194,8 @@ export const Inward = memo(function Inward() {
       </div>
 
       {/* Main Table */}
-      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden min-h-0">
-        <CardHeader className="py-2.5 px-4 border-b border-white/8 bg-white/[0.04] z-10 shrink-0">
+      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden min-h-0 border-white/10">
+        <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10 shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle size="sm" className="flex items-center gap-2">
               <Download className="w-4 h-4 text-brand-400" />

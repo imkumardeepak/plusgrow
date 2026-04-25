@@ -115,8 +115,8 @@ export const Commodities = memo(function Commodities() {
         header: 'Commodity Name',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
-              <Tag className="w-5 h-5 text-brand-300" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Tag className="w-5 h-5 text-brand-400" />
             </div>
             <p className="font-semibold text-white">{row.name}</p>
           </div>

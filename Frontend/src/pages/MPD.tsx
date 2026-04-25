@@ -250,7 +250,7 @@ export const MPD = memo(function MPD() {
         accessorKey: 'sku', 
         header: 'SKU',
 cell: (row) => (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.06] text-brand-300 text-xs font-mono rounded-lg border border-white/10">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-500/10 text-brand-400 text-xs font-mono rounded-lg border border-brand-500/20 shadow-neon-cyan/10">
             {row.sku || 'N/A'}
           </span>
         )
@@ -260,8 +260,8 @@ cell: (row) => (
         header: 'Product Name',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
-              <Package className="w-5 h-5 text-brand-300" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Package className="w-5 h-5 text-brand-400" />
             </div>
             <div>
               <span className="font-bold text-white block text-sm">{row.name}</span>
@@ -301,7 +301,7 @@ cell: (row) => (
         header: 'MRP',
         cell: (row) => (
           <div className="flex flex-col items-end">
-            <span className="font-bold text-success-300 text-sm tracking-tight">
+            <span className="font-bold text-success-400 text-sm tracking-tight">
               ₹{(row.mrp || 0).toFixed(2)}
             </span>
             {row.ussp && row.ussp > 0 && (
@@ -332,7 +332,7 @@ cell: (row) => (
               e.stopPropagation();
               setExpandedRow(isExpanded ? null : product.id);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-400 hover:bg-brand-500/10"
           >
             <motion.div
               animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -349,7 +349,7 @@ cell: (row) => (
               navigator.clipboard.writeText(`${product.name} (${product.sku})`);
               toast.success('Copied to clipboard');
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-400 hover:bg-brand-500/10"
           >
             <Copy className="w-4 h-4" />
           </Button>
@@ -360,7 +360,7 @@ cell: (row) => (
               e.stopPropagation();
               openEditModal(product);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-300 hover:bg-brand-400/10"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-brand-400 hover:bg-brand-500/10"
           >
             <Edit2 className="w-4 h-4" />
           </Button>
@@ -371,7 +371,7 @@ cell: (row) => (
               e.stopPropagation();
               setDeleteTarget(product);
             }}
-            className="h-8 w-8 p-0 text-neutral-400 hover:text-danger-300 hover:bg-danger-400/10"
+            className="h-8 w-8 p-0 text-neutral-400 hover:text-danger-400 hover:bg-danger-500/10"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -391,7 +391,7 @@ cell: (row) => (
       transition={{ duration: 0.2 }}
       className="overflow-hidden"
     >
-      <div className="bg-gradient-to-r from-brand-50/50 via-brand-50/50 to-brand-50/50 border-t border-b border-brand-100/50 p-4">
+      <div className="bg-white/[0.04] border-t border-b border-white/10 p-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">Unit Type</p>
@@ -403,7 +403,7 @@ cell: (row) => (
           </div>
           <div className="space-y-1">
             <p className="text-[10px] uppercase tracking-wider text-neutral-400 font-semibold">USSP</p>
-            <p className="text-sm font-medium text-amber-600">₹{(product.ussp || 0).toFixed(2)}</p>
+            <p className="text-sm font-medium text-warning-400">₹{(product.ussp || 0).toFixed(2)}</p>
           </div>
         </div>
       </div>
@@ -416,8 +416,8 @@ cell: (row) => (
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-float shadow-brand-200">
-              <Package className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-neon-cyan/20">
+              <Package className="w-5 h-5 text-brand-400" />
             </div>
             <div>
               <h1 className="text-base font-bold text-white leading-tight tracking-tight">Master Product Data</h1>
@@ -428,7 +428,7 @@ cell: (row) => (
             <Button
               onClick={() => setIsUploadModalOpen(true)}
               variant="outline"
-              className="h-9 w-auto px-3 font-bold border-brand-200 text-brand-300 hover:bg-brand-400/10 hover:text-brand-400"
+              className="h-9 w-auto px-3 font-bold border-brand-500/20 text-brand-400 hover:bg-brand-500/10"
               leftIcon={<Upload className="w-4 h-4" />}
             >
               IMPORT
@@ -633,11 +633,11 @@ cell: (row) => (
       >
         <div className="space-y-6">
           {/* Template Download Section */}
-          <div className="bg-gradient-to-r from-brand-50/50 to-brand-50/50 rounded-xl p-4 border border-brand-100">
+          <div className="bg-white/[0.04] rounded-xl p-4 border border-white/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-400/20 flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5 text-brand-300" />
+                <div className="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
+                  <FileSpreadsheet className="w-5 h-5 text-brand-400" />
                 </div>
                 <div>
                   <p className="font-semibold text-white text-sm">Product Import Template</p>
@@ -648,7 +648,7 @@ cell: (row) => (
                 onClick={handleDownloadTemplate}
                 variant="outline"
                 size="sm"
-                className="border-brand-200 text-brand-300 hover:bg-brand-400/10"
+                className="border-brand-500/20 text-brand-400 hover:bg-brand-500/10"
                 leftIcon={<Download className="w-4 h-4" />}
               >
                 Download Template
@@ -657,10 +657,10 @@ cell: (row) => (
           </div>
           
           {/* Instructions */}
-          <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-100">
+          <div className="bg-warning-500/10 rounded-xl p-4 border border-warning-500/20">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-700 space-y-1">
+              <AlertCircle className="w-5 h-5 text-warning-400 shrink-0 mt-0.5" />
+              <div className="text-sm text-warning-200 space-y-1">
                 <p className="font-semibold">Important Instructions:</p>
                 <ul className="list-disc list-inside space-y-0.5 text-xs">
                   <li>Use the template file to ensure correct column names</li>
@@ -676,11 +676,11 @@ cell: (row) => (
           <div
             className={cn(
               "relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200",
-              isDragging
-                ? "border-brand-400 bg-brand-400/10"
+               isDragging
+                ? "border-brand-500 bg-brand-500/10"
                 : uploadFile
-                ? "border-success-300 bg-success-50/30"
-                : "border-white/15 hover:border-brand-300 hover:bg-brand-50/30"
+                ? "border-success-500 bg-success-500/10"
+                : "border-white/15 hover:border-brand-500 hover:bg-brand-500/5"
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -717,7 +717,7 @@ cell: (row) => (
                 <>
                   <div className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                    isDragging ? "bg-brand-400/20" : "bg-neutral-100"
+                    isDragging ? "bg-brand-500/20" : "bg-white/5"
                   )}>
                     <Upload className={cn(
                       "w-6 h-6",

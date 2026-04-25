@@ -57,8 +57,8 @@ export const MCD = memo(function MCD() {
       <Card variant="glass" className="p-3 shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-400/20 flex items-center justify-center shrink-0 border border-brand-200 shadow-card">
-              <Users className="w-5 h-5 text-brand-300" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center shrink-0 border border-brand-500/20 shadow-card">
+              <Users className="w-5 h-5 text-brand-400" />
             </div>
             <div>
               <h1 className="text-base font-bold text-white leading-tight tracking-tight">Master Customer Data</h1>
@@ -93,9 +93,9 @@ export const MCD = memo(function MCD() {
          {/* LEFT/TOP: Creation Form */}
          <div className={cn("transition-all duration-500 ease-in-out overflow-hidden flex flex-col", isAdding ? "lg:col-span-4 h-full" : "lg:col-span-0 w-0 opacity-0 overflow-hidden hidden")}>
             <Card variant="elevated" className="flex flex-col h-full border-brand-200 shadow-lg shadow-brand-500/5 ring-1 ring-brand-500/10">
-               <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-brand-50/50 shrink-0">
-                  <CardTitle size="sm" className="flex items-center gap-2 text-brand-900">
-                     <Building2 className="w-4 h-4 text-brand-300" />
+               <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] shrink-0">
+                  <CardTitle size="sm" className="flex items-center gap-2 text-white">
+                     <Building2 className="w-4 h-4 text-brand-400" />
                      Registration Subsystem
                   </CardTitle>
                </CardHeader>
@@ -201,9 +201,9 @@ export const MCD = memo(function MCD() {
                      <Users className="w-4 h-4 text-brand-500" />
                      Verified Partners Directory
                   </CardTitle>
-                  <Badge variant="primary" size="sm" className="bg-brand-400/20 text-brand-400 border-brand-200">
-                     {filteredCustomers.length} Active Records
-                  </Badge>
+                   <Badge variant="primary" size="sm" className="bg-brand-500/10 text-brand-400 border border-brand-500/20 font-bold">
+                      {filteredCustomers.length} Active Records
+                   </Badge>
                </div>
             </CardHeader>
 
@@ -223,12 +223,12 @@ export const MCD = memo(function MCD() {
                         {filteredCustomers.map((c, idx) => (
                            <tr 
                               key={c.id} 
-                              className="group hover:bg-brand-50/30 transition-colors animate-in fade-in"
+                              className="group hover:bg-white/[0.04] transition-colors animate-in fade-in"
                               style={{ animationFillMode: 'both', animationDelay: `${idx * 20}ms` }}
                            >
                               <td className="py-4 px-5">
                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-50 to-brand-50 border border-brand-100 flex items-center justify-center text-brand-400 font-black text-sm shadow-card">
+                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-brand-400 font-black text-sm shadow-card group-hover:border-brand-500/30 transition-colors">
                                        {c.name.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
@@ -240,23 +240,23 @@ export const MCD = memo(function MCD() {
                               <td className="py-4 px-5">
                                  <div className="space-y-1.5">
                                     <div className="flex items-center text-xs text-neutral-300 font-medium font-mono">
-                                       <div className="w-5 h-5 rounded bg-neutral-100 flex items-center justify-center mr-2"><Mail className="w-3 h-3 text-neutral-500" /></div>
+                                       <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center mr-2"><Mail className="w-3 h-3 text-neutral-400" /></div>
                                        {c.email}
                                     </div>
                                     <div className="flex items-center text-xs text-neutral-300 font-medium font-mono">
-                                       <div className="w-5 h-5 rounded bg-neutral-100 flex items-center justify-center mr-2"><Phone className="w-3 h-3 text-neutral-500" /></div>
+                                       <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center mr-2"><Phone className="w-3 h-3 text-neutral-400" /></div>
                                        {c.phone}
                                     </div>
                                  </div>
                               </td>
                               <td className="py-4 px-5 text-center">
                                  {c.ownership === 'Self' ? (
-                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-success-50/50 border border-success-200 text-success-400 rounded-full font-bold text-[10px] tracking-widest uppercase">
-                                       <span className="w-1.5 h-1.5 rounded-full bg-success-400/100"></span> Direct (Self)
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-success-500/10 border border-success-500/20 text-success-400 rounded-full font-bold text-[10px] tracking-widest uppercase">
+                                       <span className="w-1.5 h-1.5 rounded-full bg-success-400"></span> Direct (Self)
                                     </div>
                                  ) : (
-                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-50/50 border border-warning-200 text-warning-400 rounded-full font-bold text-[10px] tracking-widest uppercase">
-                                       <span className="w-1.5 h-1.5 rounded-full bg-warning-400/100"></span> 3rd Party
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-warning-500/10 border border-warning-500/20 text-warning-400 rounded-full font-bold text-[10px] tracking-widest uppercase">
+                                       <span className="w-1.5 h-1.5 rounded-full bg-warning-400"></span> 3rd Party
                                     </div>
                                  )}
                               </td>

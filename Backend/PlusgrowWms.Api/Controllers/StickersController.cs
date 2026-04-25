@@ -4,8 +4,6 @@ using PlusgrowWms.Api.Services;
 
 namespace PlusgrowWms.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 public class StickersController : BaseController
 {
     private readonly IStickerService _stickerService;

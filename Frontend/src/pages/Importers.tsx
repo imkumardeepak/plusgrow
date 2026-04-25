@@ -118,14 +118,14 @@ export const Importers = memo(function Importers() {
         header: 'Company',
 cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center shadow-card">
-              <Truck className="w-5 h-5 text-brand-300" />
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Truck className="w-5 h-5 text-brand-400" />
             </div>
             <div>
               <p className="font-semibold text-white">{row.name}</p>
               {row.address && (
-                <p className="text-xs text-neutral-500 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
+                <p className="text-xs text-neutral-400 flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-brand-400" />
                   {row.address.slice(0, 40)}...
                 </p>
               )}
@@ -137,7 +137,7 @@ cell: (row) => (
         accessorKey: 'cin',
         header: 'CIN',
 cell: (row) => (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.06] text-brand-300 text-xs font-mono rounded-lg border border-white/10">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-500/10 text-brand-400 text-xs font-mono rounded-lg border border-brand-500/20 shadow-neon-cyan/10">
             {row.cin || 'N/A'}
           </span>
         ),
@@ -153,8 +153,8 @@ cell: (row) => (
               </p>
             )}
             {row.email && (
-              <p className="text-xs text-neutral-500 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-brand-300" /> {row.email}
+              <p className="text-xs text-neutral-400 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-brand-400" /> {row.email}
               </p>
             )}
           </div>
@@ -164,7 +164,7 @@ cell: (row) => (
         accessorKey: 'created_at',
         header: 'Added',
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-white/[0.02] text-neutral-500 text-xs rounded-md border border-white/10">
+          <span className="inline-flex items-center px-2 py-1 bg-white/5 text-neutral-400 text-xs rounded-md border border-white/10 font-medium">
             {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : 'N/A'}
           </span>
         ),

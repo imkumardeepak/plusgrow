@@ -72,7 +72,7 @@ export const Dashboard = memo(function Dashboard() {
           </div>
           <div>
             <p className="text-sm font-semibold text-white">Dashboard Status</p>
-            <p className="mt-1 text-sm text-neutral-500">Live snapshot for inbound, outbound, inventory, task flow.</p>
+            <p className="mt-1 text-sm text-neutral-400">Live snapshot for inbound, outbound, inventory, and task flow.</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -148,7 +148,7 @@ export const Dashboard = memo(function Dashboard() {
             >
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-warning-400/20 -/ text-warning-100">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-warning-400/20 bg-warning-400/10 text-warning-300">
                     <Clock className="h-7 w-7" />
                   </div>
                   <div>

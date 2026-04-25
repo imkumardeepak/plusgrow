@@ -112,7 +112,7 @@ export const StockCheck = memo(function StockCheck() {
                     value={scanInput}
                     onChange={(e) => setScanInput(e.target.value)}
                     required
-                    className="block w-full h-14 pl-12 pr-4 rounded-xl border-2 border-brand-100 bg-white/[0.04] shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none font-mono text-lg uppercase placeholder:normal-case placeholder:text-base"
+                    className="block w-full h-14 pl-12 pr-4 rounded-xl border-2 border-brand-500/20 bg-white/[0.04] shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none font-mono text-lg uppercase placeholder:normal-case placeholder:text-base text-white"
                   />
                 </div>
               </div>
@@ -141,11 +141,11 @@ export const StockCheck = memo(function StockCheck() {
             </form>
             
             <div className="mt-8 flex items-start gap-3 bg-white/[0.04] p-4 rounded-xl border border-white/10 shadow-card">
-              <div className="w-8 h-8 rounded-full bg-brand-400/10 flex items-center justify-center shrink-0 border border-brand-100">
-                <Info className="w-4 h-4 text-brand-500" />
+               <div className="w-8 h-8 rounded-full bg-brand-500/20 flex items-center justify-center shrink-0 border border-brand-500/20">
+                <Info className="w-4 h-4 text-brand-400" />
               </div>
               <p className="text-sm text-neutral-300 leading-relaxed">
-                Scan the item's barcode directly into the first field, count the exact quantity on the shelf, enter it below, and hit <kbd className="font-mono text-xs bg-neutral-100 border border-white/10 px-1 py-0.5 rounded text-neutral-200">Enter</kbd> to verify instantaneously.
+                Scan the item's barcode directly into the first field, count the exact quantity on the shelf, enter it below, and hit <kbd className="font-mono text-xs bg-white/10 border border-white/20 px-1 py-0.5 rounded text-white">Enter</kbd> to verify instantaneously.
               </p>
             </div>
           </CardContent>
@@ -164,7 +164,7 @@ export const StockCheck = memo(function StockCheck() {
           
           <CardContent className="flex-1 p-0 flex flex-col relative bg-white/[0.02] overflow-hidden">
             {/* Dotted Workspace Background */}
-            <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] opacity-30 mix-blend-multiply pointer-events-none"></div>
+             <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
 
             <div className="relative z-10 flex flex-col h-full overflow-y-auto p-6 scrollbar-thin">
               {!checkResult ? (
@@ -186,15 +186,15 @@ export const StockCheck = memo(function StockCheck() {
                 <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full animate-in slide-in-from-bottom-4 duration-500 pt-6">
                   
                   {/* Result Header Context */}
-                  <div className={cn(
+                   <div className={cn(
                     "mb-6 shadow-lg rounded-2xl p-5 flex items-center gap-4 border transition-colors",
                     checkResult.difference === 0 
-                      ? 'bg-success-400/10 border-success-200 shadow-success-100/50' 
-                      : 'bg-danger-400/10 border-danger-200 shadow-danger-100/50'
+                      ? 'bg-success-500/10 border-success-500/30 shadow-success-500/10' 
+                      : 'bg-danger-500/10 border-danger-500/30 shadow-danger-500/10'
                   )}>
-                    <div className={cn(
-                      "w-14 h-14 rounded-full flex items-center justify-center shrink-0 border-4 bg-white/[0.04]",
-                      checkResult.difference === 0 ? "border-success-100" : "border-danger-100"
+                     <div className={cn(
+                      "w-14 h-14 rounded-full flex items-center justify-center shrink-0 border-4 bg-white/5",
+                      checkResult.difference === 0 ? "border-success-500/20" : "border-danger-500/20"
                     )}>
                       {checkResult.difference === 0 ? (
                         <CheckCircle2 className="w-6 h-6 text-success-500" />
@@ -204,10 +204,10 @@ export const StockCheck = memo(function StockCheck() {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                       <h2 className={cn(
-                          "text-xl font-bold tracking-tight mb-1",
-                          checkResult.difference === 0 ? "text-success-900" : "text-danger-900"
-                        )}>
+                        <h2 className={cn(
+                           "text-xl font-bold tracking-tight mb-1",
+                           checkResult.difference === 0 ? "text-success-400" : "text-danger-400"
+                         )}>
                          {checkResult.difference === 0 ? "Perfect Match Confirmed" : "Discrepancy Detected"}
                        </h2>
                        <div className="flex items-center gap-2">
@@ -228,14 +228,13 @@ export const StockCheck = memo(function StockCheck() {
                            <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-widest mb-2">Physical Count</p>
                            <p className="text-4xl font-mono font-bold text-white">{checkResult.physicalQty}</p>
                         </div>
-                        <div className={cn(
-                           "p-6 text-center shadow-inner relative overflow-hidden",
-                           checkResult.difference === 0 ? "-/" : "-/"
-                        )}>
-                           <div className={cn(
-                              "absolute top-0 inset-x-0 h-1", 
-                              checkResult.difference === 0 ? "bg-success-400/100" : "bg-danger-400/100"
-                           )}></div>
+                         <div className={cn(
+                            "p-6 text-center shadow-inner relative overflow-hidden bg-white/5"
+                         )}>
+                            <div className={cn(
+                               "absolute top-0 inset-x-0 h-1", 
+                               checkResult.difference === 0 ? "bg-success-500" : "bg-danger-500"
+                            )}></div>
                            <p className={cn(
                               "text-[11px] font-bold uppercase tracking-widest mb-2",
                               checkResult.difference === 0 ? "text-success-300" : "text-danger-300"
@@ -256,12 +255,12 @@ export const StockCheck = memo(function StockCheck() {
                         <div className="w-12 h-12 bg-danger-400/10 rounded-full flex items-center justify-center shrink-0">
                            <AlertTriangle className="w-6 h-6 text-danger-500" />
                         </div>
-                        <div className="flex-1 text-center sm:text-left">
-                           <h4 className="text-base font-bold text-danger-900 mb-1">Stock Adjustment Required</h4>
-                           <p className="text-sm text-danger-400">
-                              A deviation of <strong className="font-mono">{Math.abs(checkResult.difference)} units</strong> was detected. A stock movement transaction is required to sync physical inventory with system records.
-                           </p>
-                        </div>
+                         <div className="flex-1 text-center sm:text-left">
+                            <h4 className="text-base font-bold text-danger-400 mb-1">Stock Adjustment Required</h4>
+                            <p className="text-sm text-danger-300 opacity-80">
+                               A deviation of <strong className="font-mono text-white">{Math.abs(checkResult.difference)} units</strong> was detected. A stock movement transaction is required to sync physical inventory with system records.
+                            </p>
+                         </div>
                         <div className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
                            <Button onClick={() => navigate('/stock-movement')} className="w-full sm:w-auto bg-danger-600 hover:bg-danger-700 text-white shadow-float">
                               Create Movement Adjustment

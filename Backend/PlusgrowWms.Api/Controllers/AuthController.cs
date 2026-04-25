@@ -6,8 +6,6 @@ using PlusgrowWms.Api.Services;
 
 namespace PlusgrowWms.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 public class AuthController : BaseController
 {
     private readonly IAuthService _authService;

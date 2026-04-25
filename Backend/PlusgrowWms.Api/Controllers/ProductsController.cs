@@ -8,8 +8,6 @@ using ClosedXML.Excel;
 
 namespace PlusgrowWms.Api.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
 public class ProductsController : BaseController
 {
     private readonly PlusgrowDbContext _context;
