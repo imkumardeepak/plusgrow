@@ -23,11 +23,25 @@ api.interceptors.request.use((config) => {
 // Handle auth errors
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiError>) => {
+  (error: AxiosError<any>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
       window.location.href = '/login';
+    } else if (error.response?.status === 400 && error.response.data?.errors) {
+      // Extract FluentValidation ProblemDetails errors
+      const errorObj = error.response.data.errors;
+      if (typeof errorObj === 'object' && !Array.isArray(errorObj)) {
+        const messages = Object.values(errorObj).flat().join(', ');
+        if (messages) {
+          error.message = messages;
+        }
+      } else if (Array.isArray(errorObj)) {
+        error.message = errorObj.join(', ');
+      }
+    } else if (error.response?.data?.message) {
+      // Extract custom error message from API if present
+      error.message = error.response.data.message;
     }
     return Promise.reject(error);
   }

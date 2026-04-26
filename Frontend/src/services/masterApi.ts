@@ -85,6 +85,42 @@ export interface ProductUploadResult {
   errors?: string[];
 }
 
+export interface Bin {
+  id: number;
+  binCode: string;
+  createdAt: string;
+}
+
+export interface CreateBinDto {
+  id?: number;
+  binCode: string;
+}
+
+export interface Location {
+  id: number;
+  aisle: string;
+  rack: string;
+  shelf: string;
+  locationCode: string;
+  bins: string[];
+  createdAt: string;
+}
+
+export interface CreateLocationDto {
+  id?: number;
+  aisle: string;
+  rack: string;
+  shelf: string;
+  locationCode: string;
+  bins: string[];
+}
+
+export interface ImportResult {
+  success: boolean;
+  importedCount: number;
+  errors?: string[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -105,11 +141,13 @@ export const manufacturersApi = {
 
   create: async (data: CreateManufacturerDto): Promise<Manufacturer> => {
     const response = await api.post<ApiResponse<Manufacturer>>('/manufacturers', data);
+    if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
 
   update: async (id: number, data: CreateManufacturerDto): Promise<Manufacturer> => {
     const response = await api.put<ApiResponse<Manufacturer>>(`/manufacturers/${id}`, data);
+    if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
 
@@ -222,5 +260,73 @@ export const productsApi = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  },
+};
+
+// Bins API
+export const binsApi = {
+  getAll: async (): Promise<Bin[]> => {
+    const response = await api.get<ApiResponse<Bin[]>>('/bins');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateBinDto): Promise<Bin> => {
+    const response = await api.post<ApiResponse<Bin>>('/bins', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateBinDto): Promise<Bin> => {
+    const response = await api.put<ApiResponse<Bin>>(`/bins/${id}`, data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/bins/${id}`);
+  },
+
+  uploadExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<ApiResponse<ImportResult>>('/bins/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
+  },
+};
+
+// Locations API
+export const locationsApi = {
+  getAll: async (): Promise<Location[]> => {
+    const response = await api.get<ApiResponse<Location[]>>('/locations');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateLocationDto): Promise<Location> => {
+    const response = await api.post<ApiResponse<Location>>('/locations', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateLocationDto): Promise<Location> => {
+    const response = await api.put<ApiResponse<Location>>(`/locations/${id}`, data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/locations/${id}`);
+  },
+
+  uploadExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<ApiResponse<ImportResult>>('/locations/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
   },
 };

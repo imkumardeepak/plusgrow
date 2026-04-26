@@ -27,6 +27,8 @@ const Commodities = lazy(() => import('./pages/Commodities').then(m => ({ defaul
 const MPD = lazy(() => import('./pages/MPD').then(m => ({ default: m.MPD })));
 const StockCheck = lazy(() => import('./pages/StockCheck').then(m => ({ default: m.StockCheck })));
 const StockMovement = lazy(() => import('./pages/StockMovement').then(m => ({ default: m.StockMovement })));
+const Bins = lazy(() => import('./pages/Bins').then(m => ({ default: m.Bins })));
+const Locations = lazy(() => import('./pages/Locations').then(m => ({ default: m.Locations })));
 const WarehouseMap = lazy(() => import('./pages/WarehouseMap').then(m => ({ default: m.WarehouseMap })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
@@ -143,6 +145,16 @@ export default function App() {
                 <Route path="commodities" element={
                   <Suspense fallback={<PageLoader />}>
                     <Commodities />
+                  </Suspense>
+                } />
+                <Route path="bins" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Bins />
+                  </Suspense>
+                } />
+                <Route path="locations" element={
+                  <Suspense fallback={<PageLoader />}>
+                    <Locations />
                   </Suspense>
                 } />
                 <Route path="mpd" element={

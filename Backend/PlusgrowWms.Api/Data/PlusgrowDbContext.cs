@@ -16,6 +16,9 @@ public class PlusgrowDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<RolePageAccess> RolePageAccesses => Set<RolePageAccess>();
+    public DbSet<Bin> Bins => Set<Bin>();
+    public DbSet<Location> Locations => Set<Location>();
+
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +61,15 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<Role>()
             .HasIndex(r => r.Name)
             .IsUnique();
+
+        modelBuilder.Entity<Bin>()
+            .HasIndex(b => b.BinCode)
+            .IsUnique();
+
+        modelBuilder.Entity<Location>()
+            .HasIndex(l => l.LocationCode)
+            .IsUnique();
+
         
         // Additional indexes for performance
         modelBuilder.Entity<Product>()

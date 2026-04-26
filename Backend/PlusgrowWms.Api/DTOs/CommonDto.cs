@@ -46,3 +46,10 @@ public class CreateCommodityDto
 {
     public string Name { get; set; } = string.Empty;
 }
+
+public class ImportResultDto
+{
+    public bool Success { get; set; }
+    public int ImportedCount { get; set; }
+    public List<string> Errors { get; set; } = new();
+}

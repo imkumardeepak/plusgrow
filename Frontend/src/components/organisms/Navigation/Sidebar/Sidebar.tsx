@@ -30,6 +30,7 @@ import {
   Building,
   Layers,
   Factory,
+  MapPin,
 } from "lucide-react";
 
 // Navigation structure
@@ -66,6 +67,8 @@ export const navigationGroups: NavGroup[] = [
       { id: "importers", label: "Importers", icon: Building, href: "/importers" },
       { id: "manufacturers", label: "Manufacturers", icon: Factory, href: "/manufacturers" },
       { id: "commodities", label: "Commodities", icon: Layers, href: "/commodities" },
+      { id: "bins", label: "Bin Master", icon: Box, href: "/bins" },
+      { id: "locations", label: "Location Master", icon: MapPin, href: "/locations" },
       { id: "mpd", label: "Products", icon: Box, href: "/mpd" },
     ],
   },

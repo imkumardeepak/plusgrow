@@ -23,8 +23,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
 // Configure PostgreSQL
-builder.Services.AddDbContext<PlusgrowDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+var dataSourceBuilder = new Npgsql.NpgsqlDataSourceBuilder(connectionString);
+dataSourceBuilder.EnableDynamicJson();
+var dataSource = dataSourceBuilder.Build();
+
+builder.Services.AddSingleton(dataSource);
+
+builder.Services.AddDbContext<PlusgrowDbContext>((sp, options) =>
+{
+    options.UseNpgsql(sp.GetRequiredService<Npgsql.NpgsqlDataSource>());
+});
 
 // Add repositories
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));

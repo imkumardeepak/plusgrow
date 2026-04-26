@@ -48,8 +48,14 @@ public class MappingProfile : Profile
         CreateMap<Manufacturer, ManufacturerDto>();
         CreateMap<CreateManufacturerDto, Manufacturer>();
         
-        // Commodity Mappings
-        CreateMap<Commodity, CommodityDto>();
-        CreateMap<CreateCommodityDto, Commodity>();
+        // Bin Mappings
+        CreateMap<Bin, BinDto>();
+        CreateMap<CreateBinDto, Bin>();
+        CreateMap<UpdateBinDto, Bin>();
+        
+        // Location Mappings
+        CreateMap<Location, LocationDto>();
+        CreateMap<CreateLocationDto, Location>();
+        CreateMap<UpdateLocationDto, Location>();
     }
 }
