@@ -5,7 +5,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, Building2, MapPin, Phone, Mail, Loader2, Trash2, Edit2, Truck } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { importersApi, Importer, CreateImporterDto } from '../services/masterApi';
 import { format } from 'date-fns';
 
@@ -312,3 +312,4 @@ cell: (row) => (
 });
 
 export default Importers;
+

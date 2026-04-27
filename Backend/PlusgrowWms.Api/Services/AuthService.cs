@@ -73,8 +73,10 @@ public class AuthService : IAuthService
         }
         
         // Update last login
-        user.LastLoginAt = DateTime.Now;
-        await _userRepository.UpdateAsync(user);
+        await _userRepository.UpdateLastLoginAsync(
+            user,
+            DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
+        );
         
         var token = GenerateJwtToken(user);
         var userDto = new UserDto

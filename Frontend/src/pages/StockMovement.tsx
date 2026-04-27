@@ -6,7 +6,7 @@ import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Move, Search, AlertCircle, ArrowUpRight, ArrowDownRight, Package, CheckCircle2, History, Database, ArrowRightLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { cn } from '../lib/utils';
 import confetti from "canvas-confetti";
 
@@ -270,3 +270,4 @@ export const StockMovement = memo(function StockMovement() {
 });
 
 export default StockMovement;
+

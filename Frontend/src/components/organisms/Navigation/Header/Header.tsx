@@ -1,49 +1,41 @@
-/**
- * Header Component
- * Top navigation bar with search, actions, and user menu
- */
-
 import React, { useState } from "react";
-import { cn } from "../../../../lib/utils";
-import { Button } from "../../../atoms/Button";
-import { Input } from "../../../atoms/Input";
 import {
+  ActionIcon,
+  Avatar,
+  Burger,
+  Button,
+  Group,
+  Indicator,
   Menu,
-  Search,
+  Paper,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
+import {
   Bell,
-  RefreshCw,
   ChevronDown,
-  User,
-  Settings,
-  LogOut,
   HelpCircle,
-  Crown,
+  LogOut,
+  RefreshCw,
+  Search,
+  Settings,
+  User,
 } from "lucide-react";
+import { cn } from "../../../../lib/utils";
 
 export interface HeaderProps {
-  /** Callback when mobile menu button is clicked */
   onMenuClick?: () => void;
-  /** Callback when sidebar toggle is clicked */
   onSidebarToggle?: () => void;
-  /** Current sidebar collapsed state */
   sidebarCollapsed?: boolean;
-  /** Loading state for sync action */
   isSyncing?: boolean;
-  /** Callback for sync action */
   onSync?: () => void;
-  /** User name display */
   userName?: string;
-  /** User role display */
   userRole?: string;
-  /** User avatar initials */
   userInitials?: string;
-  /** Notification count */
   notificationCount?: number;
-  /** Callback for logout */
   onLogout?: () => void;
-  /** Callback for profile click */
   onProfileClick?: () => void;
-  /** Additional CSS classes */
   className?: string;
 }
 
@@ -61,178 +53,125 @@ export function Header({
   onProfileClick,
   className,
 }: HeaderProps) {
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-30 mx-3 mt-3 flex h-14 items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(22,33,52,0.88)_0%,rgba(15,24,40,0.92)_100%)] px-3 backdrop-blur-xl shadow-card lg:mx-4 lg:mt-4 lg:h-16 lg:px-4",
-        className
-      )}
+    <Paper
+      radius="xl"
+      mx={{ base: "sm", md: "md" }}
+      mt={{ base: "sm", md: "md" }}
+      px={{ base: "sm", md: "md" }}
+      py="xs"
+      withBorder
+      className={cn(className)}
+      style={{
+        background: "linear-gradient(180deg, rgba(22,33,52,0.88) 0%, rgba(15,24,40,0.92) 100%)",
+        backdropFilter: "blur(18px)",
+      }}
     >
-      {/* Left Section */}
-      <div className="flex items-center gap-2 flex-1">
-        {/* Mobile Menu Button */}
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onMenuClick}
-          className="lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu className="w-4 h-4" />
-        </Button>
-
-        {/* Search */}
-        <div className="hidden sm:flex flex-1 max-w-sm">
-          <Input
-            placeholder="Search..."
-            leftElement={<Search className="w-3.5 h-3.5" />}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="sm"
-            className="h-8 text-xs"
-          />
-        </div>
-      </div>
-
-      {/* Right Section */}
-      <div className="flex items-center gap-1.5 lg:gap-3">
-        {/* Sync Button */}
-        <Button
-          variant="outline"
-          size="xs"
-          onClick={onSync}
-          loading={isSyncing}
-          leftIcon={<RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />}
-          className="hidden sm:flex"
-        >
-          Sync
-        </Button>
-
-        {/* Mobile Search Button */}
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className="sm:hidden"
-          aria-label="Search"
-        >
-          <Search className="w-4 h-4" />
-        </Button>
-
-        {/* Notifications */}
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Notifications"
-            className="relative"
+      <Group justify="space-between" wrap="nowrap" gap="sm">
+        <Group gap="sm" wrap="nowrap" flex={1}>
+          <Burger hiddenFrom="md" opened={false} onClick={onMenuClick} aria-label="Open menu" />
+          <ActionIcon
+            visibleFrom="md"
+            variant="subtle"
+            color="gray"
+            radius="xl"
+            onClick={onSidebarToggle}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <Bell className="w-4 h-4" />
-            {notificationCount > 0 && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-danger-400/100 rounded-full ring-1 ring-white" />
-            )}
-          </Button>
-        </div>
-
-        {/* User Menu */}
-        <div className="relative">
-            <button
-          onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 rounded-full border border-transparent p-1 transition-colors hover:border-white/10 hover:bg-white/6"
-            aria-expanded={userMenuOpen}
-            aria-haspopup="true"
-          >
-            {/* Avatar */}
-            <div className="theme-glow flex h-8 w-8 items-center justify-center rounded-full border border-brand-300/30 bg-gradient-to-br from-brand-300 to-brand-500 text-xs font-bold text-neutral-950">
-              {userInitials}
-            </div>
-
-            {/* User Info (hidden on mobile) */}
-            <div className="hidden md:block text-left">
-              <p className="flex items-center gap-1 text-xs font-semibold leading-none text-white">
-                {userName}
-                {userRole?.toLowerCase() === 'superadmin' && (
-                  <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-bold rounded-full shadow-card">
-                    <Crown className="w-2.5 h-2.5" />
-                    SUPER
-                  </span>
-                )}
-              </p>
-              <p className="mt-0.5 text-[10px] text-neutral-400">{userRole}</p>
-            </div>
-
             <ChevronDown
-              className={cn(
-                "hidden w-3.5 h-3.5 text-neutral-400 md:block transition-transform duration-200",
-                userMenuOpen && "rotate-180"
-              )}
+              size={16}
+              style={{
+                transform: sidebarCollapsed ? "rotate(-90deg)" : "rotate(90deg)",
+                transition: "transform 200ms ease",
+              }}
             />
-          </button>
+          </ActionIcon>
 
+          <TextInput
+            visibleFrom="sm"
+            flex={1}
+            maw={420}
+            placeholder="Search inventory, SKU, order..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.currentTarget.value)}
+            leftSection={<Search size={16} />}
+            radius="xl"
+            styles={{
+              input: {
+                backgroundColor: "rgba(255,255,255,0.03)",
+                borderColor: "rgba(255,255,255,0.1)",
+              },
+            }}
+          />
+        </Group>
 
-          {/* Dropdown Menu */}
-          {userMenuOpen && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setUserMenuOpen(false)}
-              />
+        <Group gap="xs" wrap="nowrap">
+          <Button
+            visibleFrom="sm"
+            variant="light"
+            color="cyan"
+            radius="xl"
+            leftSection={<RefreshCw size={16} className={isSyncing ? "animate-spin" : undefined} />}
+            loading={isSyncing}
+            onClick={onSync}
+          >
+            Sync
+          </Button>
 
-              {/* Menu */}
-              <div className="animate-scale-in absolute right-0 top-full z-50 mt-3 w-56 rounded-3xl border border-white/10 bg-neutral-900/96 py-1 shadow-float backdrop-blur-xl">
-                {/* User Header */}
-                <div className="border-b border-white/10 px-4 py-3">
-                  <p className="text-sm font-semibold text-white">
-                    {userName}
-                  </p>
-                  <p className="text-xs text-neutral-300">{userRole}</p>
-                </div>
+          <ActionIcon hiddenFrom="sm" variant="subtle" color="gray" radius="xl" aria-label="Search">
+            <Search size={16} />
+          </ActionIcon>
 
-                {/* Menu Items */}
-                <nav className="py-1">
-                  <button 
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      onProfileClick?.();
-                    }} 
-                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6"
-                  >
-                    <User className="w-4 h-4 text-neutral-300" />
-                    Profile
-                  </button>
-                  <button className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6">
-                    <Settings className="w-4 h-4 text-neutral-300" />
-                    Settings
-                  </button>
-                  <button className="flex w-full items-center gap-3 px-4 py-2 text-sm text-neutral-100 transition-colors hover:bg-white/6">
-                    <HelpCircle className="w-4 h-4 text-neutral-300" />
-                    Help & Support
-                  </button>
-                </nav>
+          <Indicator
+            inline
+            disabled={notificationCount <= 0}
+            color="red"
+            size={8}
+            offset={6}
+            processing={notificationCount > 0}
+          >
+            <ActionIcon variant="subtle" color="gray" radius="xl" aria-label="Notifications">
+              <Bell size={16} />
+            </ActionIcon>
+          </Indicator>
 
-                {/* Divider */}
-                <div className="my-1 border-t border-white/10" />
+          <Menu shadow="lg" width={240} radius="xl" position="bottom-end">
+            <Menu.Target>
+              <Button variant="subtle" color="gray" radius="xl" px="xs" rightSection={<ChevronDown size={14} />}>
+                <Group gap="xs" wrap="nowrap">
+                  <Avatar radius="xl" color="cyan">
+                    {userInitials}
+                  </Avatar>
+                  <Stack gap={0} visibleFrom="sm" align="flex-start">
+                    <Text size="sm" fw={600} c="white" lh={1.15}>
+                      {userName}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {userRole}
+                    </Text>
+                  </Stack>
+                </Group>
+              </Button>
+            </Menu.Target>
 
-                {/* Logout */}
-                <button 
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onLogout?.();
-                  }} 
-                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-danger-300 transition-colors hover:-/"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Sign out
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </header>
+            <Menu.Dropdown>
+              <Menu.Label>{userName}</Menu.Label>
+              <Menu.Item leftSection={<User size={15} />} onClick={onProfileClick}>
+                Profile
+              </Menu.Item>
+              <Menu.Item leftSection={<Settings size={15} />}>Settings</Menu.Item>
+              <Menu.Item leftSection={<HelpCircle size={15} />}>Help & Support</Menu.Item>
+              <Menu.Divider />
+              <Menu.Item color="red" leftSection={<LogOut size={15} />} onClick={onLogout}>
+                Sign out
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
+      </Group>
+    </Paper>
   );
 }
 

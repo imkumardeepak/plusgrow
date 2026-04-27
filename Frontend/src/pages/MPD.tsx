@@ -6,7 +6,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, Search, Package, Tag, Building, IndianRupee, Globe, CheckCircle2, Loader2, Trash2, Edit2, Copy, Eye, Upload, Download, FileSpreadsheet, AlertCircle, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { cn } from '../lib/utils';
 import confetti from 'canvas-confetti';
 import { motion } from 'framer-motion';
@@ -774,3 +774,4 @@ cell: (row) => (
 });
 
 export default MPD;
+

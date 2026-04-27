@@ -5,7 +5,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, Factory, Globe, Loader2, MapPin, Trash2, Edit2, Building } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { manufacturersApi, Manufacturer, CreateManufacturerDto } from '../services/masterApi';
 import { format } from 'date-fns';
 
@@ -284,3 +284,4 @@ export const Manufacturers = memo(function Manufacturers() {
 });
 
 export default Manufacturers;
+

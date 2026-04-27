@@ -5,7 +5,6 @@
 
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WmsProvider } from './context/WmsContext';
@@ -63,9 +62,27 @@ const queryClient = new QueryClient({
 });
 
 const theme = createTheme({
-  primaryColor: 'blue',
-  fontFamily: 'Inter, sans-serif',
-  defaultRadius: 'md',
+  primaryColor: 'cyan',
+  fontFamily: 'Manrope, sans-serif',
+  headings: {
+    fontFamily: 'Poppins, sans-serif',
+    fontWeight: '700',
+  },
+  defaultRadius: 'lg',
+  colors: {
+    cyan: [
+      '#e6fbff',
+      '#b6f1ff',
+      '#7de5ff',
+      '#43d4ff',
+      '#1ec0f3',
+      '#11a7df',
+      '#0a8bbf',
+      '#0a6994',
+      '#0c4e70',
+      '#06131f',
+    ],
+  },
 });
 
 export default function App() {
@@ -76,7 +93,6 @@ export default function App() {
         <BrowserRouter>
           <AuthProvider>
             <WmsProvider>
-              <Toaster position="top-right" richColors />
               <Routes>
                 {/* Public Routes */}
                 <Route path="/login" element={

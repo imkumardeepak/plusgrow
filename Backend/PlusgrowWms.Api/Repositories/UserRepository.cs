@@ -11,6 +11,7 @@ public interface IUserRepository
     Task<User?> GetByUsernameAsync(string username);
     Task<User> CreateAsync(User user);
     Task UpdateAsync(User user);
+    Task UpdateLastLoginAsync(User user, DateTime lastLoginAt);
     Task<bool> ChangePasswordAsync(int userId, string newPasswordHash);
 }
 
@@ -51,8 +52,35 @@ public class UserRepository : GenericRepository<User>, IUserRepository
 
     public async Task UpdateAsync(User user)
     {
+        if (_context.Entry(user).State != EntityState.Detached)
+        {
+            await _context.SaveChangesAsync();
+            return;
+        }
+
         _dbSet.Update(user);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateLastLoginAsync(User user, DateTime lastLoginAt)
+    {
+        var normalizedLastLoginAt = DateTime.SpecifyKind(lastLoginAt, DateTimeKind.Unspecified);
+
+        await _dbSet
+            .Where(x => x.Id == user.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.LastLoginAt, _ => normalizedLastLoginAt));
+
+        var entry = _context.Entry(user);
+        if (entry.State != EntityState.Detached)
+        {
+            entry.Property(x => x.LastLoginAt).CurrentValue = normalizedLastLoginAt;
+            entry.Property(x => x.LastLoginAt).OriginalValue = normalizedLastLoginAt;
+            entry.State = EntityState.Unchanged;
+            return;
+        }
+
+        user.LastLoginAt = normalizedLastLoginAt;
     }
 
     public async Task<bool> ChangePasswordAsync(int userId, string newPasswordHash)

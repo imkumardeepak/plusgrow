@@ -5,7 +5,7 @@ import { Button } from '../components/atoms/Button';
 import { Badge } from '../components/atoms/Badge';
 import { Input } from '../components/atoms/Input';
 import { Plus, Users, Search, Building2, Mail, Phone, MapPin, X, CheckCircle2, ChevronRight, Save } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { cn } from '../lib/utils';
 import confetti from 'canvas-confetti';
 
@@ -308,3 +308,4 @@ export const MCD = memo(function MCD() {
 });
 
 export default MCD;
+

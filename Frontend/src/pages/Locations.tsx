@@ -4,7 +4,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, MapPin, Loader2, Trash2, Edit2, Upload, Box } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { locationsApi, binsApi, Location, Bin, CreateLocationDto } from '../services/masterApi';
 import { format } from 'date-fns';
 
@@ -391,3 +391,4 @@ export const Locations = memo(function Locations() {
 });
 
 export default Locations;
+

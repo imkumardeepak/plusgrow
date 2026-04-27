@@ -9,7 +9,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 
 import { Button } from '../components/atoms/Button';
 import { Input } from '../components/atoms/Input';
@@ -405,3 +405,4 @@ export const Inward = memo(function Inward() {
 });
 
 export default Inward;
+

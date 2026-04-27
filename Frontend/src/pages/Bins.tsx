@@ -4,7 +4,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, Box, Loader2, Trash2, Edit2, Upload } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { binsApi, Bin, CreateBinDto } from '../services/masterApi';
 import { format } from 'date-fns';
 
@@ -271,3 +271,4 @@ export const Bins = memo(function Bins() {
 });
 
 export default Bins;
+

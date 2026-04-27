@@ -1,7 +1,7 @@
 import React, { memo, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpFromLine, Download, FileText, Package, RefreshCw, Truck, Users } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import confetti from 'canvas-confetti';
 
 import { Badge } from '../components/atoms/Badge';
@@ -228,3 +228,4 @@ export const Outward = memo(function Outward() {
 });
 
 export default Outward;
+

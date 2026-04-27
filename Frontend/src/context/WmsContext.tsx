@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product, Customer, PurchaseInvoice, SalesInvoice, Stock, Activity } from '../types';
 import { mockApi } from '../services/mockApi';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 
 interface WmsContextType {
   products: Product[];
@@ -231,3 +231,4 @@ export const useWms = () => {
   }
   return context;
 };
+

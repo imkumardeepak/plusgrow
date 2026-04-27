@@ -90,6 +90,12 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
 
     public virtual async Task UpdateAsync(T entity)
     {
+        if (_context.Entry(entity).State != EntityState.Detached)
+        {
+            await _context.SaveChangesAsync();
+            return;
+        }
+
         _dbSet.Update(entity);
         await _context.SaveChangesAsync();
     }

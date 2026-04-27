@@ -1,7 +1,7 @@
 import React, { memo, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, ClipboardList, MapPin, Package, ScanLine } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import confetti from 'canvas-confetti';
 
 import { Badge } from '../components/atoms/Badge';
@@ -223,3 +223,4 @@ export const Packing = memo(function Packing() {
 });
 
 export default Packing;
+

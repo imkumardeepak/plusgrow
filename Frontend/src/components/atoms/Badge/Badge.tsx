@@ -1,104 +1,73 @@
-/**
- * Badge Component
- * A versatile badge component with multiple variants and sizes
- */
-
 import React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { Badge as MantineBadge, Group } from "@mantine/core";
 import { cn } from "../../../lib/utils";
 
-export const badgeVariants = cva(
-  "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-neutral-950",
-  {
-    variants: {
-      variant: {
-        default: "border border-white/10 bg-white/6 text-neutral-100",
-        primary: "border border-brand-300/20 bg-brand-400/12 text-brand-100",
-        secondary: "border border-white/10 bg-white/6 text-neutral-100",
-        success: "border border-success-400/20 -/ text-success-200",
-        warning: "border border-warning-400/20 -/ text-warning-100",
-        danger: "border border-danger-400/20 -/ text-danger-200",
-        info: "border border-info-400/20 bg-info-500/12 text-info-100",
-        outline: "bg-transparent border border-white/14 text-neutral-100",
-        ghost: "bg-transparent text-neutral-200 hover:bg-white/8",
-      },
-      size: {
-        sm: "px-1.5 py-0.5 text-[9px] leading-3 rounded gap-1",
-        md: "px-2 py-0.5 text-[11px] leading-4 rounded-md gap-1",
-        lg: "px-2.5 py-1 text-xs leading-4 rounded-md gap-1.5",
-      },
-      shape: {
-        default: "rounded-lg",
-        pill: "rounded-full",
-        square: "rounded-md",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "md",
-      shape: "default",
-    },
-  }
-);
-
-export interface BadgeProps
-  extends Omit<React.HTMLAttributes<HTMLSpanElement>, 'children'>,
-    VariantProps<typeof badgeVariants> {
-  /** Optional dot indicator */
+export interface BadgeProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, "children"> {
+  variant?: "default" | "primary" | "secondary" | "success" | "warning" | "danger" | "info" | "outline" | "ghost";
+  size?: "sm" | "md" | "lg";
+  shape?: "default" | "pill" | "square";
   dot?: boolean;
-  /** Dot color class (Tailwind class) */
   dotColor?: string;
-  /** Optional icon before text */
   leftIcon?: React.ReactNode;
-  /** Optional icon after text */
   rightIcon?: React.ReactNode;
-  /** Whether badge is clickable */
   clickable?: boolean;
-  /** Badge content */
   children?: React.ReactNode;
+}
+
+export const badgeVariants = ({ className }: { className?: string } = {}) => className ?? "";
+
+function getVariantConfig(variant: NonNullable<BadgeProps["variant"]>) {
+  switch (variant) {
+    case "primary":
+      return { variant: "light" as const, color: "cyan" as const };
+    case "secondary":
+      return { variant: "light" as const, color: "gray" as const };
+    case "success":
+      return { variant: "light" as const, color: "green" as const };
+    case "warning":
+      return { variant: "light" as const, color: "yellow" as const };
+    case "danger":
+      return { variant: "light" as const, color: "red" as const };
+    case "info":
+      return { variant: "light" as const, color: "blue" as const };
+    case "outline":
+      return { variant: "outline" as const, color: "gray" as const };
+    case "ghost":
+      return { variant: "transparent" as const, color: "gray" as const };
+    default:
+      return { variant: "light" as const, color: "gray" as const };
+  }
 }
 
 export function Badge({
   className,
-  variant,
-  size,
-  shape,
+  variant = "default",
+  size = "md",
+  shape = "default",
   dot,
-  dotColor,
   leftIcon,
   rightIcon,
   clickable,
   children,
   ...props
 }: BadgeProps) {
-  const Comp = clickable ? "button" : "span";
+  const config = getVariantConfig(variant);
 
   return (
-    <Comp
-      className={cn(
-        badgeVariants({ variant, size, shape }),
-        clickable && "cursor-pointer hover:opacity-80 active:scale-95",
-        className
-      )}
+    <MantineBadge
+      radius={shape === "pill" ? "xl" : shape === "square" ? "sm" : "md"}
+      size={size}
+      className={cn(clickable && "cursor-pointer", className)}
+      leftSection={dot ? <span className="h-1.5 w-1.5 rounded-full bg-current" /> : leftIcon}
+      rightSection={rightIcon}
+      {...config}
       {...props}
     >
-      {dot && (
-        <span
-          className={cn(
-            "flex-shrink-0 rounded-full",
-            size === "sm" ? "w-1 h-1" : size === "lg" ? "w-2 h-2" : "w-1.5 h-1.5",
-            dotColor || (variant === "success" ? "bg-success-400/100" : 
-                       variant === "warning" ? "bg-warning-400/100" :
-                       variant === "danger" ? "bg-danger-400/100" :
-                       variant === "primary" ? "bg-brand-400/100" :
-                       "bg-white/[0.02]0")
-          )}
-        />
-      )}
-      {leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
-      {children && <span className="truncate">{children}</span>}
-      {rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
-    </Comp>
+      <Group gap={6} wrap="nowrap">
+        {leftIcon && !dot ? leftIcon : null}
+        {children}
+      </Group>
+    </MantineBadge>
   );
 }
 

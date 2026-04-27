@@ -1,99 +1,64 @@
-/**
- * Button Component
- * A versatile button component with multiple variants, sizes, and states
- */
-
 import React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { Button as MantineButton } from "@mantine/core";
 import { cn } from "../../../lib/utils";
 
-export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
-  {
-    variants: {
-      variant: {
-        default: "bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 text-neutral-950 shadow-brand hover:from-brand-200 hover:via-brand-300 hover:to-brand-400 hover:shadow-brand-lg hover:-translate-y-px",
-        primary: "bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 text-neutral-950 shadow-brand hover:from-brand-200 hover:via-brand-300 hover:to-brand-400 hover:shadow-brand-lg hover:-translate-y-px",
-        secondary: "border border-white/12 bg-white/6 text-white shadow-card hover:bg-white/10 hover:border-brand-300/30 hover:shadow-card-hover active:bg-white/12",
-        outline: "border border-white/14 bg-transparent text-neutral-100 hover:bg-white/8 hover:text-white hover:border-brand-300/40",
-        ghost: "text-neutral-200 hover:bg-white/8 hover:text-white active:bg-white/10",
-        link: "text-brand-200 underline-offset-4 hover:underline hover:text-brand-100",
-        destructive: "bg-danger-600 text-white shadow-card hover:bg-danger-700 hover:shadow-float hover:-translate-y-px",
-        success: "bg-success-600 text-white shadow-card hover:bg-success-700 hover:shadow-float hover:-translate-y-px",
-        warning: "bg-warning-400/100 text-white shadow-card hover:bg-warning-600 hover:shadow-float hover:-translate-y-px",
-      },
-      size: {
-        xs: "h-7 px-2.5 text-xs rounded-md gap-1",
-        sm: "h-9 px-3 text-sm rounded-full gap-1.5",
-        md: "h-10 px-4 text-sm rounded-full gap-2",
-        lg: "h-11 px-5 text-base rounded-full gap-2",
-        xl: "h-12 px-6 text-base rounded-full gap-2.5",
-        icon: "h-10 w-10 rounded-full",
-        "icon-sm": "h-9 w-9 rounded-full",
-        "icon-lg": "h-11 w-11 rounded-full",
-      },
-      width: {
-        auto: "w-auto",
-        full: "w-full",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "md",
-      width: "auto",
-    },
-  }
-);
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  /** Loading state */
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "primary" | "secondary" | "outline" | "ghost" | "link" | "destructive" | "success" | "warning";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "icon" | "icon-sm" | "icon-lg";
+  width?: "auto" | "full";
   loading?: boolean;
-  /** Loading text to display */
   loadingText?: string;
-  /** Position of loading spinner */
   loadingPosition?: "left" | "right";
-  /** Optional left icon */
   leftIcon?: React.ReactNode;
-  /** Optional right icon */
   rightIcon?: React.ReactNode;
-  /** Whether button takes full width */
   fullWidth?: boolean;
-  /** Button content */
   children?: React.ReactNode;
 }
 
-const LoadingSpinner = ({ className }: { className?: string }) => (
-  <svg
-    className={cn("animate-spin", className)}
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-  >
-    <circle
-      className="opacity-25"
-      cx="12"
-      cy="12"
-      r="10"
-      stroke="currentColor"
-      strokeWidth="4"
-    />
-    <path
-      className="opacity-75"
-      fill="currentColor"
-      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-    />
-  </svg>
-);
+export const buttonVariants = ({ className }: { className?: string } = {}) => className ?? "";
+
+const sizeMap: Record<NonNullable<ButtonProps["size"]>, { mantineSize: "xs" | "sm" | "md" | "lg" | "xl"; iconWidth?: number }> = {
+  xs: { mantineSize: "xs" },
+  sm: { mantineSize: "sm" },
+  md: { mantineSize: "md" },
+  lg: { mantineSize: "lg" },
+  xl: { mantineSize: "xl" },
+  icon: { mantineSize: "md", iconWidth: 40 },
+  "icon-sm": { mantineSize: "sm", iconWidth: 36 },
+  "icon-lg": { mantineSize: "lg", iconWidth: 44 },
+};
+
+function getVariantConfig(variant: NonNullable<ButtonProps["variant"]>) {
+  switch (variant) {
+    case "primary":
+    case "default":
+      return { variant: "gradient" as const, gradient: { from: "cyan.4", to: "blue.7", deg: 135 } };
+    case "secondary":
+      return { variant: "light" as const, color: "gray" as const };
+    case "outline":
+      return { variant: "outline" as const, color: "gray" as const };
+    case "ghost":
+      return { variant: "subtle" as const, color: "gray" as const };
+    case "link":
+      return { variant: "subtle" as const, color: "cyan" as const };
+    case "destructive":
+      return { variant: "filled" as const, color: "red" as const };
+    case "success":
+      return { variant: "filled" as const, color: "green" as const };
+    case "warning":
+      return { variant: "filled" as const, color: "yellow" as const };
+    default:
+      return { variant: "gradient" as const, gradient: { from: "cyan.4", to: "blue.7", deg: 135 } };
+  }
+}
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       className,
-      variant,
-      size,
-      width,
+      variant = "default",
+      size = "md",
+      width = "auto",
       loading = false,
       loadingText,
       loadingPosition = "left",
@@ -102,38 +67,57 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       fullWidth,
       children,
       disabled,
+      style,
       ...props
     },
     ref
   ) => {
+    const resolvedVariant = variant as NonNullable<ButtonProps["variant"]>;
+    const config = getVariantConfig(resolvedVariant);
+    const mappedSize = sizeMap[size];
+    const isIconButton = typeof mappedSize.iconWidth === "number";
     const isDisabled = disabled || loading;
-    const showLeftSpinner = loading && loadingPosition === "left";
-    const showRightSpinner = loading && loadingPosition === "right";
 
     return (
-      <button
-        className={cn(
-          buttonVariants({ variant, size, width: fullWidth ? "full" : width }),
-          className
-        )}
+      <MantineButton
         ref={ref}
+        type={props.type}
+        onClick={props.onClick}
+        onBlur={props.onBlur}
+        onFocus={props.onFocus}
+        onMouseEnter={props.onMouseEnter}
+        onMouseLeave={props.onMouseLeave}
+        name={props.name}
+        value={props.value}
         disabled={isDisabled}
-        aria-disabled={isDisabled}
-        aria-busy={loading}
+        loading={loading}
+        leftSection={loading && loadingPosition === "left" ? undefined : leftIcon}
+        rightSection={loading && loadingPosition === "right" ? undefined : rightIcon}
+        fullWidth={fullWidth || width === "full"}
+        size={mappedSize.mantineSize}
+        radius={isIconButton ? "xl" : "xl"}
+        className={cn(resolvedVariant === "link" && "px-0", className)}
+        style={{
+          ...(isIconButton
+            ? {
+                minWidth: mappedSize.iconWidth,
+                width: mappedSize.iconWidth,
+                paddingInline: 0,
+              }
+            : {}),
+          ...(resolvedVariant === "link"
+            ? {
+                background: "transparent",
+                height: "auto",
+              }
+            : {}),
+          ...style,
+        }}
+        {...config}
         {...props}
       >
-        {showLeftSpinner && <LoadingSpinner className={cn(size === "xs" || size === "icon-sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />}
-        {!showLeftSpinner && leftIcon && <span className="flex-shrink-0">{leftIcon}</span>}
-        
-        {loading && loadingText ? (
-          <span>{loadingText}</span>
-        ) : (
-          children
-        )}
-        
-        {showRightSpinner && <LoadingSpinner className={cn(size === "xs" || size === "icon-sm" ? "h-3.5 w-3.5" : "h-4 w-4")} />}
-        {!showRightSpinner && rightIcon && <span className="flex-shrink-0">{rightIcon}</span>}
-      </button>
+        {loading && loadingText ? loadingText : children}
+      </MantineButton>
     );
   }
 );

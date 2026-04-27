@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../lib/api';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 
 // Types matching the API response (snake_case)
 interface ApiUser {
@@ -136,3 +136,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

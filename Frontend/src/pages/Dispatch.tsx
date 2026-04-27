@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from 'react';
 import { CheckCircle2, ClipboardList, Send, Truck, User } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import confetti from 'canvas-confetti';
 
 import { Badge } from '../components/atoms/Badge';
@@ -182,3 +182,4 @@ export const Dispatch = memo(function Dispatch() {
 });
 
 export default Dispatch;
+

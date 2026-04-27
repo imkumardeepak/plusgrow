@@ -1,0 +1,6 @@
+{
+  "last_turn_at": "2026-04-27T12:04:33.213Z",
+  "last_progress_at": "2026-04-27T12:04:33.213Z",
+  "turn_count": 4,
+  "last_agent_output": "{\"message\":\"Migrate shell and shared UI to Mantine\"}"
+}

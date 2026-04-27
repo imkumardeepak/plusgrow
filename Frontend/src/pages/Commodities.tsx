@@ -5,7 +5,7 @@ import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
 import { Plus, Tag, Loader2, Trash2, Edit2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { commoditiesApi, Commodity, CreateCommodityDto } from '../services/masterApi';
 import { format } from 'date-fns';
 
@@ -230,3 +230,4 @@ export const Commodities = memo(function Commodities() {
 });
 
 export default Commodities;
+

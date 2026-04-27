@@ -1,27 +1,18 @@
-/**
- * DashboardLayout Template
- * Main application layout with sidebar, header, and content area
- */
-
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { cn } from "../../../lib/utils";
+import { AppShell, Box, Paper, Stack, Text, useMantineTheme } from "@mantine/core";
 import { Sidebar } from "../../organisms/Navigation/Sidebar/Sidebar";
 import { Header } from "../../organisms/Navigation/Header/Header";
 import { Breadcrumbs, BreadcrumbItem } from "../../organisms/Navigation/Breadcrumbs/Breadcrumbs";
 import { useWms } from "../../../context/WmsContext";
 import { useAuth } from "../../../context/AuthContext";
+import { cn } from "../../../lib/utils";
 
 export interface DashboardLayoutProps {
-  /** Custom breadcrumbs (auto-generated if not provided) */
   breadcrumbs?: BreadcrumbItem[];
-  /** Whether to show breadcrumbs */
   showBreadcrumbs?: boolean;
-  /** Page title (shown if breadcrumbs not provided) */
   pageTitle?: string;
-  /** Page description */
   pageDescription?: string;
-  /** Additional CSS classes for main content */
   contentClassName?: string;
 }
 
@@ -37,24 +28,50 @@ export function DashboardLayout({
   const { refreshData, isLoading } = useWms();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const theme = useMantineTheme();
+
+  const authUser = user as
+    | {
+        fullName?: string;
+        full_name?: string;
+        roleName?: string;
+        role?: { name?: string | null } | null;
+      }
+    | null;
+
+  const resolvedUserName = authUser?.fullName ?? authUser?.full_name ?? "User";
+  const resolvedUserRole = authUser?.roleName ?? authUser?.role?.name ?? "User";
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
+  const getInitials = (name: string) =>
+    name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
 
   return (
-    <div className="bg-base-200 min-h-screen flex min-h-screen flex overflow-hidden">
-      {/* Sidebar */}
+    <AppShell
+      padding={{ base: "sm", md: "md" }}
+      header={{ height: { base: 78, md: 88 } }}
+      navbar={{
+        width: sidebarCollapsed ? 92 : 312,
+        breakpoint: "md",
+        collapsed: { mobile: !mobileMenuOpen, desktop: false },
+      }}
+      withBorder={false}
+      transitionDuration={220}
+      transitionTimingFunction="ease"
+      style={{
+        background:
+          "radial-gradient(circle at top, rgba(17,167,223,0.16), transparent 34%), linear-gradient(180deg, #111e31 0%, #09111f 44%, #060d19 100%)",
+      }}
+    >
       <Sidebar
         collapsed={sidebarCollapsed}
         mobileOpen={mobileMenuOpen}
@@ -62,60 +79,70 @@ export function DashboardLayout({
         onCollapseChange={setSidebarCollapsed}
       />
 
-      {/* Main Content Area */}
-      <div
-        className={cn(
-          "flex-1 flex min-w-0 flex-col transition-all duration-300 h-screen overflow-hidden",
-          sidebarCollapsed ? "lg:ml-0" : "lg:ml-0"
-        )}
-      >
-        {/* Header */}
+      <AppShell.Header withBorder={false} bg="transparent">
         <Header
           onMenuClick={() => setMobileMenuOpen(true)}
-          onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onSidebarToggle={() => setSidebarCollapsed((current) => !current)}
           sidebarCollapsed={sidebarCollapsed}
           onSync={refreshData}
           isSyncing={isLoading}
-          userName={user?.fullName || 'User'}
-          userRole={user?.roleName || 'User'}
-          userInitials={user ? getInitials(user.fullName) : 'U'}
+          userName={resolvedUserName}
+          userRole={resolvedUserRole}
+          userInitials={getInitials(resolvedUserName)}
           onLogout={handleLogout}
-          onProfileClick={() => navigate('/profile')}
+          onProfileClick={() => navigate("/profile")}
         />
+      </AppShell.Header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className={cn("p-3 lg:p-4", contentClassName)}>
-            <div className="mx-auto max-w-[1680px]">
-              {/* Breadcrumbs */}
-              {showBreadcrumbs && (
-                <div className="mb-3">
+      <AppShell.Main>
+        <Box className={cn("min-h-[calc(100dvh-7rem)]", contentClassName)}>
+          <Box mx="auto" maw={1680}>
+            <Stack gap="md">
+              {showBreadcrumbs ? (
+                <Paper
+                  radius="xl"
+                  p="md"
+                  withBorder
+                  style={{
+                    backgroundColor: "rgba(10, 18, 32, 0.78)",
+                    borderColor: "rgba(255,255,255,0.08)",
+                    boxShadow: theme.shadows.sm,
+                  }}
+                >
                   <Breadcrumbs items={breadcrumbs} />
-                </div>
-              )}
+                </Paper>
+              ) : null}
 
-              {/* Page Header */}
-              {(pageTitle || pageDescription) && (
-                <div className="card bg-base-100 shadow-xl mb-4 px-4 py-4">
-                  {pageTitle && (
-                    <h1 className="text-xl lg:text-2xl font-heading font-bold text-white">
+              {pageTitle || pageDescription ? (
+                <Paper
+                  radius="xl"
+                  p="lg"
+                  withBorder
+                  style={{
+                    background:
+                      "linear-gradient(180deg, rgba(15,24,40,0.88) 0%, rgba(10,18,32,0.94) 100%)",
+                    borderColor: "rgba(255,255,255,0.08)",
+                  }}
+                >
+                  {pageTitle ? (
+                    <Text component="h1" fz={{ base: 24, md: 30 }} fw={800} c="white">
                       {pageTitle}
-                    </h1>
-                  )}
-                  {pageDescription && (
-                    <p className="mt-1 text-xs text-neutral-300">{pageDescription}</p>
-                  )}
-                </div>
-              )}
+                    </Text>
+                  ) : null}
+                  {pageDescription ? (
+                    <Text mt={6} size="sm" c="dimmed">
+                      {pageDescription}
+                    </Text>
+                  ) : null}
+                </Paper>
+              ) : null}
 
-
-              {/* Page Content */}
               <Outlet />
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
+            </Stack>
+          </Box>
+        </Box>
+      </AppShell.Main>
+    </AppShell>
   );
 }
 
