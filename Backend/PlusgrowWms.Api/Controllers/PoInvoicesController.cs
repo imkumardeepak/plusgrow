@@ -40,7 +40,7 @@ public class PoInvoicesController : BaseController
 
         var entity = new PoInvoice
         {
-            InvoiceDate = dto.InvoiceDate,
+            InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate),
             PartyName = dto.PartyName.Trim(),
             ProductId = dto.ProductId,
             BilledQty = dto.BilledQty,
@@ -69,7 +69,7 @@ public class PoInvoicesController : BaseController
         if (!await _context.Products.AnyAsync(x => x.Id == dto.ProductId))
             return BadRequest<PoInvoiceDto>("Selected product does not exist");
 
-        entity.InvoiceDate = dto.InvoiceDate;
+        entity.InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate);
         entity.PartyName = dto.PartyName.Trim();
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
@@ -195,7 +195,7 @@ public class PoInvoicesController : BaseController
 
                     var entity = new PoInvoice
                     {
-                        InvoiceDate = invoiceDate.Value,
+                        InvoiceDate = NormalizeInvoiceDate(invoiceDate.Value),
                         PartyName = partyName,
                         ProductId = product.Id,
                         BilledQty = billedQty,
@@ -281,6 +281,11 @@ public class PoInvoicesController : BaseController
         return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
     }
 
+    private static DateTime NormalizeInvoiceDate(DateTime value)
+    {
+        return DateTime.SpecifyKind(value.Date, DateTimeKind.Unspecified);
+    }
+
     private async Task UpsertProductQuantityAsync(int productId, int billedQty)
     {
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
@@ -303,7 +308,7 @@ public class PoInvoicesController : BaseController
     private static DateTime? TryParseInvoiceDate(IXLCell cell)
     {
         if (cell.TryGetValue<DateTime>(out var date))
-            return date.Date;
+            return NormalizeInvoiceDate(date);
 
         var raw = cell.GetString().Trim();
         if (string.IsNullOrWhiteSpace(raw))
@@ -321,10 +326,10 @@ public class PoInvoicesController : BaseController
         };
 
         if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
-            return parsed.Date;
+            return NormalizeInvoiceDate(parsed);
 
         if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
-            return parsed.Date;
+            return NormalizeInvoiceDate(parsed);
 
         return null;
     }
