@@ -53,7 +53,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                 Name = "Superadmin",
                 Description = "Full system access with all permissions",
                 IsActive = true,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
             };
             _context.Roles.Add(superadminRole);
             _logger.LogInformation("Created Superadmin role");
@@ -72,7 +72,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                 Name = "Admin",
                 Description = "Administrator with limited system access",
                 IsActive = true,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
             };
             _context.Roles.Add(adminRole);
             _logger.LogInformation("Created Admin role");
@@ -100,7 +100,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                     Name = "Superadmin",
                     Description = "Full system access with all permissions",
                     IsActive = true,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                 };
                 _context.Roles.Add(superadminRole);
                 await _context.SaveChangesAsync();
@@ -115,7 +115,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                 Phone = "+91-9999999999",
                 RoleId = superadminRole.Id,
                 IsActive = true,
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
             };
 
             _context.Users.Add(superadmin);
@@ -164,7 +164,7 @@ public class DatabaseSeeder : IDatabaseSeeder
                     CanCreate = true,
                     CanEdit = true,
                     CanDelete = true,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
                 };
                 _context.RolePageAccesses.Add(access);
             }

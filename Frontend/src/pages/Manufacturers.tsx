@@ -165,7 +165,7 @@ export const Manufacturers = memo(function Manufacturers() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar - Compact Pro Max */}
-      <div className="page-toolbar py-1 px-1.5 bg-brand-950/20 backdrop-blur-md border-b border-white/5 rounded-t-xl">
+      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4 py-1 px-1.5 bg-brand-950/20 backdrop-blur-md border-b border-white/5 rounded-t-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20 shadow-[0_0_10px_rgba(6,182,212,0.1)]">

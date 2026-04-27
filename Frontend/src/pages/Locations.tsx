@@ -213,15 +213,15 @@ export const Locations = memo(function Locations() {
 
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
-      <div className="page-toolbar">
+      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="page-icon-chip">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="page-title">Location Master</h1>
-              <p className="page-subtitle">Manage Warehouse Locations</p>
+              <h1 className="text-2xl font-bold">Location Master</h1>
+              <p className="text-sm opacity-70">Manage Warehouse Locations</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -255,7 +255,7 @@ export const Locations = memo(function Locations() {
         </div>
       </div>
 
-      <div className="page-table-shell">
+      <div className="card bg-base-100 shadow-sm overflow-hidden">
         <div className="p-3">
           <DataTable
             columns={columns}
@@ -277,7 +277,7 @@ export const Locations = memo(function Locations() {
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                    <label className="field-label">Aisle <span className="text-danger-500">*</span></label>
+                    <label className="label-text font-medium inline-block mb-1">Aisle <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. 101"
                         value={formData.aisle}
@@ -293,7 +293,7 @@ export const Locations = memo(function Locations() {
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <label className="field-label">Rack <span className="text-danger-500">*</span></label>
+                    <label className="label-text font-medium inline-block mb-1">Rack <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. A"
                         value={formData.rack}
@@ -309,7 +309,7 @@ export const Locations = memo(function Locations() {
                     />
                 </div>
                 <div className="space-y-1.5">
-                    <label className="field-label">Shelf <span className="text-danger-500">*</span></label>
+                    <label className="label-text font-medium inline-block mb-1">Shelf <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. 3"
                         value={formData.shelf}
@@ -327,7 +327,7 @@ export const Locations = memo(function Locations() {
             </div>
 
             <div className="space-y-2">
-                <label className="field-label">Location Code <span className="text-danger-500">*</span></label>
+                <label className="label-text font-medium inline-block mb-1">Location Code <span className="text-danger-500">*</span></label>
                 <Input
                     placeholder="Auto-generated"
                     value={formData.locationCode}
@@ -337,7 +337,7 @@ export const Locations = memo(function Locations() {
             </div>
 
             <div className="space-y-2">
-                <label className="field-label mb-3 block">Assign Bins</label>
+                <label className="label-text font-medium inline-block mb-1 mb-3 block">Assign Bins</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-4 border border-white/10 bg-white/5 rounded-xl scrollbar-thin">
                     {bins.map(bin => (
                         <div 

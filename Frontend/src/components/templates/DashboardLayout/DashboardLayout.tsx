@@ -53,7 +53,7 @@ export function DashboardLayout({
   };
 
   return (
-    <div className="theme-shell min-h-screen flex overflow-hidden">
+    <div className="bg-base-200 min-h-screen flex min-h-screen flex overflow-hidden">
       {/* Sidebar */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -96,7 +96,7 @@ export function DashboardLayout({
 
               {/* Page Header */}
               {(pageTitle || pageDescription) && (
-                <div className="theme-panel mb-4 px-4 py-4">
+                <div className="card bg-base-100 shadow-xl mb-4 px-4 py-4">
                   {pageTitle && (
                     <h1 className="text-xl lg:text-2xl font-heading font-bold text-white">
                       {pageTitle}

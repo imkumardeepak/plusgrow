@@ -106,7 +106,7 @@ export function DataTable<TData, TValue>({
             placeholder={searchPlaceholder}
             value={globalFilter}
             onChange={(e) => handleSearch(e.target.value)}
-            className="h-8 rounded-lg pr-10 text-[11px] bg-white/[0.03] border-white/10"
+            className="h-8 rounded-lg pr-10 text-[11px] bg-white/[0.03]"
             leftElement={<Search className="w-3.5 h-3.5 text-neutral-500" />}
             rightElement={globalFilter ? (
               <button

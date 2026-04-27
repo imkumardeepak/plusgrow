@@ -20,10 +20,8 @@ import {
   CreatePoInvoiceDto,
   PoInvoice,
   Product,
-  ProductQuantityRecord,
   ImportResult,
   poInvoicesApi,
-  productQuantitiesApi,
   productsApi,
 } from '../services/masterApi';
 
@@ -42,12 +40,11 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
 });
 
 const themedSelectClassName =
-  'h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
+  'h-9 w-full appearance-none rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 cursor-pointer';
 
 export const Inward = memo(function Inward() {
   const [products, setProducts] = useState<Product[]>([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
-  const [productQuantities, setProductQuantities] = useState<ProductQuantityRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [invoiceSearch, setInvoiceSearch] = useState('');
@@ -66,15 +63,13 @@ export const Inward = memo(function Inward() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, invoicesData, quantitiesData] = await Promise.all([
+      const [productsData, invoicesData] = await Promise.all([
         productsApi.getAll(),
         poInvoicesApi.getAll(),
-        productQuantitiesApi.getAll(),
       ]);
 
       setProducts(productsData);
       setPoInvoices(invoicesData);
-      setProductQuantities(quantitiesData);
     } catch (error) {
       toast.error('Failed to load inward data');
     } finally {
@@ -94,13 +89,6 @@ export const Inward = memo(function Inward() {
       })),
     [products]
   );
-
-  const quantityMap = useMemo(() => {
-    return productQuantities.reduce<Record<number, number>>((acc, row) => {
-      acc[row.productId] = row.currentQuantity;
-      return acc;
-    }, {});
-  }, [productQuantities]);
 
   const invoiceStats = useMemo(() => {
     const pendingPrint = poInvoices.filter((row) => !row.printed).length;
@@ -251,11 +239,6 @@ export const Inward = memo(function Inward() {
         cell: (row) => <span className="font-bold text-white">{row.billedQty}</span>,
       },
       {
-        accessorKey: 'productId',
-        header: 'Actual Qty.',
-        cell: (row) => <span className="font-bold text-brand-300">{quantityMap[row.productId] ?? 0}</span>,
-      },
-      {
         accessorKey: 'mrp',
         header: 'MRP',
         cell: (row) => <span className="font-semibold text-success-400">₹{(row.mrp || 0).toLocaleString()}</span>,
@@ -341,16 +324,10 @@ export const Inward = memo(function Inward() {
       <Modal isOpen={invoiceModalOpen} onClose={resetInvoiceModal} title={editingInvoice ? 'Edit PO Invoice' : 'New PO Invoice'} size="xl">
         <form onSubmit={handleInvoiceSubmit} className="space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="field-label">Invoice Date</label>
-              <Input type="date" value={invoiceForm.invoiceDate} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceDate: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <label className="field-label">Party Name</label>
-              <Input value={invoiceForm.partyName} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, partyName: e.target.value }))} placeholder="Enter party name" />
-            </div>
+            <Input label="Invoice Date" type="date" value={invoiceForm.invoiceDate} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceDate: e.target.value }))} />
+            <Input label="Party Name" value={invoiceForm.partyName} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, partyName: e.target.value }))} placeholder="Enter party name" />
             <div className="space-y-2 md:col-span-2">
-              <label className="field-label">Product</label>
+              <label className="label-text font-medium inline-block mb-1">Product</label>
               <select
                 className={themedSelectClassName}
                 value={invoiceForm.productId || ''}
@@ -364,26 +341,22 @@ export const Inward = memo(function Inward() {
                 ))}
               </select>
             </div>
+            <Input
+              label="Billed Qty."
+              type="number"
+              min="0"
+              value={invoiceForm.billedQty}
+              onChange={(e) => setInvoiceForm((prev) => ({ ...prev, billedQty: Number(e.target.value) }))}
+            />
+            <Input
+              label="Remaining Allocation"
+              type="number"
+              min="0"
+              value={invoiceForm.remainingAllocation}
+              onChange={(e) => setInvoiceForm((prev) => ({ ...prev, remainingAllocation: Number(e.target.value) }))}
+            />
             <div className="space-y-2">
-              <label className="field-label">Billed Qty.</label>
-              <Input
-                type="number"
-                min="0"
-                value={invoiceForm.billedQty}
-                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, billedQty: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="field-label">Remaining Allocation</label>
-              <Input
-                type="number"
-                min="0"
-                value={invoiceForm.remainingAllocation}
-                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, remainingAllocation: Number(e.target.value) }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="field-label">Printed</label>
+              <label className="label-text font-medium inline-block mb-1">Printed</label>
               <select
                 className={themedSelectClassName}
                 value={invoiceForm.printed ? 'true' : 'false'}
@@ -394,7 +367,7 @@ export const Inward = memo(function Inward() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="field-label">Location Allotted</label>
+              <label className="label-text font-medium inline-block mb-1">Location Allotted</label>
               <select
                 className={themedSelectClassName}
                 value={invoiceForm.locationAllotted ? 'true' : 'false'}

@@ -91,7 +91,8 @@ export function Header({
             leftElement={<Search className="w-3.5 h-3.5" />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="theme-input h-8 text-xs"
+            size="sm"
+            className="h-8 text-xs"
           />
         </div>
       </div>

@@ -15,6 +15,6 @@ public class Bin
     [Column("bin_code")]
     public string BinCode { get; set; } = string.Empty;
     
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+[Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

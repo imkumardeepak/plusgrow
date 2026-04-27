@@ -1,20 +1,34 @@
-import React, { memo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertCircle,
-  ArrowRight,
-  Crown,
-  Eye,
-  EyeOff,
-  Lock,
-  Loader2,
-  ShieldCheck,
-  User,
-} from 'lucide-react';
+  TextInput,
+  PasswordInput,
+  Button,
+  Paper,
+  Title,
+  Text,
+  Container,
+  Group,
+  Stack,
+  Alert,
+  Box,
+  Badge,
+  Divider,
+  Center,
+  Tooltip,
+} from '@mantine/core';
+import { useForm } from '@mantine/form';
+import { notifications } from '@mantine/notifications';
+import {
+  IconLock,
+  IconUser,
+  IconShieldCheck,
+  IconArrowRight,
+  IconAlertCircle,
+  IconCrown,
+} from '@tabler/icons-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/atoms/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
-import { Input } from '../components/atoms/Input';
 import { Logo } from '../components/atoms/Logo';
 import { SUPERADMIN_CONFIG } from '../config/superadmin';
 
@@ -23,298 +37,261 @@ const DEMO_CREDENTIALS = {
   password: 'admin123',
 } as const;
 
-export const Login = memo(function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+export function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleQuickLogin = async (
-    credentials: { username: string; password: string },
-    fallbackMessage: string
-  ) => {
+  const form = useForm({
+    initialValues: {
+      username: '',
+      password: '',
+    },
+    validate: {
+      username: (value) => (value.trim().length > 0 ? null : 'Username is required'),
+      password: (value) => (value.length > 0 ? null : 'Password is required'),
+    },
+  });
+
+  const handleLogin = async (values: typeof form.values) => {
     setError('');
     setIsLoading(true);
 
+    const result = await login({ username: values.username.trim(), password: values.password });
+
+    if (result.success) {
+      notifications.show({
+        title: 'Authentication Successful',
+        message: 'Welcome to PlusGrow WMS Command Center',
+        color: 'blue',
+        icon: <IconShieldCheck size={18} />,
+      });
+      navigate('/');
+    } else {
+      setError(result.message || 'Invalid credentials');
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleQuickLogin = async (credentials: typeof DEMO_CREDENTIALS) => {
+    form.setValues(credentials);
+    setError('');
+    setIsLoading(true);
     const result = await login(credentials);
-
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message || fallbackMessage);
-    }
-
+    if (result.success) navigate('/');
+    else setError(result.message || 'Quick login failed');
     setIsLoading(false);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!username.trim() || !password) {
-      setError('Please enter both username and password');
-      return;
-    }
-
-    setIsLoading(true);
-    const result = await login({ username: username.trim(), password });
-
-    if (result.success) {
-      navigate('/');
-    } else {
-      setError(result.message || 'Login failed');
-    }
-    setIsLoading(false);
-  };
-
-  const fillCredentials = (credentials: { username: string; password: string }) => {
-    setUsername(credentials.username);
-    setPassword(credentials.password);
-    setError('');
-  };
-
-  const handleSuperadminLogin = async () => {
-    await handleQuickLogin(
-      {
-        username: SUPERADMIN_CONFIG.username,
-        password: SUPERADMIN_CONFIG.password,
-      },
-      'Superadmin login failed'
-    );
   };
 
   return (
-    <div className="theme-shell relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="theme-grid-bg absolute inset-x-0 top-0 h-[52vh] opacity-20" />
-        <div className="absolute left-[-8rem] top-16 h-72 w-72 rounded-full -/ blur-[130px]" />
-        <div className="absolute right-[-4rem] top-8 h-80 w-80 rounded-full bg-brand-300/12 blur-[130px]" />
-        <div className="absolute bottom-[-8rem] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full -/ blur-[150px]" />
-      </div>
+    <Box
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#050a14',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* Cinematic Background Elements */}
+      <Box
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 0,
+          background: 'radial-gradient(circle at 20% 30%, rgba(17, 167, 223, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(0, 212, 255, 0.05) 0%, transparent 50%)',
+        }}
+      />
 
-      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.08fr_0.92fr]">
-          <section className="theme-hero hidden min-h-[680px] overflow-hidden lg:flex lg:flex-col lg:justify-between">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(17,167,223,0.22),transparent_26%)]" />
-            <div className="relative border-b border-white/6 px-10 py-8">
-              <div className="flex items-center justify-between gap-4">
-                <Logo width={180} height={180} className="h-auto w-44" />
-                <div className="theme-pill text-sm font-semibold text-neutral-100">
-                  <ShieldCheck className="h-4 w-4 text-brand-300" />
-                  Secure WMS Access
-                </div>
-              </div>
-            </div>
+      {/* Animated Blobs */}
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          opacity: [0.1, 0.2, 0.1],
+          x: [0, 50, 0],
+          y: [0, -30, 0],
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+        style={{
+          position: 'absolute',
+          top: '10%',
+          right: '15%',
+          width: '400px',
+          height: '400px',
+          borderRadius: '50%',
+          background: 'var(--mantine-color-blue-9)',
+          filter: 'blur(100px)',
+          zIndex: 0,
+        }}
+      />
 
-            <div className="relative flex-1 px-10 py-12">
-              <div className="mx-auto max-w-xl text-center">
-                <div className="theme-glow mx-auto flex h-20 w-20 items-center justify-center rounded-[26px] border border-brand-300/25 bg-gradient-to-br from-brand-300 to-brand-500">
-                  <ShieldCheck className="h-10 w-10 text-slate-950" />
-                </div>
-                <h1 className="mt-8 text-5xl font-extrabold tracking-tight text-white">
-                  Warehouse Command
-                  <span className="block text-gradient-ocean">Center</span>
-                </h1>
-                <p className="mx-auto mt-5 max-w-xl text-lg leading-8 text-neutral-200/88">
-                  Operate PlusGrow inbound, storage, and dispatch workflows from a single premium control surface inspired by your reference theme.
-                </p>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm text-neutral-300">
-                  <span className="theme-pill">Live inventory visibility</span>
-                  <span className="theme-pill">Process approvals</span>
-                  <span className="theme-pill">Operator role access</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative grid grid-cols-3 gap-4 border-t border-white/6 px-10 py-8">
-              {[
-                ['Receiving', 'Track intake volumes and warehouse arrivals'],
-                ['Put Away', 'Route stock to the right mapped zones'],
-                ['Dispatch', 'Monitor outbound execution in real time'],
-              ].map(([title, description]) => (
-                <div key={title} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-                  <p className="text-sm font-semibold text-white">{title}</p>
-                  <p className="mt-2 text-sm leading-6 text-neutral-300">{description}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <div className="w-full">
-            <Card
-              variant="elevated"
-              className="overflow-hidden border-white/10 bg-[linear-gradient(180deg,rgba(18,29,46,0.95)_0%,rgba(10,18,32,0.98)_100%)] shadow-float backdrop-blur-xl"
+      <Container size="xs" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        >
+          <Stack gap="xl" align="center" mb={40}>
+            <Logo width={220} height={60} />
+            <Badge
+              variant="dot"
+              color="blue"
+              size="lg"
+              styles={{ root: { backgroundColor: 'rgba(34, 139, 230, 0.1)', border: '1px solid rgba(34, 139, 230, 0.2)' } }}
             >
-              <div className="h-1.5 bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500" />
+              Secure Operator Portal
+            </Badge>
+          </Stack>
 
-              <CardHeader className="px-6 pb-5 pt-6 sm:px-8" divider={false}>
-                <div className="space-y-4">
-                  <div className="flex justify-center lg:hidden">
-                    <Logo width={160} height={160} className="h-auto w-36" />
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="theme-glow flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[24px] border border-brand-300/25 bg-gradient-to-br from-brand-300 to-brand-500">
-                      <ShieldCheck className="h-8 w-8 text-slate-950" />
-                    </div>
-                  </div>
-                  <div>
-                    <CardTitle size="lg" className="text-center text-3xl font-heading">
-                      Admin Login
-                    </CardTitle>
-                    <p className="mt-2 text-center text-sm leading-6 text-neutral-300">
-                      Sign in to continue to the PlusGrow warehouse control environment.
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
+          <Paper
+            radius="24px"
+            p={40}
+            withBorder
+            style={{
+              backgroundColor: 'rgba(10, 18, 32, 0.7)',
+              backdropFilter: 'blur(20px)',
+              borderColor: 'rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            <Stack gap="xl">
+              <Box>
+                <Title order={2} ta="center" fw={800} size="h2" style={{ letterSpacing: '-0.5px' }}>
+                  Admin Login
+                </Title>
+                <Text c="dimmed" size="sm" ta="center" mt={5}>
+                  Enter your credentials to access the command center.
+                </Text>
+              </Box>
 
-              <CardContent className="px-6 pb-6 pt-2 sm:px-8 sm:pb-8">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {error && (
-                  <div className="animate-in fade-in slide-in-from-top-2 flex items-start gap-2 rounded-[22px] border border-danger-500/25 -/ px-4 py-3 text-sm text-danger-200">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                )}
+              <form onSubmit={form.onSubmit(handleLogin)}>
+                <Stack gap="lg">
+                  <AnimatePresence mode="wait">
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <Alert
+                          icon={<IconAlertCircle size={16} />}
+                          color="red"
+                          variant="light"
+                          radius="md"
+                        >
+                          {error}
+                        </Alert>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                <Input
-                  id="username"
-                  label="Username"
-                  type="text"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
-                  autoFocus
-                  size="lg"
-                  leftElement={<User className="h-5 w-5" />}
-                  className="theme-input"
-                />
+                  <TextInput
+                    label="Username"
+                    placeholder="operator_id"
+                    leftSection={<IconUser size={18} stroke={1.5} />}
+                    size="lg"
+                    radius="md"
+                    styles={{
+                      input: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        '&:focus': { borderColor: 'var(--mantine-color-blue-6)' }
+                      },
+                      label: { marginBottom: 8, fontWeight: 600 }
+                    }}
+                    {...form.getInputProps('username')}
+                  />
 
-                <Input
-                  id="password"
-                  label="Password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  size="lg"
-                  leftElement={<Lock className="h-5 w-5" />}
-                  className="theme-input"
-                  rightElement={
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="rounded-md p-1 text-neutral-300/70 transition-colors hover:text-white"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  }
-                />
+                  <PasswordInput
+                    label="Password"
+                    placeholder="••••••••"
+                    leftSection={<IconLock size={18} stroke={1.5} />}
+                    size="lg"
+                    radius="md"
+                    styles={{
+                      input: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        '&:focus': { borderColor: 'var(--mantine-color-blue-6)' }
+                      },
+                      label: { marginBottom: 8, fontWeight: 600 }
+                    }}
+                    {...form.getInputProps('password')}
+                  />
 
-                <Button
-                  type="submit"
-                  fullWidth
-                  size="lg"
-                  className="mt-2 font-semibold shadow-brand-lg"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      Continue to dashboard
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    type="submit"
+                    size="lg"
+                    radius="md"
+                    fullWidth
+                    loading={isLoading}
+                    variant="gradient"
+                    gradient={{ from: '#11a7df', to: '#00d4ff', deg: 45 }}
+                    styles={{
+                      root: {
+                        height: 54,
+                        boxShadow: '0 8px 20px rgba(17, 167, 223, 0.3)',
+                        '&:hover': { transform: 'translateY(-2px)', transition: 'transform 0.2s' }
+                      }
+                    }}
+                  >
+                    Authorize Access
+                  </Button>
+                </Stack>
               </form>
 
-              <div className="mt-6 rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Quick access</p>
-                    <p className="mt-1 text-xs leading-5 text-neutral-300">
-                      Use the built-in admin helpers for faster local testing.
-                    </p>
-                  </div>
-                  <div className="hidden rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-200 sm:block">
-                    Local only
-                  </div>
-                </div>
+              <Divider label="Quick Auth" labelPosition="center" styles={{ label: { color: 'var(--mantine-color-dark-3)' } }} />
 
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-[22px] border border-amber-400/20 bg-gradient-to-r from-amber-500/12 to-orange-500/10 p-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-amber-100">
-                          <Crown className="h-4 w-4" />
-                          Superadmin access
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-amber-100/80">
-                          Username <code className="rounded bg-white/10 px-1.5 py-0.5">{SUPERADMIN_CONFIG.username}</code> and password <code className="rounded bg-white/10 px-1.5 py-0.5">{SUPERADMIN_CONFIG.password}</code>
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSuperadminLogin}
-                        disabled={isLoading}
-                        className="bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 hover:from-amber-300 hover:to-orange-400"
-                      >
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-4 w-4" />}
-                        Instant login
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-white">Demo account</p>
-                        <p className="mt-1 text-xs leading-5 text-neutral-300">
-                          Username <code className="rounded bg-white/10 px-1.5 py-0.5 text-white">{DEMO_CREDENTIALS.username}</code> and password <code className="rounded bg-white/10 px-1.5 py-0.5 text-white">{DEMO_CREDENTIALS.password}</code>
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => fillCredentials(DEMO_CREDENTIALS)}
-                      >
-                        Fill credentials
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 border-t border-white/10 pt-5 text-center">
-                <p className="text-sm text-neutral-300">
-                  Don&apos;t have an account?{' '}
-                  <Link
-                    to="/register"
-                    className="font-semibold text-brand-200 transition-colors hover:text-brand-100 hover:underline"
+              <Group grow gap="sm">
+                <Tooltip label="Login as Superadmin">
+                  <Button
+                    variant="outline"
+                    color="orange"
+                    size="md"
+                    radius="md"
+                    leftSection={<IconCrown size={18} />}
+                    onClick={() => handleQuickLogin({ username: SUPERADMIN_CONFIG.username, password: SUPERADMIN_CONFIG.password })}
+                    disabled={isLoading}
+                    styles={{ root: { backgroundColor: 'rgba(255, 146, 43, 0.05)', borderColor: 'rgba(255, 146, 43, 0.2)' } }}
                   >
-                    Create Account
-                  </Link>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          </div>
-        </div>
-      </div>
-    </div>
+                    Superadmin
+                  </Button>
+                </Tooltip>
+
+                <Button
+                  variant="outline"
+                  color="gray"
+                  size="md"
+                  radius="md"
+                  onClick={() => form.setValues(DEMO_CREDENTIALS)}
+                  styles={{ root: { backgroundColor: 'rgba(255, 255, 255, 0.03)', borderColor: 'rgba(255, 255, 255, 0.1)' } }}
+                >
+                  Demo User
+                </Button>
+              </Group>
+
+              <Center>
+                <Text size="sm" c="dimmed">
+                  New operator?{' '}
+                  <Text component={Link} to="/register" c="blue" fw={700} style={{ textDecoration: 'none' }}>
+                    Request Credentials
+                  </Text>
+                </Text>
+              </Center>
+            </Stack>
+          </Paper>
+
+          <Text ta="center" c="dimmed" size="xs" mt={30} style={{ opacity: 0.5 }}>
+            © 2026 PlusGrow WMS • System Version 4.2.0-stable
+          </Text>
+        </motion.div>
+      </Container>
+    </Box>
   );
-});
+}
 
 export default Login;

@@ -246,7 +246,7 @@ export const PutAway = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="field-label text-xs">Scan Product</label>
+                <label className="label-text font-medium inline-block mb-1 text-xs">Scan Product</label>
                 <Input
                   size="sm"
                   placeholder="Scan SKU or product code"
@@ -255,7 +255,7 @@ export const PutAway = () => {
                 />
               </div>
               <div className="space-y-1">
-                <label className="field-label text-xs">Scan Location or Bin</label>
+                <label className="label-text font-medium inline-block mb-1 text-xs">Scan Location or Bin</label>
                 <Input
                   size="sm"
                   placeholder="Scan location code or bin code"
@@ -266,7 +266,7 @@ export const PutAway = () => {
             </div>
 
               <div className="space-y-1">
-                <label className="field-label text-xs">Quantity To Put Away</label>
+                <label className="label-text font-medium inline-block mb-1 text-xs">Quantity To Put Away</label>
                 <Input
                   size="sm"
                   type="number"

@@ -296,13 +296,13 @@ public class PoInvoicesController : BaseController
             {
                 ProductId = productId,
                 CurrentQuantity = billedQty,
-                UpdatedAt = DateTime.Now,
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
             });
             return;
         }
 
         quantityRow.CurrentQuantity += billedQty;
-        quantityRow.UpdatedAt = DateTime.Now;
+        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
     }
 
     private static DateTime? TryParseInvoiceDate(IXLCell cell)

@@ -188,15 +188,15 @@ cell: (row) => (
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
-      <div className="page-toolbar">
+      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="page-icon-chip">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="page-title">Importers</h1>
-              <p className="page-subtitle">Supplier Management</p>
+              <h1 className="text-2xl font-bold">Importers</h1>
+              <p className="text-sm opacity-70">Supplier Management</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ cell: (row) => (
       </div>
 
       {/* Data Table */}
-      <div className="page-table-shell">
+      <div className="card bg-base-100 shadow-sm overflow-hidden">
         <div className="p-3">
           <DataTable
             columns={columns}
@@ -234,7 +234,7 @@ cell: (row) => (
       >
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">
-            <label className="field-label">
+            <label className="label-text font-medium inline-block mb-1">
               Company Name <span className="text-danger-500">*</span>
             </label>
             <Input
@@ -245,7 +245,7 @@ cell: (row) => (
             />
           </div>
           <div className="space-y-1.5">
-            <label className="field-label">Address</label>
+            <label className="label-text font-medium inline-block mb-1">Address</label>
             <Input
               placeholder="Enter address"
               value={formData.address}
@@ -254,7 +254,7 @@ cell: (row) => (
             />
           </div>
           <div className="space-y-1.5">
-            <label className="field-label">CIN Number</label>
+            <label className="label-text font-medium inline-block mb-1">CIN Number</label>
             <Input
               placeholder="Corporate Identity Number"
               value={formData.cin}
@@ -263,7 +263,7 @@ cell: (row) => (
             />
           </div>
           <div className="space-y-1.5">
-            <label className="field-label">Phone</label>
+            <label className="label-text font-medium inline-block mb-1">Phone</label>
             <Input
               placeholder="Phone number"
               value={formData.phone}
@@ -272,7 +272,7 @@ cell: (row) => (
             />
           </div>
           <div className="space-y-1.5">
-            <label className="field-label">Email</label>
+            <label className="label-text font-medium inline-block mb-1">Email</label>
             <Input
               type="email"
               placeholder="Email address"

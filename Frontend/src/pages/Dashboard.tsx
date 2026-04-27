@@ -1,11 +1,37 @@
 import React, { memo, useMemo } from 'react';
 import { useWms } from '../context/WmsContext';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
-import { Badge } from '../components/atoms/Badge';
-import { Package, ArrowDownToLine, ArrowUpFromLine, Box, Clock, Activity, ArrowRight, TrendingUp } from 'lucide-react';
+import {
+  Grid,
+  Card,
+  Text,
+  Group,
+  Stack,
+  Title,
+  Badge,
+  Skeleton,
+  SimpleGrid,
+  Paper,
+  Box,
+  ScrollArea,
+  ActionIcon,
+  Progress,
+  ThemeIcon,
+  Center,
+} from '@mantine/core';
+import {
+  IconPackage,
+  IconArrowDownLeft,
+  IconArrowUpRight,
+  IconBox,
+  IconClock,
+  IconActivity,
+  IconArrowRight,
+  IconTrendingUp,
+  IconChartBar,
+} from '@tabler/icons-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export const Dashboard = memo(function Dashboard() {
   const { products, purchaseInvoices, salesInvoices, stock, activities, isLoading } = useWms();
@@ -29,293 +55,302 @@ export const Dashboard = memo(function Dashboard() {
   }, [purchaseInvoices, salesInvoices, stock, products.length]);
 
   const chartData = useMemo(() => [
-    { name: 'Receiving', quantity: stats.totalInwards, color: '#1ec0f3' },
-    { name: 'Dispatch', quantity: stats.totalOutwards, color: '#2dd4bf' },
-    { name: 'Inventory', quantity: stats.totalStock, color: '#0a6994' },
+    { name: 'Receiving', quantity: stats.totalInwards, color: 'var(--mantine-color-blue-6)' },
+    { name: 'Dispatch', quantity: stats.totalOutwards, color: 'var(--mantine-color-teal-6)' },
+    { name: 'Inventory', quantity: stats.totalStock, color: 'var(--mantine-color-cyan-6)' },
   ], [stats]);
 
   const recentActivities = useMemo(() => activities.slice(0, 8), [activities]);
 
   const totalTasks = stats.pendingPutAway + stats.pendingDispatch;
   const completedTasks = (purchaseInvoices.length - stats.pendingPutAway) + (salesInvoices.length - stats.pendingDispatch);
-  const overallProgress = (purchaseInvoices.length + salesInvoices.length) > 0 
-    ? Math.round((completedTasks / (purchaseInvoices.length + salesInvoices.length)) * 100)
+  const totalPotentialTasks = purchaseInvoices.length + salesInvoices.length;
+  const overallProgress = totalPotentialTasks > 0
+    ? Math.round((completedTasks / totalPotentialTasks) * 100)
     : 100;
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full min-h-0 gap-4 animate-in fade-in duration-1000">
-        <Card className="p-3">
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <div className="h-6 w-48 rounded bg-white/10 animate-pulse" />
-            </div>
-          </div>
-        </Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="p-4">
-              <div className="h-24 rounded-xl bg-white/10 animate-pulse" />
-            </Card>
-          ))}
-        </div>
-      </div>
+      <Stack gap="md">
+        <Skeleton height={60} radius="md" />
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
+          <Skeleton height={120} radius="md" />
+          <Skeleton height={120} radius="md" />
+          <Skeleton height={120} radius="md" />
+          <Skeleton height={120} radius="md" />
+        </SimpleGrid>
+        <Grid gutter="md">
+          <Grid.Col span={{ base: 12, lg: 8 }}>
+            <Skeleton height={400} radius="md" />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, lg: 4 }}>
+            <Skeleton height={400} radius="md" />
+          </Grid.Col>
+        </Grid>
+      </Stack>
     );
   }
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <section className="theme-panel flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
-        <div className="flex items-center gap-4">
-          <div className="theme-glow flex h-11 w-11 items-center justify-center rounded-[18px] border border-brand-300/25 bg-gradient-to-br from-brand-300 to-brand-500">
-            <Activity className="h-5.5 w-5.5 text-slate-950" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">Dashboard Status</p>
-            <p className="mt-0.5 text-xs text-neutral-400">Live snapshot for inbound, outbound, inventory, and task flow.</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="primary" shape="pill" className="px-4 py-2 text-sm">System Optimal</Badge>
-          <Badge variant="default" shape="pill" className="px-4 py-2 text-sm">Pending tasks: {totalTasks}</Badge>
-          <Badge variant="default" shape="pill" className="px-4 py-2 text-sm">Efficiency: {overallProgress}%</Badge>
-        </div>
-      </section>
+  const statCards = [
+    {
+      title: 'Total Inbound Units',
+      value: stats.totalInwards.toLocaleString(),
+      hint: 'Receiving volume',
+      icon: IconArrowDownLeft,
+      color: 'blue',
+      badge: '+12%',
+    },
+    {
+      title: 'Total Outbound Units',
+      value: stats.totalOutwards.toLocaleString(),
+      hint: 'Dispatch volume',
+      icon: IconArrowUpRight,
+      color: 'teal',
+      badge: '+8%',
+    },
+    {
+      title: 'Registered SKUs',
+      value: stats.totalSKUs.toLocaleString(),
+      hint: 'Product catalog',
+      icon: IconPackage,
+      color: 'cyan',
+      badge: 'Live',
+    },
+    {
+      title: 'Current Stock',
+      value: stats.totalStock.toLocaleString(),
+      hint: 'Warehouse inventory',
+      icon: IconBox,
+      color: 'indigo',
+      badge: `${totalTasks} open`,
+    },
+  ];
 
-      <div className="grid shrink-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            title: 'Total Inbound Units',
-            value: stats.totalInwards.toLocaleString(),
-            hint: 'Receiving volume',
-            icon: ArrowDownToLine,
-            accent: 'text-brand-200',
-            badge: '+12%',
-          },
-          {
-            title: 'Total Outbound Units',
-            value: stats.totalOutwards.toLocaleString(),
-            hint: 'Dispatch volume',
-            icon: ArrowUpFromLine,
-            accent: 'text-emerald-200',
-            badge: '+8%',
-          },
-          {
-            title: 'Registered SKUs',
-            value: stats.totalSKUs.toLocaleString(),
-            hint: 'Product catalog',
-            icon: Package,
-            accent: 'text-cyan-200',
-            badge: 'Live',
-          },
-          {
-            title: 'Current Stock',
-            value: stats.totalStock.toLocaleString(),
-            hint: 'Warehouse inventory',
-            icon: Box,
-            accent: 'text-amber-200',
-            badge: `${totalTasks} open`,
-          },
-        ].map(({ title, value, hint, icon: Icon, accent, badge }) => (
-          <Card key={title} variant="interactive" className="overflow-hidden p-0">
-            <div className="relative p-4">
-              <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-brand-400/8 blur-2xl" />
-              <div className="relative flex items-start justify-between">
-                <div className="theme-glow flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/6">
-                  <Icon className={cn('h-6 w-6', accent)} />
-                </div>
-                <Badge variant="default" shape="pill">{badge}</Badge>
-              </div>
-              <div className="relative mt-6">
-                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">{title}</p>
-                <div className="mt-2 flex items-end gap-2">
-                  <span className="text-3xl font-black tracking-tight text-white">{value}</span>
-                  <span className="pb-1 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-300">{hint}</span>
-                </div>
-              </div>
-            </div>
+  return (
+    <Stack gap="md">
+      {/* Header Status Bar */}
+      <Paper
+        p="md"
+        withBorder
+        style={{
+          background: 'rgba(10, 18, 32, 0.4)',
+          backdropFilter: 'blur(10px)',
+          borderColor: 'rgba(255, 255, 255, 0.05)',
+        }}
+      >
+        <Group justify="space-between">
+          <Group gap="md">
+            <ThemeIcon size={44} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+              <IconActivity size={24} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={700} size="sm">System Operational</Text>
+              <Text size="xs" c="dimmed">Live snapshot of warehouse logistics and task flow telemetry.</Text>
+            </Box>
+          </Group>
+          <Group gap="xs">
+            <Badge variant="dot" color="blue" size="lg">Optimal</Badge>
+            <Badge variant="outline" color="gray" size="lg">Pending: {totalTasks}</Badge>
+            <Box style={{ width: 100 }}>
+              <Text size="xs" fw={700} ta="right" mb={4}>{overallProgress}%</Text>
+              <Progress value={overallProgress} size="xs" color="blue" striped animate />
+            </Box>
+          </Group>
+        </Group>
+      </Paper>
+
+      {/* Primary Stats Grid */}
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
+        {statCards.map((stat) => (
+          <Card
+            key={stat.title}
+            p="md"
+            withBorder
+            style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            <Box style={{ position: 'absolute', top: -10, right: -10, opacity: 0.05 }}>
+              <stat.icon size={100} />
+            </Box>
+            <Group justify="space-between" mb="xs">
+              <ThemeIcon color={stat.color} variant="light" size="lg" radius="md">
+                <stat.icon size={20} />
+              </ThemeIcon>
+              <Badge variant="light" color={stat.color}>{stat.badge}</Badge>
+            </Group>
+            <Text size="xs" fw={800} c="dimmed" style={{ letterSpacing: '1px', textTransform: 'uppercase' }}>
+              {stat.title}
+            </Text>
+            <Group align="flex-end" gap="xs" mt={5}>
+              <Text size="xl" fw={900}>{stat.value}</Text>
+              <Text size="xs" c="dimmed" pb={4}>{stat.hint}</Text>
+            </Group>
           </Card>
         ))}
-      </div>
+      </SimpleGrid>
 
-      <div className="grid flex-1 min-h-0 grid-cols-1 gap-4 xl:grid-cols-[1.4fr_0.9fr]">
-        <div className="flex min-h-0 flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card
-              variant="interactive"
-              className="cursor-pointer overflow-hidden p-0"
-              onClick={() => navigate('/putaway')}
-            >
-              <div className="flex items-center justify-between p-3.5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-warning-400/20 bg-warning-400/10 text-warning-300">
-                    <Clock className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">Pending Put-Away</p>
-                    <p className="mt-1 text-3xl font-black text-white">{stats.pendingPutAway}</p>
-                  </div>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/6">
-                  <ArrowRight className="h-4 w-4 text-warning-100" />
-                </div>
-              </div>
-            </Card>
-
-            <Card
-              variant="interactive"
-              className="cursor-pointer overflow-hidden p-0"
-              onClick={() => navigate('/dispatch')}
-            >
-              <div className="flex items-center justify-between p-5">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-brand-300/20 bg-brand-400/12 text-brand-100">
-                    <Package className="h-5.5 w-5.5" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">Pending Dispatch</p>
-                    <p className="mt-1 text-3xl font-black text-white">{stats.pendingDispatch}</p>
-                  </div>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/6">
-                  <ArrowRight className="h-4 w-4 text-brand-100" />
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <Card variant="elevated" className="flex min-h-[360px] flex-1 flex-col overflow-hidden">
-            <CardHeader className="shrink-0 px-4 py-2.5">
-              <div>
-                <CardTitle size="sm" className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-brand-300" />
-                  Volume Analytics
-                </CardTitle>
-                <p className="mt-1 text-xs font-medium text-neutral-300">System-wide transaction volume breakdown</p>
-              </div>
-              <Badge variant="primary" shape="pill">30 Days</Badge>
-            </CardHeader>
-            <CardContent className="relative min-h-[260px] flex-1 p-5">
-              <div className="theme-grid-bg absolute inset-5 rounded-[22px] opacity-20" />
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 0, left: -16, bottom: 0 }} barGap={10}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#c8d4e4', fontSize: 11, fontWeight: 700 }}
-                    dy={16}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#9fb0c8', fontSize: 12, fontWeight: 500 }}
-                    dx={-10}
-                    tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value}
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(255,255,255,0.06)' }}
-                    contentStyle={{
-                      borderRadius: '18px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      boxShadow: '0 20px 45px rgba(2, 8, 23, 0.36)',
-                      fontWeight: 700,
-                      padding: '12px 16px',
-                      backgroundColor: 'rgba(12, 18, 32, 0.94)',
-                      backdropFilter: 'blur(14px)',
-                      color: '#ffffff',
-                    }}
-                    labelStyle={{ color: '#dfe8f4' }}
-                  />
-                  <Bar
-                    dataKey="quantity"
-                    radius={[10, 10, 4, 4]}
-                    barSize={50}
-                    animationDuration={1200}
-                    animationEasing="ease-out"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card variant="elevated" className="flex min-h-[360px] flex-col overflow-hidden">
-          <CardHeader className="shrink-0 px-4 py-2.5">
-            <div className="flex items-center justify-between">
-              <CardTitle size="sm" className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-brand-300" />
-                Live Event Stream
-              </CardTitle>
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success-400 opacity-75"></span>
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success-400"></span>
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="scrollbar-thin relative flex-1 overflow-y-auto p-2">
-            <div className="space-y-2">
-              {recentActivities.map((activity, idx) => (
-                <div
-                  key={activity.id}
-                  className="animate-in fade-in slide-in-from-right-4 group flex items-start gap-3 rounded-xl border border-white/6 bg-white/[0.04] p-2.5 transition-all duration-200 hover:border-white/12 hover:bg-white/[0.04]"
-                  style={{ animationFillMode: 'both', animationDelay: `${idx * 60}ms` }}
+      {/* Task and Analytics Row */}
+      <Grid gutter="md">
+        <Grid.Col span={{ base: 12, lg: 8 }}>
+          <Stack gap="md">
+            <Grid gutter="md">
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <Card
+                  withBorder
+                  p="md"
+                  onClick={() => navigate('/putaway')}
+                  style={{ cursor: 'pointer', background: 'rgba(255, 255, 255, 0.01)' }}
                 >
-                  <div className="relative mt-0.5 shrink-0">
-                    <div className={cn(
-                      'relative z-10 flex h-10 w-10 items-center justify-center rounded-full border bg-white/[0.04] transition-transform duration-300 group-hover:scale-105',
-                      activity.type === 'Inward'
-                        ? 'border-brand-300/20 text-brand-200'
-                        : activity.type === 'Outward'
-                          ? 'border-success-400/20 text-success-200'
-                          : 'border-warning-400/20 text-warning-100'
-                    )}>
-                      {activity.type === 'Inward'
-                        ? <ArrowDownToLine className="h-5 w-5" />
-                        : activity.type === 'Outward'
-                          ? <ArrowUpFromLine className="h-5 w-5" />
-                          : <Box className="h-5 w-5" />}
-                    </div>
-                    {idx !== recentActivities.length - 1 && (
-                      <div className="absolute bottom-[-22px] left-1/2 top-10 w-px -translate-x-1/2 bg-white/10" />
-                    )}
-                  </div>
+                  <Group justify="space-between">
+                    <Group gap="md">
+                      <ThemeIcon color="orange" variant="light" size={48} radius="lg">
+                        <IconClock size={28} />
+                      </ThemeIcon>
+                      <Box>
+                        <Text size="xs" fw={800} c="dimmed" style={{ letterSpacing: '1px' }}>PENDING PUT-AWAY</Text>
+                        <Text size="xl" fw={900}>{stats.pendingPutAway}</Text>
+                      </Box>
+                    </Group>
+                    <ActionIcon variant="light" color="orange" radius="xl">
+                      <IconArrowRight size={18} />
+                    </ActionIcon>
+                  </Group>
+                </Card>
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <Card
+                  withBorder
+                  p="md"
+                  onClick={() => navigate('/dispatch')}
+                  style={{ cursor: 'pointer', background: 'rgba(255, 255, 255, 0.01)' }}
+                >
+                  <Group justify="space-between">
+                    <Group gap="md">
+                      <ThemeIcon color="blue" variant="light" size={48} radius="lg">
+                        <IconPackage size={28} />
+                      </ThemeIcon>
+                      <Box>
+                        <Text size="xs" fw={800} c="dimmed" style={{ letterSpacing: '1px' }}>PENDING DISPATCH</Text>
+                        <Text size="xl" fw={900}>{stats.pendingDispatch}</Text>
+                      </Box>
+                    </Group>
+                    <ActionIcon variant="light" color="blue" radius="xl">
+                      <IconArrowRight size={18} />
+                    </ActionIcon>
+                  </Group>
+                </Card>
+              </Grid.Col>
+            </Grid>
 
-                  <div className="min-w-0 flex-1 py-1">
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <Badge variant="default" className="px-2 py-0 text-[9px] font-bold uppercase tracking-[0.18em]">
-                        {activity.type}
-                      </Badge>
-                      <span className="font-mono text-[10px] font-medium text-neutral-300/70">
-                        {new Date(activity.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold leading-snug text-white">{activity.description}</p>
-                  </div>
-                </div>
-              ))}
+            {/* Chart Area */}
+            <Card withBorder p="md" style={{ background: 'rgba(255, 255, 255, 0.01)' }}>
+              <Group justify="space-between" mb="xl">
+                <Group gap="xs">
+                  <IconChartBar size={20} color="var(--mantine-color-blue-4)" />
+                  <Text fw={700}>Volume Analytics</Text>
+                </Group>
+                <Badge variant="outline">30 Days</Badge>
+              </Group>
+              <Box style={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'var(--mantine-color-dark-2)', fontSize: 11 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'var(--mantine-color-dark-2)', fontSize: 11 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(20, 28, 45, 0.95)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        backdropFilter: 'blur(8px)',
+                      }}
+                      cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                    />
+                    <Bar dataKey="quantity" radius={[4, 4, 0, 0]} barSize={40}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Card>
+          </Stack>
+        </Grid.Col>
 
-              {recentActivities.length === 0 && (
-                <div className="flex min-h-[300px] flex-col items-center justify-center px-4 text-center">
-                  <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/[0.04]">
-                    <Activity className="h-8 w-8 text-neutral-300/60" />
-                  </div>
-                  <h4 className="mb-1 text-sm font-bold text-white">System Quiet</h4>
-                  <p className="max-w-[200px] text-xs text-neutral-300">
-                    Network event telemetry will populate here when operational activity resumes.
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+        {/* Live Stream */}
+        <Grid.Col span={{ base: 12, lg: 4 }}>
+          <Card withBorder p={0} style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.01)' }}>
+            <Paper p="md" style={{ background: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <Group justify="space-between">
+                <Group gap="xs">
+                  <IconActivity size={18} color="var(--mantine-color-blue-4)" />
+                  <Text fw={700}>Live Event Stream</Text>
+                </Group>
+                <Box style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--mantine-color-green-6)', boxShadow: '0 0 10px var(--mantine-color-green-6)' }} />
+              </Group>
+            </Paper>
+            <ScrollArea flex={1} p="md">
+              <Stack gap="xs">
+                {recentActivities.map((activity, idx) => (
+                  <Paper
+                    key={activity.id}
+                    p="xs"
+                    withBorder
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderColor: 'rgba(255, 255, 255, 0.05)',
+                    }}
+                  >
+                    <Group gap="sm" wrap="nowrap">
+                      <ThemeIcon
+                        size="md"
+                        radius="md"
+                        variant="light"
+                        color={activity.type === 'Inward' ? 'blue' : activity.type === 'Outward' ? 'green' : 'gray'}
+                      >
+                        {activity.type === 'Inward' ? <IconArrowDownLeft size={16} /> : <IconBox size={16} />}
+                      </ThemeIcon>
+                      <Box flex={1}>
+                        <Group justify="space-between" mb={2}>
+                          <Badge size="xs" variant="outline" color={activity.type === 'Inward' ? 'blue' : 'gray'}>
+                            {activity.type}
+                          </Badge>
+                          <Text size="10px" c="dimmed" fontFamily="monospace">
+                            {new Date(activity.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </Group>
+                        <Text size="sm" fw={600} lineClamp={1}>{activity.description}</Text>
+                      </Box>
+                    </Group>
+                  </Paper>
+                ))}
+                {recentActivities.length === 0 && (
+                  <Center py={50}>
+                    <Stack align="center" gap="xs">
+                      <IconActivity size={32} color="var(--mantine-color-dark-4)" />
+                      <Text size="xs" c="dimmed">No recent activity detected.</Text>
+                    </Stack>
+                  </Center>
+                )}
+              </Stack>
+            </ScrollArea>
+          </Card>
+        </Grid.Col>
+      </Grid>
+    </Stack>
   );
 });
 

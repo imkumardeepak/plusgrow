@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@plugin "daisyui";
 @import "./styles/tokens.css";
 
 @theme {
@@ -110,129 +111,17 @@
       linear-gradient(180deg, #111e31 0%, #09111f 40%, #060d19 100%);
     background-attachment: fixed;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading font-medium tracking-tight text-white;
   }
 
   #root {
     min-height: 100vh;
   }
-}
-
-@layer utilities {
-  .glassmorphism {
-    @apply bg-white/6 backdrop-blur-xl border border-white/10 shadow-card;
-  }
-  .glass-dark {
-    @apply bg-neutral-950/70 backdrop-blur-xl border border-white/10 shadow-float;
-  }
-  .card-base {
-    @apply border border-white/8 bg-white/4 shadow-card transition-all duration-300;
-  }
-  .card-hover {
-    @apply hover:-translate-y-0.5 hover:shadow-card-hover hover:border-brand-300/30;
-  }
-  .btn-primary-gradient {
-    @apply bg-gradient-to-r from-brand-400 via-brand-500 to-brand-600 text-slate-950 shadow-brand hover:shadow-brand-lg transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:shadow-sm;
-  }
-  .btn-success-gradient {
-    @apply bg-success-600 hover:bg-success-500 text-white shadow-md hover:shadow-lg transition-all duration-200 hover:-translate-y-px active:translate-y-0 active:shadow-sm;
-  }
-  .text-gradient-ocean {
-    @apply bg-gradient-to-r from-brand-200 via-brand-300 to-brand-500 bg-clip-text text-transparent;
-  }
-  .theme-shell {
-    @apply min-h-screen bg-[linear-gradient(180deg,rgba(17,30,48,0.98)_0%,rgba(9,17,31,0.98)_40%,rgba(6,13,25,1)_100%)];
-  }
-  .theme-panel {
-    @apply rounded-xl border border-white/8 bg-white/[0.03] backdrop-blur-xl shadow-card;
-  }
-  .page-toolbar {
-    @apply rounded-xl border border-white/8 bg-white/[0.03] px-4 py-1.5 backdrop-blur-xl shadow-card;
-  }
-  .page-table-shell {
-    @apply mx-3 mb-3 flex-1 overflow-hidden rounded-xl border border-white/8 bg-white/[0.03] shadow-card;
-  }
-  .page-icon-chip {
-    @apply flex h-9 w-9 items-center justify-center rounded-xl border border-brand-300/20 bg-gradient-to-br from-brand-300 to-brand-500 text-slate-950 shadow-brand;
-  }
-  .page-title {
-    @apply text-base font-bold leading-tight tracking-tight text-white;
-  }
-  .page-subtitle {
-    @apply mt-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-neutral-400;
-  }
-  .field-label {
-    @apply text-xs font-medium text-neutral-400;
-  }
-  .theme-textarea {
-    @apply w-full resize-none rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-neutral-500 transition-all duration-200 hover:border-brand-300/30 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400;
-  }
-  .theme-card {
-    @apply rounded-xl border border-white/8 bg-white/[0.04] shadow-card;
-  }
-  .theme-hero {
-    @apply relative overflow-hidden rounded-2xl border border-white/8 bg-[linear-gradient(180deg,rgba(17,28,45,0.95)_0%,rgba(11,20,36,0.98)_100%)] shadow-float;
-  }
-  .theme-pill {
-    @apply inline-flex items-center rounded-full border border-white/8 bg-white/6 px-2 py-0.5 text-[10px];
-  }
-  .theme-input {
-    @apply border border-white/10 bg-white/[0.03] text-neutral-50 placeholder:text-neutral-400/50 text-sm h-9 rounded-xl;
-  }
-
-  .theme-grid-bg {
-    background-image:
-      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-  .theme-glow {
-    box-shadow: 0 0 0 1px rgba(67, 212, 255, 0.08), 0 18px 40px rgba(17, 167, 223, 0.14);
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-white/10 rounded-full;
-  }
-  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-    @apply bg-brand-400/60;
-  }
-  .scale-102 {
-    transform: scale(1.02);
-  }
-}
-
-@layer components {
-  .theme-shell .bg-white {
-    background-color: rgba(255, 255, 255, 0.04) !important;
-  }
-
-  .theme-shell .bg-white\/80 {
-    background-color: rgba(255, 255, 255, 0.06) !important;
-  }
-
-  .theme-shell .bg-white\/90 {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-  }
-
-  .theme-shell .border-neutral-100,
-  .theme-shell .border-neutral-200,
-  .theme-shell .border-neutral-300 {
-    border-color: rgba(255, 255, 255, 0.1) !important;
-  }
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
-}
-
-.animate-shake {
-  animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
+}

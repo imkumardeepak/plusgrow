@@ -40,7 +40,7 @@ public class ProductQuantitiesController : BaseController
         {
             ProductId = dto.ProductId,
             CurrentQuantity = dto.CurrentQuantity,
-            UpdatedAt = DateTime.Now,
+            UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
         };
 
         _context.ProductQuantities.Add(entity);
@@ -69,7 +69,7 @@ public class ProductQuantitiesController : BaseController
 
         entity.ProductId = dto.ProductId;
         entity.CurrentQuantity = dto.CurrentQuantity;
-        entity.UpdatedAt = DateTime.Now;
+        entity.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         await _context.SaveChangesAsync();
 

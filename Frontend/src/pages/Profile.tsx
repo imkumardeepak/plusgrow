@@ -189,7 +189,7 @@ export const Profile = memo(function Profile() {
               {showPasswordForm ? (
                 <form onSubmit={handlePasswordChange} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="currentPassword" className="field-label block">
+                    <label htmlFor="currentPassword" className="label-text font-medium inline-block mb-1 block">
                       Current Password
                     </label>
                     <Input
@@ -202,7 +202,7 @@ export const Profile = memo(function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="newPassword" className="field-label block">
+                    <label htmlFor="newPassword" className="label-text font-medium inline-block mb-1 block">
                       New Password
                     </label>
                     <Input
@@ -216,7 +216,7 @@ export const Profile = memo(function Profile() {
                     <p className="text-xs text-neutral-500">Must be at least 6 characters</p>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="field-label block">
+                    <label htmlFor="confirmPassword" className="label-text font-medium inline-block mb-1 block">
                       Confirm New Password
                     </label>
                     <Input

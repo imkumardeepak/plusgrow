@@ -20,5 +20,5 @@ public class ProductQuantity
     public int CurrentQuantity { get; set; }
 
     [Column("updated_at")]
-    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

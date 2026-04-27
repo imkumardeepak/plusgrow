@@ -127,7 +127,7 @@ public class AuthService : IAuthService
             Phone = createUserDto.Phone,
             RoleId = createUserDto.RoleId,
             IsActive = true,
-            CreatedAt = DateTime.Now
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
         };
         
         await _userRepository.CreateAsync(user);
@@ -160,7 +160,7 @@ public class AuthService : IAuthService
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.Now.AddMinutes(int.Parse(_configuration["Jwt:ExpiryMinutes"]!)),
+            expires: DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified).AddMinutes(int.Parse(_configuration["Jwt:ExpiryMinutes"]!)),
             signingCredentials: credentials
         );
         

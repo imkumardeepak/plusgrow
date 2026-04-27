@@ -68,7 +68,7 @@ export function Breadcrumbs({
       aria-label="Breadcrumb"
       className={cn("flex items-center text-sm", className)}
     >
-      <ol className="theme-pill flex flex-wrap items-center gap-1.5 text-sm">
+      <ol className="badge badge-neutral flex flex-wrap items-center gap-1.5 text-sm">
         {showHome && (
           <li>
             <Link

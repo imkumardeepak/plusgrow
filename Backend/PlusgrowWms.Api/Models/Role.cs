@@ -22,8 +22,8 @@ public class Role
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
     
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+[Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
     
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<RolePageAccess> RolePageAccesses { get; set; } = new List<RolePageAccess>();

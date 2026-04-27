@@ -42,8 +42,8 @@ public class User
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
     
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+[Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
     
     [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }

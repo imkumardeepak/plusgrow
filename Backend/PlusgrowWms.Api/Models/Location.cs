@@ -33,6 +33,6 @@ public class Location
     [Column("bins", TypeName = "jsonb")]
     public List<string> Bins { get; set; } = new();
     
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+[Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

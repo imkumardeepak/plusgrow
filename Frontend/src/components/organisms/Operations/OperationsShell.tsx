@@ -1,23 +1,26 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
-
-import { Card, CardContent, CardHeader, CardTitle } from '../../atoms/Card';
-import { cn } from '../../../lib/utils';
+import {
+  Card,
+  Text,
+  Group,
+  Stack,
+  Title,
+  Box,
+  SimpleGrid,
+  Paper,
+  ThemeIcon,
+  Divider,
+  Center,
+} from '@mantine/core';
 
 type Tone = 'default' | 'brand' | 'warning' | 'success';
 
-const toneClasses: Record<Tone, string> = {
-  default: 'border-white/10 bg-white/[0.04]',
-  brand: 'border-brand-500/20 bg-brand-500/10',
-  warning: 'border-warning-500/20 bg-warning-500/10',
-  success: 'border-success-500/20 bg-success-500/10',
-};
-
-const valueToneClasses: Record<Tone, string> = {
-  default: 'text-white',
-  brand: 'text-brand-300',
-  warning: 'text-warning-400',
-  success: 'text-success-400',
+const toneColors: Record<Tone, string> = {
+  default: 'gray',
+  brand: 'blue',
+  warning: 'orange',
+  success: 'green',
 };
 
 export interface OperationsMetric {
@@ -43,51 +46,60 @@ export function OperationsPage({
   metrics = [],
   children,
 }: OperationsPageProps) {
-  const metricGridClassName =
-    metrics.length >= 4
-      ? 'md:grid-cols-4'
-      : metrics.length === 3
-        ? 'md:grid-cols-3'
-        : metrics.length === 2
-          ? 'md:grid-cols-2'
-          : 'md:grid-cols-1';
-
   return (
-    <div className="flex min-h-0 flex-col gap-4">
-      <Card variant="glass" className="p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <Icon className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="page-title">{title}</h1>
-              <p className="page-subtitle normal-case tracking-normal text-neutral-400">{description}</p>
-            </div>
-          </div>
+    <Stack gap="md" style={{ minHeight: 0 }}>
+      <Paper
+        p="lg"
+        radius="lg"
+        withBorder
+        style={{
+          background: 'rgba(10, 18, 32, 0.4)',
+          backdropFilter: 'blur(10px)',
+          borderColor: 'rgba(255, 255, 255, 0.05)',
+        }}
+      >
+        <Stack gap="md">
+          <Group justify="space-between" align="flex-start">
+            <Group gap="md" align="center">
+              <ThemeIcon size={48} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
+                <Icon size={24} />
+              </ThemeIcon>
+              <Box>
+                <Title order={2} size="h3" fw={800} style={{ letterSpacing: '-0.5px' }}>{title}</Title>
+                <Text size="sm" c="dimmed">{description}</Text>
+              </Box>
+            </Group>
+            {actions && <Group gap="xs">{actions}</Group>}
+          </Group>
 
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-        </div>
-
-        {metrics.length > 0 && (
-          <div className={cn('mt-4 grid gap-3', metricGridClassName)}>
-            {metrics.map((metric) => (
-              <div
-                key={metric.label}
-                className={cn('rounded-2xl border px-4 py-3', toneClasses[metric.tone ?? 'default'])}
-              >
-                <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">{metric.label}</p>
-                <p className={cn('mt-2 text-2xl font-black', valueToneClasses[metric.tone ?? 'default'])}>
-                  {metric.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+          {metrics.length > 0 && (
+            <SimpleGrid cols={{ base: 1, sm: 2, md: Math.min(metrics.length, 4) }} gap="sm" mt="xs">
+              {metrics.map((metric) => (
+                <Paper
+                  key={metric.label}
+                  p="sm"
+                  radius="md"
+                  withBorder
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderColor: 'rgba(255, 255, 255, 0.05)',
+                  }}
+                >
+                  <Text size="xs" fw={800} c="dimmed" style={{ letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    {metric.label}
+                  </Text>
+                  <Text size="xl" fw={900} color={toneColors[metric.tone ?? 'default']}>
+                    {metric.value}
+                  </Text>
+                </Paper>
+              ))}
+            </SimpleGrid>
+          )}
+        </Stack>
+      </Paper>
 
       {children}
-    </div>
+    </Stack>
   );
 }
 
@@ -111,21 +123,36 @@ export function OperationsPanel({
   contentClassName,
 }: OperationsPanelProps) {
   return (
-    <Card variant="elevated" className={cn('overflow-hidden', className)}>
-      <CardHeader
-        className="border-b border-white/10 bg-white/[0.02] px-4 py-3"
-        divider={false}
-        action={action}
-      >
-        <div>
-          <CardTitle size="sm" className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-brand-400" />
-            {title}
-          </CardTitle>
-          {description ? <p className="mt-1 text-xs text-neutral-400">{description}</p> : null}
-        </div>
-      </CardHeader>
-      <CardContent className={cn('p-4', contentClassName)}>{children}</CardContent>
+    <Card
+      radius="lg"
+      withBorder
+      padding={0}
+      className={className}
+      style={{
+        background: 'rgba(10, 18, 32, 0.3)',
+        backdropFilter: 'blur(10px)',
+        borderColor: 'rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Box p="md" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+        <Group justify="space-between" align="center">
+          <Group gap="xs">
+            <ThemeIcon color="blue" variant="light" size="md">
+              <Icon size={18} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={700} size="sm">{title}</Text>
+              {description && <Text size="xs" c="dimmed">{description}</Text>}
+            </Box>
+          </Group>
+          {action && <Box>{action}</Box>}
+        </Group>
+      </Box>
+      <Box p="md" flex={1} className={contentClassName} style={{ minHeight: 0 }}>
+        {children}
+      </Box>
     </Card>
   );
 }
@@ -144,13 +171,17 @@ export function OperationsEmptyState({
   action,
 }: OperationsEmptyStateProps) {
   return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-6 py-10 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-        <Icon className="h-6 w-6 text-brand-400" />
-      </div>
-      <p className="text-sm font-semibold text-white">{title}</p>
-      <p className="mt-2 max-w-sm text-sm text-neutral-400">{description}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    <Center style={{ height: '100%', minHeight: 240 }} p="xl">
+      <Stack align="center" gap="md" ta="center">
+        <ThemeIcon size={60} radius="xl" variant="light" color="gray">
+          <Icon size={32} />
+        </ThemeIcon>
+        <Box>
+          <Text fw={700} size="sm">{title}</Text>
+          <Text size="xs" c="dimmed" mt={4} maw={300}>{description}</Text>
+        </Box>
+        {action && <Box>{action}</Box>}
+      </Stack>
+    </Center>
   );
 }

@@ -66,6 +66,6 @@ public class Product
     [ForeignKey(nameof(ManufacturerId))]
     public Manufacturer? Manufacturer { get; set; }
     
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+[Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

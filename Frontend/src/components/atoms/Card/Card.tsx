@@ -13,12 +13,12 @@ export const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "card-base",
+        default: "card bg-base-100 shadow-xl border border-base-300",
         elevated: "bg-white/[0.04] border-white/10 shadow-float",
         outlined: "bg-white/[0.04] border-white/12 shadow-card",
         ghost: "border-transparent shadow-none bg-transparent",
-        interactive: "card-base card-hover cursor-pointer",
-        glass: "glassmorphism",
+        interactive: "card bg-base-100 shadow-xl border border-base-300 card-hover cursor-pointer",
+        glass: "glass",
       },
       padding: {
         none: "",

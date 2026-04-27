@@ -40,7 +40,7 @@ public class ProductAllottedLocationsController : BaseController
         {
             ProductId = dto.ProductId,
             LocationJson = dto.LocationJson,
-            UpdatedAt = DateTime.Now,
+            UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
         };
 
         _context.ProductAllottedLocations.Add(entity);
@@ -69,7 +69,7 @@ public class ProductAllottedLocationsController : BaseController
 
         entity.ProductId = dto.ProductId;
         entity.LocationJson = dto.LocationJson ?? new Dictionary<string, int>();
-        entity.UpdatedAt = DateTime.Now;
+        entity.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(entity).Property(x => x.LocationJson).IsModified = true;
 
         await _context.SaveChangesAsync();
@@ -131,7 +131,7 @@ public class ProductAllottedLocationsController : BaseController
             {
                 ProductId = product.Id,
                 LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
-                UpdatedAt = DateTime.Now,
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
             };
             _context.ProductAllottedLocations.Add(allocationRow);
         }
@@ -149,7 +149,7 @@ public class ProductAllottedLocationsController : BaseController
         var locationCode = resolvedLocation.LocationCode;
         allocationRow.LocationJson.TryGetValue(locationCode, out var existingLocationQty);
         allocationRow.LocationJson[locationCode] = existingLocationQty + dto.Quantity;
-        allocationRow.UpdatedAt = DateTime.Now;
+        allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
 
         await ReduceInvoiceRemainingAllocation(product.Id, dto.Quantity);

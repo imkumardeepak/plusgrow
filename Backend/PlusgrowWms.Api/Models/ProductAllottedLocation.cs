@@ -20,5 +20,5 @@ public class ProductAllottedLocation
     public Dictionary<string, int> LocationJson { get; set; } = new();
 
     [Column("updated_at")]
-    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

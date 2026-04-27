@@ -20,7 +20,7 @@ public class ApiResponse<T>
     public List<string>? Errors { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.Now;
+    public DateTime Timestamp { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
     [JsonPropertyName("pagination")]
     public PaginationInfo? Pagination { get; set; }
@@ -135,7 +135,7 @@ public class ApiResponse
     public List<string>? Errors { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.Now;
+    public DateTime Timestamp { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
     public static ApiResponse Ok(string? message = null)
     {
