@@ -15,6 +15,7 @@ import { Button } from '../components/atoms/Button';
 import { Input } from '../components/atoms/Input';
 import { Modal, ConfirmDialog } from '../components/atoms/Modal';
 import { DataTable, createTableColumns } from '../components/molecules/DataTable';
+import { OperationsPage, OperationsPanel } from '../components/organisms/Operations/OperationsShell';
 import {
   CreatePoInvoiceDto,
   PoInvoice,
@@ -41,7 +42,7 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
 });
 
 const themedSelectClassName =
-  'h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
+  'h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 
 export const Inward = memo(function Inward() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -299,90 +300,43 @@ export const Inward = memo(function Inward() {
   );
 
   return (
-    <div className="flex min-h-0 flex-col gap-4">
-      <div className="page-toolbar">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <ArrowDownToLine className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="page-title">PO Invoice Control</h1>
-              <p className="page-subtitle">Upload purchase invoice rows here, print all stickers by invoice batch, then finish location allotment in put away.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Invoices</p>
-              <p className="mt-2 text-2xl font-black text-white">{poInvoices.length}</p>
-            </div>
-            <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-warning-300/70">Pending Print</p>
-              <p className="mt-2 text-2xl font-black text-warning-400">{invoiceStats.pendingPrint}</p>
-            </div>
-            <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-brand-300/70">Remaining</p>
-              <p className="mt-2 text-2xl font-black text-brand-300">{invoiceStats.totalRemaining}</p>
-            </div>
-            <div className="rounded-2xl border border-success-500/20 bg-success-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-success-300/70">Allocated</p>
-              <p className="mt-2 text-2xl font-black text-success-400">{invoiceStats.allottedCount}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="page-table-shell">
-        <div className="flex items-center justify-between border-b border-white/10 p-6">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-white">PO Invoice Table</h2>
-              <p className="text-sm text-neutral-400">Invoice upload source for sticker printing and downstream put-away allocation</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+    <OperationsPage
+      title="Purchase Invoices"
+      description="Upload inward invoice rows here. Same records drive sticker printing and put-away."
+      icon={ArrowDownToLine}
+      metrics={[
+        { label: 'Invoices', value: poInvoices.length },
+        { label: 'Pending Print', value: invoiceStats.pendingPrint, tone: 'warning' },
+        { label: 'Remaining Allocation', value: invoiceStats.totalRemaining, tone: 'brand' },
+        { label: 'Fully Allotted', value: invoiceStats.allottedCount, tone: 'success' },
+      ]}
+    >
+      <OperationsPanel
+        title="Inward Ledger"
+        icon={FileText}
+        description="Import Excel or add a single inward line manually."
+        action={
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <input
-                type="file"
-                id="invoice-upload"
-                className="hidden"
-                accept=".xlsx,.xls"
-                onChange={handleInvoiceUpload}
-                disabled={isUploadingInvoices}
-              />
-              <Button
-                variant="outline"
-                className="border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
+              <input type="file" id="invoice-upload" className="hidden" accept=".xlsx,.xls" onChange={handleInvoiceUpload} disabled={isUploadingInvoices} />
+              <Button variant="outline" size="sm" className="border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
                 onClick={() => document.getElementById('invoice-upload')?.click()}
-                leftIcon={isUploadingInvoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                disabled={isUploadingInvoices}
-              >
-                {isUploadingInvoices ? 'Uploading...' : 'Upload Invoice'}
+                leftIcon={isUploadingInvoices ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                disabled={isUploadingInvoices}>
+                {isUploadingInvoices ? 'Uploading...' : 'Upload Excel'}
               </Button>
             </div>
-            <Button
-              onClick={openCreateInvoice}
+            <Button size="sm" onClick={openCreateInvoice}
               className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
-              leftIcon={<Plus className="h-4 w-4" />}
-            >
-              New Invoice Row
+              leftIcon={<Plus className="h-3.5 w-3.5" />}>
+              New Row
             </Button>
           </div>
-        </div>
-        <div className="p-6">
-          <DataTable
-            columns={invoiceColumns}
-            data={filteredInvoices}
-            loading={isLoading}
-            searchPlaceholder="Search party, SKU, or product..."
-            onSearch={setInvoiceSearch}
-            searchValue={invoiceSearch}
-          />
-        </div>
-      </div>
+        }
+      >
+        <DataTable columns={invoiceColumns} data={filteredInvoices} loading={isLoading}
+          searchPlaceholder="Search party, SKU, or product..." onSearch={setInvoiceSearch} searchValue={invoiceSearch} />
+      </OperationsPanel>
 
       <Modal isOpen={invoiceModalOpen} onClose={resetInvoiceModal} title={editingInvoice ? 'Edit PO Invoice' : 'New PO Invoice'} size="xl">
         <form onSubmit={handleInvoiceSubmit} className="space-y-5">
@@ -473,7 +427,7 @@ export const Inward = memo(function Inward() {
         variant="danger"
         isLoading={isDeleting}
       />
-    </div>
+    </OperationsPage>
   );
 });
 

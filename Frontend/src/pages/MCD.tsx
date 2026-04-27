@@ -55,10 +55,10 @@ export const MCD = memo(function MCD() {
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar - Pro Max Edition */}
       <Card variant="glass" className="p-3 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center shrink-0 border border-brand-500/20 shadow-card">
-              <Users className="w-5 h-5 text-brand-400" />
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 flex items-center justify-center shrink-0 border border-brand-500/20 shadow-card">
+              <Users className="w-4.5 h-4.5 text-brand-400" />
             </div>
             <div>
               <h1 className="text-base font-bold text-white leading-tight tracking-tight">Master Customer Data</h1>
@@ -99,11 +99,11 @@ export const MCD = memo(function MCD() {
                      Registration Subsystem
                   </CardTitle>
                </CardHeader>
-               <CardContent className="flex-1 overflow-y-auto p-5 scrollbar-thin bg-white/[0.04] relative">
+               <CardContent className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white/[0.04] relative">
                   <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none"></div>
                   
-                  <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
-                     <div className="space-y-2">
+                  <form onSubmit={handleSubmit} className="space-y-3.5 relative z-10">
+                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Trading Name (Company)</label>
                         <div className="relative">
                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -113,14 +113,14 @@ export const MCD = memo(function MCD() {
                               type="text"
                               required 
                               placeholder="Acme Corp Intl."
-                              className="w-full h-11 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
+                              className="w-full h-9 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
                               value={formData.name} 
                               onChange={e => setFormData({...formData, name: e.target.value})} 
                            />
                         </div>
                      </div>
                      
-                     <div className="space-y-2">
+                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Primary Email</label>
                         <div className="relative">
                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -130,14 +130,14 @@ export const MCD = memo(function MCD() {
                               type="email" 
                               required 
                               placeholder="logistics@acme.com"
-                              className="w-full h-11 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
+                              className="w-full h-9 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
                               value={formData.email} 
                               onChange={e => setFormData({...formData, email: e.target.value})} 
                            />
                         </div>
                      </div>
                      
-                     <div className="space-y-2">
+                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Contact Number</label>
                         <div className="relative">
                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -147,17 +147,17 @@ export const MCD = memo(function MCD() {
                               type="tel" 
                               required 
                               placeholder="+1 (555) 019-2093"
-                              className="w-full h-11 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium font-mono shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
+                              className="w-full h-9 pl-10 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium font-mono shadow-card transition-all outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
                               value={formData.phone} 
                               onChange={e => setFormData({...formData, phone: e.target.value})} 
                            />
                         </div>
                      </div>
                      
-                     <div className="space-y-2">
+                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Business Relationship</label>
                         <select 
-                           className="block w-full h-11 px-4 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium text-neutral-100 shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none appearance-none"
+                           className="block w-full h-9 px-4 rounded-xl border-2 border-white/10 bg-white/[0.02] focus:bg-white/[0.04] text-sm font-medium text-neutral-100 shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all outline-none appearance-none"
                            value={formData.ownership}
                            onChange={e => setFormData({...formData, ownership: e.target.value as any})}
                         >
@@ -166,7 +166,7 @@ export const MCD = memo(function MCD() {
                         </select>
                      </div>
                      
-                     <div className="space-y-2">
+                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider">Registered Facilities Address</label>
                         <div className="relative flex">
                            <div className="absolute top-3.5 left-3.5 pointer-events-none">
@@ -214,7 +214,7 @@ export const MCD = memo(function MCD() {
                         <tr>
                            <th className="py-3 px-5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap">Corporate Entity</th>
                            <th className="py-3 px-5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap">Digital Communications</th>
-                           <th className="py-3 px-5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap text-center">Protocol Level</th>
+                           <th className="py-2 px-4 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap text-center">Protocol Level</th>
                            <th className="py-3 px-5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap">HQ Origin</th>
                            <th className="py-3 px-5 text-[10px] font-bold text-neutral-400 uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
                         </tr>
@@ -228,7 +228,7 @@ export const MCD = memo(function MCD() {
                            >
                               <td className="py-4 px-5">
                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-brand-400 font-black text-sm shadow-card group-hover:border-brand-500/30 transition-colors">
+                                    <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-brand-400 font-black text-sm shadow-card group-hover:border-brand-500/30 transition-colors">
                                        {c.name.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
@@ -266,7 +266,7 @@ export const MCD = memo(function MCD() {
                                     <span className="line-clamp-2" title={c.address}>{c.address}</span>
                                  </div>
                               </td>
-                              <td className="py-4 px-5 text-right">
+                              <td className="py-3 px-4 text-right">
                                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-all font-bold h-8 text-brand-300 hover:bg-brand-400/10" rightIcon={<ChevronRight className="w-4 h-4" />}>
                                     Manage
                                  </Button>

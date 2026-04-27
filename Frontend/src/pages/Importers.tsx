@@ -118,8 +118,8 @@ export const Importers = memo(function Importers() {
         header: 'Company',
 cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
-              <Truck className="w-5 h-5 text-brand-400" />
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Truck className="w-4.5 h-4.5 text-brand-400" />
             </div>
             <div>
               <p className="font-semibold text-white">{row.name}</p>
@@ -189,7 +189,7 @@ cell: (row) => (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
       <div className="page-toolbar">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="page-icon-chip">
               <Building2 className="w-5 h-5" />
@@ -202,7 +202,7 @@ cell: (row) => (
           <div className="flex items-center gap-3">
             <Button
               onClick={openCreateModal}
-              className="h-10 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-9 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               NEW IMPORTER
@@ -213,7 +213,7 @@ cell: (row) => (
 
       {/* Data Table */}
       <div className="page-table-shell">
-        <div className="p-6">
+        <div className="p-3">
           <DataTable
             columns={columns}
             data={importers}
@@ -232,8 +232,8 @@ cell: (row) => (
         title={isEditing ? 'Edit Importer' : 'New Importer'}
         size="md"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1.5">
             <label className="field-label">
               Company Name <span className="text-danger-500">*</span>
             </label>
@@ -241,44 +241,44 @@ cell: (row) => (
               placeholder="Enter company name"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="h-10"
+              className="h-9"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="field-label">Address</label>
             <Input
               placeholder="Enter address"
               value={formData.address}
               onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              className="h-10"
+              className="h-9"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="field-label">CIN Number</label>
             <Input
               placeholder="Corporate Identity Number"
               value={formData.cin}
               onChange={(e) => setFormData(prev => ({ ...prev, cin: e.target.value }))}
-              className="h-10"
+              className="h-9"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="field-label">Phone</label>
             <Input
               placeholder="Phone number"
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              className="h-10"
+              className="h-9"
             />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="field-label">Email</label>
             <Input
               type="email"
               placeholder="Email address"
               value={formData.email}
               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="h-10"
+              className="h-9"
             />
           </div>
           <div className="flex gap-3 pt-4 border-t border-white/10">

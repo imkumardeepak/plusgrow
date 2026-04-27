@@ -161,8 +161,8 @@ export const Locations = memo(function Locations() {
         header: 'Location Code',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
-              <MapPin className="w-5 h-5 text-brand-400" />
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <MapPin className="w-4.5 h-4.5 text-brand-400" />
             </div>
             <div>
               <p className="font-semibold text-white">{row.locationCode}</p>
@@ -214,7 +214,7 @@ export const Locations = memo(function Locations() {
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
       <div className="page-toolbar">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="page-icon-chip">
               <MapPin className="w-5 h-5" />
@@ -236,7 +236,7 @@ export const Locations = memo(function Locations() {
               />
               <Button
                 variant="outline"
-                className="h-10 border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
+                className="h-9 border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
                 onClick={() => document.getElementById('location-upload')?.click()}
                 leftIcon={isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 disabled={isImporting}
@@ -246,7 +246,7 @@ export const Locations = memo(function Locations() {
             </div>
             <Button
               onClick={openCreateModal}
-              className="h-10 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              className="h-9 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="w-4 h-4" />}
             >
               ADD NEW
@@ -256,7 +256,7 @@ export const Locations = memo(function Locations() {
       </div>
 
       <div className="page-table-shell">
-        <div className="p-6">
+        <div className="p-3">
           <DataTable
             columns={columns}
             data={locations}
@@ -274,9 +274,9 @@ export const Locations = memo(function Locations() {
         title={isEditing ? 'Edit Location' : 'New Location'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
                     <label className="field-label">Aisle <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. 101"
@@ -289,10 +289,10 @@ export const Locations = memo(function Locations() {
                                 locationCode: `${aisle}-${prev.rack}-${prev.shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
                             }));
                         }}
-                        className="h-10"
+                        className="h-9"
                     />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <label className="field-label">Rack <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. A"
@@ -305,10 +305,10 @@ export const Locations = memo(function Locations() {
                                 locationCode: `${prev.aisle}-${rack}-${prev.shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
                             }));
                         }}
-                        className="h-10"
+                        className="h-9"
                     />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                     <label className="field-label">Shelf <span className="text-danger-500">*</span></label>
                     <Input
                         placeholder="e.g. 3"
@@ -321,7 +321,7 @@ export const Locations = memo(function Locations() {
                                 locationCode: `${prev.aisle}-${prev.rack}-${shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
                             }));
                         }}
-                        className="h-10"
+                        className="h-9"
                     />
                 </div>
             </div>
@@ -332,7 +332,7 @@ export const Locations = memo(function Locations() {
                     placeholder="Auto-generated"
                     value={formData.locationCode}
                     onChange={(e) => setFormData(prev => ({ ...prev, locationCode: e.target.value }))}
-                    className="h-10 font-mono"
+                    className="h-9 font-mono"
                 />
             </div>
 

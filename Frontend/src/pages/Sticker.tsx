@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 
 import { Badge } from '../components/atoms/Badge';
 import { Button } from '../components/atoms/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
 import { Input } from '../components/atoms/Input';
+import { OperationsPage, OperationsPanel, OperationsEmptyState } from '../components/organisms/Operations/OperationsShell';
 import { cn } from '../lib/utils';
 import {
   Importer,
@@ -34,7 +34,7 @@ type StickerBatch = {
 };
 
 const selectClassName =
-  'h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
+  'h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 
 const buildBatchKey = (invoiceDate: string, partyName: string) =>
   `${invoiceDate.slice(0, 10)}__${partyName.trim().toLowerCase()}`;
@@ -238,57 +238,35 @@ export const Sticker = memo(function Sticker() {
   const totalPrintedLines = poInvoices.filter((row) => row.printed).length;
 
   return (
-    <div className="flex min-h-0 flex-col gap-4">
-      <Card variant="glass" className="p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <Printer className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="page-title">Invoice Sticker Printing</h1>
-              <p className="page-subtitle">Print all stickers for one uploaded invoice batch, then mark the batch as printed.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Batches</p>
-              <p className="mt-2 text-2xl font-black text-white">{totalBatches}</p>
-            </div>
-            <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-warning-300/70">Pending Batches</p>
-              <p className="mt-2 text-2xl font-black text-warning-400">{pendingBatches}</p>
-            </div>
-            <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-brand-300/70">Pending Labels</p>
-              <p className="mt-2 text-2xl font-black text-brand-300">{totalPendingLabels}</p>
-            </div>
-            <div className="rounded-2xl border border-success-500/20 bg-success-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-success-300/70">Printed Lines</p>
-              <p className="mt-2 text-2xl font-black text-success-400">{totalPrintedLines}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-
+    <OperationsPage
+      title="Sticker Printing"
+      description="Pick invoice batch, confirm format, preview first sticker, then print all pending labels together."
+      icon={Printer}
+      metrics={[
+        { label: 'Batches', value: totalBatches },
+        { label: 'Pending Batches', value: pendingBatches, tone: 'warning' },
+        { label: 'Pending Labels', value: totalPendingLabels, tone: 'brand' },
+        { label: 'Printed Lines', value: totalPrintedLines, tone: 'success' },
+      ]}
+    >
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr_1.2fr]">
-        <Card variant="elevated" className="overflow-hidden">
-          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
-            <CardTitle size="sm" className="flex items-center gap-2">
-              <Layers3 className="h-4 w-4 text-brand-400" />
-              Invoice Batches
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-[720px] space-y-3 overflow-y-auto p-4">
+        <OperationsPanel
+          title="Invoice Batches"
+          icon={Layers3}
+          description="Each batch groups rows by invoice date and party name."
+          className="max-h-[720px]"
+          contentClassName="max-h-[640px] space-y-3 overflow-y-auto"
+        >
             {isLoading ? (
               <div className="flex h-40 items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
               </div>
             ) : batches.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
-                No uploaded invoice batches found. Upload invoice rows in inward first.
-              </div>
+              <OperationsEmptyState
+                icon={Layers3}
+                title="No invoice batches"
+                description="Upload invoice rows in inward first."
+              />
             ) : (
               batches.map((batch) => {
                 const isActive = batch.key === selectedBatchKey;
@@ -339,17 +317,13 @@ export const Sticker = memo(function Sticker() {
                 );
               })
             )}
-          </CardContent>
-        </Card>
+        </OperationsPanel>
 
-        <Card variant="elevated" className="overflow-hidden">
-          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
-            <CardTitle size="sm" className="flex items-center gap-2">
-              <Tag className="h-4 w-4 text-brand-400" />
-              Sticker Setup
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5 p-6">
+        <OperationsPanel
+          title="Sticker Setup"
+          icon={Tag}
+          description="Printer and label settings for selected batch."
+        >
             {selectedBatch ? (
               <>
                 <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
@@ -368,8 +342,8 @@ export const Sticker = memo(function Sticker() {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="field-label">Sticker Size</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Sticker Size</label>
                     <select
                       className={selectClassName}
                       value={stickerSize}
@@ -381,8 +355,8 @@ export const Sticker = memo(function Sticker() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="field-label">Sticker Type</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Sticker Type</label>
                     <select
                       className={selectClassName}
                       value={stickerType}
@@ -393,8 +367,8 @@ export const Sticker = memo(function Sticker() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="field-label">Importer</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Importer</label>
                     <select
                       className={selectClassName}
                       value={importerId}
@@ -409,27 +383,30 @@ export const Sticker = memo(function Sticker() {
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="field-label">Printer IP</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Printer IP</label>
                     <Input
+                      size="sm"
                       value={printerIp}
                       onChange={(e) => setPrinterIp(e.target.value)}
                       placeholder="Enter printer IP"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="field-label">Month / Year</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Month / Year</label>
                     <Input
+                      size="sm"
                       value={monthYear}
                       onChange={(e) => setMonthYear(e.target.value)}
                       placeholder="MMM/YYYY"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="field-label">Batch Number</label>
+                  <div className="space-y-1">
+                    <label className="field-label text-xs">Batch Number</label>
                     <Input
+                      size="sm"
                       value={batchNumber}
                       onChange={(e) => setBatchNumber(e.target.value)}
                       placeholder="Batch number"
@@ -437,9 +414,10 @@ export const Sticker = memo(function Sticker() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="field-label">Note</label>
+                <div className="space-y-1">
+                  <label className="field-label text-xs">Note</label>
                   <Input
+                    size="sm"
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Optional note for all stickers in this batch"
@@ -465,38 +443,39 @@ export const Sticker = memo(function Sticker() {
                       />
                     </div>
                   ) : (
-                    <div className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-neutral-400">
-                      Select an invoice batch to preview the first sticker.
-                    </div>
+                    <OperationsEmptyState
+                      icon={Tag}
+                      title="Preview not ready"
+                      description="Select batch to preview first sticker."
+                    />
                   )}
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
-                Select an invoice batch from the left to configure sticker printing.
-              </div>
+              <OperationsEmptyState
+                icon={Tag}
+                title="No batch selected"
+                description="Choose invoice batch from left panel to configure printing."
+              />
             )}
-          </CardContent>
-        </Card>
+        </OperationsPanel>
 
-        <Card variant="elevated" className="overflow-hidden">
-          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle size="sm" className="flex items-center gap-2">
-                <Printer className="h-4 w-4 text-brand-400" />
-                Batch Items
-              </CardTitle>
-              <Button
-                onClick={handlePrintBatch}
-                disabled={!selectedBatch || isPrinting || selectedBatch.pendingRows.length === 0}
-                className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
-                leftIcon={isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-              >
-                {isPrinting ? 'Printing...' : 'Print All Pending'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
+        <OperationsPanel
+          title="Batch Items"
+          icon={Printer}
+          description="Print all pending labels for selected batch."
+          action={
+            <Button
+              size="sm"
+              onClick={handlePrintBatch}
+              disabled={!selectedBatch || isPrinting || selectedBatch.pendingRows.length === 0}
+              className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              leftIcon={isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            >
+              {isPrinting ? 'Printing...' : 'Print All Pending'}
+            </Button>
+          }
+        >
             {selectedBatch ? (
               <>
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -519,7 +498,7 @@ export const Sticker = memo(function Sticker() {
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-white/10">
-                  <div className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">
+                  <div className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">
                     <span>SKU</span>
                     <span>Product</span>
                     <span>Qty</span>
@@ -529,7 +508,7 @@ export const Sticker = memo(function Sticker() {
                     {selectedBatch.rows.map((row) => (
                       <div
                         key={row.id}
-                        className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.02] px-4 py-3 text-sm last:border-b-0"
+                        className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.02] px-4 py-2 text-sm last:border-b-0"
                       >
                         <span className="font-mono text-brand-300">{row.skuCode}</span>
                         <span className="text-white">{row.productName}</span>
@@ -549,14 +528,15 @@ export const Sticker = memo(function Sticker() {
                 </div>
               </>
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
-                No invoice batch selected.
-              </div>
+              <OperationsEmptyState
+                icon={Printer}
+                title="No items to show"
+                description="Select invoice batch to review rows and print status."
+              />
             )}
-          </CardContent>
-        </Card>
+        </OperationsPanel>
       </div>
-    </div>
+    </OperationsPage>
   );
 });
 

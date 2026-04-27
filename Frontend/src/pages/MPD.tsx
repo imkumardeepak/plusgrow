@@ -260,8 +260,8 @@ cell: (row) => (
         header: 'Product Name',
         cell: (row) => (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
-              <Package className="w-5 h-5 text-brand-400" />
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
+              <Package className="w-4.5 h-4.5 text-brand-400" />
             </div>
             <div>
               <span className="font-bold text-white block text-sm">{row.name}</span>
@@ -414,10 +414,10 @@ cell: (row) => (
     <div className="flex flex-col h-full min-h-0 gap-4">
       {/* Header Bar */}
       <Card variant="glass" className="p-3 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-neon-cyan/20">
-              <Package className="w-5 h-5 text-brand-400" />
+            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-neon-cyan/20">
+              <Package className="w-4.5 h-4.5 text-brand-400" />
             </div>
             <div>
               <h1 className="text-base font-bold text-white leading-tight tracking-tight">Master Product Data</h1>
@@ -456,7 +456,7 @@ cell: (row) => (
           </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0">
-          <div className="p-4">
+          <div className="p-3">
             <DataTable 
               columns={columns} 
               data={filteredProducts} 
@@ -476,9 +476,9 @@ cell: (row) => (
         title={isEditing ? 'Edit Product' : 'New Product'}
         size="xl"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <label className="text-sm font-medium text-neutral-200">
                 Product Name <span className="text-danger-500">*</span>
               </label>
@@ -486,11 +486,11 @@ cell: (row) => (
                 placeholder="e.g. Mechanical Keyboard Pro V2"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="h-10"
+                className="h-9"
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">
                 SKU <span className="text-danger-500">*</span>
               </label>
@@ -500,15 +500,15 @@ cell: (row) => (
                   placeholder="SKU-XXXX-YY"
                   value={formData.sku}
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                  className="h-10 pl-10 font-mono"
+                  className="h-9 pl-10 font-mono"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">Manufacturer</label>
               <select
-                className="w-full h-10 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full h-9 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={formData.manufacturerId || ''}
                 onChange={(e) => setFormData({ ...formData, manufacturerId: e.target.value ? Number(e.target.value) : undefined })}
               >
@@ -519,10 +519,10 @@ cell: (row) => (
               </select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">Commodity</label>
               <select
-                className="w-full h-10 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="w-full h-9 px-3 border rounded-md border-white/10 bg-white/[0.04] text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 value={formData.commodityId || ''}
                 onChange={(e) => setFormData({ ...formData, commodityId: e.target.value ? Number(e.target.value) : undefined })}
               >
@@ -533,7 +533,7 @@ cell: (row) => (
               </select>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">MRP (₹)</label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-success-500" />
@@ -543,12 +543,12 @@ cell: (row) => (
                   placeholder="0.00"
                   value={formData.mrp || ''}
                   onChange={(e) => setFormData({ ...formData, mrp: Number(e.target.value) })}
-                  className="h-10 pl-10"
+                  className="h-9 pl-10"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">USSP (₹)</label>
               <div className="relative">
                 <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning-500" />
@@ -558,22 +558,22 @@ cell: (row) => (
                   placeholder="0.00"
                   value={formData.ussp || ''}
                   onChange={(e) => setFormData({ ...formData, ussp: Number(e.target.value) })}
-                  className="h-10 pl-10"
+                  className="h-9 pl-10"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">Unit Type</label>
               <Input
                 placeholder="UNIT, KG, LTR, etc."
                 value={formData.unitType}
                 onChange={(e) => setFormData({ ...formData, unitType: e.target.value })}
-                className="h-10"
+                className="h-9"
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">Country of Origin</label>
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
@@ -581,12 +581,12 @@ cell: (row) => (
                   placeholder="India"
                   value={formData.countryOfOrigin}
                   onChange={(e) => setFormData({ ...formData, countryOfOrigin: e.target.value })}
-                  className="h-10 pl-10"
+                  className="h-9 pl-10"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">Best Before (Months)</label>
               <Input
                 type="number"
@@ -594,17 +594,17 @@ cell: (row) => (
                 placeholder="12"
                 value={formData.bestBeforeMonths}
                 onChange={(e) => setFormData({ ...formData, bestBeforeMonths: Number(e.target.value) })}
-                className="h-10"
+                className="h-9"
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-sm font-medium text-neutral-200">MRP Quantity</label>
               <Input
                 placeholder="e.g. 1L, 500g"
                 value={formData.mrpQuantity}
                 onChange={(e) => setFormData({ ...formData, mrpQuantity: e.target.value })}
-                className="h-10"
+                className="h-9"
               />
             </div>
           </div>
@@ -636,8 +636,8 @@ cell: (row) => (
           <div className="bg-white/[0.04] rounded-xl p-4 border border-white/10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
-                  <FileSpreadsheet className="w-5 h-5 text-brand-400" />
+                <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
+                  <FileSpreadsheet className="w-4.5 h-4.5 text-brand-400" />
                 </div>
                 <div>
                   <p className="font-semibold text-white text-sm">Product Import Template</p>
@@ -675,7 +675,7 @@ cell: (row) => (
           {/* Drop Zone */}
           <div
             className={cn(
-              "relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200",
+              "relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200",
                isDragging
                 ? "border-brand-500 bg-brand-500/10"
                 : uploadFile

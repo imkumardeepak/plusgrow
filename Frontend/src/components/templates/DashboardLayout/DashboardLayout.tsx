@@ -85,28 +85,29 @@ export function DashboardLayout({
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className={cn("p-4 lg:p-6", contentClassName)}>
+          <div className={cn("p-3 lg:p-4", contentClassName)}>
             <div className="mx-auto max-w-[1680px]">
               {/* Breadcrumbs */}
               {showBreadcrumbs && (
-                <div className="mb-5">
+                <div className="mb-3">
                   <Breadcrumbs items={breadcrumbs} />
                 </div>
               )}
 
               {/* Page Header */}
               {(pageTitle || pageDescription) && (
-                <div className="theme-panel mb-8 px-6 py-6 lg:px-8">
+                <div className="theme-panel mb-4 px-4 py-4">
                   {pageTitle && (
-                    <h1 className="text-2xl lg:text-3xl font-heading font-bold text-white">
+                    <h1 className="text-xl lg:text-2xl font-heading font-bold text-white">
                       {pageTitle}
                     </h1>
                   )}
                   {pageDescription && (
-                    <p className="mt-2 text-neutral-300">{pageDescription}</p>
+                    <p className="mt-1 text-xs text-neutral-300">{pageDescription}</p>
                   )}
                 </div>
               )}
+
 
               {/* Page Content */}
               <Outlet />

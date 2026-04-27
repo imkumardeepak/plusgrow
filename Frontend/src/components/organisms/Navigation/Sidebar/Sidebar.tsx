@@ -185,7 +185,7 @@ export function Sidebar({
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r transition-all duration-300 ease-out lg:static",
-          collapsed ? "w-20" : "w-64",
+          collapsed ? "w-20" : "w-60",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
         style={{ backgroundColor: 'var(--color-sidebar-bg)', borderColor: 'var(--color-sidebar-border)' }}
@@ -195,7 +195,7 @@ export function Sidebar({
         <div
           className={cn(
             "flex items-center justify-center border-b border-white/8 transition-all duration-300",
-            collapsed ? "h-16" : "h-20"
+            collapsed ? "h-14" : "h-16"
           )}
         >
           <div className={cn("rounded-2xl px-3 py-2", !collapsed && "bg-white/[0.04]")}>
@@ -218,7 +218,7 @@ export function Sidebar({
           {navigationGroups.map((group) => (
             <div key={group.id} className={cn("mb-2", collapsed && "mb-4")}>
               {!collapsed && (
-                <div className="flex items-center justify-between px-4 py-2">
+                <div className="flex items-center justify-between px-3 py-1">
                   <h3
                     className="text-[11px] font-semibold uppercase tracking-[0.24em]"
                     style={{ color: 'var(--color-sidebar-text)' }}
@@ -255,7 +255,7 @@ export function Sidebar({
                         to={item.href}
                         onClick={onMobileClose}
                         className={cn(
-                          "group relative flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                          "group relative flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
                           isActive
                             ? "theme-glow text-white"
                             : "hover:text-white",
@@ -272,7 +272,7 @@ export function Sidebar({
                           className={cn(
                             "w-5 h-5 flex-shrink-0 transition-transform duration-200",
                             isActive ? "text-white" : "group-hover:text-white",
-                            collapsed && "w-6 h-6"
+                            collapsed && "w-5.5 h-5.5"
                           )}
                           style={isActive ? { color: 'white' } : { color: 'var(--color-sidebar-text)' }}
                         />
@@ -312,7 +312,7 @@ export function Sidebar({
         </nav>
 
         {/* Collapse Toggle (Desktop only) */}
-        <div className="hidden border-t border-white/8 p-3 lg:flex">
+        <div className="hidden border-t border-white/8 p-2 lg:flex">
           <Button
             variant="ghost"
             size="sm"

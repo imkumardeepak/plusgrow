@@ -103,72 +103,72 @@ export const StockMovement = memo(function StockMovement() {
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      {/* Header Bar - Pro Max Edition */}
-      <Card variant="glass" className="p-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-1 min-w-0 flex items-center gap-3">
-            <div className="page-icon-chip">
-              <ArrowRightLeft className="w-5 h-5" />
+    <div className="flex flex-col h-full min-h-0 gap-3">
+      {/* Header Bar - Compact Pro Max */}
+      <Card variant="glass" className="py-2 px-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+              <ArrowRightLeft className="w-4 h-4 text-brand-400" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Stock Movements & Adjustments</h1>
-              <p className="text-xs text-neutral-500 font-medium">Manually correct inventory variances and track historical logs</p>
+              <h1 className="text-sm font-bold text-white leading-none tracking-tight">Stock Movements</h1>
+              <p className="text-[10px] text-neutral-500 font-medium mt-0.5">Inventory adjustments & historical logs</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-             <Button variant="outline" size="sm" leftIcon={<History className="w-4 h-4" />}>
-                View Audit Log
+          <div className="flex items-center gap-2">
+             <Button variant="outline" size="xs" leftIcon={<History className="w-3 h-3" />}>
+                Audit Log
              </Button>
           </div>
         </div>
       </Card>
 
       {/* Main Content Workspace Layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
         
         {/* ================= LEFT PANEL: ADJUSTMENT FORM ================= */}
-        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full border-brand-500/20 ring-1 ring-brand-500/5">
-          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-brand-500/10">
-            <CardTitle size="sm" className="flex items-center gap-2">
-              <Move className="w-4 h-4 text-brand-400" />
-              <span className="text-brand-300 font-bold">Execute Adjustment</span>
+        <Card variant="elevated" className="lg:col-span-4 flex flex-col overflow-hidden shadow-card h-full border-white/5 bg-white/[0.02]">
+          <CardHeader className="py-2 px-3 border-b border-white/10 bg-brand-500/5">
+            <CardTitle size="xs" className="flex items-center gap-2">
+              <Move className="w-3.5 h-3.5 text-brand-400" />
+              <span className="text-brand-300 font-bold text-[11px] uppercase tracking-wider">Execute Adjustment</span>
             </CardTitle>
           </CardHeader>
           
-          <CardContent className="flex-1 overflow-y-auto p-5 scrollbar-thin bg-white/[0.04]">
-            <form onSubmit={handleMovement} className="space-y-6 animate-in slide-in-from-left-2 duration-300">
+          <CardContent className="flex-1 overflow-y-auto p-3 scrollbar-thin">
+            <form onSubmit={handleMovement} className="space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
               
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Target SKU Reference</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Package className="h-5 w-5 text-brand-500" />
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest pl-1">Target SKU</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                    <Package className="h-3.5 w-3.5 text-brand-500 group-focus-within:text-brand-400 transition-colors" />
                   </div>
                   <Input
                     type="text"
-                    placeholder="Enter or scan SKU..."
+                    placeholder="Scan or enter SKU..."
                     value={sku}
                     onChange={(e) => setSku(e.target.value)}
                     required
-                    className="block w-full h-12 pl-12 pr-4 rounded-xl border-2 border-brand-500/20 bg-white/[0.04] shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none font-mono text-base uppercase placeholder:normal-case text-white"
+                    className="block w-full h-8 pl-8 pr-3 text-[11px] rounded-lg border-white/10 bg-white/[0.03] focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 transition-all font-mono uppercase text-white"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                   <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Adjustment Delta</label>
-                   <span className="text-[10px] bg-white/10 text-neutral-400 px-2 py-0.5 rounded-full font-bold">Use - for deductions</span>
+              <div className="space-y-1">
+                <div className="flex justify-between items-center px-1">
+                   <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Qty Delta</label>
+                   <span className="text-[9px] text-neutral-500 font-medium">(- for deductions)</span>
                 </div>
-                <div className="relative">
+                <div className="relative group">
                   {qtyChange !== '' && (
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
                       {Number(qtyChange) > 0 ? (
-                        <ArrowUpRight className="w-5 h-5 text-success-500 animate-in zoom-in" />
+                        <ArrowUpRight className="w-4 h-4 text-success-500 animate-in zoom-in" />
                       ) : Number(qtyChange) < 0 ? (
-                        <ArrowDownRight className="w-5 h-5 text-danger-500 animate-in zoom-in" />
+                        <ArrowDownRight className="w-4 h-4 text-danger-500 animate-in zoom-in" />
                       ) : null}
                     </div>
                   )}
@@ -179,23 +179,23 @@ export const StockMovement = memo(function StockMovement() {
                     onChange={(e) => setQtyChange(e.target.value ? Number(e.target.value) : '')}
                     required
                     className={cn(
-                       "block w-full h-14 pr-4 rounded-xl border-2 shadow-card focus:ring-4 transition-all outline-none text-2xl font-bold font-mono",
-                       qtyChange !== '' ? 'pl-12' : 'pl-4',
+                       "block w-full h-10 pr-3 rounded-lg border-white/10 text-lg font-bold font-mono transition-all",
+                       qtyChange !== '' ? 'pl-9' : 'pl-3',
                        Number(qtyChange) > 0 
                          ? 'border-success-500/30 text-success-400 bg-success-500/5 focus:border-success-500 focus:ring-success-500/20' 
                          : Number(qtyChange) < 0 
                            ? 'border-danger-500/30 text-danger-400 bg-danger-500/5 focus:border-danger-500 focus:ring-danger-500/20'
-                           : 'border-white/10 bg-white/[0.04] focus:border-brand-500 focus:ring-brand-500/20 text-white'
+                           : 'bg-white/[0.03] focus:border-brand-500/50 focus:ring-brand-500/10 text-white'
                     )}
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Reason Category</label>
-                <div className="relative">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest pl-1">Reason</label>
+                <div className="relative group">
                    <select 
-                     className="block w-full h-12 px-4 rounded-xl border-2 border-white/10 bg-white/[0.04] text-sm shadow-card focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition-all outline-none appearance-none font-medium text-neutral-200"
+                     className="block w-full h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-[11px] focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 transition-all outline-none appearance-none font-medium text-neutral-200"
                      value={reason}
                      onChange={(e) => setReason(e.target.value)}
                      required
@@ -205,62 +205,60 @@ export const StockMovement = memo(function StockMovement() {
                      <option value="Loss">Loss / Theft</option>
                      <option value="Found">Found Inventory</option>
                      <option value="Correction">Cycle Count Correction</option>
-                     <option value="Other">Other Operational Adjustment</option>
+                     <option value="Other">Other Adjustment</option>
                    </select>
-                   <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                      <svg className="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                   <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                      <svg className="w-3 h-3 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                    </div>
                 </div>
               </div>
 
-              <div className="pt-2">
-                 <Button type="submit" size="lg" className="w-full h-14 text-base font-bold shadow-float relative overflow-hidden group">
-                   <span className="relative z-10 flex items-center justify-center gap-2">
-                     <Move className="w-5 h-5" /> Execute Movement
+              <div className="pt-1">
+                 <Button type="submit" size="sm" className="w-full h-9 text-xs font-bold shadow-[0_0_15px_rgba(6,182,212,0.1)] group relative overflow-hidden">
+                   <span className="relative z-10 flex items-center justify-center gap-1.5">
+                     <Move className="w-3.5 h-3.5" /> Execute
                    </span>
-                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out"></div>
+                   <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                  </Button>
               </div>
             </form>
             
-            <div className="mt-8 flex items-start gap-3 bg-warning-500/10 p-4 rounded-xl border border-warning-500/20 shadow-card animate-in fade-in duration-500">
-              <div className="w-8 h-8 rounded-full bg-warning-500/20 flex items-center justify-center shrink-0 border border-warning-500/30">
-                <AlertCircle className="w-4 h-4 text-warning-400" />
-              </div>
-              <p className="text-xs text-warning-200/70 leading-relaxed font-medium">
-                Manual adjustments directly manipulate the ledger and bypass standard inward/outward workflows. Use this exclusively for discrepancy corrections.
+            <div className="mt-4 flex items-start gap-2 bg-warning-500/5 p-2.5 rounded-lg border border-warning-500/10 shadow-inner">
+              <AlertCircle className="w-3.5 h-3.5 text-warning-400 shrink-0 mt-0.5" />
+              <p className="text-[9px] text-warning-200/60 leading-relaxed font-medium">
+                Adjustments directly manipulate the ledger and bypass workflows. Use exclusively for discrepancy corrections.
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* ================= RIGHT PANEL: LIVE DATABASE ================= */}
-        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden shadow-float z-10 border-white/10 ring-1 ring-white/[0.03] h-full">
-          <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10">
+        <Card variant="elevated" className="lg:col-span-8 flex flex-col overflow-hidden border-white/5 bg-white/[0.01] h-full shadow-2xl">
+          <CardHeader className="py-2 px-3 border-b border-white/10 bg-white/[0.02]">
             <div className="flex items-center justify-between">
-              <CardTitle size="sm" className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-neutral-400" />
-                Live Inventory Ledger
+              <CardTitle size="xs" className="flex items-center gap-2">
+                <Database className="w-3.5 h-3.5 text-neutral-500" />
+                <span className="text-[11px] uppercase tracking-widest text-neutral-400 font-bold">Inventory Ledger</span>
               </CardTitle>
-              <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-500" />
                 <Input
                   type="text"
                   placeholder="Filter database..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 text-sm"
+                  className="pl-7 h-7 w-48 text-[10px] bg-white/[0.03] border-white/10 rounded-md"
                 />
               </div>
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 p-4 flex flex-col relative bg-white/[0.01] overflow-hidden">
+          <CardContent className="flex-1 p-0 overflow-hidden">
             <DataTable 
               columns={columns} 
               data={filteredStock} 
               loading={false}
-              searchPlaceholder="Filter database..."
+              searchPlaceholder="Filter..."
               onSearch={setSearchTerm}
               searchValue={searchTerm}
             />

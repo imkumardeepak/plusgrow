@@ -18,10 +18,10 @@ export const inputVariants = cva(
         ghost: "border-0 bg-transparent hover:bg-white/6 focus-visible:bg-white/8 focus-visible:ring-1",
       },
       size: {
-        sm: "h-10 px-3.5 text-sm rounded-2xl",
-        md: "h-11 px-4 text-sm rounded-2xl",
-        lg: "h-12 px-4 text-base rounded-2xl",
-        xl: "h-14 px-5 text-base rounded-2xl",
+        sm: "h-9 px-3 text-sm rounded-xl",
+        md: "h-10 px-3.5 text-sm rounded-xl",
+        lg: "h-11 px-4 text-base rounded-xl",
+        xl: "h-12 px-5 text-base rounded-xl",
       },
     },
     defaultVariants: {

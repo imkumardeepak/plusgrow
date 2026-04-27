@@ -23,9 +23,9 @@ export const badgeVariants = cva(
         ghost: "bg-transparent text-neutral-200 hover:bg-white/8",
       },
       size: {
-        sm: "px-2 py-0.5 text-[10px] leading-4 rounded-md gap-1",
-        md: "px-2.5 py-0.5 text-xs leading-4 rounded-lg gap-1.5",
-        lg: "px-3 py-1 text-sm leading-5 rounded-lg gap-1.5",
+        sm: "px-1.5 py-0.5 text-[9px] leading-3 rounded gap-1",
+        md: "px-2 py-0.5 text-[11px] leading-4 rounded-md gap-1",
+        lg: "px-2.5 py-1 text-xs leading-4 rounded-md gap-1.5",
       },
       shape: {
         default: "rounded-lg",

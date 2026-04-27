@@ -9,7 +9,7 @@ import { cn } from "../../../lib/utils";
 
 // Card Container
 export const cardVariants = cva(
-  "rounded-[26px] border transition-all duration-300",
+  "rounded-xl border transition-all duration-300",
   {
     variants: {
       variant: {
@@ -83,7 +83,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
         ref={ref}
         className={cn(
           "flex items-start justify-between gap-4",
-          divider && "border-b border-white/10 pb-4",
+          divider && "border-b border-white/10 pb-3",
           className
         )}
         {...props}
@@ -151,7 +151,7 @@ export const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
     return (
       <div
         ref={ref}
-        className={cn(!noPadding && "pt-4", className)}
+        className={cn(!noPadding && "pt-3", className)}
         {...props}
       />
     );
@@ -182,7 +182,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
         ref={ref}
         className={cn(
           "flex items-center gap-3",
-          divider && "border-t border-white/10 pt-4 mt-4",
+          divider && "border-t border-white/10 pt-3 mt-3",
           alignClasses[align],
           className
         )}

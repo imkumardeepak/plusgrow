@@ -11,9 +11,9 @@ import {
 import { toast } from 'sonner';
 
 import { Button } from '../../components/atoms/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/atoms/Card';
 import { Input } from '../../components/atoms/Input';
 import { DataTable, createTableColumns } from '../../components/molecules/DataTable';
+import { OperationsPage, OperationsPanel } from '../../components/organisms/Operations/OperationsShell';
 import {
   ProductAllottedLocationRecord,
   ProductQuantityRecord,
@@ -221,64 +221,43 @@ export const PutAway = () => {
   const totalRemaining = tasks.reduce((sum, task) => sum + task.remainingQuantity, 0);
 
   return (
-    <div className="flex min-h-0 flex-col gap-4">
-      <Card variant="glass" className="p-4">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <Warehouse className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="page-title">Put Away Scanner</h1>
-              <p className="page-subtitle">Scan one product, confirm the pending quantity to store, then scan a location or bin to save it against the parent location.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Actual Qty</p>
-              <p className="mt-2 text-2xl font-black text-white">{totalCurrent}</p>
-            </div>
-            <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-brand-300/70">Allocated</p>
-              <p className="mt-2 text-2xl font-black text-brand-300">{totalAllocated}</p>
-            </div>
-            <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-warning-300/70">Pending Put Away</p>
-              <p className="mt-2 text-2xl font-black text-warning-400">{totalRemaining}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-
+    <OperationsPage
+      title="Put Away"
+      description="Scan product, confirm pending quantity, then scan location or bin to store it under the parent location."
+      icon={Warehouse}
+      metrics={[
+        { label: 'Actual Qty', value: totalCurrent },
+        { label: 'Allocated', value: totalAllocated, tone: 'brand' },
+        { label: 'Pending Put Away', value: totalRemaining, tone: 'warning' },
+      ]}
+    >
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card variant="elevated" className="overflow-hidden">
-          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
-            <CardTitle size="sm" className="flex items-center gap-2">
-              <ScanLine className="h-4 w-4 text-brand-400" />
-              Scan Workflow
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5 p-6">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-300">
+        <OperationsPanel
+          title="Scan Workflow"
+          icon={ScanLine}
+          description="Product first, then qty, then location or bin."
+        >
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm text-neutral-300">
               <p className="font-semibold text-white">Put-away flow</p>
-              <p className="mt-2">
-                1. Scan product SKU. 2. Check pending quantity. 3. Enter the quantity you want to store. 4. Scan location or bin. 5. Save put away.
+              <p className="mt-1 text-xs text-neutral-400">
+                1. Scan product SKU. 2. Check pending quantity. 3. Enter quantity. 4. Scan location or bin. 5. Save.
               </p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="field-label">Scan Product</label>
+              <div className="space-y-1">
+                <label className="field-label text-xs">Scan Product</label>
                 <Input
+                  size="sm"
                   placeholder="Scan SKU or product code"
                   value={productScanCode}
                   onChange={(e) => setProductScanCode(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="field-label">Scan Location or Bin</label>
+              <div className="space-y-1">
+                <label className="field-label text-xs">Scan Location or Bin</label>
                 <Input
+                  size="sm"
                   placeholder="Scan location code or bin code"
                   value={locationScanCode}
                   onChange={(e) => setLocationScanCode(e.target.value)}
@@ -286,9 +265,10 @@ export const PutAway = () => {
               </div>
             </div>
 
-              <div className="space-y-2">
-                <label className="field-label">Quantity To Put Away</label>
+              <div className="space-y-1">
+                <label className="field-label text-xs">Quantity To Put Away</label>
                 <Input
+                  size="sm"
                   type="number"
                   min="1"
                   placeholder={selectedTask ? `Pending qty: ${selectedTask.remainingQuantity}` : 'Enter quantity'}
@@ -298,31 +278,31 @@ export const PutAway = () => {
               </div>
 
             {selectedTask ? (
-              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
+              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-3">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="font-mono text-sm font-bold text-brand-300">{selectedTask.skuCode}</p>
-                    <p className="mt-1 text-sm text-white">{selectedTask.productName}</p>
+                    <p className="mt-1 text-xs text-white">{selectedTask.productName}</p>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Actual</p>
-                      <p className="mt-1 text-lg font-bold text-white">{selectedTask.currentQuantity}</p>
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">Actual</p>
+                      <p className="mt-0.5 text-base font-bold text-white">{selectedTask.currentQuantity}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Allocated</p>
-                      <p className="mt-1 text-lg font-bold text-brand-300">{selectedTask.allocatedQuantity}</p>
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">Allocated</p>
+                      <p className="mt-0.5 text-base font-bold text-brand-300">{selectedTask.allocatedQuantity}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Pending</p>
-                      <p className="mt-1 text-lg font-bold text-warning-400">{selectedTask.remainingQuantity}</p>
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-neutral-500">Pending</p>
+                      <p className="mt-0.5 text-base font-bold text-warning-400">{selectedTask.remainingQuantity}</p>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-neutral-400">
-                Scan a product code to load actual quantity, already allotted quantity, and the pending balance still left to store.
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-400">
+                Scan product to load quantity details.
               </div>
             )}
 
@@ -350,23 +330,20 @@ export const PutAway = () => {
             </div>
 
             {lastAssignment && (
-              <div className="rounded-2xl border border-success-500/20 bg-success-500/10 p-4">
+              <div className="rounded-2xl border border-success-500/20 bg-success-500/10 p-3">
                 <div className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-success-400" />
-                  <div className="space-y-2 text-sm">
-                    <p className="font-semibold text-white">Put-away stored successfully</p>
-                    <p className="text-neutral-300">
-                      Product <span className="font-mono text-brand-300">{lastAssignment.skuCode}</span> stored in location{' '}
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-success-400" />
+                  <div className="space-y-1.5 text-sm">
+                    <p className="font-semibold text-white">Stored successfully</p>
+                    <p className="text-xs text-neutral-300">
+                      Product <span className="font-mono text-brand-300">{lastAssignment.skuCode}</span> stored in{' '}
                       <span className="font-semibold text-success-400">{lastAssignment.resolvedLocationCode}</span>.
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200">
+                      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-200">
                         Assigned: {lastAssignment.assignedQuantity}
                       </span>
-                      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200">
-                        Current Qty: {lastAssignment.currentQuantity}
-                      </span>
-                      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200">
+                      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] text-neutral-200">
                         Remaining: {lastAssignment.remainingUnassignedQuantity}
                       </span>
                     </div>
@@ -374,61 +351,57 @@ export const PutAway = () => {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+        </OperationsPanel>
 
-        <Card variant="elevated" className="overflow-hidden">
-          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
-            <div className="flex items-center justify-between gap-3">
-              <CardTitle size="sm" className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-brand-400" />
-                Pending Put Away
-              </CardTitle>
-              <div className="w-64">
-                <Input
-                  placeholder="Search SKU or product..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+        <OperationsPanel
+          title="Pending Put Away"
+          icon={Package}
+          description="Use quick pick list or review stored location ledger."
+          action={
+            <div className="w-64">
+              <Input
+                placeholder="Search SKU or product..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3 p-4">
+          }
+        >
             <div className="max-h-[320px] space-y-2 overflow-y-auto scrollbar-thin">
               {tasks.map((task) => (
                 <button
                   key={task.productId}
                   onClick={() => handleChooseTask(task)}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition hover:border-brand-500/30 hover:bg-brand-500/10"
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:border-brand-500/30 hover:bg-brand-500/10"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-mono text-sm font-bold text-brand-300">{task.skuCode}</p>
-                      <p className="mt-1 text-sm text-white">{task.productName}</p>
+                      <p className="mt-0.5 text-xs text-neutral-300">{task.productName}</p>
                     </div>
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${task.remainingQuantity > 0 ? 'border border-warning-500/20 bg-warning-500/10 text-warning-400' : 'border border-success-500/20 bg-success-500/10 text-success-400'}`}>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${task.remainingQuantity > 0 ? 'border border-warning-500/20 bg-warning-500/10 text-warning-400' : 'border border-success-500/20 bg-success-500/10 text-success-400'}`}>
                       {task.remainingQuantity > 0 ? 'Pending' : 'Complete'}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+                  <div className="mt-2.5 grid grid-cols-3 gap-3 text-[10px]">
                     <div>
                       <p className="uppercase tracking-[0.2em] text-neutral-500">Actual</p>
-                      <p className="mt-1 font-bold text-white">{task.currentQuantity}</p>
+                      <p className="mt-0.5 font-bold text-white">{task.currentQuantity}</p>
                     </div>
                     <div>
                       <p className="uppercase tracking-[0.2em] text-neutral-500">Allocated</p>
-                      <p className="mt-1 font-bold text-brand-300">{task.allocatedQuantity}</p>
+                      <p className="mt-0.5 font-bold text-brand-300">{task.allocatedQuantity}</p>
                     </div>
                     <div>
                       <p className="uppercase tracking-[0.2em] text-neutral-500">Pending</p>
-                      <p className="mt-1 font-bold text-warning-400">{task.remainingQuantity}</p>
+                      <p className="mt-0.5 font-bold text-warning-400">{task.remainingQuantity}</p>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
               <div className="mb-3 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-brand-400" />
                 <p className="text-sm font-semibold text-white">Stored Location Ledger</p>
@@ -440,10 +413,9 @@ export const PutAway = () => {
                 searchPlaceholder="Search stored locations..."
               />
             </div>
-          </CardContent>
-        </Card>
+        </OperationsPanel>
       </div>
-    </div>
+    </OperationsPage>
   );
 };
 

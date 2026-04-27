@@ -65,14 +65,14 @@ export const Dashboard = memo(function Dashboard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <section className="theme-panel flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      <section className="theme-panel flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:px-5">
         <div className="flex items-center gap-4">
-          <div className="theme-glow flex h-14 w-14 items-center justify-center rounded-[22px] border border-brand-300/25 bg-gradient-to-br from-brand-300 to-brand-500">
-            <Activity className="h-7 w-7 text-slate-950" />
+          <div className="theme-glow flex h-11 w-11 items-center justify-center rounded-[18px] border border-brand-300/25 bg-gradient-to-br from-brand-300 to-brand-500">
+            <Activity className="h-5.5 w-5.5 text-slate-950" />
           </div>
           <div>
             <p className="text-sm font-semibold text-white">Dashboard Status</p>
-            <p className="mt-1 text-sm text-neutral-400">Live snapshot for inbound, outbound, inventory, and task flow.</p>
+            <p className="mt-0.5 text-xs text-neutral-400">Live snapshot for inbound, outbound, inventory, and task flow.</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -118,7 +118,7 @@ export const Dashboard = memo(function Dashboard() {
           },
         ].map(({ title, value, hint, icon: Icon, accent, badge }) => (
           <Card key={title} variant="interactive" className="overflow-hidden p-0">
-            <div className="relative p-5">
+            <div className="relative p-4">
               <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-full bg-brand-400/8 blur-2xl" />
               <div className="relative flex items-start justify-between">
                 <div className="theme-glow flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/6">
@@ -126,7 +126,7 @@ export const Dashboard = memo(function Dashboard() {
                 </div>
                 <Badge variant="default" shape="pill">{badge}</Badge>
               </div>
-              <div className="relative mt-8">
+              <div className="relative mt-6">
                 <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">{title}</p>
                 <div className="mt-2 flex items-end gap-2">
                   <span className="text-3xl font-black tracking-tight text-white">{value}</span>
@@ -146,10 +146,10 @@ export const Dashboard = memo(function Dashboard() {
               className="cursor-pointer overflow-hidden p-0"
               onClick={() => navigate('/putaway')}
             >
-              <div className="flex items-center justify-between p-5">
+              <div className="flex items-center justify-between p-3.5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-warning-400/20 bg-warning-400/10 text-warning-300">
-                    <Clock className="h-7 w-7" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-warning-400/20 bg-warning-400/10 text-warning-300">
+                    <Clock className="h-5.5 w-5.5" />
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">Pending Put-Away</p>
@@ -169,8 +169,8 @@ export const Dashboard = memo(function Dashboard() {
             >
               <div className="flex items-center justify-between p-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-brand-300/20 bg-brand-400/12 text-brand-100">
-                    <Package className="h-7 w-7" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-brand-300/20 bg-brand-400/12 text-brand-100">
+                    <Package className="h-5.5 w-5.5" />
                   </div>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300/70">Pending Dispatch</p>
@@ -185,7 +185,7 @@ export const Dashboard = memo(function Dashboard() {
           </div>
 
           <Card variant="elevated" className="flex min-h-[360px] flex-1 flex-col overflow-hidden">
-            <CardHeader className="shrink-0 px-5 py-4">
+            <CardHeader className="shrink-0 px-4 py-2.5">
               <div>
                 <CardTitle size="sm" className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-brand-300" />
@@ -246,7 +246,7 @@ export const Dashboard = memo(function Dashboard() {
         </div>
 
         <Card variant="elevated" className="flex min-h-[360px] flex-col overflow-hidden">
-          <CardHeader className="shrink-0 px-5 py-4">
+          <CardHeader className="shrink-0 px-4 py-2.5">
             <div className="flex items-center justify-between">
               <CardTitle size="sm" className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-brand-300" />
@@ -258,12 +258,12 @@ export const Dashboard = memo(function Dashboard() {
               </span>
             </div>
           </CardHeader>
-          <CardContent className="scrollbar-thin relative flex-1 overflow-y-auto p-3">
+          <CardContent className="scrollbar-thin relative flex-1 overflow-y-auto p-2">
             <div className="space-y-2">
               {recentActivities.map((activity, idx) => (
                 <div
                   key={activity.id}
-                  className="animate-in fade-in slide-in-from-right-4 group flex items-start gap-3 rounded-[22px] border border-white/6 bg-white/[0.04] p-3 transition-all duration-200 hover:border-white/12 hover:bg-white/[0.04]"
+                  className="animate-in fade-in slide-in-from-right-4 group flex items-start gap-3 rounded-xl border border-white/6 bg-white/[0.04] p-2.5 transition-all duration-200 hover:border-white/12 hover:bg-white/[0.04]"
                   style={{ animationFillMode: 'both', animationDelay: `${idx * 60}ms` }}
                 >
                   <div className="relative mt-0.5 shrink-0">

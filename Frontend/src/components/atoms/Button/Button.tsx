@@ -25,12 +25,12 @@ export const buttonVariants = cva(
       size: {
         xs: "h-7 px-2.5 text-xs rounded-md gap-1",
         sm: "h-9 px-3 text-sm rounded-full gap-1.5",
-        md: "h-11 px-5 text-sm rounded-full gap-2",
-        lg: "h-12 px-6 text-base rounded-full gap-2",
-        xl: "h-14 px-8 text-base rounded-full gap-2.5",
+        md: "h-10 px-4 text-sm rounded-full gap-2",
+        lg: "h-11 px-5 text-base rounded-full gap-2",
+        xl: "h-12 px-6 text-base rounded-full gap-2.5",
         icon: "h-10 w-10 rounded-full",
         "icon-sm": "h-9 w-9 rounded-full",
-        "icon-lg": "h-12 w-12 rounded-full",
+        "icon-lg": "h-11 w-11 rounded-full",
       },
       width: {
         auto: "w-auto",

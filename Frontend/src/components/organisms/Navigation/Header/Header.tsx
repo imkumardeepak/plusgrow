@@ -67,44 +67,44 @@ export function Header({
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 mx-4 mt-4 flex h-16 items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(22,33,52,0.88)_0%,rgba(15,24,40,0.92)_100%)] px-4 backdrop-blur-xl shadow-card lg:mx-6 lg:mt-5 lg:h-20 lg:px-6",
+        "sticky top-0 z-30 mx-3 mt-3 flex h-14 items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(22,33,52,0.88)_0%,rgba(15,24,40,0.92)_100%)] px-3 backdrop-blur-xl shadow-card lg:mx-4 lg:mt-4 lg:h-16 lg:px-4",
         className
       )}
     >
       {/* Left Section */}
-      <div className="flex items-center gap-3 flex-1">
+      <div className="flex items-center gap-2 flex-1">
         {/* Mobile Menu Button */}
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
           onClick={onMenuClick}
           className="lg:hidden"
           aria-label="Open menu"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-4 h-4" />
         </Button>
 
         {/* Search */}
-        <div className="hidden sm:flex flex-1 max-w-md">
+        <div className="hidden sm:flex flex-1 max-w-sm">
           <Input
-            placeholder="Search anything..."
-            leftElement={<Search className="w-4 h-4" />}
+            placeholder="Search..."
+            leftElement={<Search className="w-3.5 h-3.5" />}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="theme-input"
+            className="theme-input h-8 text-xs"
           />
         </div>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-2 lg:gap-4">
+      <div className="flex items-center gap-1.5 lg:gap-3">
         {/* Sync Button */}
         <Button
           variant="outline"
-          size="sm"
+          size="xs"
           onClick={onSync}
           loading={isSyncing}
-          leftIcon={<RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />}
+          leftIcon={<RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />}
           className="hidden sm:flex"
         >
           Sync
@@ -113,24 +113,24 @@ export function Header({
         {/* Mobile Search Button */}
         <Button
           variant="ghost"
-          size="icon-sm"
+          size="icon-xs"
           className="sm:hidden"
           aria-label="Search"
         >
-          <Search className="w-5 h-5" />
+          <Search className="w-4 h-4" />
         </Button>
 
         {/* Notifications */}
         <div className="relative">
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-xs"
             aria-label="Notifications"
             className="relative"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
             {notificationCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-danger-400/100 rounded-full ring-2 ring-white" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-danger-400/100 rounded-full ring-1 ring-white" />
             )}
           </Button>
         </div>
@@ -139,36 +139,37 @@ export function Header({
         <div className="relative">
             <button
           onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-3 rounded-full border border-transparent p-1.5 transition-colors hover:border-white/10 hover:bg-white/6"
+            className="flex items-center gap-2 rounded-full border border-transparent p-1 transition-colors hover:border-white/10 hover:bg-white/6"
             aria-expanded={userMenuOpen}
             aria-haspopup="true"
           >
             {/* Avatar */}
-            <div className="theme-glow flex h-9 w-9 items-center justify-center rounded-full border border-brand-300/30 bg-gradient-to-br from-brand-300 to-brand-500 text-sm font-bold text-neutral-950">
+            <div className="theme-glow flex h-8 w-8 items-center justify-center rounded-full border border-brand-300/30 bg-gradient-to-br from-brand-300 to-brand-500 text-xs font-bold text-neutral-950">
               {userInitials}
             </div>
 
             {/* User Info (hidden on mobile) */}
             <div className="hidden md:block text-left">
-              <p className="flex items-center gap-1.5 text-sm font-semibold leading-none text-white">
+              <p className="flex items-center gap-1 text-xs font-semibold leading-none text-white">
                 {userName}
                 {userRole?.toLowerCase() === 'superadmin' && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold rounded-full shadow-card">
-                    <Crown className="w-3 h-3" />
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-bold rounded-full shadow-card">
+                    <Crown className="w-2.5 h-2.5" />
                     SUPER
                   </span>
                 )}
               </p>
-              <p className="mt-0.5 text-xs text-neutral-300">{userRole}</p>
+              <p className="mt-0.5 text-[10px] text-neutral-400">{userRole}</p>
             </div>
 
             <ChevronDown
               className={cn(
-                "hidden w-4 h-4 text-neutral-300 md:block transition-transform duration-200",
+                "hidden w-3.5 h-3.5 text-neutral-400 md:block transition-transform duration-200",
                 userMenuOpen && "rotate-180"
               )}
             />
           </button>
+
 
           {/* Dropdown Menu */}
           {userMenuOpen && (
