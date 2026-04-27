@@ -16,7 +16,6 @@ import { PageLoader } from './components/molecules/PageLoader/PageLoader';
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Inward = lazy(() => import('./pages/Inward').then(m => ({ default: m.Inward })));
 const Sticker = lazy(() => import('./pages/Sticker').then(m => ({ default: m.Sticker })));
-const Receiving = lazy(() => import('./pages/Receiving').then(m => ({ default: m.Receiving })));
 const PutAway = lazy(() => import('./pages/PutAway').then(m => ({ default: m.PutAway })));
 const Outward = lazy(() => import('./pages/Outward').then(m => ({ default: m.Outward })));
 const Packing = lazy(() => import('./pages/Packing').then(m => ({ default: m.Packing })));
@@ -105,11 +104,6 @@ export default function App() {
                 <Route path="sticker" element={
                   <Suspense fallback={<PageLoader />}>
                     <Sticker />
-                  </Suspense>
-                } />
-                <Route path="receiving" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Receiving />
                   </Suspense>
                 } />
                 <Route path="putaway" element={

@@ -14,7 +14,6 @@ import {
   ArrowUpFromLine,
   Package,
   ClipboardCheck,
-  ScanLine,
   Tags,
   Truck,
   Move,
@@ -79,7 +78,6 @@ export const navigationGroups: NavGroup[] = [
     items: [
       { id: "inward", label: "Purchase Invoices", icon: ArrowDownToLine, href: "/inward" },
       { id: "sticker", label: "Sticker Generation", icon: Tags, href: "/sticker" },
-      { id: "receiving", label: "Receiving & Scanning", icon: ScanLine, href: "/receiving" },
       { id: "putaway", label: "Put Away", icon: Warehouse, href: "/putaway" },
     ],
   },

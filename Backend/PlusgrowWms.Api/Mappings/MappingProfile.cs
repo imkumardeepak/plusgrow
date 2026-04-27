@@ -57,5 +57,13 @@ public class MappingProfile : Profile
         CreateMap<Location, LocationDto>();
         CreateMap<CreateLocationDto, Location>();
         CreateMap<UpdateLocationDto, Location>();
+
+        // PO Invoice Mappings
+        CreateMap<CreatePoInvoiceDto, PoInvoice>();
+        CreateMap<UpdatePoInvoiceDto, PoInvoice>();
+        CreateMap<CreateProductQuantityDto, ProductQuantity>();
+        CreateMap<UpdateProductQuantityDto, ProductQuantity>();
+        CreateMap<CreateProductAllottedLocationDto, ProductAllottedLocation>();
+        CreateMap<UpdateProductAllottedLocationDto, ProductAllottedLocation>();
     }
 }

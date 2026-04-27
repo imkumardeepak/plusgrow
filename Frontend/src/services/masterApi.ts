@@ -121,6 +121,84 @@ export interface ImportResult {
   errors?: string[];
 }
 
+export interface MarkPoInvoicesPrintedResult {
+  updatedCount: number;
+}
+
+export interface PoInvoice {
+  id: number;
+  invoiceDate: string;
+  partyName: string;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  mrp?: number;
+  billedQty: number;
+  printed: boolean;
+  remainingAllocation: number;
+  locationAllotted: boolean;
+  createdAt: string;
+}
+
+export interface CreatePoInvoiceDto {
+  id?: number;
+  invoiceDate: string;
+  partyName: string;
+  productId: number;
+  billedQty: number;
+  printed: boolean;
+  remainingAllocation: number;
+  locationAllotted: boolean;
+}
+
+export interface ProductQuantityRecord {
+  id: number;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  currentQuantity: number;
+  updatedAt: string;
+}
+
+export interface CreateProductQuantityDto {
+  id?: number;
+  productId: number;
+  currentQuantity: number;
+}
+
+export interface ProductAllottedLocationRecord {
+  id: number;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  locationJson: Record<string, number>;
+  updatedAt: string;
+}
+
+export interface CreateProductAllottedLocationDto {
+  id?: number;
+  productId: number;
+  locationJson: Record<string, number>;
+}
+
+export interface PutAwayScanAssignmentRequestDto {
+  productScanCode: string;
+  locationOrBinScanCode: string;
+  quantity: number;
+}
+
+export interface PutAwayScanAssignmentResult {
+  productId: number;
+  skuCode: string;
+  productName: string;
+  scannedLocationOrBinCode: string;
+  resolvedLocationCode: string;
+  assignedQuantity: number;
+  currentQuantity: number;
+  totalAllocatedQuantity: number;
+  remainingUnassignedQuantity: number;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -327,6 +405,101 @@ export const locationsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
+  },
+};
+
+export const poInvoicesApi = {
+  getAll: async (): Promise<PoInvoice[]> => {
+    const response = await api.get<ApiResponse<PoInvoice[]>>('/poinvoices');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreatePoInvoiceDto): Promise<PoInvoice> => {
+    const response = await api.post<ApiResponse<PoInvoice>>('/poinvoices', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreatePoInvoiceDto): Promise<PoInvoice> => {
+    const response = await api.put<ApiResponse<PoInvoice>>(`/poinvoices/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/poinvoices/${id}`);
+  },
+
+  uploadExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post<ApiResponse<ImportResult>>('/poinvoices/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
+  },
+
+  markPrinted: async (invoiceIds: number[]): Promise<MarkPoInvoicesPrintedResult> => {
+    const response = await api.post<ApiResponse<MarkPoInvoicesPrintedResult>>('/poinvoices/mark-printed', {
+      invoiceIds,
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error marking invoice rows as printed');
+    return response.data.data!;
+  },
+};
+
+export const productQuantitiesApi = {
+  getAll: async (): Promise<ProductQuantityRecord[]> => {
+    const response = await api.get<ApiResponse<ProductQuantityRecord[]>>('/productquantities');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateProductQuantityDto): Promise<ProductQuantityRecord> => {
+    const response = await api.post<ApiResponse<ProductQuantityRecord>>('/productquantities', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateProductQuantityDto): Promise<ProductQuantityRecord> => {
+    const response = await api.put<ApiResponse<ProductQuantityRecord>>(`/productquantities/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/productquantities/${id}`);
+  },
+};
+
+export const productAllottedLocationsApi = {
+  getAll: async (): Promise<ProductAllottedLocationRecord[]> => {
+    const response = await api.get<ApiResponse<ProductAllottedLocationRecord[]>>('/productallottedlocations');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateProductAllottedLocationDto): Promise<ProductAllottedLocationRecord> => {
+    const response = await api.post<ApiResponse<ProductAllottedLocationRecord>>('/productallottedlocations', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateProductAllottedLocationDto): Promise<ProductAllottedLocationRecord> => {
+    const response = await api.put<ApiResponse<ProductAllottedLocationRecord>>(`/productallottedlocations/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/productallottedlocations/${id}`);
+  },
+
+  assignScan: async (data: PutAwayScanAssignmentRequestDto): Promise<PutAwayScanAssignmentResult> => {
+    const response = await api.post<ApiResponse<PutAwayScanAssignmentResult>>('/productallottedlocations/assign-scan', data);
+    if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
 };

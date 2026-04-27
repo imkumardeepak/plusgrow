@@ -1,522 +1,563 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/atoms/Card';
-import { Button } from '../components/atoms/Button';
-import { Badge } from '../components/atoms/Badge';
-import { Input } from '../components/atoms/Input';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import {
-  Printer, Search, Box, Tag, Plus, Minus, Trash2, Eye, Check, LayoutPanelTop, Settings2, Loader2, Info, Activity, Settings, Zap, Terminal, Layers, Monitor, Cpu
+  CheckCircle2,
+  Layers3,
+  Loader2,
+  Printer,
+  Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { Badge } from '../components/atoms/Badge';
+import { Button } from '../components/atoms/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
+import { Input } from '../components/atoms/Input';
 import { cn } from '../lib/utils';
-import { productsApi, importersApi } from '../services/masterApi';
+import {
+  Importer,
+  PoInvoice,
+  importersApi,
+  poInvoicesApi,
+} from '../services/masterApi';
 import { stickersApi } from '../services/stickersApi';
-import { Product } from '../services/masterApi';
 
-interface PrintQueueItem {
-  id: string;
-  sku: string;
-  quantity: number;
-  product: Product;
-  config: any;
-}
+type StickerBatch = {
+  key: string;
+  invoiceDate: string;
+  partyName: string;
+  rows: PoInvoice[];
+  pendingRows: PoInvoice[];
+  totalLines: number;
+  totalLabels: number;
+  pendingLabels: number;
+};
 
-/**
- * Premium Cyber Sticker Management Hub
- * Features: High-density layouts, glassmorphism, neon accents, and real-time preview.
- */
+const selectClassName =
+  'h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
+
+const buildBatchKey = (invoiceDate: string, partyName: string) =>
+  `${invoiceDate.slice(0, 10)}__${partyName.trim().toLowerCase()}`;
+
+const buildBatchNumber = (batch: StickerBatch) => {
+  const dateCode = format(new Date(batch.invoiceDate), 'ddMMyy');
+  const partyCode = batch.partyName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 5) || 'INV';
+
+  return `${partyCode}-${dateCode}`;
+};
+
 export const Sticker = memo(function Sticker() {
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [stickerSize, setStickerSize] = useState<string>('50x50');
+  const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
+  const [importers, setImporters] = useState<Importer[]>([]);
+  const [selectedBatchKey, setSelectedBatchKey] = useState('');
+  const [stickerSize, setStickerSize] = useState('50x50');
   const [stickerType, setStickerType] = useState<'Combined' | 'Separate'>('Combined');
-  const [importerId, setImporterId] = useState<number | undefined>(undefined);
-  const [monthYear, setMonthYear] = useState('MAR/2026');
-  const [batchNumber, setBatchNumber] = useState('INA0001');
-  const [note, setNote] = useState('ABCDEFGHIJKLMNOPQRSTUWX');
+  const [importerId, setImporterId] = useState<number | ''>('');
+  const [monthYear, setMonthYear] = useState(format(new Date(), 'MMM/yyyy').toUpperCase());
+  const [batchNumber, setBatchNumber] = useState('');
+  const [note, setNote] = useState('');
   const [printerIp, setPrinterIp] = useState('192.168.10.151');
-
+  const [isLoading, setIsLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [printQueue, setPrintQueue] = useState<PrintQueueItem[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Fetch Masters
-  const { data: products = [], isLoading: isProductsLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => productsApi.getAll()
-  });
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [invoiceData, importerData] = await Promise.all([
+        poInvoicesApi.getAll(),
+        importersApi.getAll(),
+      ]);
 
-  const { data: importers = [] } = useQuery({
-    queryKey: ['importers'],
-    queryFn: () => importersApi.getAll()
-  });
+      setPoInvoices(invoiceData);
+      setImporters(importerData);
+    } catch (error) {
+      toast.error('Failed to load invoice batches for sticker printing');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const selectedProduct = useMemo(() =>
-    products.find(p => p.id === selectedProductId),
-    [products, selectedProductId]
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const batches = useMemo<StickerBatch[]>(() => {
+    const grouped = new Map<string, PoInvoice[]>();
+
+    poInvoices.forEach((row) => {
+      const key = buildBatchKey(row.invoiceDate, row.partyName);
+      grouped.set(key, [...(grouped.get(key) ?? []), row]);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([key, rows]) => {
+        const pendingRows = rows.filter((row) => !row.printed);
+        return {
+          key,
+          invoiceDate: rows[0].invoiceDate,
+          partyName: rows[0].partyName,
+          rows: rows.sort((a, b) => a.productName.localeCompare(b.productName)),
+          pendingRows,
+          totalLines: rows.length,
+          totalLabels: rows.reduce((sum, row) => sum + row.billedQty, 0),
+          pendingLabels: pendingRows.reduce((sum, row) => sum + row.billedQty, 0),
+        };
+      })
+      .sort((a, b) => {
+        const dateDiff = new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return a.partyName.localeCompare(b.partyName);
+      });
+  }, [poInvoices]);
+
+  const selectedBatch = useMemo(
+    () => batches.find((batch) => batch.key === selectedBatchKey) ?? null,
+    [batches, selectedBatchKey]
   );
 
-  const filteredProducts = useMemo(() => {
-    if (!searchTerm) return products;
-    const term = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.sku?.toLowerCase().includes(term) ||
-      p.name.toLowerCase().includes(term)
-    );
-  }, [products, searchTerm]);
+  const previewRow = selectedBatch?.pendingRows[0] ?? selectedBatch?.rows[0] ?? null;
 
-  // Update Preview
-  const handlePreview = async () => {
-    if (!selectedProductId) return;
+  useEffect(() => {
+    if (!batches.length) {
+      setSelectedBatchKey('');
+      return;
+    }
+
+    if (!selectedBatchKey || !batches.some((batch) => batch.key === selectedBatchKey)) {
+      setSelectedBatchKey(batches[0].key);
+    }
+  }, [batches, selectedBatchKey]);
+
+  useEffect(() => {
+    if (!selectedBatch) return;
+
+    setMonthYear(format(new Date(selectedBatch.invoiceDate), 'MMM/yyyy').toUpperCase());
+    setBatchNumber(buildBatchNumber(selectedBatch));
+  }, [selectedBatch?.key]);
+
+  const handlePreview = useCallback(async () => {
+    if (!previewRow) {
+      setPreviewUrl(null);
+      return;
+    }
 
     setIsPreviewLoading(true);
     try {
-      const config = {
-        productId: selectedProductId,
-        importerId,
+      const nextPreview = await stickersApi.getPreview({
+        productId: previewRow.productId,
+        importerId: importerId || undefined,
         size: stickerSize,
         type: stickerType,
         monthYear,
         batchNumber,
-        note
-      };
-      const url = await stickersApi.getPreview(config);
-      setPreviewUrl(url);
-    } catch (err) {
-      console.error(err);
-      toast.error('Preview Linkage Failed');
+        note,
+      });
+      setPreviewUrl((previousPreview) => {
+        if (previousPreview) {
+          URL.revokeObjectURL(previousPreview);
+        }
+        return nextPreview;
+      });
+    } catch (error) {
+      toast.error('Failed to load sticker preview');
     } finally {
       setIsPreviewLoading(false);
     }
-  };
+  }, [batchNumber, importerId, monthYear, note, previewRow, stickerSize, stickerType]);
 
-  // Auto-preview logic
   useEffect(() => {
-    if (selectedProductId) {
-      const timer = setTimeout(() => {
-        handlePreview();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedProductId, stickerSize, stickerType, importerId, monthYear, batchNumber, note]);
+    const timer = window.setTimeout(() => {
+      void handlePreview();
+    }, 300);
 
-  const addToQueue = (quantity: number = 1) => {
-    if (!selectedProduct) return;
+    return () => window.clearTimeout(timer);
+  }, [handlePreview]);
 
-    const config = {
-      productId: selectedProductId,
-      importerId,
-      size: stickerSize,
-      type: stickerType,
-      monthYear,
-      batchNumber,
-      note
-    };
-
-    const newItem: PrintQueueItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      sku: selectedProduct.sku || 'N/A',
-      quantity,
-      product: selectedProduct,
-      config
-    };
-
-    setPrintQueue(prev => [...prev, newItem]);
-    toast.success(`${selectedProduct.name} added to Print Hub`);
-  };
-
-  const removeFromQueue = (id: string) => {
-    setPrintQueue(prev => prev.filter(item => item.id !== id));
-  };
-
-  const updateQueueQuantity = (id: string, delta: number) => {
-    setPrintQueue(prev => prev.map(item => {
-      if (item.id === id) {
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
       }
-      return item;
-    }));
-  };
+    };
+  }, [previewUrl]);
 
-  const handlePrint = async () => {
-    if (!printerIp) {
-      toast.error('Printer IP address required');
+  const handlePrintBatch = async () => {
+    if (!selectedBatch) {
+      toast.error('Select an invoice batch first');
       return;
     }
-    if (printQueue.length === 0) {
-      toast.error('Print queue is empty');
+
+    const printableRows = selectedBatch.pendingRows.filter((row) => row.billedQty > 0);
+
+    if (!printableRows.length) {
+      toast.error('All stickers for this invoice batch are already printed');
+      return;
+    }
+
+    if (!printerIp.trim()) {
+      toast.error('Printer IP is required');
       return;
     }
 
     setIsPrinting(true);
     try {
       await stickersApi.print({
-        printerIp,
-        items: printQueue.map(item => ({
-          config: item.config,
-          quantity: item.quantity
-        }))
+        printerIp: printerIp.trim(),
+        items: printableRows.map((row) => ({
+          config: {
+            productId: row.productId,
+            importerId: importerId || undefined,
+            size: stickerSize,
+            type: stickerType,
+            monthYear,
+            batchNumber,
+            note,
+          },
+          quantity: row.billedQty,
+        })),
       });
-      toast.success('Print Transmission Successful');
-      setPrintQueue([]);
-    } catch (err) {
-      console.error(err);
-      toast.error('Hardware Sync Error: Check Printer Connection');
+
+      await poInvoicesApi.markPrinted(printableRows.map((row) => row.id));
+      toast.success(`Printed ${selectedBatch.pendingLabels} stickers for ${selectedBatch.partyName}`);
+      await loadData();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to print sticker batch');
     } finally {
       setIsPrinting(false);
     }
   };
 
+  const totalBatches = batches.length;
+  const pendingBatches = batches.filter((batch) => batch.pendingRows.length > 0).length;
+  const totalPendingLabels = batches.reduce((sum, batch) => sum + batch.pendingLabels, 0);
+  const totalPrintedLines = poInvoices.filter((row) => row.printed).length;
+
   return (
-    <div className="theme-shell flex flex-col gap-4 p-4 md:p-6">
-      {/* Header Bar */}
-      <header className="page-toolbar flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="page-icon-chip">
-            <Printer className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="page-title uppercase font-heading">Label Forge <span className="text-brand-400 font-mono text-sm">v4.0</span></h1>
-            <p className="page-subtitle flex items-center gap-2">
-              <Activity className="w-3 h-3 text-success-500 animate-pulse" />
-              SYSTEM ACTIVE // PRINTER STATUS: ONLINE
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end mr-2">
-            <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Master IP Control</span>
-            <input
-              value={printerIp}
-              onChange={(e) => setPrinterIp(e.target.value)}
-              className="bg-transparent border-none text-brand-400 font-mono text-sm focus:ring-0 w-36 text-right p-0"
-            />
-          </div>
-          <div className="theme-glow flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/6">
-            <Zap className="w-5 h-5 text-brand-300" />
-          </div>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-12 gap-6 flex-1 min-h-0 overflow-hidden">
-
-        {/* LEFT COLUMN: PRODUCT DATA SOURCE */}
-        <section className="col-span-3 flex flex-col gap-4 overflow-hidden theme-panel p-4">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 group-focus-within:text-brand-400 transition-colors" />
-            <input
-              type="text"
-              placeholder="Query SKU or Asset Name..."
-              className="w-full theme-input rounded-xl py-3 pl-10 pr-4 text-sm focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/20 transition-all outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2">
-            {isProductsLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
-              </div>
-            ) : filteredProducts.map(product => (
-              <div
-                key={product.id}
-                onClick={() => setSelectedProductId(product.id)}
-                className={cn(
-                  "p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden",
-                  selectedProductId === product.id
-                    ? "bg-brand-500/10 border-brand-500/40 shadow-[inset_0_0_20px_rgba(17,167,223,0.05)]"
-                    : "bg-white/[0.04] border-white/10 hover:border-brand-500/30 hover:bg-white/[0.06]"
-                )}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <h3 className={cn(
-                    "font-heading font-bold text-sm truncate pr-2 transition-colors",
-                    selectedProductId === product.id ? "text-white" : "text-neutral-400 group-hover:text-neutral-200"
-                  )}>
-                    {product.name}
-                  </h3>
-                  <span className="text-[10px] font-mono text-neutral-500 group-hover:text-brand-400">#{product.sku}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="outline" className="text-[9px] border-white/10 text-neutral-500 group-hover:border-white/20">
-                    {product.commodity?.name || 'GENERIC'}
-                  </Badge>
-                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Check className="w-4 h-4 text-success-500" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* MIDDLE COLUMN: LIVE FORGE & PREVIEW */}
-        <section className="col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar theme-panel p-6">
-          {selectedProduct ? (
-            <div className="space-y-6">
-              {/* Preview Unit */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(17,167,223,0.05),_transparent)] pointer-events-none" />
-              <div className="absolute top-4 left-4 z-10 flex gap-2">
-                <Badge variant="primary" shape="pill" className="font-heading font-bold border-none">LIVE PREVIEW</Badge>
-                <Badge variant="default" shape="pill" className="backdrop-blur-md text-brand-300 border-brand-500/30">{stickerSize}mm</Badge>
-              </div>
-
-              <div className="w-full h-full flex items-center justify-center p-8">
-                {isPreviewLoading ? (
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin" />
-                    <span className="text-brand-400 text-xs font-mono tracking-widest animate-pulse">GENERATING OPTICS...</span>
-                  </div>
-                ) : previewUrl ? (
-                  <div className="relative group/img">
-                    <img
-                      src={previewUrl}
-                      alt="Label Optics"
-                      className="max-w-full max-h-full shadow-2xl shadow-brand-500/10 rounded border border-white/5 transition-transform duration-500 group-hover/img:scale-105"
-                    />
-                    <div className="absolute inset-0 border border-brand-400/0 group-hover/img:border-brand-400/20 transition-all pointer-events-none" />
-                  </div>
-                ) : (
-                  <div className="text-neutral-500 flex flex-col items-center gap-4">
-                    <Eye className="w-16 h-16 opacity-20" />
-                    <p className="text-sm italic">Waiting for forge parameters...</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="absolute bottom-4 left-0 right-0 px-4 z-10">
-                <button
-                  onClick={() => addToQueue(1)}
-                  className="w-full btn-primary-gradient py-4 font-black rounded-xl active:scale-95 flex items-center justify-center gap-3"
-                >
-                  <Plus className="w-5 h-5" />
-                  PUSH TO PRINT HUB
-                </button>
-              </div>
-
-              {/* Forge Controls */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-4 bg-white/[0.04] border border-white/10 p-4 rounded-2xl">
-              <h4 className="text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-brand-300 flex items-center gap-2">
-                <Settings2 className="w-3 h-3" /> Core Parameters
-              </h4>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Sticker Dimension</label>
-                  <select
-                    value={stickerSize}
-                    onChange={(e) => setStickerSize(e.target.value)}
-                    className="w-full theme-input rounded-lg p-2.5 text-xs text-neutral-300 outline-none focus:border-brand-500/50"
-                  >
-                    <option value="50x50">50 x 50 MM (Standard Square)</option>
-                    <option value="60x60">60 x 60 MM (Large Square)</option>
-                    <option value="75x75">75 x 75 MM (XL Square)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Asset Origin (Importer)</label>
-                  <select
-                    value={importerId}
-                    onChange={(e) => setImporterId(Number(e.target.value))}
-                    className="w-full theme-input rounded-lg p-2.5 text-xs text-neutral-300 outline-none focus:border-brand-500/50"
-                  >
-                    <option value="">SELECT SOURCE</option>
-                    {importers.map(imp => (
-                      <option key={imp.id} value={imp.id}>{imp.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Layout Mode</label>
-                  <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
-                    <button
-                      onClick={() => setStickerType('Combined')}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-bold transition-all",
-                        stickerType === 'Combined' ? "bg-white/10 text-brand-400 shadow-sm" : "text-neutral-500"
-                      )}
-                    >
-                      COMBINED
-                    </button>
-                    <button
-                      onClick={() => setStickerType('Separate')}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-bold transition-all",
-                        stickerType === 'Separate' ? "bg-white/10 text-brand-400 shadow-sm" : "text-neutral-500"
-                      )}
-                    >
-                      SEPARATE
-                    </button>
-                  </div>
-                </div>
-              </div>
+    <div className="flex min-h-0 flex-col gap-4">
+      <Card variant="glass" className="p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="page-icon-chip">
+              <Printer className="h-5 w-5" />
             </div>
+            <div>
+              <h1 className="page-title">Invoice Sticker Printing</h1>
+              <p className="page-subtitle">Print all stickers for one uploaded invoice batch, then mark the batch as printed.</p>
+            </div>
+          </div>
 
-            <div className="space-y-4 bg-white/[0.04] border border-white/10 p-4 rounded-2xl">
-              <h4 className="text-[11px] font-heading font-bold uppercase tracking-[0.22em] text-brand-300 flex items-center gap-2">
-                <Zap className="w-3 h-3" /> Metadata Overlays
-              </h4>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Batches</p>
+              <p className="mt-2 text-2xl font-black text-white">{totalBatches}</p>
+            </div>
+            <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-warning-300/70">Pending Batches</p>
+              <p className="mt-2 text-2xl font-black text-warning-400">{pendingBatches}</p>
+            </div>
+            <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-brand-300/70">Pending Labels</p>
+              <p className="mt-2 text-2xl font-black text-brand-300">{totalPendingLabels}</p>
+            </div>
+            <div className="rounded-2xl border border-success-500/20 bg-success-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-success-300/70">Printed Lines</p>
+              <p className="mt-2 text-2xl font-black text-success-400">{totalPrintedLines}</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Temporal Data (Month/Year)</label>
-                  <input
-                    value={monthYear}
-                    onChange={(e) => setMonthYear(e.target.value)}
-                    className="w-full theme-input rounded-lg p-2.5 text-xs text-neutral-300 outline-none focus:border-brand-500/50 font-mono"
-                  />
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr_1.2fr]">
+        <Card variant="elevated" className="overflow-hidden">
+          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
+            <CardTitle size="sm" className="flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-brand-400" />
+              Invoice Batches
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-[720px] space-y-3 overflow-y-auto p-4">
+            {isLoading ? (
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
+              </div>
+            ) : batches.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
+                No uploaded invoice batches found. Upload invoice rows in inward first.
+              </div>
+            ) : (
+              batches.map((batch) => {
+                const isActive = batch.key === selectedBatchKey;
+                const isComplete = batch.pendingRows.length === 0;
+
+                return (
+                  <button
+                    key={batch.key}
+                    onClick={() => setSelectedBatchKey(batch.key)}
+                    className={cn(
+                      'w-full rounded-2xl border p-4 text-left transition',
+                      isActive
+                        ? 'border-brand-500/40 bg-brand-500/10'
+                        : 'border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]'
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-white">{batch.partyName}</p>
+                        <p className="mt-1 text-xs text-neutral-400">
+                          {format(new Date(batch.invoiceDate), 'dd-MMM-yy')}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={isComplete ? 'success' : 'warning'}
+                        shape="pill"
+                        className="border-none"
+                      >
+                        {isComplete ? 'Printed' : 'Pending'}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="uppercase tracking-[0.2em] text-neutral-500">Lines</p>
+                        <p className="mt-1 font-bold text-white">{batch.totalLines}</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-[0.2em] text-neutral-500">Labels</p>
+                        <p className="mt-1 font-bold text-brand-300">{batch.totalLabels}</p>
+                      </div>
+                      <div>
+                        <p className="uppercase tracking-[0.2em] text-neutral-500">Pending</p>
+                        <p className="mt-1 font-bold text-warning-400">{batch.pendingLabels}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <Card variant="elevated" className="overflow-hidden">
+          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
+            <CardTitle size="sm" className="flex items-center gap-2">
+              <Tag className="h-4 w-4 text-brand-400" />
+              Sticker Setup
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5 p-6">
+            {selectedBatch ? (
+              <>
+                <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
+                  <p className="text-sm font-semibold text-white">{selectedBatch.partyName}</p>
+                  <p className="mt-1 text-xs text-neutral-300">
+                    Invoice Date: {format(new Date(selectedBatch.invoiceDate), 'dd-MMM-yy')}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200">
+                      Total lines: {selectedBatch.totalLines}
+                    </span>
+                    <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-neutral-200">
+                      Pending stickers: {selectedBatch.pendingLabels}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Batch Sequence</label>
-                  <input
-                    value={batchNumber}
-                    onChange={(e) => setBatchNumber(e.target.value)}
-                    className="w-full theme-input rounded-lg p-2.5 text-xs text-neutral-300 outline-none focus:border-brand-500/50 font-mono"
-                  />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="field-label">Sticker Size</label>
+                    <select
+                      className={selectClassName}
+                      value={stickerSize}
+                      onChange={(e) => setStickerSize(e.target.value)}
+                    >
+                      <option value="50x50">50 x 50 MM</option>
+                      <option value="60x60">60 x 60 MM</option>
+                      <option value="75x75">75 x 75 MM</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="field-label">Sticker Type</label>
+                    <select
+                      className={selectClassName}
+                      value={stickerType}
+                      onChange={(e) => setStickerType(e.target.value as 'Combined' | 'Separate')}
+                    >
+                      <option value="Combined">Combined</option>
+                      <option value="Separate">Separate</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="field-label">Importer</label>
+                    <select
+                      className={selectClassName}
+                      value={importerId}
+                      onChange={(e) => setImporterId(e.target.value ? Number(e.target.value) : '')}
+                    >
+                      <option value="">No importer</option>
+                      {importers.map((importer) => (
+                        <option key={importer.id} value={importer.id}>
+                          {importer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="field-label">Printer IP</label>
+                    <Input
+                      value={printerIp}
+                      onChange={(e) => setPrinterIp(e.target.value)}
+                      placeholder="Enter printer IP"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="field-label">Month / Year</label>
+                    <Input
+                      value={monthYear}
+                      onChange={(e) => setMonthYear(e.target.value)}
+                      placeholder="MMM/YYYY"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="field-label">Batch Number</label>
+                    <Input
+                      value={batchNumber}
+                      onChange={(e) => setBatchNumber(e.target.value)}
+                      placeholder="Batch number"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-neutral-500 uppercase font-heading font-bold ml-1">Peripheral Note</label>
-                  <input
+                <div className="space-y-2">
+                  <label className="field-label">Note</label>
+                  <Input
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    maxLength={23}
-                    className="w-full theme-input rounded-lg p-2.5 text-xs text-neutral-300 outline-none focus:border-brand-500/50"
+                    placeholder="Optional note for all stickers in this batch"
                   />
                 </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-brand-400" />
+                    <p className="text-sm font-semibold text-white">Preview</p>
+                  </div>
+
+                  {isPreviewLoading ? (
+                    <div className="flex h-56 items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-brand-400" />
+                    </div>
+                  ) : previewUrl ? (
+                    <div className="flex justify-center">
+                      <img
+                        src={previewUrl}
+                        alt="Sticker preview"
+                        className="max-h-56 rounded-xl border border-white/10 bg-white p-2"
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-neutral-400">
+                      Select an invoice batch to preview the first sticker.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
+                Select an invoice batch from the left to configure sticker printing.
               </div>
-            </div>
-          </div>
-      </div>
-      ) : (
-      <div className="h-full flex flex-col items-center justify-center text-neutral-500 bg-white/[0.02] rounded-3xl border border-dashed border-white/10">
-        <div className="p-6 rounded-full bg-white/5 mb-4 animate-bounce">
-          <Box className="w-12 h-12 opacity-30 text-brand-400" />
-        </div>
-        <h3 className="text-xl font-bold text-neutral-400 mb-2 font-heading">INITIALIZE CATALOG SELECTION</h3>
-        <p className="text-sm max-w-xs text-center text-neutral-500">Select a product from the left nexus to begin thermal print synthesis.</p>
-      </div>
-          )}
-    </section>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* RIGHT COLUMN: PRINT HUB MONITOR */ }
-  <section className="col-span-4 flex flex-col gap-4 overflow-hidden theme-panel p-4">
-    <div className="flex items-center justify-between mb-2">
-      <h2 className="page-title font-heading flex items-center gap-3">
-        <Monitor className="w-5 h-5 text-brand-400" />
-        PRINT HUB <span className="text-brand-500 font-mono text-sm">[{printQueue.length}]</span>
-      </h2>
-      <button
-        onClick={() => setPrintQueue([])}
-        className="text-[10px] text-danger-500 font-bold hover:text-danger-400 transition-colors flex items-center gap-1 uppercase"
-      >
-        <Trash2 className="w-3 h-3" /> WIPE HUB
-      </button>
-    </div>
-
-    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
-      {printQueue.length === 0 ? (
-        <div className="h-48 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-neutral-500 gap-3">
-          <Layers className="w-8 h-8 opacity-20" />
-          <span className="text-[10px] font-mono tracking-widest uppercase">Buffer Empty</span>
-        </div>
-      ) : printQueue.map(item => (
-        <div key={item.id} className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 group relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-1 h-full bg-brand-500/40" />
-
-          <div className="flex justify-between items-start mb-3">
-            <div className="flex-1 min-w-0">
-              <h5 className="font-heading font-bold text-xs text-white truncate pr-4">{item.product.name}</h5>
-              <p className="text-[9px] font-mono text-neutral-500 uppercase mt-0.5">{item.sku} // {item.config.size}MM</p>
-            </div>
-            <button
-              onClick={() => removeFromQueue(item.id)}
-              className="p-1.5 rounded-md text-neutral-500 hover:bg-danger-500/10 hover:text-danger-500 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between bg-neutral-950/50 p-2 rounded-xl border border-white/5">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => updateQueueQuantity(item.id, -1)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-neutral-400 hover:text-white transition-colors"
+        <Card variant="elevated" className="overflow-hidden">
+          <CardHeader className="border-b border-white/10 bg-white/[0.02]">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle size="sm" className="flex items-center gap-2">
+                <Printer className="h-4 w-4 text-brand-400" />
+                Batch Items
+              </CardTitle>
+              <Button
+                onClick={handlePrintBatch}
+                disabled={!selectedBatch || isPrinting || selectedBatch.pendingRows.length === 0}
+                className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+                leftIcon={isPrinting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
               >
-                <span className="sr-only">Decrease</span>
-                <Minus className="w-3 h-3" />
-              </button>
-              <div className="w-10 text-center font-mono font-bold text-brand-400 text-xs">
-                {item.quantity.toString().padStart(2, '0')}
+                {isPrinting ? 'Printing...' : 'Print All Pending'}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4">
+            {selectedBatch ? (
+              <>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <p className="uppercase tracking-[0.2em] text-neutral-500">Rows</p>
+                      <p className="mt-1 font-bold text-white">{selectedBatch.totalLines}</p>
+                    </div>
+                    <div>
+                      <p className="uppercase tracking-[0.2em] text-neutral-500">Pending Stickers</p>
+                      <p className="mt-1 font-bold text-warning-400">{selectedBatch.pendingLabels}</p>
+                    </div>
+                    <div>
+                      <p className="uppercase tracking-[0.2em] text-neutral-500">Printed Rows</p>
+                      <p className="mt-1 font-bold text-success-400">
+                        {selectedBatch.rows.length - selectedBatch.pendingRows.length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400">
+                    <span>SKU</span>
+                    <span>Product</span>
+                    <span>Qty</span>
+                    <span>Status</span>
+                  </div>
+                  <div className="max-h-[560px] overflow-y-auto">
+                    {selectedBatch.rows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[1.2fr_1.5fr_0.7fr_0.7fr] gap-3 border-b border-white/10 bg-white/[0.02] px-4 py-3 text-sm last:border-b-0"
+                      >
+                        <span className="font-mono text-brand-300">{row.skuCode}</span>
+                        <span className="text-white">{row.productName}</span>
+                        <span className="font-bold text-neutral-200">{row.billedQty}</span>
+                        <span>
+                          <Badge
+                            variant={row.printed ? 'success' : 'warning'}
+                            shape="pill"
+                            className="border-none"
+                          >
+                            {row.printed ? 'Printed' : 'Pending'}
+                          </Badge>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">
+                No invoice batch selected.
               </div>
-              <button
-                onClick={() => updateQueueQuantity(item.id, 1)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/5 text-neutral-400 hover:text-white transition-colors"
-              >
-                <span className="sr-only">Increase</span>
-                <Plus className="w-3 h-3" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-neutral-500 font-mono">COPIES</span>
-              <Badge variant="outline" className="border-brand-500/20 text-brand-400 text-[9px] px-2 py-0">SYNCED</Badge>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div className="bg-white/[0.06] border border-white/10 rounded-2xl p-5 shadow-2xl backdrop-blur-xl">
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <p className="text-[10px] text-neutral-500 uppercase font-black tracking-tighter mb-1">Total Payload</p>
-          <h3 className="text-3xl font-black italic text-white flex items-baseline gap-2 font-heading">
-            {printQueue.reduce((acc, curr) => acc + curr.quantity, 0)}
-            <span className="text-xs font-mono text-neutral-500 not-italic uppercase">Labels</span>
-          </h3>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] text-success-500 font-mono">ENCRYPTED STREAM</span>
-          <span className="text-[10px] text-neutral-500 font-mono uppercase">V.921</span>
-        </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-
-      <button
-        onClick={handlePrint}
-        disabled={isPrinting || printQueue.length === 0}
-        className={cn(
-          "w-full py-5 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-4 relative overflow-hidden",
-          isPrinting || printQueue.length === 0
-            ? "bg-white/5 text-neutral-500 cursor-not-allowed border border-white/10"
-            : "btn-primary-gradient"
-        )}
-      >
-        {isPrinting ? (
-          <>
-            <Loader2 className="w-6 h-6 animate-spin" />
-            TRANSMITTING...
-          </>
-        ) : (
-          <>
-            <Printer className="w-6 h-6" />
-            INITIATE PRINT OPS
-          </>
-        )}
-      </button>
-      <p className="text-center text-[9px] text-neutral-500 mt-4 font-mono tracking-tighter">
-        TARGET IP: {printerIp} // PORT: 9100 // PROTOCOL: RAW
-      </p>
     </div>
-  </section>
-      </div >
-    </div >
   );
 });
+
+export default Sticker;

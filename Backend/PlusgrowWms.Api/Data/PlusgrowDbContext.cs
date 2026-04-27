@@ -18,6 +18,9 @@ public class PlusgrowDbContext : DbContext
     public DbSet<RolePageAccess> RolePageAccesses => Set<RolePageAccess>();
     public DbSet<Bin> Bins => Set<Bin>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<PoInvoice> PoInvoices => Set<PoInvoice>();
+    public DbSet<ProductQuantity> ProductQuantities => Set<ProductQuantity>();
+    public DbSet<ProductAllottedLocation> ProductAllottedLocations => Set<ProductAllottedLocation>();
 
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -70,6 +73,17 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(l => l.LocationCode)
             .IsUnique();
 
+        modelBuilder.Entity<ProductQuantity>()
+            .HasIndex(x => x.ProductId)
+            .IsUnique();
+
+        modelBuilder.Entity<ProductAllottedLocation>()
+            .HasIndex(x => x.ProductId)
+            .IsUnique();
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => new { x.InvoiceDate, x.ProductId });
+
         
         // Additional indexes for performance
         modelBuilder.Entity<Product>()
@@ -80,6 +94,24 @@ public class PlusgrowDbContext : DbContext
             
         modelBuilder.Entity<Product>()
             .HasIndex(p => p.Name);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductQuantity>()
+            .HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductAllottedLocation>()
+            .HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
             
         modelBuilder.Entity<User>()
             .HasIndex(u => u.RoleId);

@@ -1,231 +1,478 @@
-import React, { useState, memo } from 'react';
-import { useWms } from '../context/WmsContext';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
-import { Button } from '../components/atoms/Button';
-import { Badge } from '../components/atoms/Badge';
-import { Input } from '../components/atoms/Input';
-import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Download, FileText, Search, Filter, RefreshCw, ArrowDownToLine, Package, Hash, Building2 } from 'lucide-react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import {
+  ArrowDownToLine,
+  Edit2,
+  FileText,
+  Loader2,
+  Plus,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { toast } from 'sonner';
-import type { PurchaseInvoice } from '../types';
-import confetti from 'canvas-confetti';
+
+import { Button } from '../components/atoms/Button';
+import { Input } from '../components/atoms/Input';
+import { Modal, ConfirmDialog } from '../components/atoms/Modal';
+import { DataTable, createTableColumns } from '../components/molecules/DataTable';
+import {
+  CreatePoInvoiceDto,
+  PoInvoice,
+  Product,
+  ProductQuantityRecord,
+  ImportResult,
+  poInvoicesApi,
+  productQuantitiesApi,
+  productsApi,
+} from '../services/masterApi';
+
+type DeleteTarget =
+  | { kind: 'invoice'; row: PoInvoice }
+  | null;
+
+const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
+  invoiceDate: new Date().toISOString().slice(0, 10),
+  partyName: '',
+  productId: 0,
+  billedQty: 0,
+  printed: false,
+  remainingAllocation: 0,
+  locationAllotted: false,
+});
+
+const themedSelectClassName =
+  'h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500';
 
 export const Inward = memo(function Inward() {
-  const { purchaseInvoices, addPurchaseInvoice, products } = useWms();
-  const [isPulling, setIsPulling] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
+  const [productQuantities, setProductQuantities] = useState<ProductQuantityRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handlePullInwards = async () => {
-    setIsPulling(true);
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
+
+  const [editingInvoice, setEditingInvoice] = useState<PoInvoice | null>(null);
+
+  const [invoiceForm, setInvoiceForm] = useState<CreatePoInvoiceDto>(emptyInvoiceForm());
+
+  const [isSavingInvoice, setIsSavingInvoice] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingInvoices, setIsUploadingInvoices] = useState(false);
+
+  const loadData = useCallback(async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const newPiNumber = `INW-${new Date().toISOString().slice(2, 10).replace(/-/g, '')}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-      const randomProduct = products[Math.floor(Math.random() * products.length)];
-      const newPi: PurchaseInvoice = {
-        id: Math.random().toString(36).substr(2, 9),
-        supplierName: 'Simulated Supplier',
-        piNumber: newPiNumber,
-        piDate: new Date().toISOString().split('T')[0],
-        sku: randomProduct?.sku || 'UNKNOWN',
-        quantity: Math.floor(Math.random() * 100) + 10,
-        manufacturer: 'Simulated Mfg',
-        gst: 18,
-        country: 'India',
-        status: 'Open',
-      };
-      addPurchaseInvoice(newPi);
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 }, colors: ['#10b981', '#1ec0f3'] });
-      toast.success(`Successfully sync'd new inward from ERP: ${newPiNumber}`, {
-        icon: <Download className="w-5 h-5 text-success-400" />,
-      });
-    } catch {
-      toast.error('Failed to communicate with ERP');
+      setIsLoading(true);
+      const [productsData, invoicesData, quantitiesData] = await Promise.all([
+        productsApi.getAll(),
+        poInvoicesApi.getAll(),
+        productQuantitiesApi.getAll(),
+      ]);
+
+      setProducts(productsData);
+      setPoInvoices(invoicesData);
+      setProductQuantities(quantitiesData);
+    } catch (error) {
+      toast.error('Failed to load inward data');
     } finally {
-      setIsPulling(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const productOptions = useMemo(
+    () =>
+      products.map((product) => ({
+        value: product.id,
+        label: `${product.sku || 'NO-SKU'} - ${product.name}`,
+      })),
+    [products]
+  );
+
+  const quantityMap = useMemo(() => {
+    return productQuantities.reduce<Record<number, number>>((acc, row) => {
+      acc[row.productId] = row.currentQuantity;
+      return acc;
+    }, {});
+  }, [productQuantities]);
+
+  const invoiceStats = useMemo(() => {
+    const pendingPrint = poInvoices.filter((row) => !row.printed).length;
+    const totalBilled = poInvoices.reduce((sum, row) => sum + row.billedQty, 0);
+    const totalRemaining = poInvoices.reduce((sum, row) => sum + row.remainingAllocation, 0);
+    const allottedCount = poInvoices.filter((row) => row.locationAllotted).length;
+
+    return { pendingPrint, totalBilled, totalRemaining, allottedCount };
+  }, [poInvoices]);
+
+  const filteredInvoices = useMemo(() => {
+    const q = invoiceSearch.toLowerCase();
+    return poInvoices.filter(
+      (row) =>
+        row.partyName.toLowerCase().includes(q) ||
+        row.skuCode.toLowerCase().includes(q) ||
+        row.productName.toLowerCase().includes(q)
+    );
+  }, [invoiceSearch, poInvoices]);
+
+  const resetInvoiceModal = () => {
+    setEditingInvoice(null);
+    setInvoiceForm(emptyInvoiceForm());
+    setInvoiceModalOpen(false);
+  };
+
+  const openCreateInvoice = () => {
+    setEditingInvoice(null);
+    setInvoiceForm(emptyInvoiceForm());
+    setInvoiceModalOpen(true);
+  };
+
+  const openEditInvoice = (row: PoInvoice) => {
+    setEditingInvoice(row);
+    setInvoiceForm({
+      invoiceDate: row.invoiceDate.slice(0, 10),
+      partyName: row.partyName,
+      productId: row.productId,
+      billedQty: row.billedQty,
+      printed: row.printed,
+      remainingAllocation: row.remainingAllocation,
+      locationAllotted: row.locationAllotted,
+    });
+    setInvoiceModalOpen(true);
+  };
+
+  const handleInvoiceSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!invoiceForm.productId || !invoiceForm.partyName.trim()) {
+      toast.error('Party name and product are required');
+      return;
+    }
+
+    setIsSavingInvoice(true);
+    try {
+      if (editingInvoice) {
+        await poInvoicesApi.update(editingInvoice.id, invoiceForm);
+        toast.success('PO invoice updated');
+      } else {
+        await poInvoicesApi.create(invoiceForm);
+        toast.success('PO invoice created');
+      }
+      await loadData();
+      resetInvoiceModal();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save PO invoice');
+    } finally {
+      setIsSavingInvoice(false);
     }
   };
 
-  const filteredInvoices = purchaseInvoices.filter(pi =>
-    pi.piNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pi.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pi.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.kind === 'invoice') {
+        await poInvoicesApi.delete(deleteTarget.row.id);
+        toast.success('PO invoice deleted');
+      }
+      await loadData();
+      setDeleteTarget(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete row');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleInvoiceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingInvoices(true);
+    try {
+      const result: ImportResult = await poInvoicesApi.uploadExcel(file);
+      if (result.success) {
+        toast.success(`Imported ${result.importedCount} invoice rows`);
+        if (result.errors?.length) {
+          toast.warning(`${result.errors.length} rows skipped. Check product SKU/name mapping.`);
+        }
+        await loadData();
+      } else {
+        toast.error('Invoice upload failed');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload invoice file');
+    } finally {
+      setIsUploadingInvoices(false);
+      if (event.target) event.target.value = '';
+    }
+  };
+
+  const invoiceColumns = createTableColumns<PoInvoice>(
+    [
+      {
+        accessorKey: 'invoiceDate',
+        header: 'Invoice Date',
+        cell: (row) => (
+          <span className="inline-flex items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-neutral-200">
+            {format(new Date(row.invoiceDate), 'dd-MMM-yy')}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'partyName',
+        header: 'Party Name',
+        cell: (row) => <span className="font-semibold text-white">{row.partyName}</span>,
+      },
+      {
+        accessorKey: 'skuCode',
+        header: 'SKU Code',
+        cell: (row) => (
+          <span className="inline-flex rounded-lg border border-brand-500/20 bg-brand-500/10 px-2 py-1 font-mono text-xs text-brand-400">
+            {row.skuCode}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'productName',
+        header: 'Product Name',
+        cell: (row) => <span className="text-sm text-neutral-200">{row.productName}</span>,
+      },
+      {
+        accessorKey: 'billedQty',
+        header: 'Billed Qty.',
+        cell: (row) => <span className="font-bold text-white">{row.billedQty}</span>,
+      },
+      {
+        accessorKey: 'productId',
+        header: 'Actual Qty.',
+        cell: (row) => <span className="font-bold text-brand-300">{quantityMap[row.productId] ?? 0}</span>,
+      },
+      {
+        accessorKey: 'mrp',
+        header: 'MRP',
+        cell: (row) => <span className="font-semibold text-success-400">₹{(row.mrp || 0).toLocaleString()}</span>,
+      },
+      {
+        accessorKey: 'printed',
+        header: 'Printed',
+        cell: (row) => (
+          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${row.printed ? 'bg-success-500/10 text-success-400 border border-success-500/20' : 'bg-warning-500/10 text-warning-400 border border-warning-500/20'}`}>
+            {row.printed ? 'TRUE' : 'FALSE'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'remainingAllocation',
+        header: 'Remaining Allocation',
+        cell: (row) => <span className="font-semibold text-brand-300">{row.remainingAllocation}</span>,
+      },
+      {
+        accessorKey: 'locationAllotted',
+        header: 'Location Allotted',
+        cell: (row) => (
+          <span className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${row.locationAllotted ? 'bg-brand-500/10 text-brand-400 border border-brand-500/20' : 'bg-white/[0.04] text-neutral-400 border border-white/10'}`}>
+            {row.locationAllotted ? 'TRUE' : 'FALSE'}
+          </span>
+        ),
+      },
+    ],
+    [
+      {
+        label: 'Edit',
+        icon: <Edit2 className="h-4 w-4" />,
+        onClick: openEditInvoice,
+      },
+      {
+        label: 'Delete',
+        icon: <Trash2 className="h-4 w-4" />,
+        onClick: (row) => setDeleteTarget({ kind: 'invoice', row }),
+        variant: 'destructive',
+      },
+    ]
   );
 
-  const columns = createTableColumns<PurchaseInvoice>([
-    {
-      accessorKey: 'piNumber',
-      header: 'Document No.',
-      cell: (row) => (
-        <span className="font-mono text-sm font-bold text-brand-400 bg-brand-500/10 px-2 py-1 rounded-md border border-brand-500/20">
-          {row.piNumber}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'piDate',
-      header: 'Date Logged',
-      cell: (row) => (
-        <span className="text-sm font-medium text-neutral-300 whitespace-nowrap">{row.piDate}</span>
-      ),
-    },
-    {
-      accessorKey: 'supplierName',
-      header: 'Origin Supplier',
-      cell: (row) => (
-        <div className="flex items-center gap-2">
-          <Building2 className="w-3.5 h-3.5 text-brand-400" />
-          <span className="font-semibold text-neutral-100 text-sm whitespace-nowrap">{row.supplierName}</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'sku',
-      header: 'Target SKU',
-      cell: (row) => (
-        <Badge variant="default" size="sm" className="font-mono bg-brand-500/10 text-brand-400 border-brand-500/20 tracking-wider">
-          {row.sku}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'quantity',
-      header: 'Yield Qty',
-      cell: (row) => (
-        <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-0.5 rounded-md font-bold text-sm bg-brand-500/10 border border-brand-500/20 text-brand-400">
-          {row.quantity}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      cell: (row) => (
-        row.status === 'Completed' ? (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-success-500/10 border border-success-500/20 text-success-400 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-success-500" /> Put Away Complete
-          </div>
-        ) : (
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-warning-500/10 border border-warning-500/20 text-warning-400 rounded-full font-bold text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-warning-500 animate-pulse" /> Open / Pending
-          </div>
-        )
-      ),
-    },
-  ]);
-
-  const totalInvoices = purchaseInvoices.length;
-  const pendingCount = purchaseInvoices.filter(pi => pi.status === 'Open').length;
-  const completedCount = purchaseInvoices.filter(pi => pi.status === 'Completed').length;
-  const overallProgress = totalInvoices > 0 ? Math.round((completedCount / totalInvoices) * 100) : 100;
-  const itemsReceived = purchaseInvoices.reduce((acc, pi) => acc + pi.quantity, 0);
-
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      {/* Header Bar */}
-      <Card variant="glass" className="p-3 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex min-h-0 flex-col gap-4">
+      <div className="page-toolbar">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
-            <div className="page-icon-chip shrink-0">
-              <Download className="ml-0.5 w-5 h-5" />
+            <div className="page-icon-chip">
+              <ArrowDownToLine className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white leading-tight tracking-tight">Inward Processing Center</h1>
-              <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase mt-0.5">ERP Document Synchronization</p>
+              <h1 className="page-title">PO Invoice Control</h1>
+              <p className="page-subtitle">Upload purchase invoice rows here, print all stickers by invoice batch, then finish location allotment in put away.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-9 px-4 font-bold" leftIcon={<Filter className="w-4 h-4" />}>
-              Filters
-            </Button>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-neutral-500">Invoices</p>
+              <p className="mt-2 text-2xl font-black text-white">{poInvoices.length}</p>
+            </div>
+            <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-warning-300/70">Pending Print</p>
+              <p className="mt-2 text-2xl font-black text-warning-400">{invoiceStats.pendingPrint}</p>
+            </div>
+            <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-brand-300/70">Remaining</p>
+              <p className="mt-2 text-2xl font-black text-brand-300">{invoiceStats.totalRemaining}</p>
+            </div>
+            <div className="rounded-2xl border border-success-500/20 bg-success-500/10 px-4 py-3">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-success-300/70">Allocated</p>
+              <p className="mt-2 text-2xl font-black text-success-400">{invoiceStats.allottedCount}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="page-table-shell">
+        <div className="flex items-center justify-between border-b border-white/10 p-6">
+          <div className="flex items-center gap-3">
+            <div className="page-icon-chip">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">PO Invoice Table</h2>
+              <p className="text-sm text-neutral-400">Invoice upload source for sticker printing and downstream put-away allocation</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                type="file"
+                id="invoice-upload"
+                className="hidden"
+                accept=".xlsx,.xls"
+                onChange={handleInvoiceUpload}
+                disabled={isUploadingInvoices}
+              />
+              <Button
+                variant="outline"
+                className="border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
+                onClick={() => document.getElementById('invoice-upload')?.click()}
+                leftIcon={isUploadingInvoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                disabled={isUploadingInvoices}
+              >
+                {isUploadingInvoices ? 'Uploading...' : 'Upload Invoice'}
+              </Button>
+            </div>
             <Button
-              onClick={handlePullInwards}
-              disabled={isPulling}
-              size="sm"
-              className="h-9 px-5 font-bold shadow-neon-cyan/20 w-40 relative truncate"
-              leftIcon={!isPulling ? <ArrowDownToLine className="w-4 h-4" /> : <RefreshCw className="w-4 h-4 animate-spin" />}
+              onClick={openCreateInvoice}
+              className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
+              leftIcon={<Plus className="h-4 w-4" />}
             >
-              {isPulling ? 'SYNCING ERP...' : 'PULL FROM ERP'}
+              New Invoice Row
             </Button>
           </div>
         </div>
-      </Card>
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group">
-          <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 group-hover:shadow-neon-cyan/20 transition-all">
-            <FileText className="w-5 h-5 text-brand-400 group-hover:text-brand-300 transition-colors" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Total Invoices</p>
-            <p className="text-2xl font-black text-white leading-none">{totalInvoices}</p>
-          </div>
-        </Card>
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group bg-warning-500/[0.03] border-warning-500/10">
-          <div className="w-12 h-12 rounded-xl bg-warning-500/10 border border-warning-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Package className="w-5 h-5 text-warning-400 group-hover:text-warning-300 transition-colors" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-warning-400/60 mb-1">Pending Put Away</p>
-            <p className="text-2xl font-black text-white leading-none">{pendingCount}</p>
-          </div>
-        </Card>
-        <Card variant="elevated" className="p-5 flex items-center gap-4 group">
-          <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0 group-hover:shadow-neon-cyan/20 transition-all">
-            <Hash className="w-5 h-5 text-brand-400 group-hover:text-brand-300 transition-colors" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500 mb-1">Units Received</p>
-            <p className="text-2xl font-black text-white leading-none font-mono">{itemsReceived.toLocaleString()}</p>
-          </div>
-        </Card>
-        <Card variant="elevated" className="p-5 flex flex-col justify-center bg-success-500/[0.03] border-success-500/10">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-success-400/60">Completion</p>
-            <span className="text-sm font-black text-success-400">{overallProgress}%</span>
-          </div>
-          <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-success-500 to-success-400 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${overallProgress}%` }}
-            />
-          </div>
-        </Card>
+        <div className="p-6">
+          <DataTable
+            columns={invoiceColumns}
+            data={filteredInvoices}
+            loading={isLoading}
+            searchPlaceholder="Search party, SKU, or product..."
+            onSearch={setInvoiceSearch}
+            searchValue={invoiceSearch}
+          />
+        </div>
       </div>
 
-      {/* Main Table */}
-      <Card variant="elevated" className="flex-1 flex flex-col overflow-hidden min-h-0 border-white/10">
-        <CardHeader className="py-2.5 px-4 border-b border-white/10 bg-white/[0.04] z-10 shrink-0">
-          <div className="flex items-center justify-between">
-            <CardTitle size="sm" className="flex items-center gap-2">
-              <Download className="w-4 h-4 text-brand-400" />
-              Incoming Documents Ledger
-            </CardTitle>
-            <div className="relative w-64 lg:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+      <Modal isOpen={invoiceModalOpen} onClose={resetInvoiceModal} title={editingInvoice ? 'Edit PO Invoice' : 'New PO Invoice'} size="xl">
+        <form onSubmit={handleInvoiceSubmit} className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="field-label">Invoice Date</label>
+              <Input type="date" value={invoiceForm.invoiceDate} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, invoiceDate: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <label className="field-label">Party Name</label>
+              <Input value={invoiceForm.partyName} onChange={(e) => setInvoiceForm((prev) => ({ ...prev, partyName: e.target.value }))} placeholder="Enter party name" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="field-label">Product</label>
+              <select
+                className={themedSelectClassName}
+                value={invoiceForm.productId || ''}
+                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, productId: Number(e.target.value) }))}
+              >
+                <option value="">Select product</option>
+                {productOptions.map((product) => (
+                  <option key={product.value} value={product.value}>
+                    {product.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="field-label">Billed Qty.</label>
               <Input
-                type="text"
-                placeholder="Search PIN/Supplier/SKU..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-9 text-sm"
+                type="number"
+                min="0"
+                value={invoiceForm.billedQty}
+                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, billedQty: Number(e.target.value) }))}
               />
             </div>
+            <div className="space-y-2">
+              <label className="field-label">Remaining Allocation</label>
+              <Input
+                type="number"
+                min="0"
+                value={invoiceForm.remainingAllocation}
+                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, remainingAllocation: Number(e.target.value) }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="field-label">Printed</label>
+              <select
+                className={themedSelectClassName}
+                value={invoiceForm.printed ? 'true' : 'false'}
+                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, printed: e.target.value === 'true' }))}
+              >
+                <option value="true">TRUE</option>
+                <option value="false">FALSE</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="field-label">Location Allotted</label>
+              <select
+                className={themedSelectClassName}
+                value={invoiceForm.locationAllotted ? 'true' : 'false'}
+                onChange={(e) => setInvoiceForm((prev) => ({ ...prev, locationAllotted: e.target.value === 'true' }))}
+              >
+                <option value="true">TRUE</option>
+                <option value="false">FALSE</option>
+              </select>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="flex-1 p-0 flex flex-col overflow-hidden relative">
-          <div className="flex-1 overflow-auto scrollbar-thin p-4">
-            <DataTable
-              columns={columns}
-              data={filteredInvoices}
-              loading={false}
-              searchPlaceholder="Search PIN/Supplier/SKU..."
-              onSearch={setSearchTerm}
-              searchValue={searchTerm}
-            />
+
+          <div className="flex gap-3 border-t border-white/10 pt-4">
+            <Button type="button" variant="outline" onClick={resetInvoiceModal} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSavingInvoice} className="flex-1 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700">
+              {isSavingInvoice ? <Loader2 className="h-4 w-4 animate-spin" /> : editingInvoice ? 'Update Invoice' : 'Create Invoice'}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Row"
+        message="Are you sure you want to delete this record? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 });
