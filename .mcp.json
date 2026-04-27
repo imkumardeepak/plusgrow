@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "jetro": {
+      "type": "stdio",
+      "command": "C:\\Users\\Admin\\.jetro\\runtime\\node-win32-x64.exe",
+      "args": [
+        "C:\\Users\\Admin\\.jetro\\mcp-server\\index.js"
+      ],
+      "env": {
+        "JET_WORKSPACE": "d:\\PROJECT\\PLUS_GROW\\plusgrow",
+        "JET_API_URL": "https://api.jetro.ai",
+        "JET_JWT": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjNiMDk1NzQ3YmY4MzMxZWE0YWQ1M2YzNzBjNjMyNjAxNzliMGQyM2EiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vamV0cm8tY2RhZWYiLCJhdWQiOiJqZXRyby1jZGFlZiIsImF1dGhfdGltZSI6MTc3NzAyODI0MywidXNlcl9pZCI6Ikkwd1JDdU9kNXphM3J3TzVtd2d1VkM2U2ZGbzEiLCJzdWIiOiJJMHdSQ3VPZDV6YTNyd081bXdndVZDNlNmRm8xIiwiaWF0IjoxNzc3MjY4NTcyLCJleHAiOjE3NzcyNzIxNzIsImVtYWlsIjoiZGVlcGFrcmF6bmlzaEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJlbWFpbCI6WyJkZWVwYWtyYXpuaXNoQGdtYWlsLmNvbSJdfSwic2lnbl9pbl9wcm92aWRlciI6InBhc3N3b3JkIn19.Iykx_cLHH6AS7EsktizuU3u9pplcxiu3yj-mYLCZHpSw1qvMX_ziihvcrEH9mT5mnqAdm4NwQUBTN1ZmDCCGGi6i4zQLqNJS2WljCwEc2O0_0fJeMjmWozeURKJmoy3ZSmOb0HwOPS4qGG41WUDRk0veVyP1tFMSqjM5W2H_8SGVYh226wzOM4rVi2TN2V9dtqJBiUNFYC1TMTtoa9EIC_QmZUqMI2cUR_GKyfIr5DFgdTGOmzHs7sYohelJrI7p1SnjysWZTJ62hpWiCv3z0wxkzu2IPO4meSeev8xYMjYBMQhof_lRPjSPWzh4KmusQv1vMwNMwObT6VeDIzNdVA",
+        "PATH": "C:\\Users\\Admin\\.jetro\\runtime;C:\\Python314\\Scripts\\;C:\\Python314\\;C:\\Python313\\Scripts\\;C:\\Python313\\;c:\\Users\\Admin\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;C:\\Program Files\\Python310;C:\\Program Files\\Python310\\;C:\\Program Files\\Microsoft\\jdk-17.0.14.7-hotspot\\bin;c:\\Users\\Admin\\AppData\\Local\\Programs\\cursor\\resources\\app\\bin;D:\\SOFTWARE\\Oracle\\bin;C:\\Program Files\\Common Files\\Oracle\\Java\\javapath;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\Microsoft SQL Server\\150\\Tools\\Binn\\;C:\\Program Files\\Microsoft SQL Server\\Client SDK\\ODBC\\170\\Tools\\Binn\\;C:\\Program Files\\dotnet\\;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files (x86)\\Microsoft SQL Server\\160\\Tools\\Binn\\;C:\\Program Files\\Microsoft SQL Server\\160\\Tools\\Binn\\;C:\\Program Files\\Microsoft SQL Server\\160\\DTS\\Binn\\;D:\\Program Files\\PuTTY\\;C:\\Program Files\\Git\\cmd;C:\\flutter\\bin;C:\\gradle-8.6-bin\\gradle-8.6\\bin;C:\\Program Files\\CMake\\bin;D:\\Program Files\\VideoLAN\\VLC;C:\\Program Files;C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program Files\\PowerShell\\7\\;C:\\Users\\Admin\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Program Files\\Azure Data Studio\\bin;C:\\Program Files\\Git\\cmd;C:\\Program Files\\Git\\bin;C:\\flutter\\bin;C:\\gradle-8.6-bin\\gradle-8.6\\bin;D:\\Program Files\\PyCharm 2024.1.4\\bin;D:\\Program Files\\VideoLAN\\VLC;C:\\Users\\Admin\\.dotnet\\tools;D:\\Program Files\\OpenSSL-Win64\\bin;D:\\Program Files\\heroku\\bin;C:\\Users\\Admin\\.dotnet\\tools;d:\\Program Files\\JetBrains\\IntelliJ IDEA Community Edition 2025.1.4.1\\bin;C:\\Users\\Admin\\AppData\\Roaming\\npm;C:\\Users\\Admin\\AppData\\Local\\Programs\\Antigravity\\bin;C:\\Users\\Admin\\AppData\\Local\\Programs\\Ollama;C:\\Users\\Admin\\.local\\bin;D:\\Program Files\\nodejs;C:\\Users\\Admin\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GitHub.Copilot_Microsoft.Winget.Source_8wekyb3d8bbwe;D:\\PROJECT\\HALDIRAM\\SORTER_SCAN_FROM_TO\\SorterSyncWindowsService\\.dotnet\\tools;D:\\PROJECT\\HALDIRAM\\SORTER_SCAN_FROM_TO\\From_To_Service\\.dotnet\\tools"
+      }
+    }
+  }
+}
