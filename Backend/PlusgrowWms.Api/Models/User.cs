@@ -43,7 +43,7 @@ public class User
     public bool IsActive { get; set; } = true;
     
     [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
     
     [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }

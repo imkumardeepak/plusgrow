@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using PlusgrowWms.Api.Models;
 
 namespace PlusgrowWms.Api.Data;
@@ -13,6 +14,30 @@ public class PlusgrowDbContext : DbContext
     {
         configurationBuilder.Properties<DateTime>().HaveColumnType("timestamp without time zone");
         configurationBuilder.Properties<DateTime?>().HaveColumnType("timestamp without time zone");
+    }
+
+    public override int SaveChanges()
+    {
+        NormalizeDateTimeKinds();
+        return base.SaveChanges();
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        NormalizeDateTimeKinds();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        NormalizeDateTimeKinds();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        NormalizeDateTimeKinds();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
     
     public DbSet<Importer> Importers => Set<Importer>();
@@ -134,5 +159,35 @@ public class PlusgrowDbContext : DbContext
             
         modelBuilder.Entity<Manufacturer>()
             .HasIndex(m => m.Country);
+    }
+
+    private void NormalizeDateTimeKinds()
+    {
+        foreach (var entry in ChangeTracker.Entries().Where(ShouldNormalizeEntry))
+        {
+            foreach (var property in entry.Properties)
+            {
+                if (property.Metadata.ClrType == typeof(DateTime) && property.CurrentValue is DateTime dateTimeValue)
+                {
+                    property.CurrentValue = NormalizeToTimestampWithoutTimeZone(dateTimeValue);
+                    continue;
+                }
+
+                if (property.Metadata.ClrType == typeof(DateTime?) && property.CurrentValue is DateTime nullableDateTimeValue)
+                {
+                    property.CurrentValue = NormalizeToTimestampWithoutTimeZone(nullableDateTimeValue);
+                }
+            }
+        }
+    }
+
+    private static bool ShouldNormalizeEntry(EntityEntry entry)
+    {
+        return entry.State is EntityState.Added or EntityState.Modified;
+    }
+
+    private static DateTime NormalizeToTimestampWithoutTimeZone(DateTime value)
+    {
+        return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
     }
 }

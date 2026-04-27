@@ -73,7 +73,7 @@ public class AuthService : IAuthService
         }
         
         // Update last login
-        user.LastLoginAt = DateTime.UtcNow;
+        user.LastLoginAt = DateTime.Now;
         await _userRepository.UpdateAsync(user);
         
         var token = GenerateJwtToken(user);
@@ -127,7 +127,7 @@ public class AuthService : IAuthService
             Phone = createUserDto.Phone,
             RoleId = createUserDto.RoleId,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.Now
         };
         
         await _userRepository.CreateAsync(user);
@@ -160,7 +160,7 @@ public class AuthService : IAuthService
             issuer: _configuration["Jwt:Issuer"],
             audience: _configuration["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:ExpiryMinutes"]!)),
+            expires: DateTime.Now.AddMinutes(int.Parse(_configuration["Jwt:ExpiryMinutes"]!)),
             signingCredentials: credentials
         );
         

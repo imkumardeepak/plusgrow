@@ -20,7 +20,7 @@ public class ApiResponse<T>
     public List<string>? Errors { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; set; } = DateTime.Now;
 
     [JsonPropertyName("pagination")]
     public PaginationInfo? Pagination { get; set; }
@@ -135,7 +135,7 @@ public class ApiResponse
     public List<string>? Errors { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; set; } = DateTime.Now;
 
     public static ApiResponse Ok(string? message = null)
     {

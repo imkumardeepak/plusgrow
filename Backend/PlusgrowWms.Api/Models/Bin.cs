@@ -16,5 +16,5 @@ public class Bin
     public string BinCode { get; set; } = string.Empty;
     
     [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }

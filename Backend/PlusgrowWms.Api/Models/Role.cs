@@ -23,7 +23,7 @@ public class Role
     public bool IsActive { get; set; } = true;
     
     [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
     
     public ICollection<User> Users { get; set; } = new List<User>();
     public ICollection<RolePageAccess> RolePageAccesses { get; set; } = new List<RolePageAccess>();
