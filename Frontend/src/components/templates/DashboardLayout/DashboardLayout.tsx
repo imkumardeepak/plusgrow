@@ -41,6 +41,7 @@ export function DashboardLayout({
 
   const resolvedUserName = authUser?.fullName ?? authUser?.full_name ?? "User";
   const resolvedUserRole = authUser?.roleName ?? authUser?.role?.name ?? "User";
+  const pageEyebrow = pageTitle ?? breadcrumbs?.[breadcrumbs.length - 1]?.label ?? "Operations";
 
   const handleLogout = () => {
     logout();
@@ -57,19 +58,19 @@ export function DashboardLayout({
 
   return (
     <AppShell
-      padding={{ base: "sm", md: "md" }}
-      header={{ height: { base: 78, md: 88 } }}
+      padding={{ base: "xs", md: "sm" }}
+      header={{ height: { base: 72, md: 82 } }}
       navbar={{
-        width: sidebarCollapsed ? 92 : 312,
+        width: { base: "100%", md: sidebarCollapsed ? 92 : 296 },
         breakpoint: "md",
         collapsed: { mobile: !mobileMenuOpen, desktop: false },
       }}
       withBorder={false}
-      transitionDuration={220}
+      transitionDuration={180}
       transitionTimingFunction="ease"
       style={{
         background:
-          "radial-gradient(circle at top, rgba(17,167,223,0.16), transparent 34%), linear-gradient(180deg, #111e31 0%, #09111f 44%, #060d19 100%)",
+          "radial-gradient(circle at top left, rgba(35, 196, 255, 0.16), transparent 24%), radial-gradient(circle at top right, rgba(62, 99, 221, 0.18), transparent 26%), linear-gradient(180deg, #0f1726 0%, #0b1320 48%, #070d18 100%)",
       }}
     >
       <Sidebar
@@ -95,18 +96,20 @@ export function DashboardLayout({
       </AppShell.Header>
 
       <AppShell.Main>
-        <Box className={cn("min-h-[calc(100dvh-7rem)]", contentClassName)}>
-          <Box mx="auto" maw={1680}>
-            <Stack gap="md">
+        <Box className={cn("min-h-[calc(100dvh-5.75rem)]", contentClassName)}>
+          <Box mx="auto" maw={1640}>
+            <Stack gap="sm">
               {showBreadcrumbs ? (
                 <Paper
                   radius="xl"
-                  p="md"
+                  px={{ base: "sm", md: "md" }}
+                  py="xs"
                   withBorder
                   style={{
-                    backgroundColor: "rgba(10, 18, 32, 0.78)",
-                    borderColor: "rgba(255,255,255,0.08)",
-                    boxShadow: theme.shadows.sm,
+                    background: "rgba(8, 14, 25, 0.72)",
+                    borderColor: "rgba(148, 163, 184, 0.16)",
+                    backdropFilter: "blur(16px)",
+                    boxShadow: theme.shadows.xs,
                   }}
                 >
                   <Breadcrumbs items={breadcrumbs} />
@@ -116,24 +119,31 @@ export function DashboardLayout({
               {pageTitle || pageDescription ? (
                 <Paper
                   radius="xl"
-                  p="lg"
+                  px={{ base: "md", md: "lg" }}
+                  py={{ base: "md", md: "lg" }}
                   withBorder
                   style={{
                     background:
-                      "linear-gradient(180deg, rgba(15,24,40,0.88) 0%, rgba(10,18,32,0.94) 100%)",
-                    borderColor: "rgba(255,255,255,0.08)",
+                      "linear-gradient(180deg, rgba(13, 21, 35, 0.92) 0%, rgba(9, 15, 26, 0.96) 100%)",
+                    borderColor: "rgba(148, 163, 184, 0.14)",
+                    boxShadow: "0 22px 60px rgba(2, 8, 23, 0.24)",
                   }}
                 >
-                  {pageTitle ? (
-                    <Text component="h1" fz={{ base: 24, md: 30 }} fw={800} c="white">
-                      {pageTitle}
+                  <Stack gap={6}>
+                    <Text size="xs" tt="uppercase" fw={700} c="cyan.3" style={{ letterSpacing: "0.16em" }}>
+                      {pageEyebrow}
                     </Text>
-                  ) : null}
-                  {pageDescription ? (
-                    <Text mt={6} size="sm" c="dimmed">
-                      {pageDescription}
-                    </Text>
-                  ) : null}
+                    {pageTitle ? (
+                      <Text component="h1" fz={{ base: 24, md: 30 }} fw={800} c="white" lh={1.1}>
+                        {pageTitle}
+                      </Text>
+                    ) : null}
+                    {pageDescription ? (
+                      <Text maw={920} size="sm" c="dimmed" lh={1.6}>
+                        {pageDescription}
+                      </Text>
+                    ) : null}
+                  </Stack>
                 </Paper>
               ) : null}
 
