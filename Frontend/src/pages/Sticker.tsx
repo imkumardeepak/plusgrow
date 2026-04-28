@@ -42,6 +42,10 @@ import {
   poInvoicesApi,
 } from "../services/masterApi";
 import { stickersApi } from "../services/stickersApi";
+import {
+  StickerPrinterConfig,
+  stickerPrinterConfigsApi,
+} from "../services/stickerPrinterConfigsApi";
 
 type StickerBatch = {
   key: string;
@@ -61,6 +65,9 @@ const buildBatchKey = (invoiceDate: string, partyName: string) =>
 export const Sticker = memo(function Sticker() {
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [importers, setImporters] = useState<Importer[]>([]);
+  const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
+    [],
+  );
   const [selectedBatchKey, setSelectedBatchKey] = useState("");
   const [stickerSize, setStickerSize] = useState("50x50");
   const [stickerType, setStickerType] = useState<"Combined" | "Separate">(
@@ -68,6 +75,7 @@ export const Sticker = memo(function Sticker() {
   );
   const [importerId, setImporterId] = useState<string | null>(null);
   const [printerIp, setPrinterIp] = useState("192.168.10.151");
+  const [printerPort, setPrinterPort] = useState(9100);
   const [isLoading, setIsLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -77,13 +85,15 @@ export const Sticker = memo(function Sticker() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [invoiceData, importerData] = await Promise.all([
+      const [invoiceData, importerData, configData] = await Promise.all([
         poInvoicesApi.getAll(),
         importersApi.getAll(),
+        stickerPrinterConfigsApi.getAll(),
       ]);
 
       setPoInvoices(invoiceData);
       setImporters(importerData);
+      setPrinterConfigs(configData);
     } catch (error) {
       notifications.show({
         title: "Error",
@@ -99,6 +109,16 @@ export const Sticker = memo(function Sticker() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const config = printerConfigs.find(
+      (c) => c.stickerSize === stickerSize && c.isActive,
+    );
+    if (config) {
+      setPrinterIp(config.printerIp);
+      setPrinterPort(config.printerPort);
+    }
+  }, [stickerSize, printerConfigs]);
 
   const batches = useMemo<StickerBatch[]>(() => {
     const grouped = new Map<string, PoInvoice[]>();
@@ -258,7 +278,7 @@ export const Sticker = memo(function Sticker() {
     setIsPrinting(true);
     try {
       await stickersApi.print({
-        printerIp: printerIp.trim(),
+        printerIp: `${printerIp.trim()}:${printerPort}`,
         items: printableRows.map((row) => ({
           config: {
             productId: row.productId,
@@ -485,11 +505,20 @@ export const Sticker = memo(function Sticker() {
                       label: i.name,
                     }))}
                   />
-                  <TextInput
-                    label="Printer IP"
-                    value={printerIp}
-                    onChange={(e) => setPrinterIp(e.target.value)}
-                  />
+                  <Box>
+                    <Text size="xs" fw={700} mb={5}>
+                      Printer (Auto)
+                    </Text>
+                    <Paper
+                      p="xs"
+                      withBorder
+                      style={{ background: "rgba(255, 255, 255, 0.02)" }}
+                    >
+                      <Text size="sm" fontFamily="monospace">
+                        {printerIp}:{printerPort}
+                      </Text>
+                    </Paper>
+                  </Box>
                 </SimpleGrid>
 
                 <Paper

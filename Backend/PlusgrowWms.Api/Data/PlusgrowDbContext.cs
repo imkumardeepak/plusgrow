@@ -52,6 +52,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<PoInvoice> PoInvoices => Set<PoInvoice>();
     public DbSet<ProductQuantity> ProductQuantities => Set<ProductQuantity>();
     public DbSet<ProductAllottedLocation> ProductAllottedLocations => Set<ProductAllottedLocation>();
+    public DbSet<StickerPrinterConfig> StickerPrinterConfigs => Set<StickerPrinterConfig>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -163,6 +164,10 @@ public class PlusgrowDbContext : DbContext
 
         modelBuilder.Entity<Manufacturer>()
             .HasIndex(m => m.Country);
+
+        modelBuilder.Entity<StickerPrinterConfig>()
+            .HasIndex(c => c.StickerSize)
+            .IsUnique();
     }
 
     private void NormalizeDateTimeKinds()

@@ -31,6 +31,9 @@ const Commodities = lazy(() => import("./pages/Commodities"));
 const Bins = lazy(() => import("./pages/Bins"));
 const Locations = lazy(() => import("./pages/Locations"));
 const MPD = lazy(() => import("./pages/MPD"));
+const StickerPrinterConfigMaster = lazy(
+  () => import("./pages/StickerPrinterConfigMaster"),
+);
 const StockCheck = lazy(() => import("./pages/StockCheck"));
 const StockMovement = lazy(() => import("./pages/StockMovement"));
 const WarehouseMap = lazy(() => import("./pages/WarehouseMap"));
@@ -228,6 +231,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<PageLoader />}>
                         <MPD />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="sticker-printer-config"
+                    element={
+                      <Suspense fallback={<PageLoader />}>
+                        <StickerPrinterConfigMaster />
                       </Suspense>
                     }
                   />

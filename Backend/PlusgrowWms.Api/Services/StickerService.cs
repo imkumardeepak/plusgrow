@@ -101,13 +101,13 @@ public class StickerService : IStickerService
         // 50mm = ~2in
         // 60mm = ~2.4in
         // 75mm = ~3in
-        
+
         string labelSize = "2x2";
         if (size == "60x60") labelSize = "2.4x2.4";
         if (size == "75x75") labelSize = "3x3";
 
         var url = $"http://api.labelary.com/v1/printers/12dpmm/labels/{labelSize}/0/";
-        
+
         var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Content = new StringContent(zpl, Encoding.UTF8, "application/x-www-form-urlencoded");
 
@@ -128,16 +128,21 @@ public class StickerService : IStickerService
         return templates;
     }
 
-    public async Task PrintAsync(string zpl, string printerIp)
+    public async Task PrintAsync(string zpl, string printerAddress)
     {
         try
         {
+            // Parse IP:Port format
+            var parts = printerAddress.Split(':');
+            var printerIp = parts[0];
+            var printerPort = parts.Length > 1 ? int.Parse(parts[1]) : 9100;
+
             using var client = new TcpClient();
-            var connectTask = client.ConnectAsync(printerIp, 9100);
-            
+            var connectTask = client.ConnectAsync(printerIp, printerPort);
+
             if (await Task.WhenAny(connectTask, Task.Delay(5000)) != connectTask)
             {
-                throw new Exception($"Connection timeout to printer at {printerIp}:9100");
+                throw new Exception($"Connection timeout to printer at {printerIp}:{printerPort}");
             }
 
             using var stream = client.GetStream();
@@ -146,7 +151,7 @@ public class StickerService : IStickerService
         }
         catch (Exception ex)
         {
-            throw new Exception($"Failed to print to {printerIp}: {ex.Message}");
+            throw new Exception($"Failed to print to {printerAddress}: {ex.Message}");
         }
     }
 }
