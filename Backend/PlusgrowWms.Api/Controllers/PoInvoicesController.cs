@@ -40,6 +40,7 @@ public class PoInvoicesController : BaseController
 
         var entity = new PoInvoice
         {
+            InvoiceNumber = await GenerateInvoiceNumberAsync(),
             InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate),
             PartyName = dto.PartyName.Trim(),
             ProductId = dto.ProductId,
@@ -195,6 +196,7 @@ public class PoInvoicesController : BaseController
 
                     var entity = new PoInvoice
                     {
+                        InvoiceNumber = await GenerateInvoiceNumberAsync(),
                         InvoiceDate = NormalizeInvoiceDate(invoiceDate.Value),
                         PartyName = partyName,
                         ProductId = product.Id,
@@ -257,11 +259,35 @@ public class PoInvoicesController : BaseController
         }, "Invoice rows marked as printed successfully");
     }
 
+    private async Task<string> GenerateInvoiceNumberAsync()
+    {
+        var year = DateTime.Now.Year % 100;
+        var prefix = $"IN{year:D2}";
+
+        var maxInvoice = await _context.PoInvoices
+            .Where(x => x.InvoiceNumber.StartsWith(prefix))
+            .OrderByDescending(x => x.InvoiceNumber)
+            .FirstOrDefaultAsync();
+
+        int nextNumber = 1;
+        if (maxInvoice != null && maxInvoice.InvoiceNumber.Length > prefix.Length)
+        {
+            var numberPart = maxInvoice.InvoiceNumber.Substring(prefix.Length);
+            if (int.TryParse(numberPart, out var lastNumber))
+            {
+                nextNumber = lastNumber + 1;
+            }
+        }
+
+        return $"{prefix}{nextNumber:D4}";
+    }
+
     private static PoInvoiceDto MapInvoice(PoInvoice invoice)
     {
         return new PoInvoiceDto
         {
             Id = invoice.Id,
+            InvoiceNumber = invoice.InvoiceNumber,
             InvoiceDate = invoice.InvoiceDate,
             PartyName = invoice.PartyName,
             ProductId = invoice.ProductId,

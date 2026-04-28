@@ -3,6 +3,7 @@ namespace PlusgrowWms.Api.DTOs;
 public class PoInvoiceDto
 {
     public int Id { get; set; }
+    public string InvoiceNumber { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public string PartyName { get; set; } = string.Empty;
     public int ProductId { get; set; }

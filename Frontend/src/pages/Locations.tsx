@@ -1,15 +1,12 @@
 import React, { memo, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import {
-  Group,
-  MultiSelect,
-  Stack,
-  Text,
-  ThemeIcon,
-} from "@mantine/core";
+import { Group, MultiSelect, Stack, Text, ThemeIcon } from "@mantine/core";
 import {
   Box,
+  CheckCircle2,
+  Download,
   Edit2,
+  FileSpreadsheet,
   Loader2,
   MapPin,
   Plus,
@@ -19,7 +16,10 @@ import {
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
-import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  DataTable,
+  createTableColumns,
+} from "../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -44,6 +44,9 @@ export const Locations = memo(function Locations() {
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState<CreateLocationDto>({
     aisle: "",
     rack: "",
@@ -168,29 +171,53 @@ export const Locations = memo(function Locations() {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDownloadTemplate = () => {
+    locationsApi.downloadTemplate();
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    setIsImporting(true);
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setUploadFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) {
+      return;
+    }
+
+    setIsUploading(true);
     try {
-      const result = await locationsApi.uploadExcel(file);
+      const result = await locationsApi.uploadExcel(uploadFile);
       if (result.success) {
-        toast.success(`Successfully imported ${result.importedCount} locations`);
+        toast.success(
+          `Successfully imported ${result.importedCount} locations`,
+        );
         await loadData();
+        setIsUploadModalOpen(false);
+        setUploadFile(null);
       } else {
         toast.error("Import failed");
       }
     } catch (error: any) {
       toast.error(error.message || "Error uploading file");
     } finally {
-      setIsImporting(false);
-      if (event.target) {
-        event.target.value = "";
-      }
+      setIsUploading(false);
     }
+  };
+
+  const closeUploadModal = () => {
+    setIsUploadModalOpen(false);
+    setUploadFile(null);
   };
 
   const columns = createTableColumns<Location>(
@@ -228,7 +255,9 @@ export const Locations = memo(function Locations() {
         header: "Bins",
         cell: (row) => (
           <Text size="11px" c="dimmed" lineClamp={2}>
-            {row.bins && row.bins.length > 0 ? row.bins.join(", ") : "No bins assigned"}
+            {row.bins && row.bins.length > 0
+              ? row.bins.join(", ")
+              : "No bins assigned"}
           </Text>
         ),
       },
@@ -272,29 +301,12 @@ export const Locations = memo(function Locations() {
         icon={MapPin}
         actions={
           <Group gap="xs">
-            <input
-              type="file"
-              id="location-upload"
-              className="hidden"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={isImporting}
-            />
             <Button
               variant="outline"
-              onClick={() =>
-                document.getElementById("location-upload")?.click()
-              }
-              leftIcon={
-                isImporting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Upload size={16} />
-                )
-              }
-              disabled={isImporting}
+              leftIcon={<Upload size={16} />}
+              onClick={() => setIsUploadModalOpen(true)}
             >
-              {isImporting ? "Importing" : "Import Excel"}
+              Import Excel
             </Button>
             <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
               New Location
@@ -342,7 +354,10 @@ export const Locations = memo(function Locations() {
                 placeholder="101"
                 value={formData.aisle}
                 onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, aisle: event.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    aisle: event.target.value,
+                  }))
                 }
                 required
               />
@@ -360,7 +375,10 @@ export const Locations = memo(function Locations() {
                 placeholder="3"
                 value={formData.shelf}
                 onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, shelf: event.target.value }))
+                  setFormData((prev) => ({
+                    ...prev,
+                    shelf: event.target.value,
+                  }))
                 }
                 required
               />
@@ -411,6 +429,84 @@ export const Locations = memo(function Locations() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={closeUploadModal}
+        title="Import Locations from Excel"
+        size="lg"
+      >
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-start">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={42}
+                radius="lg"
+                variant="light"
+                color="cyan"
+                style={{
+                  background: "rgba(30, 192, 243, 0.12)",
+                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                }}
+              >
+                <FileSpreadsheet size={20} />
+              </ThemeIcon>
+              <Stack gap={2}>
+                <Text fw={700}>Location Import Template</Text>
+                <Text size="sm" c="dimmed">
+                  Download template first. Each row should contain one location
+                  code in Aisle-Rack-Shelf format (e.g., 101-A-1).
+                </Text>
+              </Stack>
+            </Group>
+            <Button
+              variant="outline"
+              leftIcon={<Download size={16} />}
+              onClick={handleDownloadTemplate}
+            >
+              Download Template
+            </Button>
+          </Group>
+
+          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+
+          {uploadFile ? (
+            <Group gap="sm" wrap="nowrap">
+              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+              <Stack gap={2}>
+                <Text fw={600}>{uploadFile.name}</Text>
+                <Text size="sm" c="dimmed">
+                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                </Text>
+              </Stack>
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Select Excel file to import location master data.
+            </Text>
+          )}
+
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={closeUploadModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile}
+              loading={isUploading}
+              leftIcon={
+                isUploading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+            >
+              Import Locations
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <ConfirmDialog

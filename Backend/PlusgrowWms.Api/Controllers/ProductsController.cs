@@ -160,6 +160,7 @@ public class ProductsController : BaseController
                 worksheet = workbook.Worksheet(1); // Fallback to first sheet
 
             var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
+            var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
             var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in rows)
@@ -178,14 +179,19 @@ public class ProductsController : BaseController
                     int? manufacturerId = null;
                     if (!string.IsNullOrEmpty(manufacturerName))
                     {
-                        var manufacturer = await _context.Manufacturers
-                            .FirstOrDefaultAsync(m => m.Name.ToLower() == manufacturerName.ToLower());
-                        if (manufacturer == null)
+                        if (!createdManufacturers.TryGetValue(manufacturerName, out var manufacturer))
                         {
-                            result.Errors.Add($"Row {row.RowNumber()}: Manufacturer '{manufacturerName}' does not exist in the database");
-                            continue;
+                            manufacturer = await _context.Manufacturers
+                                .FirstOrDefaultAsync(m => m.Name.ToLower() == manufacturerName.ToLower());
+                            if (manufacturer == null)
+                            {
+                                manufacturer = new Manufacturer { Name = manufacturerName };
+                                _context.Manufacturers.Add(manufacturer);
+                                await _context.SaveChangesAsync();
+                            }
+                            createdManufacturers[manufacturerName] = manufacturer;
                         }
-                        manufacturerId = manufacturer.Id;
+                        manufacturerId = createdManufacturers[manufacturerName].Id;
                     }
 
                     // Parse commodity
@@ -230,7 +236,30 @@ public class ProductsController : BaseController
                     };
 
                     _context.Products.Add(product);
+                    await _context.SaveChangesAsync();
                     result.ImportedCount++;
+
+                    // Parse and upsert stock quantity
+                    var stockQntyStr = row.Cell("Stock Qnty").GetString()?.Trim();
+                    if (!string.IsNullOrEmpty(stockQntyStr) && int.TryParse(stockQntyStr, out int stockQnty) && stockQnty >= 0)
+                    {
+                        var existingQty = await _context.ProductQuantities
+                            .FirstOrDefaultAsync(pq => pq.ProductId == product.Id);
+                        if (existingQty != null)
+                        {
+                            existingQty.CurrentQuantity = stockQnty;
+                            existingQty.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                        }
+                        else
+                        {
+                            _context.ProductQuantities.Add(new ProductQuantity
+                            {
+                                ProductId = product.Id,
+                                CurrentQuantity = stockQnty,
+                                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
+                            });
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {

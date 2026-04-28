@@ -1,12 +1,6 @@
 import React, { memo, useEffect, useState } from "react";
 import { format } from "date-fns";
-import {
-  Group,
-  Select,
-  Stack,
-  Text,
-  ThemeIcon,
-} from "@mantine/core";
+import { Group, Select, Stack, Text, ThemeIcon } from "@mantine/core";
 import {
   Building,
   CheckCircle2,
@@ -25,7 +19,10 @@ import {
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
-import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  DataTable,
+  createTableColumns,
+} from "../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -285,16 +282,12 @@ export const MPD = memo(function MPD() {
       {
         accessorKey: "manufacturer",
         header: "Manufacturer",
-        cell: (row) => (
-          <Text size="sm">{row.manufacturer?.name || "N/A"}</Text>
-        ),
+        cell: (row) => <Text size="sm">{row.manufacturer?.name || "N/A"}</Text>,
       },
       {
         accessorKey: "commodity",
         header: "Commodity",
-        cell: (row) => (
-          <Text size="sm">{row.commodity?.name || "N/A"}</Text>
-        ),
+        cell: (row) => <Text size="sm">{row.commodity?.name || "N/A"}</Text>,
       },
       {
         accessorKey: "mrp",
@@ -592,8 +585,9 @@ export const MPD = memo(function MPD() {
               <Stack gap={2}>
                 <Text fw={700}>Product Import Template</Text>
                 <Text size="sm" c="dimmed">
-                  Download template first. Manufacturer and commodity names must
-                  already exist.
+                  Download template first. Manufacturer and commodity names are
+                  auto-created if missing. Use Stock Qnty column to set initial
+                  inventory.
                 </Text>
               </Stack>
             </Group>
@@ -606,11 +600,7 @@ export const MPD = memo(function MPD() {
             </Button>
           </Group>
 
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleFileSelect}
-          />
+          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
 
           {uploadFile ? (
             <Group gap="sm" wrap="nowrap">

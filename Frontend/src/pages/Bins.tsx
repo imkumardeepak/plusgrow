@@ -1,11 +1,24 @@
 import React, { memo, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
-import { Box, Edit2, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import {
+  Box,
+  CheckCircle2,
+  Download,
+  Edit2,
+  FileSpreadsheet,
+  Loader2,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
-import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  DataTable,
+  createTableColumns,
+} from "../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -23,6 +36,9 @@ export const Bins = memo(function Bins() {
   const [deleteTarget, setDeleteTarget] = useState<Bin | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState<CreateBinDto>({
     binCode: "",
   });
@@ -108,29 +124,51 @@ export const Bins = memo(function Bins() {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDownloadTemplate = () => {
+    binsApi.downloadTemplate();
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    setIsImporting(true);
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setUploadFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) {
+      return;
+    }
+
+    setIsUploading(true);
     try {
-      const result = await binsApi.uploadExcel(file);
+      const result = await binsApi.uploadExcel(uploadFile);
       if (result.success) {
         toast.success(`Successfully imported ${result.importedCount} bins`);
         await loadBins();
+        setIsUploadModalOpen(false);
+        setUploadFile(null);
       } else {
         toast.error("Import failed");
       }
     } catch (error: any) {
       toast.error(error.message || "Error uploading file");
     } finally {
-      setIsImporting(false);
-      if (event.target) {
-        event.target.value = "";
-      }
+      setIsUploading(false);
     }
+  };
+
+  const closeUploadModal = () => {
+    setIsUploadModalOpen(false);
+    setUploadFile(null);
   };
 
   const columns = createTableColumns<Bin>(
@@ -193,36 +231,19 @@ export const Bins = memo(function Bins() {
         icon={Box}
         actions={
           <Group gap="xs">
-            <input
-              type="file"
-              id="bin-upload"
-              className="hidden"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={isImporting}
-            />
             <Button
               variant="outline"
-              onClick={() => document.getElementById("bin-upload")?.click()}
-              leftIcon={
-                isImporting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Upload size={16} />
-                )
-              }
-              disabled={isImporting}
+              leftIcon={<Upload size={16} />}
+              onClick={() => setIsUploadModalOpen(true)}
             >
-              {isImporting ? "Importing" : "Import Excel"}
+              Import Excel
             </Button>
             <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
               New Bin
             </Button>
           </Group>
         }
-        metrics={[
-          { label: "Bins", value: bins.length, tone: "brand" },
-        ]}
+        metrics={[{ label: "Bins", value: bins.length, tone: "brand" }]}
       >
         <OperationsPanel
           title="Bin Directory"
@@ -271,6 +292,83 @@ export const Bins = memo(function Bins() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={closeUploadModal}
+        title="Import Bins from Excel"
+        size="lg"
+      >
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-start">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={42}
+                radius="lg"
+                variant="light"
+                color="cyan"
+                style={{
+                  background: "rgba(30, 192, 243, 0.12)",
+                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                }}
+              >
+                <FileSpreadsheet size={20} />
+              </ThemeIcon>
+              <Stack gap={2}>
+                <Text fw={700}>Bin Import Template</Text>
+                <Text size="sm" c="dimmed">
+                  Download template first. Each row should contain one bin code.
+                </Text>
+              </Stack>
+            </Group>
+            <Button
+              variant="outline"
+              leftIcon={<Download size={16} />}
+              onClick={handleDownloadTemplate}
+            >
+              Download Template
+            </Button>
+          </Group>
+
+          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+
+          {uploadFile ? (
+            <Group gap="sm" wrap="nowrap">
+              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+              <Stack gap={2}>
+                <Text fw={600}>{uploadFile.name}</Text>
+                <Text size="sm" c="dimmed">
+                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                </Text>
+              </Stack>
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Select Excel file to import bin master data.
+            </Text>
+          )}
+
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={closeUploadModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile}
+              loading={isUploading}
+              leftIcon={
+                isUploading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+            >
+              Import Bins
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <ConfirmDialog

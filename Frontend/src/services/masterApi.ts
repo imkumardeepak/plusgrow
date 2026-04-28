@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import api from './authApi';
 
 
@@ -332,12 +333,40 @@ export const productsApi = {
   },
   
   downloadTemplate: (): void => {
-    const link = document.createElement('a');
-    link.href = '/Product_Template.xlsx';
-    link.download = 'Product_Template.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'Product Name': '',
+        'SKU': '',
+        'Manufacturer Name': '',
+        'Commodity Name': '',
+        'Country of Origin': 'India',
+        'MRP Quantity': '',
+        'Unit Type': 'UNIT',
+        'MRP': '',
+        'USSP': '',
+        'Best Before (Months)': '12',
+        'Factor': '1',
+        'Stock Qnty': '',
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 35 },  // Product Name
+      { wch: 20 },  // SKU
+      { wch: 25 },  // Manufacturer Name
+      { wch: 20 },  // Commodity Name
+      { wch: 18 },  // Country of Origin
+      { wch: 15 },  // MRP Quantity
+      { wch: 12 },  // Unit Type
+      { wch: 12 },  // MRP
+      { wch: 12 },  // USSP
+      { wch: 20 },  // Best Before (Months)
+      { wch: 10 },  // Factor
+      { wch: 12 },  // Stock Qnty
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
+    XLSX.writeFile(wb, 'Product_Template.xlsx');
   },
 };
 
@@ -373,6 +402,15 @@ export const binsApi = {
     if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
     return response.data.data!;
   },
+
+  downloadTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [{ 'BinCode': '' }];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [{ wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Bin Template');
+    XLSX.writeFile(wb, 'Bin_Template.xlsx');
+  },
 };
 
 // Locations API
@@ -406,6 +444,21 @@ export const locationsApi = {
     });
     if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
     return response.data.data!;
+  },
+
+  downloadTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'LocationCode': '',
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 20 },  // LocationCode
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Location Template');
+    XLSX.writeFile(wb, 'Location_Template.xlsx');
   },
 };
 
@@ -441,6 +494,31 @@ export const poInvoicesApi = {
 
     if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
     return response.data.data!;
+  },
+
+  downloadTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'InvoiceDate': '',
+        'PartyName': '',
+        'SKUCode': '',
+        'ProductName': '',
+        'BilledQty': '',
+        'MRP': '',
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 35 },
+      { wch: 12 },
+      { wch: 12 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'PO Invoice Template');
+    XLSX.writeFile(wb, 'PO_Invoice_Template.xlsx');
   },
 
   markPrinted: async (invoiceIds: number[]): Promise<MarkPoInvoicesPrintedResult> => {

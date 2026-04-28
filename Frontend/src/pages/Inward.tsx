@@ -1,9 +1,20 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Badge, Grid, Group, Select, Stack, Text } from "@mantine/core";
+import {
+  Badge,
+  Grid,
+  Group,
+  Select,
+  Stack,
+  Text,
+  ThemeIcon,
+} from "@mantine/core";
 import {
   ArrowDownToLine,
+  CheckCircle2,
+  Download,
   Edit2,
+  FileSpreadsheet,
   FileText,
   Loader2,
   Plus,
@@ -62,6 +73,9 @@ export const Inward = memo(function Inward() {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingInvoices, setIsUploadingInvoices] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -187,32 +201,50 @@ export const Inward = memo(function Inward() {
     }
   };
 
-  const handleInvoiceUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleDownloadTemplate = () => {
+    poInvoicesApi.downloadTemplate();
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsUploadingInvoices(true);
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setUploadFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+
+    setIsUploading(true);
     try {
-      const result: ImportResult = await poInvoicesApi.uploadExcel(file);
+      const result = await poInvoicesApi.uploadExcel(uploadFile);
       if (result.success) {
         toast.success(`Imported ${result.importedCount} invoice rows`);
         if (result.errors?.length) {
-          toast.warning(
-            `${result.errors.length} rows skipped. Check product SKU/name mapping.`,
-          );
+          toast.warning(`${result.errors.length} rows had errors`);
         }
         await loadData();
+        setIsUploadModalOpen(false);
+        setUploadFile(null);
       } else {
         toast.error("Invoice upload failed");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to upload invoice file");
     } finally {
-      setIsUploadingInvoices(false);
-      if (event.target) event.target.value = "";
+      setIsUploading(false);
     }
+  };
+
+  const closeUploadModal = () => {
+    setIsUploadModalOpen(false);
+    setUploadFile(null);
   };
 
   const invoiceColumns = createTableColumns<PoInvoice>(
@@ -354,33 +386,14 @@ export const Inward = memo(function Inward() {
         description="Import Excel or add a single inward line manually."
         action={
           <Group gap="xs">
-            <div className="relative">
-              <input
-                type="file"
-                id="invoice-upload"
-                className="hidden"
-                accept=".xlsx,.xls"
-                onChange={handleInvoiceUpload}
-                disabled={isUploadingInvoices}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  document.getElementById("invoice-upload")?.click()
-                }
-                leftIcon={
-                  isUploadingInvoices ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Upload className="h-3.5 w-3.5" />
-                  )
-                }
-                disabled={isUploadingInvoices}
-              >
-                {isUploadingInvoices ? "Uploading…" : "Upload Excel"}
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsUploadModalOpen(true)}
+              leftIcon={<Upload className="h-3.5 w-3.5" />}
+            >
+              Upload Excel
+            </Button>
             <Button
               size="sm"
               onClick={openCreateInvoice}
@@ -565,6 +578,84 @@ export const Inward = memo(function Inward() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={closeUploadModal}
+        title="Import PO Invoices from Excel"
+        size="lg"
+      >
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-start">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={42}
+                radius="lg"
+                variant="light"
+                color="cyan"
+                style={{
+                  background: "rgba(30, 192, 243, 0.12)",
+                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                }}
+              >
+                <FileSpreadsheet size={20} />
+              </ThemeIcon>
+              <Stack gap={2}>
+                <Text fw={700}>PO Invoice Import Template</Text>
+                <Text size="sm" c="dimmed">
+                  Download template first. SKU or product name must match an
+                  existing product.
+                </Text>
+              </Stack>
+            </Group>
+            <Button
+              variant="outline"
+              leftIcon={<Download size={16} />}
+              onClick={handleDownloadTemplate}
+            >
+              Download Template
+            </Button>
+          </Group>
+
+          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+
+          {uploadFile ? (
+            <Group gap="sm" wrap="nowrap">
+              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+              <Stack gap={2}>
+                <Text fw={600}>{uploadFile.name}</Text>
+                <Text size="sm" c="dimmed">
+                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                </Text>
+              </Stack>
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Select Excel file to import PO invoice data.
+            </Text>
+          )}
+
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={closeUploadModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile}
+              loading={isUploading}
+              leftIcon={
+                isUploading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+            >
+              Import Invoices
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       <ConfirmDialog

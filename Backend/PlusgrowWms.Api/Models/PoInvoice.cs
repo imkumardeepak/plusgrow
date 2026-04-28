@@ -18,6 +18,11 @@ public class PoInvoice
     [Column("party_name")]
     public string PartyName { get; set; } = string.Empty;
 
+    [Required]
+    [MaxLength(20)]
+    [Column("invoice_number")]
+    public string InvoiceNumber { get; set; } = string.Empty;
+
     [Column("product_id")]
     public int ProductId { get; set; }
 
