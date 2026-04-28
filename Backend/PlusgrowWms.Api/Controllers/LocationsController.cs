@@ -186,4 +186,65 @@ public class LocationsController : BaseController
             return Error<ImportResultDto>($"Error processing file: {ex.Message}");
         }
     }
+
+    [HttpPost("{id}/map-bins")]
+    public async Task<ActionResult<ApiResponse<LocationDto>>> MapBinsToLocation(int id, [FromBody] MapBinsRequestDto request)
+    {
+        try
+        {
+            var location = await _context.Locations.FindAsync(id);
+            if (location == null)
+                return NotFound<LocationDto>("Location not found");
+
+            // Validate bins exist in master
+            var existingBins = await _context.Bins.Where(b => request.BinCodes.Contains(b.BinCode)).ToListAsync();
+            var existingBinCodes = existingBins.Select(b => b.BinCode).ToHashSet();
+
+            var invalidBins = request.BinCodes.Where(code => !existingBinCodes.Contains(code)).ToList();
+            if (invalidBins.Any())
+            {
+                return BadRequest<LocationDto>($"Invalid bin codes: {string.Join(", ", invalidBins)}. Please add them to Bin Master first.");
+            }
+
+            // Find bins that are already assigned to other locations (to unmap them)
+            var allLocations = await _context.Locations.Where(l => l.Id != id).ToListAsync();
+            var binsToUnmap = new Dictionary<string, string>(); // binCode -> oldLocationCode
+
+            foreach (var binCode in request.BinCodes)
+            {
+                foreach (var otherLocation in allLocations)
+                {
+                    if (otherLocation.Bins.Contains(binCode))
+                    {
+                        binsToUnmap[binCode] = otherLocation.LocationCode;
+                        otherLocation.Bins.Remove(binCode);
+                        _context.Entry(otherLocation).Property(l => l.Bins).IsModified = true;
+                        _logger.LogInformation("Unmapped bin {BinCode} from location {OldLocationCode}", binCode, otherLocation.LocationCode);
+                    }
+                }
+            }
+
+            // Map bins to current location
+            location.Bins = request.BinCodes.ToList();
+            _context.Entry(location).Property(l => l.Bins).IsModified = true;
+            await _context.SaveChangesAsync();
+
+            var unmappedCount = binsToUnmap.Count;
+            var message = unmappedCount > 0
+                ? $"Successfully mapped {request.BinCodes.Count} bins to {location.LocationCode}. Unmapped {unmappedCount} bins from other locations."
+                : $"Successfully mapped {request.BinCodes.Count} bins to {location.LocationCode}";
+
+            return Success(_mapper.Map<LocationDto>(location), message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error mapping bins to location {LocationId}", id);
+            return Error<LocationDto>($"Failed to map bins: {ex.InnerException?.Message ?? ex.Message}");
+        }
+    }
+}
+
+public class MapBinsRequestDto
+{
+    public List<string> BinCodes { get; set; } = new();
 }

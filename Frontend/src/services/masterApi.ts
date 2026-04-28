@@ -39,7 +39,6 @@ export interface Product {
   manufacturer?: Manufacturer;
   countryOfOrigin?: string;
   mrpQuantity?: string;
-  factor?: number;
   unitType?: string;
   ussp?: number;
   mrp?: number;
@@ -72,7 +71,6 @@ export interface CreateProductDto {
   manufacturerId?: number;
   countryOfOrigin?: string;
   mrpQuantity?: string;
-  factor?: number;
   unitType?: string;
   ussp?: number;
   mrp?: number;
@@ -128,6 +126,7 @@ export interface MarkPoInvoicesPrintedResult {
 
 export interface PoInvoice {
   id: number;
+  invoiceNumber: string;
   invoiceDate: string;
   partyName: string;
   productId: number;
@@ -338,12 +337,10 @@ export const productsApi = {
         'Manufacturer Name': '',
         'Commodity Name': '',
         'Country of Origin': 'India',
-        'MRP Quantity': '',
-        'Unit Type': 'UNIT',
         'MRP': '',
-        'USSP': '',
+        'MRP/Unit': '1L or 500g',
+        'Unit Type': 'UNIT',
         'Best Before (Months)': '12',
-        'Factor': '1',
         'Stock Qnty': '',
       }
     ];
@@ -354,12 +351,10 @@ export const productsApi = {
       { wch: 25 },  // Manufacturer Name
       { wch: 20 },  // Commodity Name
       { wch: 18 },  // Country of Origin
-      { wch: 15 },  // MRP Quantity
-      { wch: 12 },  // Unit Type
       { wch: 12 },  // MRP
-      { wch: 12 },  // USSP
+      { wch: 15 },  // MRP/Unit
+      { wch: 12 },  // Unit Type
       { wch: 20 },  // Best Before (Months)
-      { wch: 10 },  // Factor
       { wch: 12 },  // Stock Qnty
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
@@ -456,6 +451,12 @@ export const locationsApi = {
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Location Template');
     XLSX.writeFile(wb, 'Location_Template.xlsx');
+  },
+
+  mapBins: async (id: number, binCodes: string[]): Promise<Location> => {
+    const response = await api.post<ApiResponse<Location>>(`/locations/${id}/map-bins`, { binCodes });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
   },
 };
 

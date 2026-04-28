@@ -59,7 +59,6 @@ export const MPD = memo(function MPD() {
     manufacturerId: undefined,
     countryOfOrigin: "India",
     mrpQuantity: "",
-    factor: 1,
     unitType: "UNIT",
     ussp: 0,
     mrp: 0,
@@ -99,6 +98,12 @@ export const MPD = memo(function MPD() {
 
     setIsSubmitting(true);
     try {
+      // Auto-calculate USSP from MRP / MRP Quantity
+      const ussp =
+        formData.mrp && formData.mrpQuantity
+          ? formData.mrp / parseFloat(formData.mrpQuantity) || 0
+          : 0;
+
       const payload = {
         id: isEditing?.id || 0,
         name: formData.name,
@@ -107,9 +112,8 @@ export const MPD = memo(function MPD() {
         manufacturerId: formData.manufacturerId || null,
         countryOfOrigin: formData.countryOfOrigin || null,
         mrpQuantity: formData.mrpQuantity || null,
-        factor: formData.factor || 1,
         unitType: (formData.unitType || "UNIT").toUpperCase(),
-        ussp: formData.ussp || 0,
+        ussp: ussp,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 12,
       };
@@ -139,7 +143,6 @@ export const MPD = memo(function MPD() {
       manufacturerId: undefined,
       countryOfOrigin: "India",
       mrpQuantity: "",
-      factor: 1,
       unitType: "UNIT",
       ussp: 0,
       mrp: 0,
@@ -157,7 +160,6 @@ export const MPD = memo(function MPD() {
       manufacturerId: product.manufacturerId,
       countryOfOrigin: product.countryOfOrigin || "India",
       mrpQuantity: product.mrpQuantity || "",
-      factor: product.factor || 1,
       unitType: product.unitType || "UNIT",
       ussp: product.ussp || 0,
       mrp: product.mrp || 0,
@@ -487,7 +489,7 @@ export const MPD = memo(function MPD() {
             </Group>
             <Group grow align="flex-start">
               <Input
-                label="MRP"
+                label="MRP (Total Amount)"
                 type="number"
                 step="0.01"
                 value={String(formData.mrp ?? 0)}
@@ -500,22 +502,7 @@ export const MPD = memo(function MPD() {
                 leftElement={<IndianRupee size={16} />}
               />
               <Input
-                label="USSP"
-                type="number"
-                step="0.01"
-                value={String(formData.ussp ?? 0)}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    ussp: Number(event.target.value),
-                  }))
-                }
-                leftElement={<IndianRupee size={16} />}
-              />
-            </Group>
-            <Group grow align="flex-start">
-              <Input
-                label="MRP Quantity"
+                label="MRP/Unit (Single Price)"
                 placeholder="1L or 500g"
                 value={formData.mrpQuantity}
                 onChange={(event) =>
@@ -524,6 +511,20 @@ export const MPD = memo(function MPD() {
                     mrpQuantity: event.target.value,
                   }))
                 }
+              />
+            </Group>
+            <Group grow align="flex-start">
+              <Input
+                label="USSP (Auto-calculated)"
+                type="number"
+                step="0.01"
+                value={String(
+                  formData.mrp && formData.mrpQuantity
+                    ? formData.mrp / parseFloat(formData.mrpQuantity) || 0
+                    : 0,
+                )}
+                disabled
+                leftElement={<IndianRupee size={16} />}
               />
               <Input
                 label="Unit Type"

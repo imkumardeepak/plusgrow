@@ -37,6 +37,10 @@ import {
   PutAwayScanAssignmentResult,
   productAllottedLocationsApi,
   productQuantitiesApi,
+  productsApi,
+  Product,
+  PoInvoice,
+  poInvoicesApi,
 } from "../../services/masterApi";
 
 type PutAwayTask = {
@@ -58,6 +62,7 @@ export const PutAway = () => {
   const [allocations, setAllocations] = useState<
     ProductAllottedLocationRecord[]
   >([]);
+  const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [productScanCode, setProductScanCode] = useState("");
@@ -66,17 +71,25 @@ export const PutAway = () => {
   const [isAssigning, setIsAssigning] = useState(false);
   const [lastAssignment, setLastAssignment] =
     useState<PutAwayScanAssignmentResult | null>(emptyResult);
+  const [productError, setProductError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isFetchingProduct, setIsFetchingProduct] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [quantitiesData, allocationsData] = await Promise.all([
-        productQuantitiesApi.getAll(),
-        productAllottedLocationsApi.getAll(),
-      ]);
+      const [quantitiesData, allocationsData, invoicesData] = await Promise.all(
+        [
+          productQuantitiesApi.getAll(),
+          productAllottedLocationsApi.getAll(),
+          poInvoicesApi.getAll(),
+        ],
+      );
 
       setProductQuantities(quantitiesData);
       setAllocations(allocationsData);
+      setPoInvoices(invoicesData);
     } catch (error) {
       toast.error("Failed to load put-away data");
     } finally {
@@ -91,16 +104,27 @@ export const PutAway = () => {
   const allTasks = useMemo<PutAwayTask[]>(() => {
     return productQuantities
       .map((quantityRow) => {
+        // Get remaining allocation from PO invoices for this product
+        const productInvoices = poInvoices.filter(
+          (inv) => inv.productId === quantityRow.productId,
+        );
+        const remainingAllocation = productInvoices.reduce(
+          (sum, inv) => sum + inv.remainingAllocation,
+          0,
+        );
+
         const allocationRow = allocations.find(
           (entry) => entry.productId === quantityRow.productId,
         );
         const allocatedQuantity = Object.values(
           (allocationRow?.locationJson || {}) as Record<string, number>,
         ).reduce((sum, qty) => sum + Number(qty), 0);
-        const remainingQuantity = Math.max(
-          quantityRow.currentQuantity - allocatedQuantity,
-          0,
-        );
+
+        // Use remainingAllocation from invoices if available, otherwise fall back to calculation
+        const remainingQuantity =
+          remainingAllocation > 0
+            ? remainingAllocation
+            : Math.max(quantityRow.currentQuantity - allocatedQuantity, 0);
 
         return {
           productId: quantityRow.productId,
@@ -112,31 +136,41 @@ export const PutAway = () => {
           updatedAt: quantityRow.updatedAt,
         };
       })
+      .filter((task) => task.remainingQuantity > 0)
       .sort((a, b) => b.remainingQuantity - a.remainingQuantity);
-  }, [allocations, productQuantities]);
+  }, [allocations, productQuantities, poInvoices]);
 
   const tasks = useMemo<PutAwayTask[]>(() => {
-    return allTasks
-      .filter((task) => task.remainingQuantity > 0)
-      .filter((task) => {
-        const query = searchQuery.toLowerCase();
-        return (
-          task.skuCode.toLowerCase().includes(query) ||
-          task.productName.toLowerCase().includes(query)
-        );
-      });
+    return allTasks.filter((task) => {
+      const query = searchQuery.toLowerCase();
+      return (
+        task.skuCode.toLowerCase().includes(query) ||
+        task.productName.toLowerCase().includes(query)
+      );
+    });
   }, [allTasks, searchQuery]);
 
   const selectedTask = useMemo(() => {
-    if (!productScanCode.trim()) return null;
+    if (!productScanCode.trim()) {
+      setProductError(null);
+      return null;
+    }
     const scan = productScanCode.trim().toLowerCase();
-    return (
+    const task =
       allTasks.find(
         (task) =>
           task.skuCode.toLowerCase() === scan ||
           task.productName.toLowerCase() === scan,
-      ) ?? null
-    );
+      ) ?? null;
+
+    if (!task) {
+      setProductError(
+        "Product not found in put-away queue. Scan from Product Master.",
+      );
+    } else {
+      setProductError(null);
+    }
+    return task;
   }, [allTasks, productScanCode]);
 
   useEffect(() => {
@@ -147,12 +181,80 @@ export const PutAway = () => {
           : "",
       );
     }
-  }, [assignQuantity, selectedTask]);
+  }, [selectedTask]);
+
+  const handleProductScan = async (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (e.key === "Enter" && productScanCode.trim()) {
+      e.preventDefault();
+
+      const scan = productScanCode.trim();
+
+      // First check in put-away tasks
+      const task = allTasks.find(
+        (t) =>
+          t.skuCode.toLowerCase() === scan.toLowerCase() ||
+          t.productName.toLowerCase() === scan.toLowerCase(),
+      );
+
+      if (task) {
+        // Found in put-away queue
+        setProductError(null);
+        setScannedProduct(null);
+        // Auto-focus location input
+        const locationInput = document.getElementById("location-scan-input");
+        if (locationInput) {
+          locationInput.focus();
+        }
+        return;
+      }
+
+      // Not in put-away queue, fetch from Product Master
+      setIsFetchingProduct(true);
+      try {
+        const allProducts = await productsApi.getAll();
+        const product = allProducts.find(
+          (p) =>
+            p.sku?.toLowerCase() === scan.toLowerCase() ||
+            p.name.toLowerCase() === scan.toLowerCase(),
+        );
+
+        if (product) {
+          setScannedProduct(product);
+          setProductError(null);
+          toast.success(
+            `Found product: ${product.name} (Not in put-away queue)`,
+          );
+        } else {
+          setScannedProduct(null);
+          setProductError("Product not found in Product Master");
+          toast.error("Product not found in Product Master");
+        }
+      } catch (error) {
+        setProductError("Failed to fetch product details");
+        toast.error("Failed to fetch product from master");
+      } finally {
+        setIsFetchingProduct(false);
+      }
+    }
+  };
+
+  const handleLocationScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && locationScanCode.trim()) {
+      e.preventDefault();
+      // Auto-submit when location is scanned
+      void handleAssign();
+    }
+  };
 
   const handleChooseTask = (task: PutAwayTask) => {
     setProductScanCode(task.skuCode);
     setAssignQuantity(task.remainingQuantity > 0 ? task.remainingQuantity : "");
     setLastAssignment(null);
+    setProductError(null);
+    setLocationError(null);
+    setScannedProduct(null);
   };
 
   const handleAssign = async () => {
@@ -163,18 +265,20 @@ export const PutAway = () => {
       return;
     }
 
+    if (!selectedTask) {
+      toast.error("Scanned product was not found");
+      setProductError("Product not found");
+      return;
+    }
+
     if (!locationScanCode.trim()) {
       toast.error("Scan location or bin first");
+      setLocationError("Location code required");
       return;
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
       toast.error("Enter valid quantity");
-      return;
-    }
-
-    if (!selectedTask) {
-      toast.error("Scanned product was not found");
       return;
     }
 
@@ -203,17 +307,27 @@ export const PutAway = () => {
         `Stored ${result.assignedQuantity} units in ${result.resolvedLocationCode}`,
       );
       await loadData();
+
+      // Clear location scan for next scan
       setLocationScanCode("");
+      setLocationError(null);
+
+      // Update quantity for remaining
       setAssignQuantity(
         result.remainingUnassignedQuantity > 0
           ? result.remainingUnassignedQuantity
           : "",
       );
+
+      // If all quantity assigned, clear product scan too
       if (result.remainingUnassignedQuantity <= 0) {
         setProductScanCode("");
+        setProductError(null);
+        setAssignQuantity("");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to save put-away assignment");
+      setLocationError(error.message || "Assignment failed");
     } finally {
       setIsAssigning(false);
     }
@@ -293,9 +407,13 @@ export const PutAway = () => {
       description="Scan product, confirm pending quantity, then scan location or bin to store it under the parent location."
       icon={Warehouse}
       metrics={[
-        { label: "Actual Qty", value: totalCurrent },
-        { label: "Allocated", value: totalAllocated, tone: "brand" },
-        { label: "Pending Put Away", value: totalRemaining, tone: "warning" },
+        { label: "Total Stock Qty", value: totalCurrent },
+        { label: "Stored in Locations", value: totalAllocated, tone: "brand" },
+        {
+          label: "Remaining Allocation",
+          value: totalRemaining,
+          tone: "warning",
+        },
       ]}
     >
       <Grid gutter="md">
@@ -327,19 +445,42 @@ export const PutAway = () => {
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Input
                     size="sm"
-                    label="Scan Product"
-                    placeholder="Scan SKU or product code"
+                    label="Scan Product SKU"
+                    placeholder="Enter or scan SKU code"
                     value={productScanCode}
-                    onChange={(e) => setProductScanCode(e.target.value)}
+                    onChange={(e) => {
+                      setProductScanCode(e.target.value);
+                      setProductError(null);
+                      setScannedProduct(null);
+                    }}
+                    onKeyDown={handleProductScan}
+                    error={productError}
+                    leftSection={<Package size={16} />}
+                    rightSection={
+                      isFetchingProduct ? (
+                        <div className="animate-spin">
+                          <Package size={16} />
+                        </div>
+                      ) : null
+                    }
+                    autoFocus
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Input
                     size="sm"
                     label="Scan Location or Bin"
-                    placeholder="Scan location code or bin code"
+                    placeholder="Enter or scan location/bin code"
                     value={locationScanCode}
-                    onChange={(e) => setLocationScanCode(e.target.value)}
+                    onChange={(e) => {
+                      setLocationScanCode(e.target.value);
+                      setLocationError(null);
+                    }}
+                    onKeyDown={handleLocationScan}
+                    error={locationError}
+                    leftSection={<MapPin size={16} />}
+                    id="location-scan-input"
+                    disabled={!selectedTask}
                   />
                 </Grid.Col>
               </Grid>
@@ -361,6 +502,39 @@ export const PutAway = () => {
                   )
                 }
               />
+
+              {scannedProduct && !selectedTask && (
+                <Paper
+                  radius="xl"
+                  p="md"
+                  style={{
+                    background: "rgba(255, 165, 0, 0.1)",
+                    border: "1px solid rgba(255, 165, 0, 0.2)",
+                  }}
+                >
+                  <Stack gap={4}>
+                    <Group justify="space-between">
+                      <Text fw={600} c="orange.3" size="sm">
+                        Product from Master (Not in Put-Away Queue)
+                      </Text>
+                      <Badge variant="light" color="orange" size="sm">
+                        No Stock Qty
+                      </Badge>
+                    </Group>
+                    <Text ff="monospace" size="sm" c="orange.2" fw={700}>
+                      {scannedProduct.sku || "N/A"}
+                    </Text>
+                    <Text size="xs" c="white">
+                      {scannedProduct.name}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      This product exists in Product Master but has no stock
+                      quantity recorded. Please add stock quantity first in
+                      Inward module.
+                    </Text>
+                  </Stack>
+                </Paper>
+              )}
 
               {selectedTask ? (
                 <Paper

@@ -79,7 +79,6 @@ public class ProductsController : BaseController
         existing.ManufacturerId = product.ManufacturerId;
         existing.CountryOfOrigin = product.CountryOfOrigin;
         existing.MrpQuantity = product.MrpQuantity;
-        existing.Factor = product.Factor;
         existing.UnitType = product.UnitType;
         existing.Ussp = product.Ussp;
         existing.Mrp = product.Mrp;
@@ -218,7 +217,18 @@ public class ProductsController : BaseController
                     decimal.TryParse(row.Cell("MRP").GetString(), out decimal mrp);
                     decimal.TryParse(row.Cell("USSP").GetString(), out decimal ussp);
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
-                    int.TryParse(row.Cell("Factor").GetString(), out int factor);
+
+                    // Auto-calculate USSP if MRP and MRP/Unit provided
+                    var mrpQuantityStr = row.Cell("MRP/Unit").GetString()?.Trim();
+                    if (mrp > 0 && !string.IsNullOrEmpty(mrpQuantityStr))
+                    {
+                        // Extract numeric value from MRP/Unit (e.g., "1L" -> 1, "500g" -> 500)
+                        var numericPart = new string(mrpQuantityStr.Where(char.IsDigit).ToArray());
+                        if (decimal.TryParse(numericPart, out decimal mrpUnitValue) && mrpUnitValue > 0)
+                        {
+                            ussp = mrp / mrpUnitValue;
+                        }
+                    }
 
                     var product = new Product
                     {
@@ -227,12 +237,11 @@ public class ProductsController : BaseController
                         ManufacturerId = manufacturerId,
                         CommodityId = commodityId,
                         CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",
-                        MrpQuantity = row.Cell("MRP Quantity").GetString()?.Trim(),
+                        MrpQuantity = mrpQuantityStr,
                         UnitType = row.Cell("Unit Type").GetString()?.Trim() ?? "UNIT",
                         Mrp = mrp,
                         Ussp = ussp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
-                        Factor = factor > 0 ? factor : 1
                     };
 
                     _context.Products.Add(product);

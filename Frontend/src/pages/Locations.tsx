@@ -1,6 +1,17 @@
 import React, { memo, useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Group, MultiSelect, Stack, Text, ThemeIcon } from "@mantine/core";
+import {
+  Group,
+  MultiSelect,
+  Stack,
+  Text,
+  ThemeIcon,
+  Badge,
+  ScrollArea,
+  Paper,
+  TextInput,
+  Center,
+} from "@mantine/core";
 import {
   Box,
   CheckCircle2,
@@ -12,6 +23,9 @@ import {
   Plus,
   Trash2,
   Upload,
+  ScanBarcode,
+  X,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
@@ -47,6 +61,15 @@ export const Locations = memo(function Locations() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isBinMapModalOpen, setIsBinMapModalOpen] = useState(false);
+  const [binMapLocation, setBinMapLocation] = useState<Location | null>(null);
+  const [scannedLocationCode, setScannedLocationCode] = useState("");
+  const [scannedBins, setScannedBins] = useState<string[]>([]);
+  const [currentBinInput, setCurrentBinInput] = useState("");
+  const [isMappingBins, setIsMappingBins] = useState(false);
+  const [alreadyMappedBins, setAlreadyMappedBins] = useState<
+    Array<{ binCode: string; locationCode: string }>
+  >([]);
   const [formData, setFormData] = useState<CreateLocationDto>({
     aisle: "",
     rack: "",
@@ -220,6 +243,112 @@ export const Locations = memo(function Locations() {
     setUploadFile(null);
   };
 
+  const openBinMapModal = (location: Location) => {
+    setBinMapLocation(location);
+    setScannedLocationCode(location.locationCode);
+    setScannedBins(location.bins || []);
+    setCurrentBinInput("");
+    setAlreadyMappedBins([]);
+    setIsBinMapModalOpen(true);
+  };
+
+  const closeBinMapModal = () => {
+    setIsBinMapModalOpen(false);
+    setBinMapLocation(null);
+    setScannedLocationCode("");
+    setScannedBins([]);
+    setCurrentBinInput("");
+    setAlreadyMappedBins([]);
+  };
+
+  const handleBinScan = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && currentBinInput.trim()) {
+      event.preventDefault();
+      const binCode = currentBinInput.trim().toUpperCase();
+
+      // Check if bin already scanned in current session
+      if (scannedBins.includes(binCode)) {
+        toast.error(`Bin "${binCode}" already scanned`);
+        setCurrentBinInput("");
+        return;
+      }
+
+      // Check if bin already mapped to current location
+      if (binMapLocation?.bins?.some((b) => b.toUpperCase() === binCode)) {
+        toast.error(`Bin "${binCode}" already mapped to this location`);
+        setCurrentBinInput("");
+        return;
+      }
+
+      // Check if bin exists in master
+      const binExists = bins.some((b) => b.binCode.toUpperCase() === binCode);
+      if (!binExists) {
+        toast.error(
+          `Bin "${binCode}" not found in Bin Master. Please add it first.`,
+        );
+        setCurrentBinInput("");
+        return;
+      }
+
+      // Check if bin is already assigned to another location
+      const assignedLocation = locations.find(
+        (loc) =>
+          loc.id !== binMapLocation?.id &&
+          loc.bins?.some((b) => b.toUpperCase() === binCode),
+      );
+
+      if (assignedLocation) {
+        // Add to already mapped bins list instead of blocking
+        setAlreadyMappedBins((prev) => {
+          // Avoid duplicates
+          if (prev.some((item) => item.binCode === binCode)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            { binCode, locationCode: assignedLocation.locationCode },
+          ];
+        });
+        toast.warning(
+          `Bin "${binCode}" is already mapped to "${assignedLocation.locationCode}". It will be unmapped from there.`,
+        );
+      }
+
+      // Add to scanned bins (will unmap from other location on save)
+      setScannedBins((prev) => [...prev, binCode]);
+      setCurrentBinInput("");
+      toast.success(`Bin "${binCode}" added`);
+    }
+  };
+
+  const removeScannedBin = (binCode: string) => {
+    setScannedBins((prev) => prev.filter((b) => b !== binCode));
+    // Also remove from already mapped bins if present
+    setAlreadyMappedBins((prev) =>
+      prev.filter((item) => item.binCode !== binCode),
+    );
+  };
+
+  const handleMapBins = async () => {
+    if (!binMapLocation) {
+      return;
+    }
+
+    setIsMappingBins(true);
+    try {
+      await locationsApi.mapBins(binMapLocation.id, scannedBins);
+      toast.success(
+        `Successfully mapped ${scannedBins.length} bins to ${binMapLocation.locationCode}`,
+      );
+      await loadData();
+      closeBinMapModal();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to map bins");
+    } finally {
+      setIsMappingBins(false);
+    }
+  };
+
   const columns = createTableColumns<Location>(
     [
       {
@@ -274,6 +403,11 @@ export const Locations = memo(function Locations() {
       },
     ],
     [
+      {
+        label: "Bin Map",
+        icon: <ScanBarcode className="h-4 w-4" />,
+        onClick: (row) => openBinMapModal(row),
+      },
       {
         label: "Edit",
         icon: <Edit2 className="h-4 w-4" />,
@@ -519,6 +653,219 @@ export const Locations = memo(function Locations() {
         variant="danger"
         isLoading={isDeleting}
       />
+
+      <Modal
+        isOpen={isBinMapModalOpen}
+        onClose={closeBinMapModal}
+        title="Map Bins to Location"
+        size="xl"
+      >
+        <Stack gap="lg">
+          {/* Location Info */}
+          <Paper
+            p="md"
+            withBorder
+            style={{ background: "rgba(30, 192, 243, 0.05)" }}
+          >
+            <Group justify="space-between">
+              <Group gap="sm">
+                <ThemeIcon
+                  size={42}
+                  radius="lg"
+                  variant="light"
+                  color="cyan"
+                  style={{
+                    background: "rgba(30, 192, 243, 0.12)",
+                    border: "1px solid rgba(30, 192, 243, 0.18)",
+                  }}
+                >
+                  <MapPin size={20} />
+                </ThemeIcon>
+                <Stack gap={2}>
+                  <Text fw={700} size="lg">
+                    {binMapLocation?.locationCode}
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Aisle: {binMapLocation?.aisle} | Rack:{" "}
+                    {binMapLocation?.rack} | Shelf: {binMapLocation?.shelf}
+                  </Text>
+                </Stack>
+              </Group>
+              <Badge size="lg" variant="light" color="cyan">
+                {scannedBins.length} Bins
+              </Badge>
+            </Group>
+          </Paper>
+
+          {/* Bin Scanner Input */}
+          <Stack gap="sm">
+            <Group gap="sm">
+              <Text fw={700} size="sm">
+                Scan Bin Code
+              </Text>
+              <ArrowRight size={16} color="var(--mantine-color-cyan-4)" />
+              <Text size="xs" c="dimmed">
+                Press Enter after each scan
+              </Text>
+            </Group>
+            <TextInput
+              placeholder="Scan or type bin code (e.g., A-101-B)"
+              value={currentBinInput}
+              onChange={(e) => setCurrentBinInput(e.target.value)}
+              onKeyDown={handleBinScan}
+              leftSection={<ScanBarcode size={18} />}
+              size="md"
+              autoFocus
+            />
+          </Stack>
+
+          {/* Already Mapped Bins Warning */}
+          {alreadyMappedBins.length > 0 && (
+            <Paper
+              p="md"
+              withBorder
+              style={{
+                background: "rgba(255, 165, 0, 0.05)",
+                borderColor: "rgba(255, 165, 0, 0.3)",
+              }}
+            >
+              <Stack gap="xs">
+                <Group gap="sm">
+                  <Text fw={700} size="sm" c="orange.4">
+                    ⚠️ Bins to be unmapped from other locations:
+                  </Text>
+                </Group>
+                <ScrollArea.Autosize mah={120}>
+                  <Stack gap="xs">
+                    {alreadyMappedBins.map((item) => (
+                      <Group key={item.binCode} gap="sm" wrap="nowrap">
+                        <Text
+                          size="xs"
+                          fw={600}
+                          fontFamily="monospace"
+                          c="orange.3"
+                        >
+                          {item.binCode}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          → Currently mapped to
+                        </Text>
+                        <Badge size="sm" variant="light" color="orange">
+                          {item.locationCode}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          (will be unmapped)
+                        </Text>
+                      </Group>
+                    ))}
+                  </Stack>
+                </ScrollArea.Autosize>
+              </Stack>
+            </Paper>
+          )}
+
+          {/* Scanned Bins List */}
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Text fw={700} size="sm">
+                Scanned Bins ({scannedBins.length})
+              </Text>
+              {scannedBins.length > 0 && (
+                <Text
+                  size="xs"
+                  c="red"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setScannedBins([])}
+                >
+                  Clear All
+                </Text>
+              )}
+            </Group>
+
+            {scannedBins.length === 0 ? (
+              <Paper
+                p="xl"
+                withBorder
+                style={{
+                  background: "rgba(255, 255, 255, 0.02)",
+                  borderStyle: "dashed",
+                }}
+              >
+                <Center>
+                  <Stack gap="xs" align="center">
+                    <ScanBarcode
+                      size={32}
+                      color="var(--mantine-color-dimmed)"
+                    />
+                    <Text size="sm" c="dimmed" ta="center">
+                      No bins scanned yet.
+                      <br />
+                      Use scanner or type bin code above.
+                    </Text>
+                  </Stack>
+                </Center>
+              </Paper>
+            ) : (
+              <ScrollArea.Autosize mah={300}>
+                <Stack gap="xs">
+                  {scannedBins.map((bin) => (
+                    <Paper
+                      key={bin}
+                      p="xs"
+                      withBorder
+                      style={{
+                        background: "rgba(255, 255, 255, 0.02)",
+                        borderColor: "rgba(30, 192, 243, 0.2)",
+                      }}
+                    >
+                      <Group justify="space-between" wrap="nowrap">
+                        <Group gap="sm" wrap="nowrap">
+                          <CheckCircle2
+                            size={16}
+                            color="var(--mantine-color-green-4)"
+                          />
+                          <Text fw={600} size="sm" fontFamily="monospace">
+                            {bin}
+                          </Text>
+                        </Group>
+                        <X
+                          size={18}
+                          color="var(--mantine-color-red-4)"
+                          style={{ cursor: "pointer" }}
+                          onClick={() => removeScannedBin(bin)}
+                        />
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </ScrollArea.Autosize>
+            )}
+          </Stack>
+
+          {/* Action Buttons */}
+          <Group justify="flex-end" pt="sm">
+            <Button variant="outline" onClick={closeBinMapModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMapBins}
+              loading={isMappingBins}
+              disabled={scannedBins.length === 0}
+              leftIcon={<CheckCircle2 size={16} />}
+              variant={alreadyMappedBins.length > 0 ? "gradient" : "filled"}
+              gradient={
+                alreadyMappedBins.length > 0
+                  ? { from: "orange", to: "yellow" }
+                  : undefined
+              }
+            >
+              {alreadyMappedBins.length > 0
+                ? `Unmap & Map ${scannedBins.length} ${scannedBins.length === 1 ? "Bin" : "Bins"}`
+                : `Save ${scannedBins.length} ${scannedBins.length === 1 ? "Bin" : "Bins"}`}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 });

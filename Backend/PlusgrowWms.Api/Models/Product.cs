@@ -10,62 +10,60 @@ public class Product
     [Key]
     [Column("id")]
     public int Id { get; set; }
-    
+
     [Required]
     [MaxLength(255)]
     [Column("name")]
     public string Name { get; set; } = string.Empty;
-    
+
     [MaxLength(100)]
     [Column("sku")]
     public string? Sku { get; set; }
-    
+
     [Column("commodity_id")]
     public int? CommodityId { get; set; }
-    
+
     [ForeignKey(nameof(CommodityId))]
     public Commodity? Commodity { get; set; }
-    
+
     [MaxLength(100)]
     [Column("country_of_origin")]
     [JsonPropertyName("CountryOfOrigin")]
     public string? CountryOfOrigin { get; set; }
-    
+
     [MaxLength(50)]
     [Column("mrp_quantity")]
     [JsonPropertyName("MrpQuantity")]
     public string? MrpQuantity { get; set; }
-    
-    [Column("factor")]
-    public decimal? Factor { get; set; }
-    
+
     [MaxLength(20)]
     [Column("unit_type")]
     [JsonPropertyName("UnitType")]
-    public string? UnitType { 
+    public string? UnitType
+    {
         get => _unitType;
         set => _unitType = value?.ToUpperInvariant();
     }
     private string? _unitType;
-    
+
     [Column("ussp")]
     [JsonPropertyName("Ussp")]
     public decimal? Ussp { get; set; }
-    
+
     [Column("mrp")]
     [JsonPropertyName("Mrp")]
     public decimal? Mrp { get; set; }
-    
+
     [Column("best_before_months")]
     [JsonPropertyName("BestBeforeMonths")]
     public int BestBeforeMonths { get; set; } = 120;
-    
+
     [Column("manufacturer_id")]
     public int? ManufacturerId { get; set; }
-    
+
     [ForeignKey(nameof(ManufacturerId))]
     public Manufacturer? Manufacturer { get; set; }
-    
-[Column("created_at")]
+
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 }

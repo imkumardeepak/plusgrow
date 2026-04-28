@@ -51,6 +51,7 @@ public class PoInvoicesController : BaseController
         };
 
         _context.PoInvoices.Add(entity);
+        await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
         await _context.SaveChangesAsync();
 
         var created = await _context.PoInvoices.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
@@ -74,6 +75,14 @@ public class PoInvoicesController : BaseController
         entity.PartyName = dto.PartyName.Trim();
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
+
+        // Calculate the difference in billed quantity and update product_quantities
+        var quantityDifference = dto.BilledQty - entity.BilledQty;
+        if (quantityDifference != 0)
+        {
+            await UpsertProductQuantityAsync(dto.ProductId, quantityDifference);
+        }
+
         entity.RemainingAllocation = dto.BilledQty;
 
         await _context.SaveChangesAsync();
