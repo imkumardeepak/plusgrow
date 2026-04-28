@@ -1,12 +1,37 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
-import { Button } from '../components/atoms/Button';
-import { Input } from '../components/atoms/Input';
-import { Modal, ConfirmDialog } from '../components/atoms/Modal';
-import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Plus, MapPin, Loader2, Trash2, Edit2, Upload, Box } from 'lucide-react';
-import { toast } from '../lib/toast';
-import { locationsApi, binsApi, Location, Bin, CreateLocationDto } from '../services/masterApi';
-import { format } from 'date-fns';
+import React, { memo, useCallback, useEffect, useState } from "react";
+import { format } from "date-fns";
+import {
+  Group,
+  MultiSelect,
+  Stack,
+  Text,
+  ThemeIcon,
+} from "@mantine/core";
+import {
+  Box,
+  Edit2,
+  Loader2,
+  MapPin,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import { Button } from "../components/atoms/Button";
+import { Input } from "../components/atoms/Input";
+import { Modal, ConfirmDialog } from "../components/atoms/Modal";
+import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  OperationsPage,
+  OperationsPanel,
+} from "../components/organisms/Operations/OperationsShell";
+import { toast } from "../lib/toast";
+import {
+  locationsApi,
+  binsApi,
+  Location,
+  Bin,
+  CreateLocationDto,
+} from "../services/masterApi";
 
 export const Locations = memo(function Locations() {
   const [locations, setLocations] = useState<Location[]>([]);
@@ -14,16 +39,16 @@ export const Locations = memo(function Locations() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Location | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState<CreateLocationDto>({
-    aisle: '',
-    rack: '',
-    shelf: '',
-    locationCode: '',
+    aisle: "",
+    rack: "",
+    shelf: "",
+    locationCode: "",
     bins: [],
   });
 
@@ -36,8 +61,8 @@ export const Locations = memo(function Locations() {
       ]);
       setLocations(locationsData);
       setBins(binsData);
-    } catch (error) {
-      toast.error('Failed to load data');
+    } catch {
+      toast.error("Failed to load data");
     } finally {
       setIsLoading(false);
     }
@@ -47,20 +72,26 @@ export const Locations = memo(function Locations() {
     loadData();
   }, [loadData]);
 
-  // Auto-generate location code
   useEffect(() => {
-    if (formData.aisle && formData.rack && formData.shelf && !isEditing) {
-        setFormData(prev => ({
-            ...prev,
-            locationCode: `${prev.aisle}-${prev.rack}-${prev.shelf}`
-        }));
+    if (isEditing) {
+      return;
+    }
+
+    if (formData.aisle || formData.rack || formData.shelf) {
+      setFormData((prev) => ({
+        ...prev,
+        locationCode: [prev.aisle, prev.rack, prev.shelf]
+          .filter(Boolean)
+          .join("-"),
+      }));
     }
   }, [formData.aisle, formData.rack, formData.shelf, isEditing]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.locationCode.trim()) {
-      toast.error('Location code is required');
+      toast.error("Location code is required");
       return;
     }
 
@@ -68,22 +99,28 @@ export const Locations = memo(function Locations() {
     try {
       if (isEditing) {
         await locationsApi.update(isEditing.id, formData);
-        toast.success('Location updated successfully');
+        toast.success("Location updated successfully");
       } else {
         await locationsApi.create(formData);
-        toast.success('Location created successfully');
+        toast.success("Location created successfully");
       }
       await loadData();
       closeModal();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save location');
+      toast.error(error.message || "Failed to save location");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const openCreateModal = () => {
-    setFormData({ aisle: '', rack: '', shelf: '', locationCode: '', bins: [] });
+    setFormData({
+      aisle: "",
+      rack: "",
+      shelf: "",
+      locationCode: "",
+      bins: [],
+    });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -104,38 +141,38 @@ export const Locations = memo(function Locations() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ aisle: '', rack: '', shelf: '', locationCode: '', bins: [] });
+    setFormData({
+      aisle: "",
+      rack: "",
+      shelf: "",
+      locationCode: "",
+      bins: [],
+    });
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      return;
+    }
+
     setIsDeleting(true);
     try {
       await locationsApi.delete(deleteTarget.id);
-      toast.success('Location deleted successfully');
+      toast.success("Location deleted successfully");
       await loadData();
       setDeleteTarget(null);
-    } catch (error) {
-      toast.error('Failed to delete location');
+    } catch {
+      toast.error("Failed to delete location");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const toggleBin = (binCode: string) => {
-    setFormData(prev => {
-        const currentBins = prev.bins || [];
-        if (currentBins.includes(binCode)) {
-            return { ...prev, bins: currentBins.filter(b => b !== binCode) };
-        } else {
-            return { ...prev, bins: [...currentBins, binCode] };
-        }
-    });
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
 
     setIsImporting(true);
     try {
@@ -144,119 +181,142 @@ export const Locations = memo(function Locations() {
         toast.success(`Successfully imported ${result.importedCount} locations`);
         await loadData();
       } else {
-        toast.error('Import failed');
+        toast.error("Import failed");
       }
     } catch (error: any) {
-      toast.error(error.message || 'Error uploading file');
+      toast.error(error.message || "Error uploading file");
     } finally {
       setIsImporting(false);
-      if (e.target) e.target.value = '';
+      if (event.target) {
+        event.target.value = "";
+      }
     }
   };
 
   const columns = createTableColumns<Location>(
     [
       {
-        accessorKey: 'locationCode',
-        header: 'Location Code',
+        accessorKey: "locationCode",
+        header: "Location",
         cell: (row) => (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
-              <MapPin className="w-4.5 h-4.5 text-brand-400" />
-            </div>
-            <div>
-              <p className="font-semibold text-white">{row.locationCode}</p>
-              <p className="text-xs text-neutral-400">A:{row.aisle} R:{row.rack} S:{row.shelf}</p>
-            </div>
-          </div>
+          <Group gap="sm" wrap="nowrap">
+            <ThemeIcon
+              size={40}
+              radius="lg"
+              variant="light"
+              color="cyan"
+              style={{
+                background: "rgba(30, 192, 243, 0.12)",
+                border: "1px solid rgba(30, 192, 243, 0.18)",
+              }}
+            >
+              <MapPin size={18} />
+            </ThemeIcon>
+            <Stack gap={2}>
+              <Text fw={700} size="sm">
+                {row.locationCode}
+              </Text>
+              <Text size="11px" c="dimmed">
+                A:{row.aisle} R:{row.rack} S:{row.shelf}
+              </Text>
+            </Stack>
+          </Group>
         ),
       },
       {
-        accessorKey: 'bins',
-        header: 'Bins',
+        accessorKey: "bins",
+        header: "Bins",
         cell: (row) => (
-            <div className="flex flex-wrap gap-1 max-w-xs">
-                {row.bins && row.bins.length > 0 ? row.bins.map(bin => (
-                    <span key={bin} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-brand-500/10 text-brand-400 border border-brand-500/20">
-                        {bin}
-                    </span>
-                )) : (
-                    <span className="text-xs text-neutral-500">No bins assigned</span>
-                )}
-            </div>
+          <Text size="11px" c="dimmed" lineClamp={2}>
+            {row.bins && row.bins.length > 0 ? row.bins.join(", ") : "No bins assigned"}
+          </Text>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Added',
+        accessorKey: "createdAt",
+        header: "Created",
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-white/5 text-neutral-400 text-xs rounded-md border border-white/10 font-medium">
-            {row.createdAt ? format(new Date(row.createdAt), 'MMM dd, yyyy') : 'N/A'}
-          </span>
+          <Text size="11px" c="dimmed">
+            {row.createdAt
+              ? format(new Date(row.createdAt), "dd MMM yyyy")
+              : "N/A"}
+          </Text>
         ),
       },
     ],
     [
       {
-        label: 'Edit',
+        label: "Edit",
         icon: <Edit2 className="h-4 w-4" />,
         onClick: (row) => openEditModal(row),
       },
       {
-        label: 'Delete',
+        label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
         onClick: (row) => setDeleteTarget(row),
-        variant: 'destructive',
+        variant: "destructive",
       },
-    ]
+    ],
   );
 
-  return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Location Master</h1>
-              <p className="text-sm opacity-70">Manage Warehouse Locations</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="file"
-                id="location-upload"
-                className="hidden"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                disabled={isImporting}
-              />
-              <Button
-                variant="outline"
-                className="h-9 border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
-                onClick={() => document.getElementById('location-upload')?.click()}
-                leftIcon={isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                disabled={isImporting}
-              >
-                {isImporting ? 'IMPORTING...' : 'IMPORT EXCEL'}
-              </Button>
-            </div>
-            <Button
-              onClick={openCreateModal}
-              className="h-9 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              ADD NEW
-            </Button>
-          </div>
-        </div>
-      </div>
+  const binOptions = bins.map((bin) => ({
+    value: bin.binCode,
+    label: bin.binCode,
+  }));
 
-      <div className="card bg-base-100 shadow-sm overflow-hidden">
-        <div className="p-3">
+  return (
+    <>
+      <OperationsPage
+        title="Location Master"
+        description="Warehouse slot management now follows same SaaS page shell, actions, table, and form rhythm."
+        icon={MapPin}
+        actions={
+          <Group gap="xs">
+            <input
+              type="file"
+              id="location-upload"
+              className="hidden"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={isImporting}
+            />
+            <Button
+              variant="outline"
+              onClick={() =>
+                document.getElementById("location-upload")?.click()
+              }
+              leftIcon={
+                isImporting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+              disabled={isImporting}
+            >
+              {isImporting ? "Importing" : "Import Excel"}
+            </Button>
+            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+              New Location
+            </Button>
+          </Group>
+        }
+        metrics={[
+          { label: "Locations", value: locations.length, tone: "brand" },
+          {
+            label: "Assigned Bins",
+            value: locations.reduce(
+              (acc, item) => acc + (item.bins?.length ?? 0),
+              0,
+            ),
+          },
+        ]}
+      >
+        <OperationsPanel
+          title="Location Directory"
+          description="Import, edit, and assign bins inside one common enterprise shell."
+          icon={MapPin}
+        >
           <DataTable
             columns={columns}
             data={locations}
@@ -265,114 +325,91 @@ export const Locations = memo(function Locations() {
             onSearch={setSearchTerm}
             searchValue={searchTerm}
           />
-        </div>
-      </div>
+        </OperationsPanel>
+      </OperationsPage>
 
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={isEditing ? 'Edit Location' : 'New Location'}
-        size="lg"
+        title={isEditing ? "Edit Location" : "New Location"}
+        size="xl"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                    <label className="label-text font-medium inline-block mb-1">Aisle <span className="text-danger-500">*</span></label>
-                    <Input
-                        placeholder="e.g. 101"
-                        value={formData.aisle}
-                        onChange={(e) => {
-                            const aisle = e.target.value;
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                aisle,
-                                locationCode: `${aisle}-${prev.rack}-${prev.shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
-                            }));
-                        }}
-                        className="h-9"
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="label-text font-medium inline-block mb-1">Rack <span className="text-danger-500">*</span></label>
-                    <Input
-                        placeholder="e.g. A"
-                        value={formData.rack}
-                        onChange={(e) => {
-                            const rack = e.target.value;
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                rack,
-                                locationCode: `${prev.aisle}-${rack}-${prev.shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
-                            }));
-                        }}
-                        className="h-9"
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="label-text font-medium inline-block mb-1">Shelf <span className="text-danger-500">*</span></label>
-                    <Input
-                        placeholder="e.g. 3"
-                        value={formData.shelf}
-                        onChange={(e) => {
-                            const shelf = e.target.value;
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                shelf,
-                                locationCode: `${prev.aisle}-${prev.rack}-${shelf}`.replace(/^-|-$/g, '').replace(/--/g, '-')
-                            }));
-                        }}
-                        className="h-9"
-                    />
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <label className="label-text font-medium inline-block mb-1">Location Code <span className="text-danger-500">*</span></label>
-                <Input
-                    placeholder="Auto-generated"
-                    value={formData.locationCode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, locationCode: e.target.value }))}
-                    className="h-9 font-mono"
-                />
-            </div>
-
-            <div className="space-y-2">
-                <label className="label-text font-medium inline-block mb-1 mb-3 block">Assign Bins</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-4 border border-white/10 bg-white/5 rounded-xl scrollbar-thin">
-                    {bins.map(bin => (
-                        <div 
-                            key={bin.id}
-                            onClick={() => toggleBin(bin.binCode)}
-                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all border ${
-                                formData.bins?.includes(bin.binCode)
-                                ? 'bg-brand-500/20 border-brand-500 text-white'
-                                : 'bg-white/5 border-transparent text-neutral-400 hover:bg-white/10'
-                            }`}
-                        >
-                            <Box className={`w-3.5 h-3.5 ${formData.bins?.includes(bin.binCode) ? 'text-brand-400' : 'text-neutral-500'}`} />
-                            <span className="text-xs truncate">{bin.binCode}</span>
-                        </div>
-                    ))}
-                    {bins.length === 0 && (
-                        <div className="col-span-full py-4 text-center text-xs text-neutral-500 italic">
-                            No bins available. Create them in Bin Master first.
-                        </div>
-                    )}
-                </div>
-            </div>
-
-          <div className="flex gap-3 pt-6 border-t border-white/10">
-            <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="flex-1 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700">
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>{isEditing ? 'Update' : 'Create'}</>
-              )}
-            </Button>
-          </div>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="md">
+            <Group grow align="flex-start">
+              <Input
+                label="Aisle"
+                placeholder="101"
+                value={formData.aisle}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, aisle: event.target.value }))
+                }
+                required
+              />
+              <Input
+                label="Rack"
+                placeholder="A"
+                value={formData.rack}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, rack: event.target.value }))
+                }
+                required
+              />
+              <Input
+                label="Shelf"
+                placeholder="3"
+                value={formData.shelf}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, shelf: event.target.value }))
+                }
+                required
+              />
+            </Group>
+            <Input
+              label="Location Code"
+              placeholder="Auto-generated or custom code"
+              value={formData.locationCode}
+              onChange={(event) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  locationCode: event.target.value,
+                }))
+              }
+              leftElement={<MapPin size={16} />}
+              required
+            />
+            <MultiSelect
+              label="Assign Bins"
+              placeholder="Select bins"
+              data={binOptions}
+              value={formData.bins || []}
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, bins: value }))
+              }
+              searchable
+              clearable
+              maxDropdownHeight={240}
+              styles={{
+                input: {
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  borderColor: "rgba(255,255,255,0.12)",
+                },
+                dropdown: {
+                  background:
+                    "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                  borderColor: "rgba(148, 163, 184, 0.16)",
+                },
+              }}
+            />
+            <Group justify="flex-end" pt="sm">
+              <Button variant="outline" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                {isEditing ? "Update Location" : "Create Location"}
+              </Button>
+            </Group>
+          </Stack>
         </form>
       </Modal>
 
@@ -381,14 +418,13 @@ export const Locations = memo(function Locations() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Location"
-        message={`Are you sure you want to delete "${deleteTarget?.locationCode}"? This action cannot be undone.`}
+        message={`Delete "${deleteTarget?.locationCode}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"
         isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 });
 
 export default Locations;
-

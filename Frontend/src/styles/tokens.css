@@ -11,7 +11,7 @@
   --color-sidebar-border: rgba(255, 255, 255, 0.08);
   --color-sidebar-text: #92a8c6;
   --color-sidebar-text-hover: #e6fbff;
-  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-text-active: #ffffff;
   --color-sidebar-bg-hover: rgba(255, 255, 255, 0.08);
   --color-sidebar-bg-active: linear-gradient(90deg, #17b9ec 0%, #0a8bbf 100%);
 
@@ -66,16 +66,16 @@
   --color-danger-800: #991b1b;
   --color-danger-900: #7f1d1d;
 
-  --color-info-50: #E8F4F8;
-  --color-info-100: #BDD8E9;
-  --color-info-200: #9BC5DB;
-  --color-info-300: #7BBDE8;
-  --color-info-400: #6EA2B3;
-  --color-info-500: #4E8EA2;
-  --color-info-600: #49769F;
-  --color-info-700: #0A4174;
-  --color-info-800: #052D52;
-  --color-info-900: #001D39;
+  --color-info-50: #e8f4f8;
+  --color-info-100: #bdd8e9;
+  --color-info-200: #9bc5db;
+  --color-info-300: #7bbde8;
+  --color-info-400: #6ea2b3;
+  --color-info-500: #4e8ea2;
+  --color-info-600: #49769f;
+  --color-info-700: #0a4174;
+  --color-info-800: #052d52;
+  --color-info-900: #001d39;
 
   /* ========================================
      COLOR PALETTE - NEUTRAL
@@ -97,10 +97,14 @@
   /* ========================================
      TYPOGRAPHY - FONT FAMILIES
      ======================================== */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-heading: "Manrope", "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-accent: "Manrope", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
 
   /* ========================================
      TYPOGRAPHY - FONT SIZES
@@ -166,16 +170,36 @@
   --shadow-none: none;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl:
+    0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
 
   /* Custom shadows for cards */
   --shadow-card: 0 18px 45px rgba(2, 8, 23, 0.28);
-  --shadow-card-hover: 0 24px 55px rgba(2, 8, 23, 0.36), 0 0 0 1px rgba(67, 212, 255, 0.08);
+  --shadow-card-hover:
+    0 24px 55px rgba(2, 8, 23, 0.36), 0 0 0 1px rgba(67, 212, 255, 0.08);
   --shadow-brand: 0 12px 32px rgba(17, 167, 223, 0.28);
   --shadow-brand-lg: 0 22px 50px rgba(17, 167, 223, 0.34);
+
+  /* ========================================
+     APP SURFACES
+     ======================================== */
+  --surface-base: rgba(8, 14, 25, 0.82);
+  --surface-glass: linear-gradient(
+    180deg,
+    rgba(16, 25, 41, 0.88) 0%,
+    rgba(8, 14, 26, 0.94) 100%
+  );
+  --surface-elevated: linear-gradient(
+    180deg,
+    rgba(15, 24, 39, 0.94) 0%,
+    rgba(8, 14, 26, 0.98) 100%
+  );
+  --surface-muted: rgba(255, 255, 255, 0.035);
+  --border-subtle: rgba(148, 163, 184, 0.16);
 
   /* ========================================
      ANIMATION - DURATIONS
@@ -272,7 +296,6 @@
    UTILITY CLASSES
    ======================================== */
 @layer utilities {
-
   /* Glassmorphism effect */
   .glass {
     @apply bg-white/8 backdrop-blur-md border border-white/10;
@@ -284,7 +307,7 @@
 
   /* Card hover effect */
   .card-hover {
-    @apply transition-all duration-300 hover:-translate-y-1;
+    @apply transition-transform transition-shadow duration-300 hover:-translate-y-1;
     box-shadow: var(--shadow-card);
   }
 
@@ -456,7 +479,6 @@
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -468,7 +490,6 @@
 }
 
 @keyframes bounce {
-
   0%,
   100% {
     transform: translateY(0);
@@ -480,7 +501,6 @@
 }
 
 @keyframes shake {
-
   0%,
   100% {
     transform: translateX(0);
@@ -525,11 +545,13 @@
   }
 
   .animate-slide-in-bottom {
-    animation: slide-in-from-bottom var(--duration-normal) var(--ease-out) forwards;
+    animation: slide-in-from-bottom var(--duration-normal) var(--ease-out)
+      forwards;
   }
 
   .animate-slide-in-right {
-    animation: slide-in-from-right var(--duration-normal) var(--ease-out) forwards;
+    animation: slide-in-from-right var(--duration-normal) var(--ease-out)
+      forwards;
   }
 
   .animate-scale-in {
@@ -553,7 +575,12 @@
   }
 
   .animate-shimmer {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.4),
+      transparent
+    );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }

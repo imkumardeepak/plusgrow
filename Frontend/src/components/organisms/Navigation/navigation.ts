@@ -1,0 +1,174 @@
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Box as BoxIcon,
+  Building,
+  ClipboardCheck,
+  Factory,
+  LayoutDashboard,
+  Layers,
+  LucideIcon,
+  Map,
+  MapPin,
+  Move,
+  Package,
+  Tags,
+  Truck,
+  User,
+  Warehouse,
+} from "lucide-react";
+
+export interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  href: string;
+  badge?: number | string;
+}
+
+export interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
+export const navigationGroups: NavGroup[] = [
+  {
+    id: "overview",
+    label: "Overview",
+    items: [
+      {
+        id: "dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        href: "/",
+      },
+    ],
+  },
+  {
+    id: "master",
+    label: "Master Data",
+    items: [
+      {
+        id: "importers",
+        label: "Importers",
+        icon: Building,
+        href: "/importers",
+      },
+      {
+        id: "manufacturers",
+        label: "Manufacturers",
+        icon: Factory,
+        href: "/manufacturers",
+      },
+      {
+        id: "commodities",
+        label: "Commodities",
+        icon: Layers,
+        href: "/commodities",
+      },
+      {
+        id: "bins",
+        label: "Bin Master",
+        icon: BoxIcon,
+        href: "/bins",
+      },
+      {
+        id: "locations",
+        label: "Location Master",
+        icon: MapPin,
+        href: "/locations",
+      },
+      {
+        id: "mpd",
+        label: "Products",
+        icon: BoxIcon,
+        href: "/mpd",
+      },
+    ],
+  },
+  {
+    id: "inward",
+    label: "Inward Operations",
+    items: [
+      {
+        id: "inward",
+        label: "Purchase Invoices",
+        icon: ArrowDownToLine,
+        href: "/inward",
+      },
+      {
+        id: "sticker",
+        label: "Sticker Generation",
+        icon: Tags,
+        href: "/sticker",
+      },
+      {
+        id: "putaway",
+        label: "Put Away",
+        icon: Warehouse,
+        href: "/putaway",
+      },
+    ],
+  },
+  {
+    id: "outward",
+    label: "Outward Operations",
+    items: [
+      {
+        id: "outward",
+        label: "Sales Orders",
+        icon: ArrowUpFromLine,
+        href: "/outward",
+      },
+      {
+        id: "packing",
+        label: "Picking & Packing",
+        icon: Package,
+        href: "/packing",
+      },
+      {
+        id: "dispatch",
+        label: "Dispatch",
+        icon: Truck,
+        href: "/dispatch",
+      },
+    ],
+  },
+  {
+    id: "inventory",
+    label: "Inventory",
+    items: [
+      {
+        id: "stock-check",
+        label: "Stock Check",
+        icon: ClipboardCheck,
+        href: "/stock-check",
+      },
+      {
+        id: "stock-movement",
+        label: "Stock Movement",
+        icon: Move,
+        href: "/stock-movement",
+      },
+      {
+        id: "warehouse-map",
+        label: "Warehouse Map",
+        icon: Map,
+        href: "/warehouse-map",
+      },
+    ],
+  },
+  {
+    id: "account",
+    label: "Account",
+    items: [
+      {
+        id: "profile",
+        label: "My Profile",
+        icon: User,
+        href: "/profile",
+      },
+    ],
+  },
+];

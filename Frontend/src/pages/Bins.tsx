@@ -1,25 +1,30 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
-import { Button } from '../components/atoms/Button';
-import { Input } from '../components/atoms/Input';
-import { Modal, ConfirmDialog } from '../components/atoms/Modal';
-import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Plus, Box, Loader2, Trash2, Edit2, Upload } from 'lucide-react';
-import { toast } from '../lib/toast';
-import { binsApi, Bin, CreateBinDto } from '../services/masterApi';
-import { format } from 'date-fns';
+import React, { memo, useCallback, useEffect, useState } from "react";
+import { format } from "date-fns";
+import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import { Box, Edit2, Loader2, Plus, Trash2, Upload } from "lucide-react";
+import { Button } from "../components/atoms/Button";
+import { Input } from "../components/atoms/Input";
+import { Modal, ConfirmDialog } from "../components/atoms/Modal";
+import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  OperationsPage,
+  OperationsPanel,
+} from "../components/organisms/Operations/OperationsShell";
+import { toast } from "../lib/toast";
+import { binsApi, Bin, CreateBinDto } from "../services/masterApi";
 
 export const Bins = memo(function Bins() {
   const [bins, setBins] = useState<Bin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Bin | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Bin | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [formData, setFormData] = useState<CreateBinDto>({
-    binCode: '',
+    binCode: "",
   });
 
   const loadBins = useCallback(async () => {
@@ -27,8 +32,8 @@ export const Bins = memo(function Bins() {
       setIsLoading(true);
       const data = await binsApi.getAll();
       setBins(data);
-    } catch (error) {
-      toast.error('Failed to load bins');
+    } catch {
+      toast.error("Failed to load bins");
     } finally {
       setIsLoading(false);
     }
@@ -38,10 +43,11 @@ export const Bins = memo(function Bins() {
     loadBins();
   }, [loadBins]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.binCode.trim()) {
-      toast.error('Bin code is required');
+      toast.error("Bin code is required");
       return;
     }
 
@@ -49,22 +55,22 @@ export const Bins = memo(function Bins() {
     try {
       if (isEditing) {
         await binsApi.update(isEditing.id, formData);
-        toast.success('Bin updated successfully');
+        toast.success("Bin updated successfully");
       } else {
         await binsApi.create(formData);
-        toast.success('Bin created successfully');
+        toast.success("Bin created successfully");
       }
       await loadBins();
       closeModal();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save bin');
+      toast.error(error.message || "Failed to save bin");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const openCreateModal = () => {
-    setFormData({ binCode: '' });
+    setFormData({ binCode: "" });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -81,27 +87,32 @@ export const Bins = memo(function Bins() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ binCode: '' });
+    setFormData({ binCode: "" });
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      return;
+    }
+
     setIsDeleting(true);
     try {
       await binsApi.delete(deleteTarget.id);
-      toast.success('Bin deleted successfully');
+      toast.success("Bin deleted successfully");
       await loadBins();
       setDeleteTarget(null);
-    } catch (error) {
-      toast.error('Failed to delete bin');
+    } catch {
+      toast.error("Failed to delete bin");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
 
     setIsImporting(true);
     try {
@@ -110,149 +121,155 @@ export const Bins = memo(function Bins() {
         toast.success(`Successfully imported ${result.importedCount} bins`);
         await loadBins();
       } else {
-        toast.error('Import failed');
+        toast.error("Import failed");
       }
     } catch (error: any) {
-      toast.error(error.message || 'Error uploading file');
+      toast.error(error.message || "Error uploading file");
     } finally {
       setIsImporting(false);
-      if (e.target) e.target.value = '';
+      if (event.target) {
+        event.target.value = "";
+      }
     }
   };
 
   const columns = createTableColumns<Bin>(
     [
       {
-        accessorKey: 'binCode',
-        header: 'Bin Location',
+        accessorKey: "binCode",
+        header: "Bin Code",
         cell: (row) => (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-sm group-hover:shadow-neon-cyan/20 transition-all">
-              <Box className="w-3.5 h-3.5 text-brand-400" />
-            </div>
-            <p className="font-bold text-[11px] text-white uppercase tracking-tight">{row.binCode}</p>
-          </div>
+          <Group gap="sm" wrap="nowrap">
+            <ThemeIcon
+              size={40}
+              radius="lg"
+              variant="light"
+              color="cyan"
+              style={{
+                background: "rgba(30, 192, 243, 0.12)",
+                border: "1px solid rgba(30, 192, 243, 0.18)",
+              }}
+            >
+              <Box size={18} />
+            </ThemeIcon>
+            <Text fw={700} size="sm">
+              {row.binCode}
+            </Text>
+          </Group>
         ),
       },
       {
-        accessorKey: 'createdAt',
-        header: 'Added',
+        accessorKey: "createdAt",
+        header: "Created",
         cell: (row) => (
-          <span className="text-[10px] text-neutral-500 font-medium tracking-wider">
-            {row.createdAt ? format(new Date(row.createdAt), 'dd/MM/yy') : '--'}
-          </span>
+          <Text size="11px" c="dimmed">
+            {row.createdAt
+              ? format(new Date(row.createdAt), "dd MMM yyyy")
+              : "N/A"}
+          </Text>
         ),
       },
     ],
     [
       {
-        label: 'Edit',
-        icon: <Edit2 className="h-3.5 w-3.5" />,
+        label: "Edit",
+        icon: <Edit2 className="h-4 w-4" />,
         onClick: (row) => openEditModal(row),
       },
       {
-        label: 'Delete',
-        icon: <Trash2 className="h-3.5 w-3.5" />,
+        label: "Delete",
+        icon: <Trash2 className="h-4 w-4" />,
         onClick: (row) => setDeleteTarget(row),
-        variant: 'destructive',
+        variant: "destructive",
       },
-    ]
+    ],
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      {/* Header Bar - Compact Pro Max */}
-      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4 py-1 px-1.5 bg-brand-950/20 backdrop-blur-md border-b border-white/5 rounded-t-xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20 shadow-[0_0_10px_rgba(6,182,212,0.1)]">
-              <Box className="w-4 h-4 text-brand-400" />
-            </div>
-            <div>
-              <h1 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Bin Master</h1>
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-brand-500 animate-pulse" />
-                <p className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">Storage Grid</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type="file"
-                id="bin-upload"
-                className="hidden"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                disabled={isImporting}
-              />
-              <Button
-                variant="outline"
-                className="h-7 px-3 text-[10px] font-black uppercase tracking-widest border-brand-500/20 text-brand-400 hover:bg-brand-500/10 rounded-lg transition-all"
-                onClick={() => document.getElementById('bin-upload')?.click()}
-                leftIcon={isImporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                disabled={isImporting}
-              >
-                {isImporting ? 'Parsing...' : 'Bulk Import'}
-              </Button>
-            </div>
+    <>
+      <OperationsPage
+        title="Bin Master"
+        description="Storage bins use same Mantine-first admin patterns as every master screen."
+        icon={Box}
+        actions={
+          <Group gap="xs">
+            <input
+              type="file"
+              id="bin-upload"
+              className="hidden"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={isImporting}
+            />
             <Button
-              onClick={openCreateModal}
-              className="h-7 px-4 text-[10px] font-black uppercase tracking-widest shadow-[0_0_15px_rgba(6,182,212,0.2)] bg-brand-500 hover:bg-brand-400 text-brand-950 rounded-lg transition-all"
-              leftIcon={<Plus className="w-3 h-3" />}
+              variant="outline"
+              onClick={() => document.getElementById("bin-upload")?.click()}
+              leftIcon={
+                isImporting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+              disabled={isImporting}
             >
-              Add Bin
+              {isImporting ? "Importing" : "Import Excel"}
             </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Data Table Shell - Tightened */}
-      <div className="flex-1 min-h-0 bg-white/[0.01] rounded-b-xl border border-t-0 border-white/5 overflow-hidden">
-        <div className="h-full p-2 overflow-auto scrollbar-thin">
+            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+              New Bin
+            </Button>
+          </Group>
+        }
+        metrics={[
+          { label: "Bins", value: bins.length, tone: "brand" },
+        ]}
+      >
+        <OperationsPanel
+          title="Bin Directory"
+          description="Search, import, edit, and delete within one shared table shell."
+          icon={Box}
+        >
           <DataTable
             columns={columns}
             data={bins}
             loading={isLoading}
-            searchPlaceholder="Filter bins..."
+            searchPlaceholder="Search bins..."
             onSearch={setSearchTerm}
             searchValue={searchTerm}
           />
-        </div>
-      </div>
+        </OperationsPanel>
+      </OperationsPage>
 
-      {/* Create/Edit Modal - Compact High Density */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={isEditing ? 'MODIFY BIN' : 'ADD NEW BIN'}
+        title={isEditing ? "Edit Bin" : "New Bin"}
         size="md"
       >
-        <form onSubmit={handleSubmit} className="p-1 space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest flex items-center gap-2">
-              <Box className="w-3 h-3 text-brand-500" />
-              Bin Code <span className="text-danger-500">*</span>
-            </label>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="md">
             <Input
-              placeholder="e.g. A-101-B"
+              label="Bin Code"
+              placeholder="A-101-B"
               value={formData.binCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, binCode: e.target.value }))}
-              className="h-8 text-[11px] bg-white/[0.03] border-white/10"
+              onChange={(event) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  binCode: event.target.value,
+                }))
+              }
+              leftElement={<Box size={16} />}
+              required
             />
-          </div>
-          <div className="flex gap-2 pt-4 border-t border-white/5">
-            <Button type="button" variant="outline" onClick={closeModal} className="flex-1 h-8 text-[10px] uppercase font-bold tracking-widest border-white/5 bg-white/5">
-              Abort
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="flex-1 h-8 text-[10px] uppercase font-bold tracking-widest bg-brand-500 text-brand-950 hover:bg-brand-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-              {isSubmitting ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <>{isEditing ? 'Commit Changes' : 'Confirm Bin'}</>
-              )}
-            </Button>
-          </div>
+            <Group justify="flex-end" pt="sm">
+              <Button variant="outline" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                {isEditing ? "Update Bin" : "Create Bin"}
+              </Button>
+            </Group>
+          </Stack>
         </form>
       </Modal>
 
@@ -261,14 +278,13 @@ export const Bins = memo(function Bins() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Bin"
-        message={`Are you sure you want to delete "${deleteTarget?.binCode}"? This action cannot be undone.`}
+        message={`Delete "${deleteTarget?.binCode}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"
         isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 });
 
 export default Bins;
-

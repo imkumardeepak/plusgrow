@@ -1,279 +1,199 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import {
   ActionIcon,
   AppShell,
   Box,
-  Collapse,
   Divider,
   Group,
   NavLink,
   ScrollArea,
   Stack,
   Text,
-  Tooltip,
+  ThemeIcon,
 } from "@mantine/core";
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Box as BoxIcon,
-  Building,
-  ChevronDown,
-  ClipboardCheck,
-  Factory,
   LayoutDashboard,
-  Layers,
-  LucideIcon,
-  Map,
-  MapPin,
-  Move,
-  Package,
-  Tags,
-  Truck,
-  User,
+  PackageCheck,
   Warehouse,
   X,
 } from "lucide-react";
 import { Logo } from "../../../atoms/Logo";
-
-export interface NavItem {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  href: string;
-  badge?: number | string;
-}
-
-export interface NavGroup {
-  id: string;
-  label: string;
-  items: NavItem[];
-}
-
-export const navigationGroups: NavGroup[] = [
-  {
-    id: "overview",
-    label: "Overview",
-    items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/" }],
-  },
-  {
-    id: "master",
-    label: "Master Data",
-    items: [
-      { id: "importers", label: "Importers", icon: Building, href: "/importers" },
-      { id: "manufacturers", label: "Manufacturers", icon: Factory, href: "/manufacturers" },
-      { id: "commodities", label: "Commodities", icon: Layers, href: "/commodities" },
-      { id: "bins", label: "Bin Master", icon: BoxIcon, href: "/bins" },
-      { id: "locations", label: "Location Master", icon: MapPin, href: "/locations" },
-      { id: "mpd", label: "Products", icon: BoxIcon, href: "/mpd" },
-    ],
-  },
-  {
-    id: "inward",
-    label: "Inward Operations",
-    items: [
-      { id: "inward", label: "Purchase Invoices", icon: ArrowDownToLine, href: "/inward" },
-      { id: "sticker", label: "Sticker Generation", icon: Tags, href: "/sticker" },
-      { id: "putaway", label: "Put Away", icon: Warehouse, href: "/putaway" },
-    ],
-  },
-  {
-    id: "outward",
-    label: "Outward Operations",
-    items: [
-      { id: "outward", label: "Sales Orders", icon: ArrowUpFromLine, href: "/outward" },
-      { id: "packing", label: "Picking & Packing", icon: Package, href: "/packing" },
-      { id: "dispatch", label: "Dispatch", icon: Truck, href: "/dispatch" },
-    ],
-  },
-  {
-    id: "inventory",
-    label: "Inventory",
-    items: [
-      { id: "stock-check", label: "Stock Check", icon: ClipboardCheck, href: "/stock-check" },
-      { id: "stock-movement", label: "Stock Movement", icon: Move, href: "/stock-movement" },
-      { id: "warehouse-map", label: "Warehouse Map", icon: Map, href: "/warehouse-map" },
-    ],
-  },
-  {
-    id: "account",
-    label: "Account",
-    items: [{ id: "profile", label: "My Profile", icon: User, href: "/profile" }],
-  },
-];
+import { navigationGroups } from "../navigation";
 
 export interface SidebarProps {
-  collapsed?: boolean;
-  mobileOpen?: boolean;
   onMobileClose?: () => void;
-  onCollapseChange?: (collapsed: boolean) => void;
 }
 
-export function Sidebar({
-  collapsed = false,
-  mobileOpen = false,
-  onMobileClose,
-  onCollapseChange,
-}: SidebarProps) {
+export function Sidebar({ onMobileClose }: SidebarProps) {
   const location = useLocation();
-
-  const initialExpanded = useMemo(() => {
-    const state: Record<string, boolean> = {};
-
-    navigationGroups.forEach((group) => {
-      state[group.id] = group.items.some((item) => item.href === location.pathname);
-    });
-
-    return state;
-  }, [location.pathname]);
-
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(initialExpanded);
-
-  const toggleGroup = (groupId: string) => {
-    setExpandedGroups((current) => ({
-      ...current,
-      [groupId]: !current[groupId],
-    }));
-  };
-
-  const renderLink = (item: NavItem) => {
-    const icon = <item.icon size={18} />;
-    const isActive = location.pathname === item.href;
-
-    if (collapsed) {
-      return (
-        <Tooltip key={item.id} label={item.label} position="right" withArrow>
-          <NavLink
-            component={RouterNavLink}
-            to={item.href}
-            onClick={onMobileClose}
-            active={isActive}
-            variant="filled"
-            color="cyan"
-            leftSection={icon}
-            label=""
-            px="sm"
-            py="sm"
-            styles={{
-              root: {
-                borderRadius: "18px",
-                justifyContent: "center",
-              },
-              section: {
-                marginInlineEnd: 0,
-              },
-            }}
-          />
-        </Tooltip>
-      );
-    }
-
-    return (
-      <NavLink
-        key={item.id}
-        component={RouterNavLink}
-        to={item.href}
-        onClick={onMobileClose}
-        active={isActive}
-        variant="filled"
-        color="cyan"
-        leftSection={icon}
-        label={item.label}
-        description={item.badge ? String(item.badge) : undefined}
-        radius="xl"
-        styles={{
-          root: {
-            borderRadius: "18px",
-            background: isActive ? "linear-gradient(90deg, #17b9ec 0%, #0a8bbf 100%)" : undefined,
-          },
-          label: {
-            fontWeight: 600,
-          },
-        }}
-      />
-    );
-  };
 
   return (
     <AppShell.Navbar
-      p="sm"
-      withBorder={false}
+      p="md"
+      withBorder
       style={{
-        background: "linear-gradient(180deg, rgba(17,27,45,0.98) 0%, rgba(9,17,31,0.98) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(9,17,30,0.98) 0%, rgba(7,13,24,0.99) 100%)",
+        borderColor: "rgba(148, 163, 184, 0.12)",
       }}
     >
       <AppShell.Section>
-        <Group justify={collapsed ? "center" : "space-between"} wrap="nowrap" px="xs" py="sm">
-          <Box>
-            <Logo width={collapsed ? 40 : 156} height={48} className={collapsed ? "w-10" : "w-36"} />
-          </Box>
-          {!collapsed ? (
-            <ActionIcon hiddenFrom="md" variant="subtle" color="gray" onClick={onMobileClose} aria-label="Close menu">
-              <X size={18} />
-            </ActionIcon>
-          ) : null}
+        <Group justify="space-between" wrap="nowrap" mb="md">
+          <Group gap="sm" wrap="nowrap">
+            <Box
+              p={10}
+              style={{
+                borderRadius: 18,
+                background:
+                  "linear-gradient(135deg, rgba(23,185,236,0.18), rgba(10,139,191,0.08))",
+                border: "1px solid rgba(30, 192, 243, 0.18)",
+              }}
+            >
+              <Logo width={34} height={34} className="w-[34px] h-[34px]" />
+            </Box>
+            <Stack gap={0}>
+              <Text fw={800} c="white" lh={1.1}>
+                PlusGrow WMS
+              </Text>
+              <Text size="xs" c="dimmed">
+                SaaS operations suite
+              </Text>
+            </Stack>
+          </Group>
+
+          <ActionIcon
+            hiddenFrom="md"
+            variant="subtle"
+            color="gray"
+            onClick={onMobileClose}
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </ActionIcon>
         </Group>
+
+        <Box
+          p="sm"
+          style={{
+            borderRadius: 20,
+            background: "rgba(255,255,255,0.03)",
+            border: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
+          <Group gap="sm" wrap="nowrap" align="flex-start">
+            <ThemeIcon
+              size={40}
+              radius="xl"
+              variant="light"
+              color="cyan"
+            >
+              <LayoutDashboard size={18} />
+            </ThemeIcon>
+            <Stack gap={3}>
+              <Text size="sm" fw={700} c="white">
+                Unified Navigation
+              </Text>
+              <Text size="11px" c="dimmed" lh={1.45}>
+                Static header on top. Primary modules in sidebar. Better for
+                daily ops flow.
+              </Text>
+            </Stack>
+          </Group>
+        </Box>
       </AppShell.Section>
 
-      <Divider my="sm" color="rgba(255,255,255,0.08)" />
+      <Divider my="md" color="rgba(255,255,255,0.08)" />
 
       <AppShell.Section grow component={ScrollArea}>
-        <Stack gap="md" px={collapsed ? 0 : "xs"}>
-          {navigationGroups.map((group) => {
-            const isGroupActive = group.items.some((item) => item.href === location.pathname);
-            const isExpanded = expandedGroups[group.id] ?? isGroupActive;
+        <Stack gap="lg" pb="xl">
+          {navigationGroups.map((group) => (
+            <Stack key={group.id} gap="xs">
+              <Text
+                size="xs"
+                tt="uppercase"
+                fw={700}
+                c="dimmed"
+                px="xs"
+                style={{ letterSpacing: "0.16em" }}
+              >
+                {group.label}
+              </Text>
 
-            return (
-              <Box key={group.id}>
-                {!collapsed ? (
-                  <Group justify="space-between" px="xs" mb={6}>
-                    <Text size="xs" tt="uppercase" fw={700} c="dimmed" style={{ letterSpacing: "0.18em" }}>
-                      {group.label}
-                    </Text>
-                    {group.items.length > 1 ? (
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        onClick={() => toggleGroup(group.id)}
-                        aria-label={`Toggle ${group.label}`}
-                      >
-                        <ChevronDown size={15} style={{ transform: isExpanded ? "rotate(180deg)" : undefined }} />
-                      </ActionIcon>
-                    ) : null}
-                  </Group>
-                ) : null}
-
-                {collapsed ? (
-                  <Stack gap="xs">{group.items.map(renderLink)}</Stack>
-                ) : group.items.length === 1 ? (
-                  <Stack gap="xs">{group.items.map(renderLink)}</Stack>
-                ) : (
-                  <Collapse in={isExpanded}>
-                    <Stack gap="xs">{group.items.map(renderLink)}</Stack>
-                  </Collapse>
-                )}
-              </Box>
-            );
-          })}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.id}
+                  component={RouterNavLink}
+                  to={item.href}
+                  onClick={onMobileClose}
+                  active={location.pathname === item.href}
+                  variant="light"
+                  color="cyan"
+                  leftSection={<item.icon size={18} />}
+                  label={item.label}
+                  radius="xl"
+                  styles={{
+                    root: {
+                      minHeight: 44,
+                      borderRadius: 18,
+                      color:
+                        location.pathname === item.href
+                          ? "var(--mantine-color-cyan-0)"
+                          : "var(--mantine-color-gray-3)",
+                      background:
+                        location.pathname === item.href
+                          ? "linear-gradient(90deg, rgba(23,185,236,0.22) 0%, rgba(10,139,191,0.18) 100%)"
+                          : "transparent",
+                      border:
+                        location.pathname === item.href
+                          ? "1px solid rgba(30, 192, 243, 0.24)"
+                          : "1px solid transparent",
+                    },
+                    label: {
+                      fontWeight: 600,
+                    },
+                    description: {
+                      color: "var(--mantine-color-gray-5)",
+                    },
+                  }}
+                />
+              ))}
+            </Stack>
+          ))}
         </Stack>
       </AppShell.Section>
 
-      <Divider my="sm" color="rgba(255,255,255,0.08)" />
+      <Divider my="md" color="rgba(255,255,255,0.08)" />
 
       <AppShell.Section>
-        <Group justify="center">
-          <ActionIcon
-            variant="light"
-            color="cyan"
-            radius="xl"
-            size="lg"
-            onClick={() => onCollapseChange?.(!collapsed)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <ChevronDown size={18} style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(90deg)" }} />
-          </ActionIcon>
-        </Group>
+        <Stack gap="xs">
+          <Group gap="xs" wrap="nowrap">
+            <ThemeIcon size={36} radius="xl" variant="light" color="cyan">
+              <Warehouse size={16} />
+            </ThemeIcon>
+            <Stack gap={0}>
+              <Text size="sm" fw={700} c="white">
+                Warehouse Control
+              </Text>
+              <Text size="11px" c="dimmed">
+                Stable desktop navigation
+              </Text>
+            </Stack>
+          </Group>
+          <Group gap="xs" wrap="nowrap">
+            <ThemeIcon size={36} radius="xl" variant="light" color="indigo">
+              <PackageCheck size={16} />
+            </ThemeIcon>
+            <Stack gap={0}>
+              <Text size="sm" fw={700} c="white">
+                Process Ready
+              </Text>
+              <Text size="11px" c="dimmed">
+                Shared shell across ops pages
+              </Text>
+            </Stack>
+          </Group>
+        </Stack>
       </AppShell.Section>
     </AppShell.Navbar>
   );

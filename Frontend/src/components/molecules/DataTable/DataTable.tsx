@@ -8,9 +8,9 @@ import {
   getFilteredRowModel,
   SortingState,
   PaginationState,
-} from '@tanstack/react-table';
-import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+} from "@tanstack/react-table";
+import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,9 +23,9 @@ import {
   X,
   FileX,
   Loader2,
-} from 'lucide-react';
-import { Button } from '../../atoms/Button';
-import { Input } from '../../atoms/Input';
+} from "lucide-react";
+import { Button } from "../../atoms/Button";
+import { Input } from "../../atoms/Input";
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -42,9 +42,9 @@ export function DataTable<TData, TValue>({
   data,
   loading = false,
   onRowClick,
-  searchPlaceholder = 'Search...',
+  searchPlaceholder = "Search…",
   onSearch,
-  searchValue = '',
+  searchValue = "",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState<PaginationState>({
@@ -71,7 +71,7 @@ export function DataTable<TData, TValue>({
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: 'includesString',
+    globalFilterFn: "includesString",
     state: {
       sorting,
       pagination,
@@ -93,9 +93,10 @@ export function DataTable<TData, TValue>({
   const pageCount = table.getPageCount();
   const currentPage = table.getState().pagination.pageIndex + 1;
   const totalRows = table.getFilteredRowModel().rows.length;
-  const startRow = totalRows === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
+  const startRow =
+    totalRows === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
   const endRow = Math.min(startRow + pagination.pageSize - 1, totalRows);
-  const hasClickableRows = typeof onRowClick === 'function';
+  const hasClickableRows = typeof onRowClick === "function";
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -107,16 +108,24 @@ export function DataTable<TData, TValue>({
             value={globalFilter}
             onChange={(e) => handleSearch(e.target.value)}
             className="h-9 rounded-xl border-white/10 bg-neutral-950/55 pr-10 text-[12px] text-neutral-100 placeholder:text-neutral-500 shadow-inner shadow-black/10 backdrop-blur-sm"
-            leftElement={<Search className="h-3.5 w-3.5 text-neutral-500" />}
-            rightElement={globalFilter ? (
-              <button
-                type="button"
-                onClick={() => handleSearch('')}
-                className="rounded-full border border-white/10 bg-white/[0.04] p-1 text-neutral-500 transition-colors hover:border-white/15 hover:bg-white/[0.08] hover:text-neutral-100"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            ) : null}
+            leftElement={
+              <Search
+                className="h-3.5 w-3.5 text-neutral-500"
+                aria-hidden="true"
+              />
+            }
+            rightElement={
+              globalFilter ? (
+                <button
+                  type="button"
+                  onClick={() => handleSearch("")}
+                  aria-label="Clear search"
+                  className="rounded-full border border-white/10 bg-white/[0.04] p-1 text-neutral-500 transition-colors hover:border-white/15 hover:bg-white/[0.08] hover:text-neutral-100"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              ) : null
+            }
           />
         </div>
       )}
@@ -129,31 +138,47 @@ export function DataTable<TData, TValue>({
           <table className="w-full caption-bottom text-[12px] text-neutral-100">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b border-white/8 bg-white/[0.03]">
+                <tr
+                  key={headerGroup.id}
+                  className="border-b border-white/8 bg-white/[0.03]"
+                >
                   {headerGroup.headers.map((header, index) => (
                     <th
                       key={header.id}
                       className="h-10 px-3 text-left align-middle text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-400 [&:has([role=checkbox])]:pr-0"
                     >
                       <div className="flex items-center gap-2">
-                        {index === 0 && <div className="h-3 w-0.5 rounded-full bg-brand-400/70 shadow-[var(--shadow-brand)]" />}
+                        {index === 0 && (
+                          <div className="h-3 w-0.5 rounded-full bg-brand-400/70 shadow-[var(--shadow-brand)]" />
+                        )}
                         <button
                           type="button"
-                          onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                          onClick={
+                            header.column.getCanSort()
+                              ? header.column.getToggleSortingHandler()
+                              : undefined
+                          }
                           className={`inline-flex items-center gap-1.5 transition-colors ${
                             header.column.getCanSort()
-                              ? 'cursor-pointer hover:text-brand-200'
-                              : 'cursor-default text-inherit'
+                              ? "cursor-pointer hover:text-brand-200"
+                              : "cursor-default text-inherit"
                           }`}
                         >
                           {header.isPlaceholder
                             ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
                           {header.column.getCanSort() && (
                             <span className="rounded p-0.5 transition-colors">
                               {{
-                                asc: <ArrowUp className="h-3 w-3 text-brand-300" />,
-                                desc: <ArrowDown className="h-3 w-3 text-brand-300" />,
+                                asc: (
+                                  <ArrowUp className="h-3 w-3 text-brand-300" />
+                                ),
+                                desc: (
+                                  <ArrowDown className="h-3 w-3 text-brand-300" />
+                                ),
                               }[header.column.getIsSorted() as string] ?? (
                                 <ArrowUpDown className="h-3 w-3 text-neutral-600 transition-colors group-hover:text-neutral-400" />
                               )}
@@ -198,7 +223,9 @@ export function DataTable<TData, TValue>({
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-300">
                             No records found
                           </p>
-                          <p className="mt-1 text-[11px] text-neutral-500">Try a different search or filter.</p>
+                          <p className="mt-1 text-[11px] text-neutral-500">
+                            Try a different search or filter.
+                          </p>
                         </div>
                       </motion.div>
                     </td>
@@ -209,13 +236,26 @@ export function DataTable<TData, TValue>({
                       key={row.id}
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.14, delay: mounted ? 0 : rowIndex * 0.018 }}
-                      className={`${hasClickableRows ? 'cursor-pointer' : ''} group transition-colors even:bg-white/[0.012] hover:bg-white/[0.035]`}
-                      onClick={hasClickableRows ? () => onRowClick?.(row.original as TData) : undefined}
+                      transition={{
+                        duration: 0.14,
+                        delay: mounted ? 0 : rowIndex * 0.018,
+                      }}
+                      className={`${hasClickableRows ? "cursor-pointer" : ""} group transition-colors even:bg-white/[0.012] hover:bg-white/[0.035]`}
+                      onClick={
+                        hasClickableRows
+                          ? () => onRowClick?.(row.original as TData)
+                          : undefined
+                      }
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-3 py-2 align-middle text-[12px] leading-5 text-neutral-200">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        <td
+                          key={cell.id}
+                          className="px-3 py-2 align-middle text-[12px] leading-5 text-neutral-200"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
                         </td>
                       ))}
                     </motion.tr>
@@ -238,7 +278,10 @@ export function DataTable<TData, TValue>({
               <>
                 <span className="text-neutral-700">•</span>
                 <span>
-                  Showing <span className="font-semibold text-neutral-200">{startRow}-{endRow}</span>
+                  Showing{" "}
+                  <span className="font-semibold text-neutral-200">
+                    {startRow}-{endRow}
+                  </span>
                 </span>
               </>
             )}
@@ -250,6 +293,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.setPageIndex(0)}
               disabled={!table.getCanPreviousPage()}
+              aria-label="First page"
               className="size-8 border border-transparent p-0 text-neutral-500 hover:border-white/8 hover:bg-white/[0.05] hover:text-brand-200 disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
             >
               <ChevronsLeft className="h-4 w-4" />
@@ -259,6 +303,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              aria-label="Previous page"
               className="size-8 border border-transparent p-0 text-neutral-500 hover:border-white/8 hover:bg-white/[0.05] hover:text-brand-200 disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -286,8 +331,8 @@ export function DataTable<TData, TValue>({
                     onClick={() => table.setPageIndex(pageNum)}
                     className={`size-8 rounded-lg border text-[11px] font-semibold transition-all duration-200 ${
                       isActive
-                        ? 'border-brand-300/35 bg-brand-400/18 text-brand-100 shadow-[var(--shadow-brand)]'
-                        : 'border-transparent text-neutral-300 hover:border-white/8 hover:bg-white/[0.05]'
+                        ? "border-brand-300/35 bg-brand-400/18 text-brand-100 shadow-[var(--shadow-brand)]"
+                        : "border-transparent text-neutral-300 hover:border-white/8 hover:bg-white/[0.05]"
                     }`}
                   >
                     {pageNum + 1}
@@ -301,6 +346,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              aria-label="Next page"
               className="size-8 border border-transparent p-0 text-neutral-500 hover:border-white/8 hover:bg-white/[0.05] hover:text-brand-200 disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
             >
               <ChevronRight className="h-4 w-4" />
@@ -310,6 +356,7 @@ export function DataTable<TData, TValue>({
               size="sm"
               onClick={() => table.setPageIndex(pageCount - 1)}
               disabled={!table.getCanNextPage()}
+              aria-label="Last page"
               className="size-8 border border-transparent p-0 text-neutral-500 hover:border-white/8 hover:bg-white/[0.05] hover:text-brand-200 disabled:opacity-40 disabled:hover:border-transparent disabled:hover:bg-transparent"
             >
               <ChevronsRight className="h-4 w-4" />

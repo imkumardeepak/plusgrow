@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { AppShell, Box, Paper, Stack, Text, useMantineTheme } from "@mantine/core";
+import { AppShell, Box, Paper, Stack, Text } from "@mantine/core";
 import { Sidebar } from "../../organisms/Navigation/Sidebar/Sidebar";
 import { Header } from "../../organisms/Navigation/Header/Header";
 import { Breadcrumbs, BreadcrumbItem } from "../../organisms/Navigation/Breadcrumbs/Breadcrumbs";
@@ -23,12 +23,10 @@ export function DashboardLayout({
   pageDescription,
   contentClassName,
 }: DashboardLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { refreshData, isLoading } = useWms();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const theme = useMantineTheme();
 
   const authUser = user as
     | {
@@ -58,10 +56,10 @@ export function DashboardLayout({
 
   return (
     <AppShell
-      padding={{ base: "xs", md: "sm" }}
-      header={{ height: { base: 72, md: 82 } }}
+      padding={0}
+      header={{ height: { base: 76, md: 84 } }}
       navbar={{
-        width: { base: "100%", md: sidebarCollapsed ? 92 : 296 },
+        width: { base: "100%", md: 300, lg: 316 },
         breakpoint: "md",
         collapsed: { mobile: !mobileMenuOpen, desktop: false },
       }}
@@ -74,17 +72,12 @@ export function DashboardLayout({
       }}
     >
       <Sidebar
-        collapsed={sidebarCollapsed}
-        mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
-        onCollapseChange={setSidebarCollapsed}
       />
 
       <AppShell.Header withBorder={false} bg="transparent">
         <Header
           onMenuClick={() => setMobileMenuOpen(true)}
-          onSidebarToggle={() => setSidebarCollapsed((current) => !current)}
-          sidebarCollapsed={sidebarCollapsed}
           onSync={refreshData}
           isSyncing={isLoading}
           userName={resolvedUserName}
@@ -96,9 +89,13 @@ export function DashboardLayout({
       </AppShell.Header>
 
       <AppShell.Main>
-        <Box className={cn("min-h-[calc(100dvh-5.75rem)]", contentClassName)}>
-          <Box mx="auto" maw={1640}>
-            <Stack gap="sm">
+        <Box
+          className={cn("min-h-[calc(100dvh-5.25rem)]", contentClassName)}
+          px={{ base: "sm", md: "md", lg: "lg" }}
+          py={{ base: "sm", md: "md" }}
+        >
+          <Box mx="auto" maw={1680}>
+            <Stack gap="md">
               {showBreadcrumbs ? (
                 <Paper
                   radius="xl"
@@ -106,10 +103,10 @@ export function DashboardLayout({
                   py="xs"
                   withBorder
                   style={{
-                    background: "rgba(8, 14, 25, 0.72)",
-                    borderColor: "rgba(148, 163, 184, 0.16)",
+                    background: "rgba(8, 14, 25, 0.68)",
+                    borderColor: "rgba(148, 163, 184, 0.12)",
                     backdropFilter: "blur(16px)",
-                    boxShadow: theme.shadows.xs,
+                    boxShadow: "0 12px 32px rgba(2, 8, 23, 0.16)",
                   }}
                 >
                   <Breadcrumbs items={breadcrumbs} />
@@ -124,12 +121,12 @@ export function DashboardLayout({
                   withBorder
                   style={{
                     background:
-                      "linear-gradient(180deg, rgba(13, 21, 35, 0.92) 0%, rgba(9, 15, 26, 0.96) 100%)",
-                    borderColor: "rgba(148, 163, 184, 0.14)",
-                    boxShadow: "0 22px 60px rgba(2, 8, 23, 0.24)",
+                      "linear-gradient(135deg, rgba(12, 21, 35, 0.96) 0%, rgba(8, 15, 26, 0.98) 100%)",
+                    borderColor: "rgba(148, 163, 184, 0.12)",
+                    boxShadow: "0 24px 64px rgba(2, 8, 23, 0.24)",
                   }}
                 >
-                  <Stack gap={6}>
+                  <Stack gap={8}>
                     <Text size="xs" tt="uppercase" fw={700} c="cyan.3" style={{ letterSpacing: "0.16em" }}>
                       {pageEyebrow}
                     </Text>

@@ -1,29 +1,46 @@
-import React, { useState, useEffect, memo } from 'react';
-import { Button } from '../components/atoms/Button';
-import { Badge } from '../components/atoms/Badge';
-import { Input } from '../components/atoms/Input';
-import { Modal, ConfirmDialog } from '../components/atoms/Modal';
-import { DataTable, createTableColumns } from '../components/molecules/DataTable';
-import { Plus, Building2, MapPin, Phone, Mail, Loader2, Trash2, Edit2, Truck } from 'lucide-react';
-import { toast } from '../lib/toast';
-import { importersApi, Importer, CreateImporterDto } from '../services/masterApi';
-import { format } from 'date-fns';
+import React, { memo, useEffect, useState } from "react";
+import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import {
+  Building2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Truck,
+  Trash2,
+  Edit2,
+} from "lucide-react";
+import { format } from "date-fns";
+import { Button } from "../components/atoms/Button";
+import { Input } from "../components/atoms/Input";
+import { Modal, ConfirmDialog } from "../components/atoms/Modal";
+import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  OperationsPage,
+  OperationsPanel,
+} from "../components/organisms/Operations/OperationsShell";
+import { toast } from "../lib/toast";
+import {
+  importersApi,
+  Importer,
+  CreateImporterDto,
+} from "../services/masterApi";
 
 export const Importers = memo(function Importers() {
   const [importers, setImporters] = useState<Importer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Importer | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Importer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState<CreateImporterDto>({
-    name: '',
-    address: '',
-    cin: '',
-    phone: '',
-    email: '',
+    name: "",
+    address: "",
+    cin: "",
+    phone: "",
+    email: "",
   });
 
   useEffect(() => {
@@ -35,17 +52,18 @@ export const Importers = memo(function Importers() {
       setIsLoading(true);
       const data = await importersApi.getAll();
       setImporters(data);
-    } catch (error) {
-      toast.error('Failed to load importers');
+    } catch {
+      toast.error("Failed to load importers");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!formData.name.trim()) {
-      toast.error('Importer name is required');
+      toast.error("Importer name is required");
       return;
     }
 
@@ -53,22 +71,22 @@ export const Importers = memo(function Importers() {
     try {
       if (isEditing) {
         await importersApi.update(isEditing.id, formData);
-        toast.success('Importer updated successfully');
+        toast.success("Importer updated successfully");
       } else {
         await importersApi.create(formData);
-        toast.success('Importer created successfully');
+        toast.success("Importer created successfully");
       }
       await loadImporters();
       closeModal();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to save importer');
+      toast.error(error.response?.data?.message || "Failed to save importer");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const openCreateModal = () => {
-    setFormData({ name: '', address: '', cin: '', phone: '', email: '' });
+    setFormData({ name: "", address: "", cin: "", phone: "", email: "" });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -76,10 +94,10 @@ export const Importers = memo(function Importers() {
   const openEditModal = (importer: Importer) => {
     setFormData({
       name: importer.name,
-      address: importer.address || '',
-      cin: importer.cin || '',
-      phone: importer.phone || '',
-      email: importer.email || '',
+      address: importer.address || "",
+      cin: importer.cin || "",
+      phone: importer.phone || "",
+      email: importer.email || "",
     });
     setIsEditing(importer);
     setIsModalOpen(true);
@@ -88,132 +106,142 @@ export const Importers = memo(function Importers() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ name: '', address: '', cin: '', phone: '', email: '' });
+    setFormData({ name: "", address: "", cin: "", phone: "", email: "" });
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      return;
+    }
+
     setIsDeleting(true);
     try {
       await importersApi.delete(deleteTarget.id);
-      toast.success('Importer deleted successfully');
+      toast.success("Importer deleted successfully");
       await loadImporters();
       setDeleteTarget(null);
-    } catch (error) {
-      toast.error('Failed to delete importer');
+    } catch {
+      toast.error("Failed to delete importer");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  // Create table columns
   const columns = createTableColumns<Importer>(
     [
       {
-        accessorKey: 'name',
-        header: 'Company',
-cell: (row) => (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shadow-card group-hover:shadow-neon-cyan/20 transition-all">
-              <Truck className="w-4.5 h-4.5 text-brand-400" />
-            </div>
-            <div>
-              <p className="font-semibold text-white">{row.name}</p>
-              {row.address && (
-                <p className="text-xs text-neutral-400 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-brand-400" />
-                  {row.address.slice(0, 40)}...
-                </p>
-              )}
-            </div>
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'cin',
-        header: 'CIN',
-cell: (row) => (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-500/10 text-brand-400 text-xs font-mono rounded-lg border border-brand-500/20 shadow-neon-cyan/10">
-            {row.cin || 'N/A'}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'phone',
-        header: 'Contact',
+        accessorKey: "name",
+        header: "Importer",
         cell: (row) => (
-          <div className="space-y-1">
-            {row.phone && (
-              <p className="text-xs text-neutral-300 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5 text-brand-400" /> {row.phone}
-              </p>
-            )}
-            {row.email && (
-              <p className="text-xs text-neutral-400 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5 text-brand-400" /> {row.email}
-              </p>
-            )}
-          </div>
+          <Group gap="sm" wrap="nowrap">
+            <ThemeIcon
+              size={40}
+              radius="lg"
+              variant="light"
+              color="cyan"
+              style={{
+                background: "rgba(30, 192, 243, 0.12)",
+                border: "1px solid rgba(30, 192, 243, 0.18)",
+              }}
+            >
+              <Truck size={18} />
+            </ThemeIcon>
+            <Stack gap={2}>
+              <Text fw={700} size="sm">
+                {row.name}
+              </Text>
+              <Group gap="xs">
+                {row.cin ? (
+                  <Text size="11px" c="dimmed" ff="monospace">
+                    {row.cin}
+                  </Text>
+                ) : null}
+                {row.address ? (
+                  <Group gap={4} wrap="nowrap">
+                    <MapPin size={12} color="var(--mantine-color-gray-5)" />
+                    <Text size="11px" c="dimmed" lineClamp={1}>
+                      {row.address}
+                    </Text>
+                  </Group>
+                ) : null}
+              </Group>
+            </Stack>
+          </Group>
         ),
       },
       {
-        accessorKey: 'created_at',
-        header: 'Added',
+        accessorKey: "phone",
+        header: "Contact",
         cell: (row) => (
-          <span className="inline-flex items-center px-2 py-1 bg-white/5 text-neutral-400 text-xs rounded-md border border-white/10 font-medium">
-            {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : 'N/A'}
-          </span>
+          <Stack gap={4}>
+            <Group gap={6} wrap="nowrap">
+              <Phone size={13} color="var(--mantine-color-cyan-4)" />
+              <Text size="sm">{row.phone || "N/A"}</Text>
+            </Group>
+            <Group gap={6} wrap="nowrap">
+              <Mail size={13} color="var(--mantine-color-cyan-4)" />
+              <Text size="11px" c="dimmed" lineClamp={1}>
+                {row.email || "No email"}
+              </Text>
+            </Group>
+          </Stack>
+        ),
+      },
+      {
+        accessorKey: "created_at",
+        header: "Created",
+        cell: (row) => (
+          <Text size="11px" c="dimmed">
+            {row.created_at
+              ? format(new Date(row.created_at), "dd MMM yyyy")
+              : "N/A"}
+          </Text>
         ),
       },
     ],
     [
       {
-        label: 'Edit',
+        label: "Edit",
         icon: <Edit2 className="h-4 w-4" />,
         onClick: (row) => openEditModal(row),
       },
       {
-        label: 'Delete',
+        label: "Delete",
         icon: <Trash2 className="h-4 w-4" />,
         onClick: (row) => setDeleteTarget(row),
-        variant: 'destructive',
+        variant: "destructive",
       },
-    ]
+    ],
   );
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      {/* Header Bar */}
-      <div className="navbar bg-base-100 shadow-sm rounded-box mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="page-icon-chip">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Importers</h1>
-              <p className="text-sm opacity-70">Supplier Management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={openCreateModal}
-              className="h-9 w-44 font-bold shadow-card bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
-              leftIcon={<Plus className="w-4 h-4" />}
-            >
-              NEW IMPORTER
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Data Table */}
-      <div className="card bg-base-100 shadow-sm overflow-hidden">
-        <div className="p-3">
+    <>
+      <OperationsPage
+        title="Importers"
+        description="Manage supplier and partner companies with one common master-data workflow."
+        icon={Building2}
+        actions={
+          <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+            New Importer
+          </Button>
+        }
+        metrics={[
+          { label: "Partners", value: importers.length, tone: "brand" },
+          {
+            label: "With Email",
+            value: importers.filter((item) => item.email).length,
+          },
+          {
+            label: "With Phone",
+            value: importers.filter((item) => item.phone).length,
+          },
+        ]}
+      >
+        <OperationsPanel
+          title="Importer Directory"
+          description="Unified table styling, search, and row actions."
+          icon={Truck}
+        >
           <DataTable
             columns={columns}
             data={importers}
@@ -222,94 +250,89 @@ cell: (row) => (
             onSearch={setSearchTerm}
             searchValue={searchTerm}
           />
-        </div>
-      </div>
+        </OperationsPanel>
+      </OperationsPage>
 
-      {/* Create/Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={isEditing ? 'Edit Importer' : 'New Importer'}
-        size="md"
+        title={isEditing ? "Edit Importer" : "New Importer"}
+        size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="label-text font-medium inline-block mb-1">
-              Company Name <span className="text-danger-500">*</span>
-            </label>
+        <form onSubmit={handleSubmit}>
+          <Stack gap="md">
             <Input
+              label="Company Name"
               placeholder="Enter company name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="h-9"
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, name: event.target.value }))
+              }
+              leftElement={<Building2 size={16} />}
+              required
             />
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-text font-medium inline-block mb-1">Address</label>
             <Input
-              placeholder="Enter address"
+              label="Address"
+              placeholder="Registered office or warehouse address"
               value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-              className="h-9"
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, address: event.target.value }))
+              }
+              leftElement={<MapPin size={16} />}
             />
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-text font-medium inline-block mb-1">CIN Number</label>
+            <Group grow align="flex-start">
+              <Input
+                label="CIN Number"
+                placeholder="Corporate identity number"
+                value={formData.cin}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, cin: event.target.value }))
+                }
+              />
+              <Input
+                label="Phone"
+                placeholder="Phone number"
+                value={formData.phone}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                leftElement={<Phone size={16} />}
+              />
+            </Group>
             <Input
-              placeholder="Corporate Identity Number"
-              value={formData.cin}
-              onChange={(e) => setFormData(prev => ({ ...prev, cin: e.target.value }))}
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-text font-medium inline-block mb-1">Phone</label>
-            <Input
-              placeholder="Phone number"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="label-text font-medium inline-block mb-1">Email</label>
-            <Input
+              label="Email"
               type="email"
               placeholder="Email address"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="h-9"
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, email: event.target.value }))
+              }
+              leftElement={<Mail size={16} />}
             />
-          </div>
-          <div className="flex gap-3 pt-4 border-t border-white/10">
-            <Button type="button" variant="outline" onClick={closeModal} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="flex-1 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700">
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>{isEditing ? 'Update' : 'Create'}</>
-              )}
-            </Button>
-          </div>
+            <Group justify="flex-end" pt="sm">
+              <Button variant="outline" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                {isEditing ? "Update Importer" : "Create Importer"}
+              </Button>
+            </Group>
+          </Stack>
         </form>
       </Modal>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Importer"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+        message={`Delete "${deleteTarget?.name}"? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"
         isLoading={isDeleting}
       />
-    </div>
+    </>
   );
 });
 
 export default Importers;
-

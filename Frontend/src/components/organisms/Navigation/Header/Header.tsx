@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import {
   ActionIcon,
   Avatar,
+  Badge,
   Burger,
   Button,
   Group,
@@ -14,7 +16,6 @@ import {
 } from "@mantine/core";
 import {
   Bell,
-  ChevronDown,
   HelpCircle,
   LogOut,
   RefreshCw,
@@ -22,12 +23,10 @@ import {
   Settings,
   User,
 } from "lucide-react";
-import { cn } from "../../../../lib/utils";
+import { navigationGroups } from "../navigation";
 
 export interface HeaderProps {
   onMenuClick?: () => void;
-  onSidebarToggle?: () => void;
-  sidebarCollapsed?: boolean;
   isSyncing?: boolean;
   onSync?: () => void;
   userName?: string;
@@ -36,13 +35,10 @@ export interface HeaderProps {
   notificationCount?: number;
   onLogout?: () => void;
   onProfileClick?: () => void;
-  className?: string;
 }
 
 export function Header({
   onMenuClick,
-  onSidebarToggle,
-  sidebarCollapsed,
   isSyncing = false,
   onSync,
   userName = "John Doe",
@@ -51,49 +47,77 @@ export function Header({
   notificationCount = 3,
   onLogout,
   onProfileClick,
-  className,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
+
+  const activeItem = useMemo(
+    () =>
+      navigationGroups
+        .flatMap((group) => group.items)
+        .find((item) => item.href === location.pathname),
+    [location.pathname],
+  );
+
+  const activeGroup = useMemo(
+    () =>
+      navigationGroups.find((group) =>
+        group.items.some((item) => item.href === location.pathname),
+      ),
+    [location.pathname],
+  );
 
   return (
     <Paper
-      radius="xl"
-      mx={{ base: "sm", md: "md" }}
-      mt={{ base: "sm", md: "md" }}
-      px={{ base: "sm", md: "md" }}
-      py="xs"
+      radius={0}
+      h="100%"
+      px={{ base: "sm", md: "lg" }}
+      py="sm"
       withBorder
-      className={cn(className)}
       style={{
-        background: "linear-gradient(180deg, rgba(22,33,52,0.88) 0%, rgba(15,24,40,0.92) 100%)",
+        background:
+          "linear-gradient(180deg, rgba(10,18,31,0.96) 0%, rgba(10,18,31,0.92) 100%)",
+        borderColor: "rgba(148, 163, 184, 0.14)",
         backdropFilter: "blur(18px)",
       }}
     >
-      <Group justify="space-between" wrap="nowrap" gap="sm">
-        <Group gap="sm" wrap="nowrap" flex={1}>
-          <Burger hiddenFrom="md" opened={false} onClick={onMenuClick} aria-label="Open menu" />
-          <ActionIcon
-            visibleFrom="md"
-            variant="subtle"
-            color="gray"
-            radius="xl"
-            onClick={onSidebarToggle}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <ChevronDown
-              size={16}
-              style={{
-                transform: sidebarCollapsed ? "rotate(-90deg)" : "rotate(90deg)",
-                transition: "transform 200ms ease",
-              }}
-            />
-          </ActionIcon>
+      <Group justify="space-between" wrap="nowrap" h="100%" gap="md">
+        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+          <Burger
+            hiddenFrom="md"
+            opened={false}
+            onClick={onMenuClick}
+            aria-label="Open navigation"
+          />
 
+          <Stack gap={2} style={{ minWidth: 0 }}>
+            <Group gap="xs" wrap="nowrap">
+              <Text size="lg" fw={800} c="white" lh={1.1} truncate>
+                {activeItem?.label || "PlusGrow WMS"}
+              </Text>
+              {activeGroup ? (
+                <Badge
+                  variant="light"
+                  color="cyan"
+                  radius="xl"
+                  visibleFrom="sm"
+                >
+                  {activeGroup.label}
+                </Badge>
+              ) : null}
+            </Group>
+            <Text size="xs" c="dimmed" truncate>
+              Static command header. Responsive sidebar. Enterprise operations
+              workspace.
+            </Text>
+          </Stack>
+        </Group>
+
+        <Group gap="xs" wrap="nowrap">
           <TextInput
             visibleFrom="sm"
-            flex={1}
-            maw={420}
-            placeholder="Search inventory, SKU, order..."
+            w={{ sm: 220, lg: 320 }}
+            placeholder="Search SKU, invoice, location..."
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.currentTarget.value)}
             leftSection={<Search size={16} />}
@@ -105,24 +129,33 @@ export function Header({
               },
             }}
           />
-        </Group>
 
-        <Group gap="xs" wrap="nowrap">
+          <ActionIcon
+            hiddenFrom="sm"
+            variant="subtle"
+            color="gray"
+            radius="xl"
+            aria-label="Search"
+          >
+            <Search size={16} />
+          </ActionIcon>
+
           <Button
             visibleFrom="sm"
             variant="light"
             color="cyan"
             radius="xl"
-            leftSection={<RefreshCw size={16} className={isSyncing ? "animate-spin" : undefined} />}
+            leftSection={
+              <RefreshCw
+                size={16}
+                className={isSyncing ? "animate-spin" : undefined}
+              />
+            }
             loading={isSyncing}
             onClick={onSync}
           >
             Sync
           </Button>
-
-          <ActionIcon hiddenFrom="sm" variant="subtle" color="gray" radius="xl" aria-label="Search">
-            <Search size={16} />
-          </ActionIcon>
 
           <Indicator
             inline
@@ -132,14 +165,24 @@ export function Header({
             offset={6}
             processing={notificationCount > 0}
           >
-            <ActionIcon variant="subtle" color="gray" radius="xl" aria-label="Notifications">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              radius="xl"
+              aria-label="Notifications"
+            >
               <Bell size={16} />
             </ActionIcon>
           </Indicator>
 
           <Menu shadow="lg" width={240} radius="xl" position="bottom-end">
             <Menu.Target>
-              <Button variant="subtle" color="gray" radius="xl" px="xs" rightSection={<ChevronDown size={14} />}>
+              <Button
+                variant="subtle"
+                color="gray"
+                radius="xl"
+                px="xs"
+              >
                 <Group gap="xs" wrap="nowrap">
                   <Avatar radius="xl" color="cyan">
                     {userInitials}
@@ -158,13 +201,24 @@ export function Header({
 
             <Menu.Dropdown>
               <Menu.Label>{userName}</Menu.Label>
-              <Menu.Item leftSection={<User size={15} />} onClick={onProfileClick}>
+              <Menu.Item
+                leftSection={<User size={15} />}
+                onClick={onProfileClick}
+              >
                 Profile
               </Menu.Item>
-              <Menu.Item leftSection={<Settings size={15} />}>Settings</Menu.Item>
-              <Menu.Item leftSection={<HelpCircle size={15} />}>Help & Support</Menu.Item>
+              <Menu.Item leftSection={<Settings size={15} />}>
+                Settings
+              </Menu.Item>
+              <Menu.Item leftSection={<HelpCircle size={15} />}>
+                Help & Support
+              </Menu.Item>
               <Menu.Divider />
-              <Menu.Item color="red" leftSection={<LogOut size={15} />} onClick={onLogout}>
+              <Menu.Item
+                color="red"
+                leftSection={<LogOut size={15} />}
+                onClick={onLogout}
+              >
                 Sign out
               </Menu.Item>
             </Menu.Dropdown>

@@ -19,6 +19,10 @@ out/
 .ralphy
 .jetro
 .agent/
+.qoder/
+.opencode/
+.cursor/
+.omx/
 
 # NuGet
 *.nupkg
