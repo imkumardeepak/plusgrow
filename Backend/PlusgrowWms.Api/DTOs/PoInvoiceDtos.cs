@@ -23,9 +23,6 @@ public class CreatePoInvoiceDto
     public string PartyName { get; set; } = string.Empty;
     public int ProductId { get; set; }
     public int BilledQty { get; set; }
-    public bool Printed { get; set; }
-    public int RemainingAllocation { get; set; }
-    public bool LocationAllotted { get; set; }
 }
 
 public class UpdatePoInvoiceDto : CreatePoInvoiceDto

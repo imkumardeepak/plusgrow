@@ -50,9 +50,6 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   partyName: "",
   productId: 0,
   billedQty: 0,
-  printed: false,
-  remainingAllocation: 0,
-  locationAllotted: false,
 });
 
 export const Inward = memo(function Inward() {
@@ -150,9 +147,6 @@ export const Inward = memo(function Inward() {
       partyName: row.partyName,
       productId: row.productId,
       billedQty: row.billedQty,
-      printed: row.printed,
-      remainingAllocation: row.remainingAllocation,
-      locationAllotted: row.locationAllotted,
     });
     setInvoiceModalOpen(true);
   };
@@ -492,74 +486,6 @@ export const Inward = memo(function Inward() {
                       billedQty: Number(e.target.value),
                     }))
                   }
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Input
-                  label="Remaining Allocation"
-                  type="number"
-                  min="0"
-                  value={invoiceForm.remainingAllocation}
-                  onChange={(e) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      remainingAllocation: Number(e.target.value),
-                    }))
-                  }
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Printed"
-                  data={[
-                    { value: "true", label: "TRUE" },
-                    { value: "false", label: "FALSE" },
-                  ]}
-                  value={invoiceForm.printed ? "true" : "false"}
-                  onChange={(value) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      printed: value === "true",
-                    }))
-                  }
-                  styles={{
-                    input: {
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                      borderColor: "rgba(255,255,255,0.12)",
-                    },
-                    dropdown: {
-                      background:
-                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                      borderColor: "rgba(148, 163, 184, 0.16)",
-                    },
-                  }}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Location Allotted"
-                  data={[
-                    { value: "true", label: "TRUE" },
-                    { value: "false", label: "FALSE" },
-                  ]}
-                  value={invoiceForm.locationAllotted ? "true" : "false"}
-                  onChange={(value) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      locationAllotted: value === "true",
-                    }))
-                  }
-                  styles={{
-                    input: {
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                      borderColor: "rgba(255,255,255,0.12)",
-                    },
-                    dropdown: {
-                      background:
-                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                      borderColor: "rgba(148, 163, 184, 0.16)",
-                    },
-                  }}
                 />
               </Grid.Col>
             </Grid>

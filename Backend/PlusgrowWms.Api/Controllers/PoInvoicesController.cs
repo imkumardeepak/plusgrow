@@ -45,9 +45,9 @@ public class PoInvoicesController : BaseController
             PartyName = dto.PartyName.Trim(),
             ProductId = dto.ProductId,
             BilledQty = dto.BilledQty,
-            Printed = dto.Printed,
-            RemainingAllocation = dto.RemainingAllocation,
-            LocationAllotted = dto.LocationAllotted,
+            Printed = false,
+            RemainingAllocation = dto.BilledQty,
+            LocationAllotted = false,
         };
 
         _context.PoInvoices.Add(entity);
@@ -74,9 +74,7 @@ public class PoInvoicesController : BaseController
         entity.PartyName = dto.PartyName.Trim();
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
-        entity.Printed = dto.Printed;
-        entity.RemainingAllocation = dto.RemainingAllocation;
-        entity.LocationAllotted = dto.LocationAllotted;
+        entity.RemainingAllocation = dto.BilledQty;
 
         await _context.SaveChangesAsync();
 

@@ -147,9 +147,6 @@ export interface CreatePoInvoiceDto {
   partyName: string;
   productId: number;
   billedQty: number;
-  printed: boolean;
-  remainingAllocation: number;
-  locationAllotted: boolean;
 }
 
 export interface ProductQuantityRecord {
