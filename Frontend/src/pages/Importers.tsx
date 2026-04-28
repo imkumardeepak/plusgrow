@@ -14,7 +14,10 @@ import { format } from "date-fns";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
-import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  DataTable,
+  createTableColumns,
+} from "../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -38,7 +41,6 @@ export const Importers = memo(function Importers() {
   const [formData, setFormData] = useState<CreateImporterDto>({
     name: "",
     address: "",
-    cin: "",
     phone: "",
     email: "",
   });
@@ -86,7 +88,7 @@ export const Importers = memo(function Importers() {
   };
 
   const openCreateModal = () => {
-    setFormData({ name: "", address: "", cin: "", phone: "", email: "" });
+    setFormData({ name: "", address: "", phone: "", email: "" });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -95,7 +97,6 @@ export const Importers = memo(function Importers() {
     setFormData({
       name: importer.name,
       address: importer.address || "",
-      cin: importer.cin || "",
       phone: importer.phone || "",
       email: importer.email || "",
     });
@@ -106,7 +107,7 @@ export const Importers = memo(function Importers() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ name: "", address: "", cin: "", phone: "", email: "" });
+    setFormData({ name: "", address: "", phone: "", email: "" });
   };
 
   const handleDelete = async () => {
@@ -151,11 +152,6 @@ export const Importers = memo(function Importers() {
                 {row.name}
               </Text>
               <Group gap="xs">
-                {row.cin ? (
-                  <Text size="11px" c="dimmed" ff="monospace">
-                    {row.cin}
-                  </Text>
-                ) : null}
                 {row.address ? (
                   <Group gap={4} wrap="nowrap">
                     <MapPin size={12} color="var(--mantine-color-gray-5)" />
@@ -276,29 +272,22 @@ export const Importers = memo(function Importers() {
               placeholder="Registered office or warehouse address"
               value={formData.address}
               onChange={(event) =>
-                setFormData((prev) => ({ ...prev, address: event.target.value }))
+                setFormData((prev) => ({
+                  ...prev,
+                  address: event.target.value,
+                }))
               }
               leftElement={<MapPin size={16} />}
             />
-            <Group grow align="flex-start">
-              <Input
-                label="CIN Number"
-                placeholder="Corporate identity number"
-                value={formData.cin}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, cin: event.target.value }))
-                }
-              />
-              <Input
-                label="Phone"
-                placeholder="Phone number"
-                value={formData.phone}
-                onChange={(event) =>
-                  setFormData((prev) => ({ ...prev, phone: event.target.value }))
-                }
-                leftElement={<Phone size={16} />}
-              />
-            </Group>
+            <Input
+              label="Phone"
+              placeholder="Phone number"
+              value={formData.phone}
+              onChange={(event) =>
+                setFormData((prev) => ({ ...prev, phone: event.target.value }))
+              }
+              leftElement={<Phone size={16} />}
+            />
             <Input
               label="Email"
               type="email"

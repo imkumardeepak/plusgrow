@@ -23,7 +23,6 @@ export interface Importer {
   id: number;
   name: string;
   address?: string;
-  cin?: string;
   phone?: string;
   email?: string;
   created_at: string;
@@ -38,7 +37,8 @@ export interface Product {
   manufacturerId?: number;
   manufacturer?: Manufacturer;
   countryOfOrigin?: string;
-  mrpQuantity?: string;
+  factor?: string;
+  netQuantity?: string;
   unitType?: string;
   ussp?: number;
   mrp?: number;
@@ -59,7 +59,6 @@ export interface CreateCommodityDto {
 export interface CreateImporterDto {
   name: string;
   address?: string;
-  cin?: string;
   phone?: string;
   email?: string;
 }
@@ -70,7 +69,8 @@ export interface CreateProductDto {
   commodityId?: number;
   manufacturerId?: number;
   countryOfOrigin?: string;
-  mrpQuantity?: string;
+  factor?: string;
+  netQuantity?: string;
   unitType?: string;
   ussp?: number;
   mrp?: number;

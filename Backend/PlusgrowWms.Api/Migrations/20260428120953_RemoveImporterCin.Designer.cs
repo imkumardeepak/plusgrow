@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlusgrowWms.Api.Data;
@@ -12,9 +13,11 @@ using PlusgrowWms.Api.Data;
 namespace PlusgrowWms.Api.Migrations
 {
     [DbContext(typeof(PlusgrowDbContext))]
-    partial class PlusgrowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428120953_RemoveImporterCin")]
+    partial class RemoveImporterCin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -285,12 +288,6 @@ namespace PlusgrowWms.Api.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Factor")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("factor")
-                        .HasAnnotation("Relational:JsonPropertyName", "Factor");
-
                     b.Property<int?>("ManufacturerId")
                         .HasColumnType("integer")
                         .HasColumnName("manufacturer_id");
@@ -300,16 +297,17 @@ namespace PlusgrowWms.Api.Migrations
                         .HasColumnName("mrp")
                         .HasAnnotation("Relational:JsonPropertyName", "Mrp");
 
+                    b.Property<string>("MrpQuantity")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("mrp_quantity")
+                        .HasAnnotation("Relational:JsonPropertyName", "MrpQuantity");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
-
-                    b.Property<string>("NetQuantity")
-                        .HasColumnType("text")
-                        .HasColumnName("net_quantity")
-                        .HasAnnotation("Relational:JsonPropertyName", "NetQuantity");
 
                     b.Property<string>("Sku")
                         .HasMaxLength(100)

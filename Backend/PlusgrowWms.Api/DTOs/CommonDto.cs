@@ -5,7 +5,6 @@ public class ImporterDto
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Address { get; set; }
-    public string? Cin { get; set; }
     public string? Phone { get; set; }
     public string? Email { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -15,7 +14,6 @@ public class CreateImporterDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Address { get; set; }
-    public string? Cin { get; set; }
     public string? Phone { get; set; }
     public string? Email { get; set; }
 }

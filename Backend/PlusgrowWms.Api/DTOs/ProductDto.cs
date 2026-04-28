@@ -8,8 +8,8 @@ public class ProductDto
     public int? CommodityId { get; set; }
     public string? CommodityName { get; set; }
     public string? CountryOfOrigin { get; set; }
-    public string? MrpQuantity { get; set; }
-    public decimal? Factor { get; set; }
+    public string? Factor { get; set; }
+    public string? NetQuantity { get; set; }
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Mrp { get; set; }
@@ -25,8 +25,8 @@ public class CreateProductDto
     public string? Sku { get; set; }
     public int? CommodityId { get; set; }
     public string? CountryOfOrigin { get; set; }
-    public string? MrpQuantity { get; set; }
-    public decimal? Factor { get; set; }
+    public string? Factor { get; set; }
+    public string? NetQuantity { get; set; }
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Mrp { get; set; }
@@ -41,8 +41,8 @@ public class UpdateProductDto
     public string? Sku { get; set; }
     public int? CommodityId { get; set; }
     public string? CountryOfOrigin { get; set; }
-    public string? MrpQuantity { get; set; }
-    public decimal? Factor { get; set; }
+    public string? Factor { get; set; }
+    public string? NetQuantity { get; set; }
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Mrp { get; set; }

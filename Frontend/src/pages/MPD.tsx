@@ -58,7 +58,8 @@ export const MPD = memo(function MPD() {
     commodityId: undefined,
     manufacturerId: undefined,
     countryOfOrigin: "India",
-    mrpQuantity: "",
+    factor: "",
+    netQuantity: "",
     unitType: "UNIT",
     ussp: 0,
     mrp: 0,
@@ -98,10 +99,10 @@ export const MPD = memo(function MPD() {
 
     setIsSubmitting(true);
     try {
-      // Auto-calculate USSP from MRP / MRP Quantity
+      // Auto-calculate USSP from MRP / Factor
       const ussp =
-        formData.mrp && formData.mrpQuantity
-          ? formData.mrp / parseFloat(formData.mrpQuantity) || 0
+        formData.mrp && formData.factor
+          ? formData.mrp / parseFloat(formData.factor) || 0
           : 0;
 
       const payload = {
@@ -111,8 +112,9 @@ export const MPD = memo(function MPD() {
         commodityId: formData.commodityId || null,
         manufacturerId: formData.manufacturerId || null,
         countryOfOrigin: formData.countryOfOrigin || null,
-        mrpQuantity: formData.mrpQuantity || null,
-        unitType: (formData.unitType || "UNIT").toUpperCase(),
+        factor: formData.factor || null,
+        netQuantity: formData.netQuantity || null,
+        unitType: formData.unitType || null,
         ussp: ussp,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 12,
@@ -142,7 +144,8 @@ export const MPD = memo(function MPD() {
       commodityId: undefined,
       manufacturerId: undefined,
       countryOfOrigin: "India",
-      mrpQuantity: "",
+      factor: "",
+      netQuantity: "",
       unitType: "UNIT",
       ussp: 0,
       mrp: 0,
@@ -159,7 +162,8 @@ export const MPD = memo(function MPD() {
       commodityId: product.commodityId,
       manufacturerId: product.manufacturerId,
       countryOfOrigin: product.countryOfOrigin || "India",
-      mrpQuantity: product.mrpQuantity || "",
+      factor: product.factor || "",
+      netQuantity: product.netQuantity || "",
       unitType: product.unitType || "UNIT",
       ussp: product.ussp || 0,
       mrp: product.mrp || 0,
@@ -489,7 +493,7 @@ export const MPD = memo(function MPD() {
             </Group>
             <Group grow align="flex-start">
               <Input
-                label="MRP (Total Amount)"
+                label="MRP"
                 type="number"
                 step="0.01"
                 value={String(formData.mrp ?? 0)}
@@ -502,13 +506,27 @@ export const MPD = memo(function MPD() {
                 leftElement={<IndianRupee size={16} />}
               />
               <Input
-                label="MRP/Unit (Single Price)"
-                placeholder="1L or 500g"
-                value={formData.mrpQuantity}
+                label="Factor"
+                placeholder="1 or 500"
+                type="number"
+                step="1"
+                min="1"
+                value={formData.factor}
                 onChange={(event) =>
                   setFormData((prev) => ({
                     ...prev,
-                    mrpQuantity: event.target.value,
+                    factor: event.target.value,
+                  }))
+                }
+              />
+              <Input
+                label="Net Qnty"
+                placeholder="1L or 500ml"
+                value={formData.netQuantity}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    netQuantity: event.target.value,
                   }))
                 }
               />
@@ -519,15 +537,15 @@ export const MPD = memo(function MPD() {
                 type="number"
                 step="0.01"
                 value={String(
-                  formData.mrp && formData.mrpQuantity
-                    ? formData.mrp / parseFloat(formData.mrpQuantity) || 0
+                  formData.mrp && formData.factor
+                    ? formData.mrp / parseFloat(formData.factor) || 0
                     : 0,
                 )}
                 disabled
                 leftElement={<IndianRupee size={16} />}
               />
               <Input
-                label="Unit Type"
+                label="Unit"
                 placeholder="UNIT, KG, ML"
                 value={formData.unitType}
                 onChange={(event) =>

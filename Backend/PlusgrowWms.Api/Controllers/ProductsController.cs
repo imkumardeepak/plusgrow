@@ -78,7 +78,8 @@ public class ProductsController : BaseController
         existing.CommodityId = product.CommodityId;
         existing.ManufacturerId = product.ManufacturerId;
         existing.CountryOfOrigin = product.CountryOfOrigin;
-        existing.MrpQuantity = product.MrpQuantity;
+        existing.Factor = product.Factor;
+        existing.NetQuantity = product.NetQuantity;
         existing.UnitType = product.UnitType;
         existing.Ussp = product.Ussp;
         existing.Mrp = product.Mrp;
@@ -216,17 +217,18 @@ public class ProductsController : BaseController
                     // Parse numeric values
                     decimal.TryParse(row.Cell("MRP").GetString(), out decimal mrp);
                     decimal.TryParse(row.Cell("USSP").GetString(), out decimal ussp);
+                    decimal.TryParse(row.Cell("Net Qnty").GetString(), out decimal netQuantity);
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
 
-                    // Auto-calculate USSP if MRP and MRP/Unit provided
-                    var mrpQuantityStr = row.Cell("MRP/Unit").GetString()?.Trim();
-                    if (mrp > 0 && !string.IsNullOrEmpty(mrpQuantityStr))
+                    // Auto-calculate USSP if MRP and Factor provided
+                    var factorStr = row.Cell("Factor").GetString()?.Trim();
+                    if (mrp > 0 && !string.IsNullOrEmpty(factorStr))
                     {
-                        // Extract numeric value from MRP/Unit (e.g., "1L" -> 1, "500g" -> 500)
-                        var numericPart = new string(mrpQuantityStr.Where(char.IsDigit).ToArray());
-                        if (decimal.TryParse(numericPart, out decimal mrpUnitValue) && mrpUnitValue > 0)
+                        // Extract numeric value from Factor (e.g., "1L" -> 1, "500g" -> 500)
+                        var numericPart = new string(factorStr.Where(char.IsDigit).ToArray());
+                        if (decimal.TryParse(numericPart, out decimal factorValue) && factorValue > 0)
                         {
-                            ussp = mrp / mrpUnitValue;
+                            ussp = mrp / factorValue;
                         }
                     }
 
@@ -237,7 +239,8 @@ public class ProductsController : BaseController
                         ManufacturerId = manufacturerId,
                         CommodityId = commodityId,
                         CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",
-                        MrpQuantity = mrpQuantityStr,
+                        Factor = factorStr,
+                        NetQuantity = netQuantity > 0 ? netQuantity.ToString() : null,
                         UnitType = row.Cell("Unit Type").GetString()?.Trim() ?? "UNIT",
                         Mrp = mrp,
                         Ussp = ussp,

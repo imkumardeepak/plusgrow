@@ -166,7 +166,6 @@ export interface Importer {
   id: number;
   name: string;
   address: string | null;
-  cin: string | null;
   phone: string | null;
   email: string | null;
   created_at: string;
@@ -175,7 +174,6 @@ export interface Importer {
 export interface CreateImporterDto {
   name: string;
   address?: string;
-  cin?: string;
   phone?: string;
   email?: string;
 }

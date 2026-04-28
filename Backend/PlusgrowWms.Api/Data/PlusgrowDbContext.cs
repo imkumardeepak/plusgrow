@@ -159,9 +159,6 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(rpa => new { rpa.RoleId, rpa.PageKey })
             .IsUnique();
 
-        modelBuilder.Entity<Importer>()
-            .HasIndex(i => i.Cin);
-
         modelBuilder.Entity<Manufacturer>()
             .HasIndex(m => m.Country);
 

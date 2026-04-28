@@ -32,9 +32,13 @@ public class Product
     public string? CountryOfOrigin { get; set; }
 
     [MaxLength(50)]
-    [Column("mrp_quantity")]
-    [JsonPropertyName("MrpQuantity")]
-    public string? MrpQuantity { get; set; }
+    [Column("factor")]
+    [JsonPropertyName("Factor")]
+    public string? Factor { get; set; }
+
+    [Column("net_quantity")]
+    [JsonPropertyName("NetQuantity")]
+    public string? NetQuantity { get; set; }
 
     [MaxLength(20)]
     [Column("unit_type")]
@@ -42,7 +46,7 @@ public class Product
     public string? UnitType
     {
         get => _unitType;
-        set => _unitType = value?.ToUpperInvariant();
+        set => _unitType = value?.Trim() ?? string.Empty;
     }
     private string? _unitType;
 
