@@ -1,9 +1,7 @@
-import React, { useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useState } from "react";
 import {
   ActionIcon,
   Avatar,
-  Badge,
   Burger,
   Button,
   Group,
@@ -23,7 +21,7 @@ import {
   Settings,
   User,
 } from "lucide-react";
-import { navigationGroups } from "../navigation";
+import { Logo } from "../../../atoms/Logo";
 
 export interface HeaderProps {
   onMenuClick?: () => void;
@@ -49,23 +47,6 @@ export function Header({
   onProfileClick,
 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const location = useLocation();
-
-  const activeItem = useMemo(
-    () =>
-      navigationGroups
-        .flatMap((group) => group.items)
-        .find((item) => item.href === location.pathname),
-    [location.pathname],
-  );
-
-  const activeGroup = useMemo(
-    () =>
-      navigationGroups.find((group) =>
-        group.items.some((item) => item.href === location.pathname),
-      ),
-    [location.pathname],
-  );
 
   return (
     <Paper
@@ -90,27 +71,7 @@ export function Header({
             aria-label="Open navigation"
           />
 
-          <Stack gap={2} style={{ minWidth: 0 }}>
-            <Group gap="xs" wrap="nowrap">
-              <Text size="lg" fw={800} c="white" lh={1.1} truncate>
-                {activeItem?.label || "PlusGrow WMS"}
-              </Text>
-              {activeGroup ? (
-                <Badge
-                  variant="light"
-                  color="cyan"
-                  radius="xl"
-                  visibleFrom="sm"
-                >
-                  {activeGroup.label}
-                </Badge>
-              ) : null}
-            </Group>
-            <Text size="xs" c="dimmed" truncate>
-              Static command header. Responsive sidebar. Enterprise operations
-              workspace.
-            </Text>
-          </Stack>
+          <Logo style={{ maxHeight: 36, objectFit: "contain" }} />
         </Group>
 
         <Group gap="xs" wrap="nowrap">
@@ -177,12 +138,7 @@ export function Header({
 
           <Menu shadow="lg" width={240} radius="xl" position="bottom-end">
             <Menu.Target>
-              <Button
-                variant="subtle"
-                color="gray"
-                radius="xl"
-                px="xs"
-              >
+              <Button variant="subtle" color="gray" radius="xl" px="xs">
                 <Group gap="xs" wrap="nowrap">
                   <Avatar radius="xl" color="cyan">
                     {userInitials}

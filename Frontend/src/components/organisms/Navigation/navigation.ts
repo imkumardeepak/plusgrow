@@ -29,6 +29,7 @@ export interface NavItem {
 export interface NavGroup {
   id: string;
   label: string;
+  icon: LucideIcon;
   items: NavItem[];
 }
 
@@ -36,6 +37,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "overview",
     label: "Overview",
+    icon: LayoutDashboard,
     items: [
       {
         id: "dashboard",
@@ -48,6 +50,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "master",
     label: "Master Data",
+    icon: Layers,
     items: [
       {
         id: "importers",
@@ -90,6 +93,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "inward",
     label: "Inward Operations",
+    icon: ArrowDownToLine,
     items: [
       {
         id: "inward",
@@ -114,6 +118,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "outward",
     label: "Outward Operations",
+    icon: ArrowUpFromLine,
     items: [
       {
         id: "outward",
@@ -138,6 +143,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "inventory",
     label: "Inventory",
+    icon: ClipboardCheck,
     items: [
       {
         id: "stock-check",
@@ -162,6 +168,7 @@ export const navigationGroups: NavGroup[] = [
   {
     id: "account",
     label: "Account",
+    icon: User,
     items: [
       {
         id: "profile",

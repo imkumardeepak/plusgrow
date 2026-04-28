@@ -3,22 +3,13 @@ import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import {
   ActionIcon,
   AppShell,
-  Box,
-  Divider,
   Group,
   NavLink,
   ScrollArea,
   Stack,
   Text,
-  ThemeIcon,
 } from "@mantine/core";
-import {
-  LayoutDashboard,
-  PackageCheck,
-  Warehouse,
-  X,
-} from "lucide-react";
-import { Logo } from "../../../atoms/Logo";
+import { X } from "lucide-react";
 import { navigationGroups } from "../navigation";
 
 export interface SidebarProps {
@@ -39,29 +30,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       }}
     >
       <AppShell.Section>
-        <Group justify="space-between" wrap="nowrap" mb="md">
-          <Group gap="sm" wrap="nowrap">
-            <Box
-              p={10}
-              style={{
-                borderRadius: 18,
-                background:
-                  "linear-gradient(135deg, rgba(23,185,236,0.18), rgba(10,139,191,0.08))",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Logo width={34} height={34} className="w-[34px] h-[34px]" />
-            </Box>
-            <Stack gap={0}>
-              <Text fw={800} c="white" lh={1.1}>
-                PlusGrow WMS
-              </Text>
-              <Text size="xs" c="dimmed">
-                SaaS operations suite
-              </Text>
-            </Stack>
-          </Group>
-
+        <Group justify="flex-end" wrap="nowrap" mb="md">
           <ActionIcon
             hiddenFrom="md"
             variant="subtle"
@@ -72,53 +41,24 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
             <X size={18} />
           </ActionIcon>
         </Group>
-
-        <Box
-          p="sm"
-          style={{
-            borderRadius: 20,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
-          }}
-        >
-          <Group gap="sm" wrap="nowrap" align="flex-start">
-            <ThemeIcon
-              size={40}
-              radius="xl"
-              variant="light"
-              color="cyan"
-            >
-              <LayoutDashboard size={18} />
-            </ThemeIcon>
-            <Stack gap={3}>
-              <Text size="sm" fw={700} c="white">
-                Unified Navigation
-              </Text>
-              <Text size="11px" c="dimmed" lh={1.45}>
-                Static header on top. Primary modules in sidebar. Better for
-                daily ops flow.
-              </Text>
-            </Stack>
-          </Group>
-        </Box>
       </AppShell.Section>
-
-      <Divider my="md" color="rgba(255,255,255,0.08)" />
 
       <AppShell.Section grow component={ScrollArea}>
         <Stack gap="lg" pb="xl">
           {navigationGroups.map((group) => (
             <Stack key={group.id} gap="xs">
-              <Text
-                size="xs"
-                tt="uppercase"
-                fw={700}
-                c="dimmed"
-                px="xs"
-                style={{ letterSpacing: "0.16em" }}
-              >
-                {group.label}
-              </Text>
+              <Group gap="xs" px="xs" wrap="nowrap">
+                <group.icon size={12} />
+                <Text
+                  size="xs"
+                  tt="uppercase"
+                  fw={700}
+                  c="dimmed"
+                  style={{ letterSpacing: "0.16em" }}
+                >
+                  {group.label}
+                </Text>
+              </Group>
 
               {group.items.map((item) => (
                 <NavLink
@@ -160,39 +100,6 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
               ))}
             </Stack>
           ))}
-        </Stack>
-      </AppShell.Section>
-
-      <Divider my="md" color="rgba(255,255,255,0.08)" />
-
-      <AppShell.Section>
-        <Stack gap="xs">
-          <Group gap="xs" wrap="nowrap">
-            <ThemeIcon size={36} radius="xl" variant="light" color="cyan">
-              <Warehouse size={16} />
-            </ThemeIcon>
-            <Stack gap={0}>
-              <Text size="sm" fw={700} c="white">
-                Warehouse Control
-              </Text>
-              <Text size="11px" c="dimmed">
-                Stable desktop navigation
-              </Text>
-            </Stack>
-          </Group>
-          <Group gap="xs" wrap="nowrap">
-            <ThemeIcon size={36} radius="xl" variant="light" color="indigo">
-              <PackageCheck size={16} />
-            </ThemeIcon>
-            <Stack gap={0}>
-              <Text size="sm" fw={700} c="white">
-                Process Ready
-              </Text>
-              <Text size="11px" c="dimmed">
-                Shared shell across ops pages
-              </Text>
-            </Stack>
-          </Group>
         </Stack>
       </AppShell.Section>
     </AppShell.Navbar>

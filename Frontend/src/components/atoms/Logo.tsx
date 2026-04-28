@@ -3,11 +3,17 @@ import plusgrowIcon from "../../assets/plusgrow icon.png";
 
 interface LogoProps {
   className?: string;
-  width?: number;
-  height?: number;
+  width?: number | string;
+  height?: number | string;
+  style?: React.CSSProperties;
 }
 
-export const Logo = ({ className, width = 40, height = 40 }: LogoProps) => {
+export const Logo = ({
+  className,
+  width = "100%",
+  height = "auto",
+  style,
+}: LogoProps) => {
   return (
     <img
       src={plusgrowIcon}
@@ -15,6 +21,7 @@ export const Logo = ({ className, width = 40, height = 40 }: LogoProps) => {
       className={className}
       width={width}
       height={height}
+      style={{ display: "block", ...style }}
     />
   );
 };

@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import { Badge, Grid, Group, Select, Stack, Text } from "@mantine/core";
 import {
   ArrowDownToLine,
   Edit2,
@@ -42,9 +43,6 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   remainingAllocation: 0,
   locationAllotted: false,
 });
-
-const themedSelectClassName =
-  "h-9 w-full appearance-none rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 cursor-pointer";
 
 export const Inward = memo(function Inward() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -223,79 +221,91 @@ export const Inward = memo(function Inward() {
         accessorKey: "invoiceDate",
         header: "Invoice Date",
         cell: (row) => (
-          <span className="inline-flex items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-semibold text-neutral-200">
+          <Badge variant="light" color="gray" size="sm" radius="md">
             {format(new Date(row.invoiceDate), "dd-MMM-yy")}
-          </span>
+          </Badge>
         ),
       },
       {
         accessorKey: "partyName",
         header: "Party Name",
         cell: (row) => (
-          <span className="font-semibold text-white">{row.partyName}</span>
+          <Text fw={700} c="white" size="sm">
+            {row.partyName}
+          </Text>
         ),
       },
       {
         accessorKey: "skuCode",
         header: "SKU Code",
         cell: (row) => (
-          <span className="inline-flex rounded-lg border border-brand-500/20 bg-brand-500/10 px-2 py-1 font-mono text-xs text-brand-400">
+          <Text ff="monospace" size="11px" c="cyan.3" fw={700}>
             {row.skuCode}
-          </span>
+          </Text>
         ),
       },
       {
         accessorKey: "productName",
         header: "Product Name",
         cell: (row) => (
-          <span className="text-sm text-neutral-200">{row.productName}</span>
+          <Text size="sm" c="gray.3">
+            {row.productName}
+          </Text>
         ),
       },
       {
         accessorKey: "billedQty",
         header: "Billed Qty.",
         cell: (row) => (
-          <span className="font-bold text-white">{row.billedQty}</span>
+          <Text fw={700} c="white">
+            {row.billedQty}
+          </Text>
         ),
       },
       {
         accessorKey: "mrp",
         header: "MRP",
         cell: (row) => (
-          <span className="font-semibold text-success-400">
+          <Text fw={600} c="green.4">
             ₹{(row.mrp || 0).toLocaleString()}
-          </span>
+          </Text>
         ),
       },
       {
         accessorKey: "printed",
         header: "Printed",
         cell: (row) => (
-          <span
-            className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${row.printed ? "bg-success-500/10 text-success-400 border border-success-500/20" : "bg-warning-500/10 text-warning-400 border border-warning-500/20"}`}
+          <Badge
+            variant="light"
+            color={row.printed ? "green" : "yellow"}
+            size="sm"
+            radius="xl"
           >
             {row.printed ? "TRUE" : "FALSE"}
-          </span>
+          </Badge>
         ),
       },
       {
         accessorKey: "remainingAllocation",
         header: "Remaining Allocation",
         cell: (row) => (
-          <span className="font-semibold text-brand-300">
+          <Text fw={600} c="cyan.3">
             {row.remainingAllocation}
-          </span>
+          </Text>
         ),
       },
       {
         accessorKey: "locationAllotted",
         header: "Location Allotted",
         cell: (row) => (
-          <span
-            className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${row.locationAllotted ? "bg-brand-500/10 text-brand-400 border border-brand-500/20" : "bg-white/[0.04] text-neutral-400 border border-white/10"}`}
+          <Badge
+            variant="light"
+            color={row.locationAllotted ? "cyan" : "gray"}
+            size="sm"
+            radius="xl"
           >
             {row.locationAllotted ? "TRUE" : "FALSE"}
-          </span>
+          </Badge>
         ),
       },
     ],
@@ -343,7 +353,7 @@ export const Inward = memo(function Inward() {
         icon={FileText}
         description="Import Excel or add a single inward line manually."
         action={
-          <div className="flex items-center gap-2">
+          <Group gap="xs">
             <div className="relative">
               <input
                 type="file"
@@ -356,7 +366,6 @@ export const Inward = memo(function Inward() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-brand-500/30 text-brand-400 hover:bg-brand-500/10"
                 onClick={() =>
                   document.getElementById("invoice-upload")?.click()
                 }
@@ -375,12 +384,11 @@ export const Inward = memo(function Inward() {
             <Button
               size="sm"
               onClick={openCreateInvoice}
-              className="bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
             >
               New Row
             </Button>
-          </div>
+          </Group>
         }
       >
         <DataTable
@@ -399,137 +407,163 @@ export const Inward = memo(function Inward() {
         title={editingInvoice ? "Edit PO Invoice" : "New PO Invoice"}
         size="xl"
       >
-        <form onSubmit={handleInvoiceSubmit} className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Input
-              label="Invoice Date"
-              type="date"
-              value={invoiceForm.invoiceDate}
-              onChange={(e) =>
-                setInvoiceForm((prev) => ({
-                  ...prev,
-                  invoiceDate: e.target.value,
-                }))
-              }
-            />
-            <Input
-              label="Party Name"
-              value={invoiceForm.partyName}
-              onChange={(e) =>
-                setInvoiceForm((prev) => ({
-                  ...prev,
-                  partyName: e.target.value,
-                }))
-              }
-              placeholder="Enter party name"
-            />
-            <div className="space-y-2 md:col-span-2">
-              <label className="label-text font-medium inline-block mb-1">
-                Product
-              </label>
-              <select
-                className={themedSelectClassName}
-                value={invoiceForm.productId || ""}
-                onChange={(e) =>
-                  setInvoiceForm((prev) => ({
-                    ...prev,
-                    productId: Number(e.target.value),
-                  }))
-                }
-              >
-                <option value="">Select product</option>
-                {productOptions.map((product) => (
-                  <option key={product.value} value={product.value}>
-                    {product.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <Input
-              label="Billed Qty."
-              type="number"
-              min="0"
-              value={invoiceForm.billedQty}
-              onChange={(e) =>
-                setInvoiceForm((prev) => ({
-                  ...prev,
-                  billedQty: Number(e.target.value),
-                }))
-              }
-            />
-            <Input
-              label="Remaining Allocation"
-              type="number"
-              min="0"
-              value={invoiceForm.remainingAllocation}
-              onChange={(e) =>
-                setInvoiceForm((prev) => ({
-                  ...prev,
-                  remainingAllocation: Number(e.target.value),
-                }))
-              }
-            />
-            <div className="space-y-2">
-              <label className="label-text font-medium inline-block mb-1">
-                Printed
-              </label>
-              <select
-                className={themedSelectClassName}
-                value={invoiceForm.printed ? "true" : "false"}
-                onChange={(e) =>
-                  setInvoiceForm((prev) => ({
-                    ...prev,
-                    printed: e.target.value === "true",
-                  }))
-                }
-              >
-                <option value="true">TRUE</option>
-                <option value="false">FALSE</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="label-text font-medium inline-block mb-1">
-                Location Allotted
-              </label>
-              <select
-                className={themedSelectClassName}
-                value={invoiceForm.locationAllotted ? "true" : "false"}
-                onChange={(e) =>
-                  setInvoiceForm((prev) => ({
-                    ...prev,
-                    locationAllotted: e.target.value === "true",
-                  }))
-                }
-              >
-                <option value="true">TRUE</option>
-                <option value="false">FALSE</option>
-              </select>
-            </div>
-          </div>
+        <form onSubmit={handleInvoiceSubmit}>
+          <Stack gap="md">
+            <Grid>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Input
+                  label="Invoice Date"
+                  type="date"
+                  value={invoiceForm.invoiceDate}
+                  onChange={(e) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      invoiceDate: e.target.value,
+                    }))
+                  }
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Input
+                  label="Party Name"
+                  value={invoiceForm.partyName}
+                  onChange={(e) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      partyName: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter party name"
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Select
+                  label="Product"
+                  placeholder="Select product"
+                  data={productOptions.map((p) => ({
+                    value: String(p.value),
+                    label: p.label,
+                  }))}
+                  value={
+                    invoiceForm.productId ? String(invoiceForm.productId) : null
+                  }
+                  onChange={(value) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      productId: value ? Number(value) : 0,
+                    }))
+                  }
+                  searchable
+                  styles={{
+                    input: {
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: "rgba(255,255,255,0.12)",
+                    },
+                    dropdown: {
+                      background:
+                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                      borderColor: "rgba(148, 163, 184, 0.16)",
+                    },
+                  }}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Input
+                  label="Billed Qty."
+                  type="number"
+                  min="0"
+                  value={invoiceForm.billedQty}
+                  onChange={(e) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      billedQty: Number(e.target.value),
+                    }))
+                  }
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Input
+                  label="Remaining Allocation"
+                  type="number"
+                  min="0"
+                  value={invoiceForm.remainingAllocation}
+                  onChange={(e) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      remainingAllocation: Number(e.target.value),
+                    }))
+                  }
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Select
+                  label="Printed"
+                  data={[
+                    { value: "true", label: "TRUE" },
+                    { value: "false", label: "FALSE" },
+                  ]}
+                  value={invoiceForm.printed ? "true" : "false"}
+                  onChange={(value) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      printed: value === "true",
+                    }))
+                  }
+                  styles={{
+                    input: {
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: "rgba(255,255,255,0.12)",
+                    },
+                    dropdown: {
+                      background:
+                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                      borderColor: "rgba(148, 163, 184, 0.16)",
+                    },
+                  }}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Select
+                  label="Location Allotted"
+                  data={[
+                    { value: "true", label: "TRUE" },
+                    { value: "false", label: "FALSE" },
+                  ]}
+                  value={invoiceForm.locationAllotted ? "true" : "false"}
+                  onChange={(value) =>
+                    setInvoiceForm((prev) => ({
+                      ...prev,
+                      locationAllotted: value === "true",
+                    }))
+                  }
+                  styles={{
+                    input: {
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      borderColor: "rgba(255,255,255,0.12)",
+                    },
+                    dropdown: {
+                      background:
+                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                      borderColor: "rgba(148, 163, 184, 0.16)",
+                    },
+                  }}
+                />
+              </Grid.Col>
+            </Grid>
 
-          <div className="flex gap-3 border-t border-white/10 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={resetInvoiceModal}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSavingInvoice}
-              className="flex-1 bg-gradient-to-br from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700"
-            >
-              {isSavingInvoice ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : editingInvoice ? (
-                "Update Invoice"
-              ) : (
-                "Create Invoice"
-              )}
-            </Button>
-          </div>
+            <Group justify="flex-end" pt="sm">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetInvoiceModal}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSavingInvoice}>
+                {editingInvoice ? "Update Invoice" : "Create Invoice"}
+              </Button>
+            </Group>
+          </Stack>
         </form>
       </Modal>
 
