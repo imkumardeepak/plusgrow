@@ -27,7 +27,10 @@ import {
   IconActivity,
   IconArrowRight,
   IconTrendingUp,
+  IconTrendingDown,
   IconChartBar,
+  IconPrinter,
+  IconTruck,
 } from "@tabler/icons-react";
 import {
   BarChart,
@@ -143,6 +146,8 @@ export const Dashboard = memo(function Dashboard() {
       icon: IconArrowDownLeft,
       color: "blue",
       badge: "+12%",
+      trend: "up" as const,
+      link: "/inward",
     },
     {
       title: "Total Outbound Units",
@@ -151,6 +156,8 @@ export const Dashboard = memo(function Dashboard() {
       icon: IconArrowUpRight,
       color: "teal",
       badge: "+8%",
+      trend: "up" as const,
+      link: "/outward",
     },
     {
       title: "Registered SKUs",
@@ -159,6 +166,8 @@ export const Dashboard = memo(function Dashboard() {
       icon: IconPackage,
       color: "cyan",
       badge: "Live",
+      trend: "stable" as const,
+      link: "/mpd",
     },
     {
       title: "Current Stock",
@@ -167,6 +176,8 @@ export const Dashboard = memo(function Dashboard() {
       icon: IconBox,
       color: "indigo",
       badge: `${totalTasks} open`,
+      trend: totalTasks > 5 ? ("down" as const) : ("up" as const),
+      link: "/stock-check",
     },
   ];
 
@@ -226,57 +237,90 @@ export const Dashboard = memo(function Dashboard() {
 
       {/* Primary Stats Grid */}
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
-        {statCards.map((stat) => (
-          <Card
+        {statCards.map((stat, index) => (
+          <motion.div
             key={stat.title}
-            p="md"
-            withBorder
-            style={{
-              background: "rgba(255, 255, 255, 0.02)",
-              overflow: "hidden",
-              position: "relative",
-            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1, duration: 0.3 }}
           >
-            <Box
-              style={{
-                position: "absolute",
-                top: -10,
-                right: -10,
-                opacity: 0.05,
-              }}
-            >
-              <stat.icon size={100} />
-            </Box>
-            <Group justify="space-between" mb="xs">
-              <ThemeIcon
-                color={stat.color}
-                variant="light"
-                size="lg"
-                radius="md"
+            <Link to={stat.link} className="no-underline">
+              <Card
+                p="md"
+                withBorder
+                style={{
+                  background: "rgba(255, 255, 255, 0.02)",
+                  overflow: "hidden",
+                  position: "relative",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.boxShadow =
+                    "0 8px 24px rgba(0, 0, 0, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
               >
-                <stat.icon size={20} />
-              </ThemeIcon>
-              <Badge variant="light" color={stat.color}>
-                {stat.badge}
-              </Badge>
-            </Group>
-            <Text
-              size="xs"
-              fw={800}
-              c="dimmed"
-              style={{ letterSpacing: "1px", textTransform: "uppercase" }}
-            >
-              {stat.title}
-            </Text>
-            <Group align="flex-end" gap="xs" mt={5}>
-              <Text size="xl" fw={900}>
-                {stat.value}
-              </Text>
-              <Text size="xs" c="dimmed" pb={4}>
-                {stat.hint}
-              </Text>
-            </Group>
-          </Card>
+                <Box
+                  style={{
+                    position: "absolute",
+                    top: -10,
+                    right: -10,
+                    opacity: 0.05,
+                  }}
+                >
+                  <stat.icon size={100} />
+                </Box>
+                <Group justify="space-between" mb="xs">
+                  <ThemeIcon
+                    color={stat.color}
+                    variant="light"
+                    size="lg"
+                    radius="md"
+                  >
+                    <stat.icon size={20} />
+                  </ThemeIcon>
+                  <Group gap="xs">
+                    {stat.trend === "up" && (
+                      <IconTrendingUp
+                        size={16}
+                        color="var(--mantine-color-green-4)"
+                      />
+                    )}
+                    {stat.trend === "down" && (
+                      <IconTrendingDown
+                        size={16}
+                        color="var(--mantine-color-red-4)"
+                      />
+                    )}
+                    <Badge variant="light" color={stat.color}>
+                      {stat.badge}
+                    </Badge>
+                  </Group>
+                </Group>
+                <Text
+                  size="xs"
+                  fw={800}
+                  c="dimmed"
+                  style={{ letterSpacing: "1px", textTransform: "uppercase" }}
+                >
+                  {stat.title}
+                </Text>
+                <Group align="flex-end" gap="xs" mt={5}>
+                  <Text size="xl" fw={900}>
+                    {stat.value}
+                  </Text>
+                  <Text size="xs" c="dimmed" pb={4}>
+                    {stat.hint}
+                  </Text>
+                </Group>
+              </Card>
+            </Link>
+          </motion.div>
         ))}
       </SimpleGrid>
 
@@ -284,90 +328,125 @@ export const Dashboard = memo(function Dashboard() {
       <Grid gutter="md">
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Stack gap="md">
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, sm: 6 }}>
-                <Link to="/putaway" className="no-underline">
-                  <Card
-                    withBorder
-                    p="md"
-                    style={{
-                      cursor: "pointer",
-                      background: "rgba(255, 255, 255, 0.01)",
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <Group gap="md">
-                        <ThemeIcon
-                          color="orange"
-                          variant="light"
-                          size={48}
-                          radius="lg"
-                        >
-                          <IconClock size={28} />
-                        </ThemeIcon>
-                        <Box>
-                          <Text
-                            size="xs"
-                            fw={800}
-                            c="dimmed"
-                            style={{ letterSpacing: "1px" }}
-                          >
-                            PENDING PUT-AWAY
-                          </Text>
-                          <Text size="xl" fw={900}>
-                            {stats.pendingPutAway}
-                          </Text>
-                        </Box>
-                      </Group>
-                      <ActionIcon variant="light" color="orange" radius="xl">
-                        <IconArrowRight size={18} />
-                      </ActionIcon>
-                    </Group>
-                  </Card>
-                </Link>
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, sm: 6 }}>
-                <Link to="/dispatch" className="no-underline">
-                  <Card
-                    withBorder
-                    p="md"
-                    style={{
-                      cursor: "pointer",
-                      background: "rgba(255, 255, 255, 0.01)",
-                    }}
-                  >
-                    <Group justify="space-between">
-                      <Group gap="md">
-                        <ThemeIcon
-                          color="blue"
-                          variant="light"
-                          size={48}
-                          radius="lg"
-                        >
-                          <IconPackage size={28} />
-                        </ThemeIcon>
-                        <Box>
-                          <Text
-                            size="xs"
-                            fw={800}
-                            c="dimmed"
-                            style={{ letterSpacing: "1px" }}
-                          >
-                            PENDING DISPATCH
-                          </Text>
-                          <Text size="xl" fw={900}>
-                            {stats.pendingDispatch}
-                          </Text>
-                        </Box>
-                      </Group>
-                      <ActionIcon variant="light" color="blue" radius="xl">
-                        <IconArrowRight size={18} />
-                      </ActionIcon>
-                    </Group>
-                  </Card>
-                </Link>
-              </Grid.Col>
-            </Grid>
+            {/* Quick Actions */}
+            <SimpleGrid cols={{ base: 1, sm: 3 }} gap="md">
+              <Link to="/sticker" className="no-underline">
+                <Card
+                  withBorder
+                  p="md"
+                  style={{
+                    cursor: "pointer",
+                    background: "rgba(255, 255, 255, 0.01)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(34, 139, 230, 0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 255, 255, 0.01)";
+                  }}
+                >
+                  <Group gap="md">
+                    <ThemeIcon
+                      color="violet"
+                      variant="light"
+                      size={40}
+                      radius="lg"
+                    >
+                      <IconPrinter size={22} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="xs" fw={800} c="dimmed">
+                        STICKER PRINT
+                      </Text>
+                      <Text size="sm" fw={700}>
+                        Generate Labels
+                      </Text>
+                    </Box>
+                  </Group>
+                </Card>
+              </Link>
+
+              <Link to="/putaway" className="no-underline">
+                <Card
+                  withBorder
+                  p="md"
+                  style={{
+                    cursor: "pointer",
+                    background: "rgba(255, 255, 255, 0.01)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 165, 0, 0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 255, 255, 0.01)";
+                  }}
+                >
+                  <Group gap="md">
+                    <ThemeIcon
+                      color="orange"
+                      variant="light"
+                      size={40}
+                      radius="lg"
+                    >
+                      <IconBox size={22} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="xs" fw={800} c="dimmed">
+                        PUT AWAY
+                      </Text>
+                      <Text size="sm" fw={700}>
+                        {stats.pendingPutAway} pending
+                      </Text>
+                    </Box>
+                  </Group>
+                </Card>
+              </Link>
+
+              <Link to="/dispatch" className="no-underline">
+                <Card
+                  withBorder
+                  p="md"
+                  style={{
+                    cursor: "pointer",
+                    background: "rgba(255, 255, 255, 0.01)",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(34, 139, 230, 0.08)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      "rgba(255, 255, 255, 0.01)";
+                  }}
+                >
+                  <Group gap="md">
+                    <ThemeIcon
+                      color="blue"
+                      variant="light"
+                      size={40}
+                      radius="lg"
+                    >
+                      <IconTruck size={22} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="xs" fw={800} c="dimmed">
+                        DISPATCH
+                      </Text>
+                      <Text size="sm" fw={700}>
+                        {stats.pendingDispatch} pending
+                      </Text>
+                    </Box>
+                  </Group>
+                </Card>
+              </Link>
+            </SimpleGrid>
 
             {/* Chart Area */}
             <Card

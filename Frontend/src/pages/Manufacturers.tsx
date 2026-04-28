@@ -3,17 +3,25 @@ import { format } from "date-fns";
 import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
 import {
   Building,
+  CheckCircle2,
+  Download,
   Edit2,
   Factory,
+  FileSpreadsheet,
   Globe,
+  Loader2,
   MapPin,
   Plus,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
-import { DataTable, createTableColumns } from "../components/molecules/DataTable";
+import {
+  DataTable,
+  createTableColumns,
+} from "../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -34,6 +42,9 @@ export const Manufacturers = memo(function Manufacturers() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Manufacturer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState<CreateManufacturerDto>({
     name: "",
     country: "",
@@ -104,6 +115,60 @@ export const Manufacturers = memo(function Manufacturers() {
     setIsModalOpen(false);
     setIsEditing(null);
     setFormData({ name: "", country: "", address: "" });
+  };
+
+  const handleDownloadTemplate = () => {
+    manufacturersApi.downloadTemplate();
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setUploadFile(file);
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) {
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const result = await manufacturersApi.uploadExcel(uploadFile);
+      if (result.success) {
+        toast.success(
+          `Successfully imported ${result.importedCount} manufacturers`,
+        );
+        if (result.errors?.length) {
+          toast.warning(`${result.errors.length} rows had errors`);
+        }
+        await loadManufacturers();
+        setIsUploadModalOpen(false);
+        setUploadFile(null);
+      } else {
+        toast.error("Failed to import manufacturers");
+      }
+    } catch (error: any) {
+      toast.error(
+        error.response?.data?.message || "Failed to import manufacturers",
+      );
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const closeUploadModal = () => {
+    setIsUploadModalOpen(false);
+    setUploadFile(null);
   };
 
   const handleDelete = async () => {
@@ -203,9 +268,18 @@ export const Manufacturers = memo(function Manufacturers() {
         description="Keep production partners and origin details under one shared SaaS master-data style."
         icon={Factory}
         actions={
-          <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-            New Manufacturer
-          </Button>
+          <Group gap="xs">
+            <Button
+              variant="outline"
+              leftIcon={<Upload size={16} />}
+              onClick={() => setIsUploadModalOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+              New Manufacturer
+            </Button>
+          </Group>
         }
         metrics={[
           { label: "Partners", value: manufacturers.length, tone: "brand" },
@@ -297,6 +371,84 @@ export const Manufacturers = memo(function Manufacturers() {
         variant="danger"
         isLoading={isDeleting}
       />
+
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={closeUploadModal}
+        title="Import Manufacturers from Excel"
+        size="lg"
+      >
+        <Stack gap="lg">
+          <Group justify="space-between" align="flex-start">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                size={42}
+                radius="lg"
+                variant="light"
+                color="cyan"
+                style={{
+                  background: "rgba(30, 192, 243, 0.12)",
+                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                }}
+              >
+                <FileSpreadsheet size={20} />
+              </ThemeIcon>
+              <Stack gap={2}>
+                <Text fw={700}>Manufacturer Import Template</Text>
+                <Text size="sm" c="dimmed">
+                  Download template first. Existing manufacturers will be
+                  skipped.
+                </Text>
+              </Stack>
+            </Group>
+            <Button
+              variant="outline"
+              leftIcon={<Download size={16} />}
+              onClick={handleDownloadTemplate}
+            >
+              Download Template
+            </Button>
+          </Group>
+
+          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+
+          {uploadFile ? (
+            <Group gap="sm" wrap="nowrap">
+              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+              <Stack gap={2}>
+                <Text fw={600}>{uploadFile.name}</Text>
+                <Text size="sm" c="dimmed">
+                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                </Text>
+              </Stack>
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Select Excel file to import manufacturer data.
+            </Text>
+          )}
+
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={closeUploadModal}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!uploadFile}
+              loading={isUploading}
+              leftIcon={
+                isUploading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )
+              }
+            >
+              Import Manufacturers
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 });

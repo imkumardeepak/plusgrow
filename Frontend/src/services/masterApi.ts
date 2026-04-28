@@ -229,6 +229,35 @@ export const manufacturersApi = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/manufacturers/${id}`);
   },
+
+  uploadExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<ApiResponse<ImportResult>>('/manufacturers/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
+  },
+
+  downloadTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'Manufacturer Name': '',
+        'Country': '',
+        'Address': '',
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 35 },  // Manufacturer Name
+      { wch: 20 },  // Country
+      { wch: 40 },  // Address
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Manufacturer Template');
+    XLSX.writeFile(wb, 'Manufacturer_Template.xlsx');
+  },
 };
 
 // Commodities API - no /api prefix
@@ -255,6 +284,31 @@ export const commoditiesApi = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/commodities/${id}`);
+  },
+
+  uploadExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post<ApiResponse<ImportResult>>('/commodities/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading file');
+    return response.data.data!;
+  },
+
+  downloadTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'Commodity Name': '',
+      }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 35 },  // Commodity Name
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Commodity Template');
+    XLSX.writeFile(wb, 'Commodity_Template.xlsx');
   },
 };
 
