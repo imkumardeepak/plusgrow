@@ -21,10 +21,48 @@ public class PoInvoicesController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<PoInvoiceDto>>>> GetPoInvoices()
+    public async Task<ActionResult<ApiResponse<List<PoInvoiceDto>>>> GetPoInvoices([FromQuery] PoInvoiceFilterDto filter)
     {
-        var invoices = await _context.PoInvoices
+        var query = _context.PoInvoices
             .Include(x => x.Product)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var search = filter.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.InvoiceNumber.ToLower().Contains(search) ||
+                x.PartyName.ToLower().Contains(search) ||
+                (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)) ||
+                (x.Product != null && x.Product.Name.ToLower().Contains(search)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            var status = filter.Status.Trim().ToLowerInvariant();
+            if (status == "pending")
+            {
+                query = query.Where(x => !x.Printed);
+            }
+            else if (status == "printed")
+            {
+                query = query.Where(x => x.Printed);
+            }
+        }
+
+        if (filter.FromDate.HasValue)
+        {
+            var fromDate = NormalizeInvoiceDate(filter.FromDate.Value);
+            query = query.Where(x => x.InvoiceDate >= fromDate);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            var toDate = NormalizeInvoiceDate(filter.ToDate.Value);
+            query = query.Where(x => x.InvoiceDate <= toDate);
+        }
+
+        var invoices = await query
             .OrderByDescending(x => x.InvoiceDate)
             .ThenBy(x => x.PartyName)
             .ToListAsync();

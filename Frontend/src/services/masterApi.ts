@@ -127,6 +127,13 @@ export interface MarkPoInvoicesPrintedResult {
   updatedCount: number;
 }
 
+export interface PoInvoiceFilters {
+  search?: string;
+  status?: "all" | "pending" | "printed";
+  fromDate?: string;
+  toDate?: string;
+}
+
 export interface PoInvoice {
   id: number;
   invoiceNumber: string;
@@ -518,8 +525,15 @@ export const locationsApi = {
 };
 
 export const poInvoicesApi = {
-  getAll: async (): Promise<PoInvoice[]> => {
-    const response = await api.get<ApiResponse<PoInvoice[]>>('/poinvoices');
+  getAll: async (filters?: PoInvoiceFilters): Promise<PoInvoice[]> => {
+    const response = await api.get<ApiResponse<PoInvoice[]>>('/poinvoices', {
+      params: {
+        search: filters?.search || undefined,
+        status: filters?.status && filters.status !== 'all' ? filters.status : undefined,
+        fromDate: filters?.fromDate || undefined,
+        toDate: filters?.toDate || undefined,
+      },
+    });
     return response.data.data || [];
   },
 

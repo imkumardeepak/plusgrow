@@ -40,6 +40,14 @@ public class MarkPoInvoicesPrintedResultDto
     public int UpdatedCount { get; set; }
 }
 
+public class PoInvoiceFilterDto
+{
+    public string? Search { get; set; }
+    public string? Status { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+}
+
 public class ProductQuantityDto
 {
     public int Id { get; set; }

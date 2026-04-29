@@ -46,6 +46,7 @@ interface OperationsPageProps {
   icon: LucideIcon;
   actions?: React.ReactNode;
   metrics?: OperationsMetric[];
+  hideHeader?: boolean;
   children: React.ReactNode;
 }
 
@@ -55,136 +56,139 @@ export function OperationsPage({
   icon: Icon,
   actions,
   metrics = [],
+  hideHeader = false,
   children,
 }: OperationsPageProps) {
   return (
     <Stack gap="md" style={{ minHeight: 0 }}>
-      <Paper
-        p={{ base: "md", md: "lg" }}
-        radius="xl"
-        withBorder
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          background:
-            "linear-gradient(135deg, rgba(12,21,35,0.96) 0%, rgba(8,15,26,0.98) 100%)",
-          backdropFilter: "blur(18px)",
-          borderColor: "var(--border-subtle)",
-          boxShadow: "var(--shadow-card)",
-        }}
-      >
-        <Box
-          aria-hidden
+      {!hideHeader ? (
+        <Paper
+          p={{ base: "md", md: "lg" }}
+          radius="xl"
+          withBorder
           style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
+            position: "relative",
+            overflow: "hidden",
             background:
-              "radial-gradient(circle at top right, rgba(67,212,255,0.14), transparent 26%), linear-gradient(135deg, rgba(67,212,255,0.08) 0%, transparent 22%, transparent 100%)",
+              "linear-gradient(135deg, rgba(12,21,35,0.96) 0%, rgba(8,15,26,0.98) 100%)",
+            backdropFilter: "blur(18px)",
+            borderColor: "var(--border-subtle)",
+            boxShadow: "var(--shadow-card)",
           }}
-        />
+        >
+          <Box
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              background:
+                "radial-gradient(circle at top right, rgba(67,212,255,0.14), transparent 26%), linear-gradient(135deg, rgba(67,212,255,0.08) 0%, transparent 22%, transparent 100%)",
+            }}
+          />
 
-        <Stack gap="md" style={{ position: "relative" }}>
-          <Group justify="space-between" align="flex-start" gap="md">
-            <Group gap="md" align="center" wrap="nowrap" style={{ flex: 1 }}>
-              <ThemeIcon
-                size={52}
-                radius="xl"
-                variant="gradient"
-                gradient={{ from: "cyan.4", to: "blue.7", deg: 145 }}
-                style={{ boxShadow: "var(--shadow-brand)" }}
-              >
-                <Icon size={24} />
-              </ThemeIcon>
-              <Box style={{ minWidth: 0 }}>
-                <Text
-                  size="xs"
-                  fw={800}
-                  c="cyan.3"
-                  style={{ letterSpacing: "0.16em", textTransform: "uppercase" }}
+          <Stack gap="md" style={{ position: "relative" }}>
+            <Group justify="space-between" align="flex-start" gap="md">
+              <Group gap="md" align="center" wrap="nowrap" style={{ flex: 1 }}>
+                <ThemeIcon
+                  size={52}
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: "cyan.4", to: "blue.7", deg: 145 }}
+                  style={{ boxShadow: "var(--shadow-brand)" }}
                 >
-                  Operations Workspace
-                </Text>
-                <Title
-                  order={2}
-                  size="h2"
-                  fw={850}
-                  c="white"
-                  mt={4}
-                  style={{ letterSpacing: "-0.04em", lineHeight: 1.1 }}
-                >
-                  {title}
-                </Title>
-                <Text
-                  size="sm"
-                  c="dimmed"
-                  mt={6}
-                  maw={780}
-                  style={{ lineHeight: 1.55 }}
-                >
-                  {description}
-                </Text>
-              </Box>
-            </Group>
-            {actions ? (
-              <Group gap="xs" align="center">
-                {actions}
-              </Group>
-            ) : null}
-          </Group>
-
-          {metrics.length > 0 ? (
-            <SimpleGrid
-              cols={{ base: 1, sm: 2, lg: Math.min(metrics.length, 4) }}
-              spacing="sm"
-            >
-              {metrics.map((metric) => {
-                const tone = toneStyles[metric.tone ?? "default"];
-
-                return (
-                  <Paper
-                    key={metric.label}
-                    p="md"
-                    radius="xl"
-                    withBorder
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-                      borderColor: "rgba(255,255,255,0.08)",
-                      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px ${tone.glow}`,
-                    }}
+                  <Icon size={24} />
+                </ThemeIcon>
+                <Box style={{ minWidth: 0 }}>
+                  <Text
+                    size="xs"
+                    fw={800}
+                    c="cyan.3"
+                    style={{ letterSpacing: "0.16em", textTransform: "uppercase" }}
                   >
-                    <Text
-                      size="10px"
-                      fw={800}
-                      c="dimmed"
+                    Operations Workspace
+                  </Text>
+                  <Title
+                    order={2}
+                    size="h2"
+                    fw={850}
+                    c="white"
+                    mt={4}
+                    style={{ letterSpacing: "-0.04em", lineHeight: 1.1 }}
+                  >
+                    {title}
+                  </Title>
+                  <Text
+                    size="sm"
+                    c="dimmed"
+                    mt={6}
+                    maw={780}
+                    style={{ lineHeight: 1.55 }}
+                  >
+                    {description}
+                  </Text>
+                </Box>
+              </Group>
+              {actions ? (
+                <Group gap="xs" align="center">
+                  {actions}
+                </Group>
+              ) : null}
+            </Group>
+
+            {metrics.length > 0 ? (
+              <SimpleGrid
+                cols={{ base: 1, sm: 2, lg: Math.min(metrics.length, 4) }}
+                spacing="sm"
+              >
+                {metrics.map((metric) => {
+                  const tone = toneStyles[metric.tone ?? "default"];
+
+                  return (
+                    <Paper
+                      key={metric.label}
+                      p="md"
+                      radius="xl"
+                      withBorder
                       style={{
-                        letterSpacing: "0.14em",
-                        textTransform: "uppercase",
-                        lineHeight: 1.2,
+                        background:
+                          "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                        borderColor: "rgba(255,255,255,0.08)",
+                        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 24px ${tone.glow}`,
                       }}
                     >
-                      {metric.label}
-                    </Text>
-                    <Text
-                      mt={8}
-                      fw={900}
-                      style={{
-                        color: tone.color,
-                        fontSize: "1.2rem",
-                        lineHeight: 1.15,
-                        letterSpacing: "-0.03em",
-                      }}
-                    >
-                      {metric.value}
-                    </Text>
-                  </Paper>
-                );
-              })}
-            </SimpleGrid>
-          ) : null}
-        </Stack>
-      </Paper>
+                      <Text
+                        size="10px"
+                        fw={800}
+                        c="dimmed"
+                        style={{
+                          letterSpacing: "0.14em",
+                          textTransform: "uppercase",
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {metric.label}
+                      </Text>
+                      <Text
+                        mt={8}
+                        fw={900}
+                        style={{
+                          color: tone.color,
+                          fontSize: "1.2rem",
+                          lineHeight: 1.15,
+                          letterSpacing: "-0.03em",
+                        }}
+                      >
+                        {metric.value}
+                      </Text>
+                    </Paper>
+                  );
+                })}
+              </SimpleGrid>
+            ) : null}
+          </Stack>
+        </Paper>
+      ) : null}
 
       {children}
     </Stack>
