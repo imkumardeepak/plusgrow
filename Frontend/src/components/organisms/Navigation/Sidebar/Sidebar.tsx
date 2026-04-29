@@ -3,7 +3,6 @@ import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import {
   ActionIcon,
   AppShell,
-  Collapse,
   Group,
   NavLink,
   ScrollArea,
@@ -19,9 +18,7 @@ export interface SidebarProps {
 
 export function Sidebar({ onMobileClose }: SidebarProps) {
   const location = useLocation();
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(navigationGroups.map((g) => g.id)),
-  );
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
@@ -40,6 +37,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       p="md"
       withBorder
       style={{
+        width: 240,
         background:
           "linear-gradient(180deg, rgba(9,17,30,0.98) 0%, rgba(7,13,24,0.99) 100%)",
         borderColor: "rgba(148, 163, 184, 0.12)",
@@ -59,7 +57,28 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         </Group>
       </AppShell.Section>
 
-      <AppShell.Section grow component={ScrollArea}>
+      <AppShell.Section
+        grow
+        component={ScrollArea}
+        styles={{
+          root: {
+            "& [data-scrollbar]": {
+              width: "6px !important",
+            },
+            "& [data-scrollbar-thumb]": {
+              backgroundColor: "rgba(100, 116, 139, 0.5) !important",
+              borderRadius: "3px !important",
+            },
+            "& [data-scrollbar-thumb]:hover": {
+              backgroundColor: "rgba(148, 163, 184, 0.7) !important",
+            },
+            "& [data-scrollbar-track]": {
+              backgroundColor: "rgba(15, 23, 42, 0.3) !important",
+              borderRadius: "3px !important",
+            },
+          },
+        }}
+      >
         <Stack gap="xs" pb="xl">
           {navigationGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.id);
@@ -107,12 +126,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                       {group.label}
                     </Text>
                   </Group>
-                  <ActionIcon
-                    size="sm"
-                    variant="transparent"
-                    color="dimmed"
-                    style={{ transition: "transform 0.2s ease" }}
-                  >
+                  <ActionIcon size="sm" variant="transparent" color="dimmed">
                     {isExpanded ? (
                       <ChevronDown size={14} />
                     ) : (
@@ -121,7 +135,12 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                   </ActionIcon>
                 </Group>
 
-                <Collapse in={isExpanded}>
+                {/* Submenu with Tailwind CSS animation */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                  }`}
+                >
                   <Stack gap={2}>
                     {group.items.map((item) => (
                       <NavLink
@@ -162,7 +181,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                       />
                     ))}
                   </Stack>
-                </Collapse>
+                </div>
               </Stack>
             );
           })}

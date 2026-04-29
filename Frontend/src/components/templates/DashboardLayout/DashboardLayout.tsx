@@ -3,7 +3,10 @@ import { Outlet, useNavigate } from "react-router-dom";
 import { AppShell, Box, Paper, Stack, Text } from "@mantine/core";
 import { Sidebar } from "../../organisms/Navigation/Sidebar/Sidebar";
 import { Header } from "../../organisms/Navigation/Header/Header";
-import { Breadcrumbs, BreadcrumbItem } from "../../organisms/Navigation/Breadcrumbs/Breadcrumbs";
+import {
+  Breadcrumbs,
+  BreadcrumbItem,
+} from "../../organisms/Navigation/Breadcrumbs/Breadcrumbs";
 import { useWms } from "../../../context/WmsContext";
 import { useAuth } from "../../../context/AuthContext";
 import { cn } from "../../../lib/utils";
@@ -28,18 +31,17 @@ export function DashboardLayout({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const authUser = user as
-    | {
-        fullName?: string;
-        full_name?: string;
-        roleName?: string;
-        role?: { name?: string | null } | null;
-      }
-    | null;
+  const authUser = user as {
+    fullName?: string;
+    full_name?: string;
+    roleName?: string;
+    role?: { name?: string | null } | null;
+  } | null;
 
   const resolvedUserName = authUser?.fullName ?? authUser?.full_name ?? "User";
   const resolvedUserRole = authUser?.roleName ?? authUser?.role?.name ?? "User";
-  const pageEyebrow = pageTitle ?? breadcrumbs?.[breadcrumbs.length - 1]?.label ?? "Operations";
+  const pageEyebrow =
+    pageTitle ?? breadcrumbs?.[breadcrumbs.length - 1]?.label ?? "Operations";
 
   const handleLogout = () => {
     logout();
@@ -59,7 +61,7 @@ export function DashboardLayout({
       padding={0}
       header={{ height: { base: 76, md: 84 } }}
       navbar={{
-        width: { base: "100%", md: 300, lg: 316 },
+        width: { base: "100%", md: 240, lg: 240 },
         breakpoint: "md",
         collapsed: { mobile: !mobileMenuOpen, desktop: false },
       }}
@@ -71,9 +73,7 @@ export function DashboardLayout({
           "radial-gradient(circle at top left, rgba(35, 196, 255, 0.16), transparent 24%), radial-gradient(circle at top right, rgba(62, 99, 221, 0.18), transparent 26%), linear-gradient(180deg, #0f1726 0%, #0b1320 48%, #070d18 100%)",
       }}
     >
-      <Sidebar
-        onMobileClose={() => setMobileMenuOpen(false)}
-      />
+      <Sidebar onMobileClose={() => setMobileMenuOpen(false)} />
 
       <AppShell.Header withBorder={false} bg="transparent">
         <Header
@@ -127,11 +127,23 @@ export function DashboardLayout({
                   }}
                 >
                   <Stack gap={8}>
-                    <Text size="xs" tt="uppercase" fw={700} c="cyan.3" style={{ letterSpacing: "0.16em" }}>
+                    <Text
+                      size="xs"
+                      tt="uppercase"
+                      fw={700}
+                      c="cyan.3"
+                      style={{ letterSpacing: "0.16em" }}
+                    >
                       {pageEyebrow}
                     </Text>
                     {pageTitle ? (
-                      <Text component="h1" fz={{ base: 24, md: 30 }} fw={800} c="white" lh={1.1}>
+                      <Text
+                        component="h1"
+                        fz={{ base: 24, md: 30 }}
+                        fw={800}
+                        c="white"
+                        lh={1.1}
+                      >
                         {pageTitle}
                       </Text>
                     ) : null}
