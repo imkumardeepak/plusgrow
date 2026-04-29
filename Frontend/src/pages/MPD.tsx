@@ -1,16 +1,33 @@
-import React, { memo, useEffect, useState } from "react";
-import { format } from "date-fns";
-import { Group, Select, Stack, Text, ThemeIcon } from "@mantine/core";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import {
-  Building,
+  ActionIcon,
+  Badge,
+  Box,
+  Center,
+  Group,
+  Paper,
+  ScrollArea,
+  Select,
+  SegmentedControl,
+  SimpleGrid,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
+import {
   CheckCircle2,
   Download,
+  Search,
   FileSpreadsheet,
   Globe,
   IndianRupee,
   Loader2,
   Package,
   Plus,
+  RefreshCw,
   Tag,
   Trash2,
   Edit2,
@@ -20,10 +37,7 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -38,6 +52,8 @@ import {
   CreateProductDto,
 } from "../services/masterApi";
 
+type ProductFilterMode = "all" | "mapped" | "unpriced";
+
 export const MPD = memo(function MPD() {
   const [products, setProducts] = useState<Product[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
@@ -46,7 +62,8 @@ export const MPD = memo(function MPD() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
+  const [filterMode, setFilterMode] = useState<ProductFilterMode>("all");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -246,96 +263,6 @@ export const MPD = memo(function MPD() {
     setUploadFile(null);
   };
 
-  const columns = createTableColumns<Product>(
-    [
-      {
-        accessorKey: "sku",
-        header: "SKU",
-        cell: (row) => (
-          <Text size="11px" ff="monospace" c="cyan.2" fw={700}>
-            {row.sku || "N/A"}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "name",
-        header: "Product",
-        cell: (row) => (
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              size={40}
-              radius="lg"
-              variant="light"
-              color="cyan"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Package size={18} />
-            </ThemeIcon>
-            <Stack gap={2}>
-              <Text fw={700} size="sm">
-                {row.name}
-              </Text>
-              <Text size="11px" c="dimmed">
-                {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
-              </Text>
-            </Stack>
-          </Group>
-        ),
-      },
-      {
-        accessorKey: "manufacturer",
-        header: "Manufacturer",
-        cell: (row) => <Text size="sm">{row.manufacturer?.name || "N/A"}</Text>,
-      },
-      {
-        accessorKey: "commodity",
-        header: "Commodity",
-        cell: (row) => <Text size="sm">{row.commodity?.name || "N/A"}</Text>,
-      },
-      {
-        accessorKey: "mrp",
-        header: "MRP",
-        cell: (row) => (
-          <Stack gap={0} align="flex-end">
-            <Text fw={800} size="sm" c="green.3">
-              Rs {Number(row.mrp || 0).toFixed(2)}
-            </Text>
-            <Text size="10px" c="dimmed">
-              {row.bestBeforeMonths || 12} months
-            </Text>
-          </Stack>
-        ),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Created",
-        cell: (row) => (
-          <Text size="11px" c="dimmed">
-            {row.createdAt
-              ? format(new Date(row.createdAt), "dd MMM yyyy")
-              : "N/A"}
-          </Text>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: (row) => openEditModal(row),
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget(row),
-        variant: "destructive",
-      },
-    ],
-  );
-
   const manufacturerOptions = manufacturers.map((item) => ({
     value: String(item.id),
     label: item.name,
@@ -346,46 +273,269 @@ export const MPD = memo(function MPD() {
     label: item.name,
   }));
 
+  const mappedProducts = products.filter(
+    (item) => item.manufacturerId || item.commodityId,
+  ).length;
+
+  const withPricing = products.filter((item) => Number(item.mrp || 0) > 0).length;
+  const unpricedProducts = products.length - withPricing;
+
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return products.filter((item) => {
+      const matchesSearch =
+        !query ||
+        item.name.toLowerCase().includes(query) ||
+        (item.sku || "").toLowerCase().includes(query) ||
+        (item.manufacturer?.name || "").toLowerCase().includes(query) ||
+        (item.commodity?.name || "").toLowerCase().includes(query);
+
+      const matchesFilter =
+        filterMode === "all" ||
+        (filterMode === "mapped" && (item.manufacturerId || item.commodityId)) ||
+        (filterMode === "unpriced" && Number(item.mrp || 0) <= 0);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [filterMode, products, search]);
+
   return (
     <>
       <OperationsPage
         title="Master Product Data"
         description="Catalog products with one shared enterprise UI system for forms, tables, and bulk import."
         icon={Package}
-        actions={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              leftIcon={<Upload size={16} />}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Import Excel
-            </Button>
-            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-              New Product
-            </Button>
-          </Group>
-        }
-        metrics={[
-          { label: "Products", value: products.length, tone: "brand" },
-          { label: "Manufacturers", value: manufacturers.length },
-          { label: "Commodities", value: commodities.length },
-        ]}
+        hideHeader
       >
-        <OperationsPanel
-          title="Product Directory"
-          description="Unified admin table with common search, row actions, and density."
-          icon={Package}
-        >
-          <DataTable
-            columns={columns}
-            data={products}
-            loading={isLoading}
-            searchPlaceholder="Search products..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
-        </OperationsPanel>
+        <Stack gap="sm">
+          <OperationsPanel
+            title="Filters"
+            description="Compact product scope and search controls."
+            icon={Package}
+          >
+            <SimpleGrid cols={{ base: 1, lg: 3 }} spacing="sm">
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  PRODUCT SCOPE
+                </Text>
+                <SegmentedControl
+                  fullWidth
+                  size="xs"
+                  radius="md"
+                  value={filterMode}
+                  onChange={(value) => setFilterMode(value as ProductFilterMode)}
+                  data={[
+                    { value: "all", label: "All" },
+                    { value: "mapped", label: "Mapped" },
+                    { value: "unpriced", label: "Unpriced" },
+                  ]}
+                />
+              </Box>
+
+              <TextInput
+                size="xs"
+                radius="md"
+                label="Search"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search SKU, product, manufacturer..."
+                leftSection={<Search size={14} />}
+              />
+
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  QUICK ACTION
+                </Text>
+                <Group gap="xs" wrap="nowrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    onClick={() => {
+                      setFilterMode("unpriced");
+                      setSearch("");
+                    }}
+                  >
+                    Missing MRP
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => {
+                      setFilterMode("all");
+                      setSearch("");
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Group>
+              </Box>
+            </SimpleGrid>
+          </OperationsPanel>
+
+          <OperationsPanel
+            title="Product Directory"
+            description="Same compact search, action menu, import flow, and pricing visibility used across operations pages."
+            icon={Package}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="light" color="gray">
+                  {products.length} products
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="cyan">
+                  {mappedProducts} mapped
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="green">
+                  {withPricing} priced
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="orange">
+                  {unpricedProducts} no MRP
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="blue">
+                  {manufacturers.length + commodities.length} masters
+                </Badge>
+                <ActionIcon
+                  size="sm"
+                  radius="md"
+                  variant="light"
+                  color="gray"
+                  onClick={loadData}
+                  loading={isLoading}
+                  aria-label="Refresh product data"
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Upload size={16} />}
+                  onClick={() => setIsUploadModalOpen(true)}
+                >
+                  Import Excel
+                </Button>
+                <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                  New Product
+                </Button>
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isLoading ? (
+              <Center h={260}>
+                <Loader2 size={18} className="animate-spin text-cyan-400" />
+              </Center>
+            ) : filteredProducts.length === 0 ? (
+              <OperationsEmptyState
+                icon={Package}
+                title="No product rows"
+                description="No products match current search or filter."
+              />
+            ) : (
+              <ScrollArea>
+                <Table
+                  highlightOnHover
+                  stickyHeader
+                  verticalSpacing={6}
+                  horizontalSpacing="sm"
+                  style={{ minWidth: 980, fontSize: 12, tableLayout: "fixed" }}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th w={120}>SKU</Table.Th>
+                      <Table.Th w={280}>Product</Table.Th>
+                      <Table.Th w={150}>Commodity</Table.Th>
+                      <Table.Th w={110} ta="right">MRP</Table.Th>
+                      <Table.Th w={110} ta="right">USSP</Table.Th>
+                      <Table.Th w={150}>Pack</Table.Th>
+                      <Table.Th w={110} ta="right">Action</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filteredProducts.map((row) => (
+                      <Table.Tr key={row.id}>
+                        <Table.Td w={120}>
+                          <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+                            {row.sku || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td w={280}>
+                          <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon
+                              size={38}
+                              radius="lg"
+                              variant="light"
+                              color="cyan"
+                              style={{
+                                background: "rgba(30, 192, 243, 0.12)",
+                                border: "1px solid rgba(30, 192, 243, 0.18)",
+                              }}
+                            >
+                              <Package size={18} />
+                            </ThemeIcon>
+                            <Stack gap={2} style={{ minWidth: 0 }}>
+                              <Text size="xs" fw={700} lineClamp={1} maw={190}>
+                                {row.name}
+                              </Text>
+                              <Text size="11px" c="dimmed" lineClamp={1}>
+                                {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
+                              </Text>
+                            </Stack>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td w={150}>
+                          <Text size="xs" lineClamp={1} maw={130}>
+                            {row.commodity?.name || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td w={110} ta="right">
+                          <Text size="xs" fw={800} c="green.3">
+                            Rs {Number(row.mrp || 0).toFixed(2)}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td w={110} ta="right">
+                          <Text size="xs" fw={700} c="cyan.3">
+                            Rs {Number(row.ussp || 0).toFixed(2)}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td w={150}>
+                          <Text size="xs" lineClamp={1}>
+                            {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo
+                          </Text>
+                        </Table.Td>
+                        <Table.Td w={110} ta="right">
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit product">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="blue"
+                                onClick={() => openEditModal(row)}
+                              >
+                                <Edit2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete product">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteTarget(row)}
+                              >
+                                <Trash2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </OperationsPanel>
+        </Stack>
       </OperationsPage>
 
       <Modal
@@ -396,178 +546,193 @@ export const MPD = memo(function MPD() {
       >
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
-            <Input
-              label="Product Name"
-              placeholder="Mechanical keyboard pro"
-              value={formData.name}
-              onChange={(event) =>
-                setFormData((prev) => ({ ...prev, name: event.target.value }))
-              }
-              leftElement={<Package size={16} />}
-              required
-            />
-            <Group grow align="flex-start">
-              <Input
-                label="SKU"
-                placeholder="SKU-1001"
-                value={formData.sku}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    sku: event.target.value.toUpperCase(),
-                  }))
-                }
-                leftElement={<Tag size={16} />}
-                required
-              />
-              <Input
-                label="Country of Origin"
-                placeholder="India"
-                value={formData.countryOfOrigin}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    countryOfOrigin: event.target.value,
-                  }))
-                }
-                leftElement={<Globe size={16} />}
-              />
-            </Group>
-            <Group grow align="flex-start">
-              <Select
-                label="Manufacturer"
-                placeholder="Select manufacturer"
-                data={manufacturerOptions}
-                value={
-                  formData.manufacturerId
-                    ? String(formData.manufacturerId)
-                    : null
-                }
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    manufacturerId: value ? Number(value) : undefined,
-                  }))
-                }
-                searchable
-                clearable
-                styles={{
-                  input: {
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    borderColor: "rgba(255,255,255,0.12)",
-                  },
-                  dropdown: {
-                    background:
-                      "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                    borderColor: "rgba(148, 163, 184, 0.16)",
-                  },
-                }}
-              />
-              <Select
-                label="Commodity"
-                placeholder="Select commodity"
-                data={commodityOptions}
-                value={
-                  formData.commodityId ? String(formData.commodityId) : null
-                }
-                onChange={(value) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    commodityId: value ? Number(value) : undefined,
-                  }))
-                }
-                searchable
-                clearable
-                styles={{
-                  input: {
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    borderColor: "rgba(255,255,255,0.12)",
-                  },
-                  dropdown: {
-                    background:
-                      "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                    borderColor: "rgba(148, 163, 184, 0.16)",
-                  },
-                }}
-              />
-            </Group>
-            <Group grow align="flex-start">
-              <Input
-                label="MRP"
-                type="number"
-                step="0.01"
-                value={String(formData.mrp ?? 0)}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    mrp: Number(event.target.value),
-                  }))
-                }
-                leftElement={<IndianRupee size={16} />}
-              />
-              <Input
-                label="Factor"
-                placeholder="1 or 500"
-                type="number"
-                step="1"
-                min="1"
-                value={formData.factor}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    factor: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                label="Net Qnty"
-                placeholder="1L or 500ml"
-                value={formData.netQuantity}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    netQuantity: event.target.value,
-                  }))
-                }
-              />
-            </Group>
-            <Group grow align="flex-start">
-              <Input
-                label="USSP (Auto-calculated)"
-                type="number"
-                step="0.01"
-                value={String(
-                  formData.mrp && formData.factor
-                    ? formData.mrp / parseFloat(formData.factor) || 0
-                    : 0,
-                )}
-                disabled
-                leftElement={<IndianRupee size={16} />}
-              />
-              <Input
-                label="Unit"
-                placeholder="UNIT, KG, ML"
-                value={formData.unitType}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    unitType: event.target.value,
-                  }))
-                }
-              />
-              <Input
-                label="Best Before Months"
-                type="number"
-                min="0"
-                value={String(formData.bestBeforeMonths ?? 12)}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    bestBeforeMonths: Number(event.target.value),
-                  }))
-                }
-              />
-            </Group>
+            <Paper radius="lg" p="md" withBorder bg="transparent">
+              <Stack gap="md">
+                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                  Identity
+                </Text>
+                <Input
+                  label="Product Name"
+                  placeholder="Mechanical keyboard pro"
+                  value={formData.name}
+                  onChange={(event) =>
+                    setFormData((prev) => ({ ...prev, name: event.target.value }))
+                  }
+                  leftElement={<Package size={16} />}
+                  required
+                />
+                <Group grow align="flex-start">
+                  <Input
+                    label="SKU"
+                    placeholder="SKU-1001"
+                    value={formData.sku}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        sku: event.target.value.toUpperCase(),
+                      }))
+                    }
+                    leftElement={<Tag size={16} />}
+                    required
+                  />
+                  <Input
+                    label="Country of Origin"
+                    placeholder="India"
+                    value={formData.countryOfOrigin}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        countryOfOrigin: event.target.value,
+                      }))
+                    }
+                    leftElement={<Globe size={16} />}
+                  />
+                </Group>
+                <Group grow align="flex-start">
+                  <Select
+                    label="Manufacturer"
+                    placeholder="Select manufacturer"
+                    data={manufacturerOptions}
+                    value={
+                      formData.manufacturerId
+                        ? String(formData.manufacturerId)
+                        : null
+                    }
+                    onChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        manufacturerId: value ? Number(value) : undefined,
+                      }))
+                    }
+                    searchable
+                    clearable
+                    styles={{
+                      input: {
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        borderColor: "rgba(255,255,255,0.12)",
+                      },
+                      dropdown: {
+                        background:
+                          "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                        borderColor: "rgba(148, 163, 184, 0.16)",
+                      },
+                    }}
+                  />
+                  <Select
+                    label="Commodity"
+                    placeholder="Select commodity"
+                    data={commodityOptions}
+                    value={
+                      formData.commodityId ? String(formData.commodityId) : null
+                    }
+                    onChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        commodityId: value ? Number(value) : undefined,
+                      }))
+                    }
+                    searchable
+                    clearable
+                    styles={{
+                      input: {
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        borderColor: "rgba(255,255,255,0.12)",
+                      },
+                      dropdown: {
+                        background:
+                          "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                        borderColor: "rgba(148, 163, 184, 0.16)",
+                      },
+                    }}
+                  />
+                </Group>
+              </Stack>
+            </Paper>
+
+            <Paper radius="lg" p="md" withBorder bg="transparent">
+              <Stack gap="md">
+                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                  Pricing and Packaging
+                </Text>
+                <Group grow align="flex-start">
+                  <Input
+                    label="MRP"
+                    type="number"
+                    step="0.01"
+                    value={String(formData.mrp ?? 0)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        mrp: Number(event.target.value),
+                      }))
+                    }
+                    leftElement={<IndianRupee size={16} />}
+                  />
+                  <Input
+                    label="Factor"
+                    placeholder="1 or 500"
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={formData.factor}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        factor: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Net Qnty"
+                    placeholder="1L or 500ml"
+                    value={formData.netQuantity}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        netQuantity: event.target.value,
+                      }))
+                    }
+                  />
+                </Group>
+                <Group grow align="flex-start">
+                  <Input
+                    label="USSP (Auto-calculated)"
+                    type="number"
+                    step="0.01"
+                    value={String(
+                      formData.mrp && formData.factor
+                        ? formData.mrp / parseFloat(formData.factor) || 0
+                        : 0,
+                    )}
+                    disabled
+                    leftElement={<IndianRupee size={16} />}
+                  />
+                  <Input
+                    label="Unit"
+                    placeholder="UNIT, KG, ML"
+                    value={formData.unitType}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        unitType: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Best Before Months"
+                    type="number"
+                    min="0"
+                    value={String(formData.bestBeforeMonths ?? 12)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        bestBeforeMonths: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </Group>
+              </Stack>
+            </Paper>
             <Group justify="flex-end" pt="sm">
               <Button variant="outline" onClick={closeModal}>
                 Cancel
@@ -587,55 +752,64 @@ export const MPD = memo(function MPD() {
         size="lg"
       >
         <Stack gap="lg">
-          <Group justify="space-between" align="flex-start">
-            <Group gap="sm" wrap="nowrap">
-              <ThemeIcon
-                size={42}
-                radius="lg"
-                variant="light"
-                color="cyan"
-                style={{
-                  background: "rgba(30, 192, 243, 0.12)",
-                  border: "1px solid rgba(30, 192, 243, 0.18)",
-                }}
+          <Paper radius="lg" p="md" withBorder bg="transparent">
+            <Group justify="space-between" align="flex-start">
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon
+                  size={42}
+                  radius="lg"
+                  variant="light"
+                  color="cyan"
+                  style={{
+                    background: "rgba(30, 192, 243, 0.12)",
+                    border: "1px solid rgba(30, 192, 243, 0.18)",
+                  }}
+                >
+                  <FileSpreadsheet size={20} />
+                </ThemeIcon>
+                <Stack gap={2}>
+                  <Text fw={700}>Product Import Template</Text>
+                  <Text size="sm" c="dimmed">
+                    Download template first. Manufacturer and commodity names are
+                    auto-created if missing. Use Stock Qnty column to set initial
+                    inventory.
+                  </Text>
+                </Stack>
+              </Group>
+              <Button
+                variant="outline"
+                leftIcon={<Download size={16} />}
+                onClick={handleDownloadTemplate}
               >
-                <FileSpreadsheet size={20} />
-              </ThemeIcon>
-              <Stack gap={2}>
-                <Text fw={700}>Product Import Template</Text>
-                <Text size="sm" c="dimmed">
-                  Download template first. Manufacturer and commodity names are
-                  auto-created if missing. Use Stock Qnty column to set initial
-                  inventory.
-                </Text>
-              </Stack>
+                Download Template
+              </Button>
             </Group>
-            <Button
-              variant="outline"
-              leftIcon={<Download size={16} />}
-              onClick={handleDownloadTemplate}
-            >
-              Download Template
-            </Button>
-          </Group>
+          </Paper>
 
-          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+          <Paper radius="lg" p="md" withBorder bg="transparent">
+            <Stack gap="sm">
+              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                Excel File
+              </Text>
+              <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
 
-          {uploadFile ? (
-            <Group gap="sm" wrap="nowrap">
-              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
-              <Stack gap={2}>
-                <Text fw={600}>{uploadFile.name}</Text>
+              {uploadFile ? (
+                <Group gap="sm" wrap="nowrap">
+                  <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+                  <Stack gap={2}>
+                    <Text fw={600}>{uploadFile.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      {(uploadFile.size / 1024).toFixed(1)} KB ready
+                    </Text>
+                  </Stack>
+                </Group>
+              ) : (
                 <Text size="sm" c="dimmed">
-                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                  Select Excel file to import product master data.
                 </Text>
-              </Stack>
-            </Group>
-          ) : (
-            <Text size="sm" c="dimmed">
-              Select Excel file to import product master data.
-            </Text>
-          )}
+              )}
+            </Stack>
+          </Paper>
 
           <Group justify="flex-end">
             <Button variant="outline" onClick={closeUploadModal}>

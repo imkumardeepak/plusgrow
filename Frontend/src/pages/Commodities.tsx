@@ -233,28 +233,30 @@ export const Commodities = memo(function Commodities() {
         title="Commodities"
         description="Category management follows same SaaS form and table language as all master modules."
         icon={Tag}
-        actions={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              leftIcon={<Upload size={16} />}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Import Excel
-            </Button>
-            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-              New Commodity
-            </Button>
-          </Group>
-        }
-        metrics={[
-          { label: "Categories", value: commodities.length, tone: "brand" },
-        ]}
+        hideHeader
       >
         <OperationsPanel
           title="Commodity Registry"
           description="Single search, single action menu, single visual system."
           icon={Tag}
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Text size="11px" c="dimmed">
+                {commodities.length} categories
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Upload size={16} />}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Import Excel
+              </Button>
+              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                New Commodity
+              </Button>
+            </Group>
+          }
         >
           <DataTable
             columns={columns}

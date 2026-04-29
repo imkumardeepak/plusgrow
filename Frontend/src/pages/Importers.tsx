@@ -216,27 +216,28 @@ export const Importers = memo(function Importers() {
         title="Importers"
         description="Manage supplier and partner companies with one common master-data workflow."
         icon={Building2}
-        actions={
-          <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-            New Importer
-          </Button>
-        }
-        metrics={[
-          { label: "Partners", value: importers.length, tone: "brand" },
-          {
-            label: "With Email",
-            value: importers.filter((item) => item.email).length,
-          },
-          {
-            label: "With Phone",
-            value: importers.filter((item) => item.phone).length,
-          },
-        ]}
+        hideHeader
       >
         <OperationsPanel
           title="Importer Directory"
           description="Unified table styling, search, and row actions."
           icon={Truck}
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Text size="11px" c="dimmed">
+                {importers.length} partners
+              </Text>
+              <Text size="11px" c="dimmed">
+                {importers.filter((item) => item.email).length} with email
+              </Text>
+              <Text size="11px" c="dimmed">
+                {importers.filter((item) => item.phone).length} with phone
+              </Text>
+              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                New Importer
+              </Button>
+            </Group>
+          }
         >
           <DataTable
             columns={columns}

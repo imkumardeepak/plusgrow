@@ -1,13 +1,22 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  ActionIcon,
   Badge,
-  Grid,
+  Box,
+  Center,
   Group,
+  Paper,
+  ScrollArea,
   Select,
+  SegmentedControl,
+  SimpleGrid,
   Stack,
+  Table,
   Text,
+  TextInput,
   ThemeIcon,
+  Tooltip,
 } from "@mantine/core";
 import {
   ArrowDownToLine,
@@ -18,6 +27,8 @@ import {
   FileText,
   Loader2,
   Plus,
+  RefreshCw,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -27,23 +38,27 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
 import {
   CreatePoInvoiceDto,
+  PoInvoiceFilters,
   PoInvoice,
   Product,
-  ImportResult,
   poInvoicesApi,
   productsApi,
 } from "../services/masterApi";
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
+type InwardStatusFilter = "all" | "pending" | "printed";
+
+const defaultToDate = format(new Date(), "yyyy-MM-dd");
+const defaultFromDate = format(
+  new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  "yyyy-MM-dd",
+);
 
 const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   invoiceDate: new Date().toISOString().slice(0, 10),
@@ -56,8 +71,12 @@ export const Inward = memo(function Inward() {
   const [products, setProducts] = useState<Product[]>([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRowsLoading, setIsRowsLoading] = useState(true);
 
-  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("all");
+  const [fromDate, setFromDate] = useState(defaultFromDate);
+  const [toDate, setToDate] = useState(defaultToDate);
 
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
@@ -69,7 +88,6 @@ export const Inward = memo(function Inward() {
   const [isSavingInvoice, setIsSavingInvoice] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isUploadingInvoices, setIsUploadingInvoices] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -92,8 +110,29 @@ export const Inward = memo(function Inward() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
+
+  const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
+    try {
+      setIsRowsLoading(true);
+      const invoiceData = await poInvoicesApi.getAll(filters);
+      setPoInvoices(invoiceData);
+    } catch {
+      toast.error("Failed to load inward rows");
+    } finally {
+      setIsRowsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInvoiceRows({
+      search,
+      status: statusFilter,
+      fromDate,
+      toDate,
+    });
+  }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
 
   const productOptions = useMemo(
     () =>
@@ -106,6 +145,7 @@ export const Inward = memo(function Inward() {
 
   const invoiceStats = useMemo(() => {
     const pendingPrint = poInvoices.filter((row) => !row.printed).length;
+    const printedCount = poInvoices.length - pendingPrint;
     const totalBilled = poInvoices.reduce((sum, row) => sum + row.billedQty, 0);
     const totalRemaining = poInvoices.reduce(
       (sum, row) => sum + row.remainingAllocation,
@@ -115,18 +155,14 @@ export const Inward = memo(function Inward() {
       (row) => row.locationAllotted,
     ).length;
 
-    return { pendingPrint, totalBilled, totalRemaining, allottedCount };
+    return {
+      pendingPrint,
+      printedCount,
+      totalBilled,
+      totalRemaining,
+      allottedCount,
+    };
   }, [poInvoices]);
-
-  const filteredInvoices = useMemo(() => {
-    const q = invoiceSearch.toLowerCase();
-    return poInvoices.filter(
-      (row) =>
-        row.partyName.toLowerCase().includes(q) ||
-        row.skuCode.toLowerCase().includes(q) ||
-        row.productName.toLowerCase().includes(q),
-    );
-  }, [invoiceSearch, poInvoices]);
 
   const resetInvoiceModal = () => {
     setEditingInvoice(null);
@@ -168,7 +204,12 @@ export const Inward = memo(function Inward() {
         await poInvoicesApi.create(invoiceForm);
         toast.success("PO invoice created");
       }
-      await loadData();
+      await loadInvoiceRows({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      });
       resetInvoiceModal();
     } catch (error: any) {
       toast.error(error.message || "Failed to save PO invoice");
@@ -186,7 +227,12 @@ export const Inward = memo(function Inward() {
         await poInvoicesApi.delete(deleteTarget.row.id);
         toast.success("PO invoice deleted");
       }
-      await loadData();
+      await loadInvoiceRows({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      });
       setDeleteTarget(null);
     } catch (error: any) {
       toast.error(error.message || "Failed to delete row");
@@ -241,172 +287,292 @@ export const Inward = memo(function Inward() {
     setUploadFile(null);
   };
 
-  const invoiceColumns = createTableColumns<PoInvoice>(
-    [
-      {
-        accessorKey: "invoiceDate",
-        header: "Invoice Date",
-        cell: (row) => (
-          <Badge variant="light" color="gray" size="sm" radius="md">
-            {format(new Date(row.invoiceDate), "dd-MMM-yy")}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "partyName",
-        header: "Party Name",
-        cell: (row) => (
-          <Text fw={700} c="white" size="sm">
-            {row.partyName}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "skuCode",
-        header: "SKU Code",
-        cell: (row) => (
-          <Text ff="monospace" size="11px" c="cyan.3" fw={700}>
-            {row.skuCode}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "productName",
-        header: "Product Name",
-        cell: (row) => (
-          <Text size="sm" c="gray.3">
-            {row.productName}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "billedQty",
-        header: "Billed Qty.",
-        cell: (row) => (
-          <Text fw={700} c="white">
-            {row.billedQty}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "mrp",
-        header: "MRP",
-        cell: (row) => (
-          <Text fw={600} c="green.4">
-            ₹{(row.mrp || 0).toLocaleString()}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "printed",
-        header: "Printed",
-        cell: (row) => (
-          <Badge
-            variant="light"
-            color={row.printed ? "green" : "yellow"}
-            size="sm"
-            radius="xl"
-          >
-            {row.printed ? "TRUE" : "FALSE"}
-          </Badge>
-        ),
-      },
-      {
-        accessorKey: "remainingAllocation",
-        header: "Remaining Allocation",
-        cell: (row) => (
-          <Text fw={600} c="cyan.3">
-            {row.remainingAllocation}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "locationAllotted",
-        header: "Location Allotted",
-        cell: (row) => (
-          <Badge
-            variant="light"
-            color={row.locationAllotted ? "cyan" : "gray"}
-            size="sm"
-            radius="xl"
-          >
-            {row.locationAllotted ? "TRUE" : "FALSE"}
-          </Badge>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: openEditInvoice,
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget({ kind: "invoice", row }),
-        variant: "destructive",
-      },
-    ],
-  );
-
   return (
     <OperationsPage
       title="Purchase Invoices"
       description="Upload inward invoice rows here. Same records drive sticker printing and put-away."
       icon={ArrowDownToLine}
-      metrics={[
-        { label: "Invoices", value: poInvoices.length },
-        {
-          label: "Pending Print",
-          value: invoiceStats.pendingPrint,
-          tone: "warning",
-        },
-        {
-          label: "Remaining Allocation",
-          value: invoiceStats.totalRemaining,
-          tone: "brand",
-        },
-        {
-          label: "Fully Allotted",
-          value: invoiceStats.allottedCount,
-          tone: "success",
-        },
-      ]}
+      hideHeader
     >
-      <OperationsPanel
-        title="Inward Ledger"
-        icon={FileText}
-        description="Import Excel or add a single inward line manually."
-        action={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsUploadModalOpen(true)}
-              leftIcon={<Upload className="h-3.5 w-3.5" />}
-            >
-              Upload Excel
-            </Button>
-            <Button
-              size="sm"
-              onClick={openCreateInvoice}
-              leftIcon={<Plus className="h-3.5 w-3.5" />}
-            >
-              New Row
-            </Button>
-          </Group>
-        }
-      >
-        <DataTable
-          columns={invoiceColumns}
-          data={filteredInvoices}
-          loading={isLoading}
-          searchPlaceholder="Search party, SKU, or product..."
-          onSearch={setInvoiceSearch}
-          searchValue={invoiceSearch}
-        />
-      </OperationsPanel>
+      <Stack gap="sm">
+        <OperationsPanel
+          title="Filters"
+          icon={ArrowDownToLine}
+          description="Status and invoice date window for inward rows."
+        >
+          <SimpleGrid cols={{ base: 1, lg: 4 }} spacing="sm">
+            <Box>
+              <Text size="10px" fw={800} c="dimmed" mb={5}>
+                STATUS
+              </Text>
+              <SegmentedControl
+                fullWidth
+                size="xs"
+                radius="md"
+                value={statusFilter}
+                onChange={(value) =>
+                  setStatusFilter(value as InwardStatusFilter)
+                }
+                data={[
+                  { value: "all", label: "All" },
+                  { value: "pending", label: "Pending" },
+                  { value: "printed", label: "Printed" },
+                ]}
+              />
+            </Box>
+
+            <TextInput
+              size="xs"
+              radius="md"
+              label="From Date"
+              type="date"
+              value={fromDate}
+              onChange={(event) => setFromDate(event.currentTarget.value)}
+            />
+
+            <TextInput
+              size="xs"
+              radius="md"
+              label="To Date"
+              type="date"
+              value={toDate}
+              onChange={(event) => setToDate(event.currentTarget.value)}
+            />
+
+            <Box>
+              <Text size="10px" fw={800} c="dimmed" mb={5}>
+                QUICK RANGE
+              </Text>
+              <Group gap="xs" wrap="nowrap">
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    setFromDate(defaultFromDate);
+                    setToDate(defaultToDate);
+                  }}
+                >
+                  Last 7 Days
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => {
+                    setFromDate("");
+                    setToDate("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Clear
+                </Button>
+              </Group>
+            </Box>
+          </SimpleGrid>
+        </OperationsPanel>
+
+        <OperationsPanel
+          title="Inward Ledger"
+          icon={FileText}
+          description="Compact PO invoice view for upload, edit, delete, and downstream sticker or put-away flow."
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Badge size="sm" radius="md" variant="light" color="gray">
+                {poInvoices.length} rows
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="orange">
+                {invoiceStats.pendingPrint} pending
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="green">
+                {invoiceStats.printedCount} printed
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="cyan">
+                {invoiceStats.totalRemaining} remain
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="blue">
+                {invoiceStats.totalBilled} billed
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="teal">
+                {invoiceStats.allottedCount} allotted
+              </Badge>
+              <TextInput
+                size="xs"
+                radius="md"
+                w={240}
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search invoice, party, SKU..."
+                leftSection={<Search size={14} />}
+              />
+              <ActionIcon
+                size="sm"
+                radius="md"
+                variant="light"
+                color="gray"
+                onClick={() =>
+                  void loadInvoiceRows({
+                    search,
+                    status: statusFilter,
+                    fromDate,
+                    toDate,
+                  })
+                }
+                loading={isRowsLoading}
+                aria-label="Refresh inward data"
+              >
+                <RefreshCw size={14} />
+              </ActionIcon>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsUploadModalOpen(true)}
+                leftIcon={<Upload className="h-3.5 w-3.5" />}
+              >
+                Upload Excel
+              </Button>
+              <Button
+                size="sm"
+                onClick={openCreateInvoice}
+                leftIcon={<Plus className="h-3.5 w-3.5" />}
+              >
+                New Row
+              </Button>
+            </Group>
+          }
+          contentClassName="p-0"
+        >
+          {isLoading || isRowsLoading ? (
+            <Center h={260}>
+              <Loader2 size={18} className="animate-spin text-cyan-400" />
+            </Center>
+          ) : poInvoices.length === 0 ? (
+            <OperationsEmptyState
+              icon={FileText}
+              title="No inward rows"
+              description="No PO invoice rows match current search or filter."
+            />
+          ) : (
+            <ScrollArea>
+              <Table
+                highlightOnHover
+                stickyHeader
+                verticalSpacing={6}
+                horizontalSpacing="sm"
+                style={{ minWidth: 1120, fontSize: 12 }}
+              >
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Invoice</Table.Th>
+                    <Table.Th>Date</Table.Th>
+                    <Table.Th>Party</Table.Th>
+                    <Table.Th>SKU</Table.Th>
+                    <Table.Th>Product</Table.Th>
+                    <Table.Th ta="right">Billed</Table.Th>
+                    <Table.Th ta="right">MRP</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th ta="right">Remaining</Table.Th>
+                    <Table.Th>Allotted</Table.Th>
+                    <Table.Th ta="right">Action</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {poInvoices.map((row) => (
+                    <Table.Tr key={row.id}>
+                      <Table.Td>
+                        <Text size="xs" fw={800} ff="monospace">
+                          {row.invoiceNumber}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge variant="light" color="gray" size="xs" radius="sm">
+                          {format(new Date(row.invoiceDate), "dd-MMM-yy")}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" fw={700} lineClamp={1} maw={180}>
+                          {row.partyName}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text ff="monospace" size="11px" c="cyan.3" fw={700}>
+                          {row.skuCode}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" lineClamp={1} maw={260}>
+                          {row.productName}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Text size="xs" fw={800}>
+                          {row.billedQty}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Text size="xs" fw={700} c="green.4">
+                          ₹{(row.mrp || 0).toLocaleString()}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          size="xs"
+                          radius="sm"
+                          color={row.printed ? "green" : "orange"}
+                          variant={row.printed ? "light" : "filled"}
+                        >
+                          {row.printed ? "Printed" : "Pending"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Text size="xs" fw={700} c="cyan.3">
+                          {row.remainingAllocation}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          size="xs"
+                          radius="sm"
+                          color={row.locationAllotted ? "cyan" : "gray"}
+                          variant={row.locationAllotted ? "light" : "filled"}
+                        >
+                          {row.locationAllotted ? "Yes" : "No"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Group gap="xs" justify="flex-end" wrap="nowrap">
+                          <Tooltip label="Edit row">
+                            <ActionIcon
+                              size="sm"
+                              radius="md"
+                              variant="light"
+                              color="blue"
+                              onClick={() => openEditInvoice(row)}
+                            >
+                              <Edit2 size={15} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Delete row">
+                            <ActionIcon
+                              size="sm"
+                              radius="md"
+                              variant="light"
+                              color="red"
+                              onClick={() =>
+                                setDeleteTarget({ kind: "invoice", row })
+                              }
+                            >
+                              <Trash2 size={15} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+        </OperationsPanel>
+      </Stack>
 
       <Modal
         isOpen={invoiceModalOpen}
@@ -416,34 +582,35 @@ export const Inward = memo(function Inward() {
       >
         <form onSubmit={handleInvoiceSubmit}>
           <Stack gap="md">
-            <Grid>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Input
-                  label="Invoice Date"
-                  type="date"
-                  value={invoiceForm.invoiceDate}
-                  onChange={(e) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      invoiceDate: e.target.value,
-                    }))
-                  }
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Input
-                  label="Party Name"
-                  value={invoiceForm.partyName}
-                  onChange={(e) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      partyName: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter party name"
-                />
-              </Grid.Col>
-              <Grid.Col span={12}>
+            <Paper radius="lg" p="md" withBorder bg="transparent">
+              <Stack gap="md">
+                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                  Invoice Details
+                </Text>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <Input
+                    label="Invoice Date"
+                    type="date"
+                    value={invoiceForm.invoiceDate}
+                    onChange={(e) =>
+                      setInvoiceForm((prev) => ({
+                        ...prev,
+                        invoiceDate: e.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Party Name"
+                    value={invoiceForm.partyName}
+                    onChange={(e) =>
+                      setInvoiceForm((prev) => ({
+                        ...prev,
+                        partyName: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter party name"
+                  />
+                </SimpleGrid>
                 <Select
                   label="Product"
                   placeholder="Select product"
@@ -473,8 +640,6 @@ export const Inward = memo(function Inward() {
                     },
                   }}
                 />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
                 <Input
                   label="Billed Qty."
                   type="number"
@@ -487,8 +652,8 @@ export const Inward = memo(function Inward() {
                     }))
                   }
                 />
-              </Grid.Col>
-            </Grid>
+              </Stack>
+            </Paper>
 
             <Group justify="flex-end" pt="sm">
               <Button
@@ -513,54 +678,63 @@ export const Inward = memo(function Inward() {
         size="lg"
       >
         <Stack gap="lg">
-          <Group justify="space-between" align="flex-start">
-            <Group gap="sm" wrap="nowrap">
-              <ThemeIcon
-                size={42}
-                radius="lg"
-                variant="light"
-                color="cyan"
-                style={{
-                  background: "rgba(30, 192, 243, 0.12)",
-                  border: "1px solid rgba(30, 192, 243, 0.18)",
-                }}
+          <Paper radius="lg" p="md" withBorder bg="transparent">
+            <Group justify="space-between" align="flex-start">
+              <Group gap="sm" wrap="nowrap">
+                <ThemeIcon
+                  size={42}
+                  radius="lg"
+                  variant="light"
+                  color="cyan"
+                  style={{
+                    background: "rgba(30, 192, 243, 0.12)",
+                    border: "1px solid rgba(30, 192, 243, 0.18)",
+                  }}
+                >
+                  <FileSpreadsheet size={20} />
+                </ThemeIcon>
+                <Stack gap={2}>
+                  <Text fw={700}>PO Invoice Import Template</Text>
+                  <Text size="sm" c="dimmed">
+                    Download template first. SKU or product name must match an
+                    existing product.
+                  </Text>
+                </Stack>
+              </Group>
+              <Button
+                variant="outline"
+                leftIcon={<Download size={16} />}
+                onClick={handleDownloadTemplate}
               >
-                <FileSpreadsheet size={20} />
-              </ThemeIcon>
-              <Stack gap={2}>
-                <Text fw={700}>PO Invoice Import Template</Text>
-                <Text size="sm" c="dimmed">
-                  Download template first. SKU or product name must match an
-                  existing product.
-                </Text>
-              </Stack>
+                Download Template
+              </Button>
             </Group>
-            <Button
-              variant="outline"
-              leftIcon={<Download size={16} />}
-              onClick={handleDownloadTemplate}
-            >
-              Download Template
-            </Button>
-          </Group>
+          </Paper>
 
-          <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+          <Paper radius="lg" p="md" withBorder bg="transparent">
+            <Stack gap="sm">
+              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                Excel File
+              </Text>
+              <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
 
-          {uploadFile ? (
-            <Group gap="sm" wrap="nowrap">
-              <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
-              <Stack gap={2}>
-                <Text fw={600}>{uploadFile.name}</Text>
+              {uploadFile ? (
+                <Group gap="sm" wrap="nowrap">
+                  <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+                  <Stack gap={2}>
+                    <Text fw={600}>{uploadFile.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      {(uploadFile.size / 1024).toFixed(1)} KB ready
+                    </Text>
+                  </Stack>
+                </Group>
+              ) : (
                 <Text size="sm" c="dimmed">
-                  {(uploadFile.size / 1024).toFixed(1)} KB ready
+                  Select Excel file to import PO invoice data.
                 </Text>
-              </Stack>
-            </Group>
-          ) : (
-            <Text size="sm" c="dimmed">
-              Select Excel file to import PO invoice data.
-            </Text>
-          )}
+              )}
+            </Stack>
+          </Paper>
 
           <Group justify="flex-end">
             <Button variant="outline" onClick={closeUploadModal}>

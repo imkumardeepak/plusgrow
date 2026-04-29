@@ -433,35 +433,33 @@ export const Locations = memo(function Locations() {
         title="Location Master"
         description="Warehouse slot management now follows same SaaS page shell, actions, table, and form rhythm."
         icon={MapPin}
-        actions={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              leftIcon={<Upload size={16} />}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Import Excel
-            </Button>
-            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-              New Location
-            </Button>
-          </Group>
-        }
-        metrics={[
-          { label: "Locations", value: locations.length, tone: "brand" },
-          {
-            label: "Assigned Bins",
-            value: locations.reduce(
-              (acc, item) => acc + (item.bins?.length ?? 0),
-              0,
-            ),
-          },
-        ]}
+        hideHeader
       >
         <OperationsPanel
           title="Location Directory"
           description="Import, edit, and assign bins inside one common enterprise shell."
           icon={MapPin}
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Text size="11px" c="dimmed">
+                {locations.length} locations
+              </Text>
+              <Text size="11px" c="dimmed">
+                {locations.reduce((acc, item) => acc + (item.bins?.length ?? 0), 0)} bins assigned
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Upload size={16} />}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Import Excel
+              </Button>
+              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                New Location
+              </Button>
+            </Group>
+          }
         >
           <DataTable
             columns={columns}

@@ -229,26 +229,30 @@ export const Bins = memo(function Bins() {
         title="Bin Master"
         description="Storage bins use same Mantine-first admin patterns as every master screen."
         icon={Box}
-        actions={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              leftIcon={<Upload size={16} />}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Import Excel
-            </Button>
-            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-              New Bin
-            </Button>
-          </Group>
-        }
-        metrics={[{ label: "Bins", value: bins.length, tone: "brand" }]}
+        hideHeader
       >
         <OperationsPanel
           title="Bin Directory"
           description="Search, import, edit, and delete within one shared table shell."
           icon={Box}
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Text size="11px" c="dimmed">
+                {bins.length} bins
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Upload size={16} />}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Import Excel
+              </Button>
+              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                New Bin
+              </Button>
+            </Group>
+          }
         >
           <DataTable
             columns={columns}

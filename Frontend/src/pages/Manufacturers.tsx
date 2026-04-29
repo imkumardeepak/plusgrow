@@ -267,32 +267,33 @@ export const Manufacturers = memo(function Manufacturers() {
         title="Manufacturers"
         description="Keep production partners and origin details under one shared SaaS master-data style."
         icon={Factory}
-        actions={
-          <Group gap="xs">
-            <Button
-              variant="outline"
-              leftIcon={<Upload size={16} />}
-              onClick={() => setIsUploadModalOpen(true)}
-            >
-              Import Excel
-            </Button>
-            <Button onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-              New Manufacturer
-            </Button>
-          </Group>
-        }
-        metrics={[
-          { label: "Partners", value: manufacturers.length, tone: "brand" },
-          {
-            label: "With Country",
-            value: manufacturers.filter((item) => item.country).length,
-          },
-        ]}
+        hideHeader
       >
         <OperationsPanel
           title="Manufacturer Directory"
           description="Same table system, same spacing, same action model."
           icon={Factory}
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Text size="11px" c="dimmed">
+                {manufacturers.length} partners
+              </Text>
+              <Text size="11px" c="dimmed">
+                {manufacturers.filter((item) => item.country).length} with country
+              </Text>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Upload size={16} />}
+                onClick={() => setIsUploadModalOpen(true)}
+              >
+                Import Excel
+              </Button>
+              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                New Manufacturer
+              </Button>
+            </Group>
+          }
         >
           <DataTable
             columns={columns}
