@@ -1,24 +1,37 @@
-import React, { memo, useEffect, useState } from "react";
-import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import React, { memo, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Center,
+  Group,
+  Paper,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
 import {
   Building2,
+  Edit2,
+  Loader2,
   Mail,
   MapPin,
   Phone,
   Plus,
-  Truck,
+  RefreshCw,
+  Search,
   Trash2,
-  Edit2,
+  Truck,
 } from "lucide-react";
-import { format } from "date-fns";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -34,7 +47,7 @@ export const Importers = memo(function Importers() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Importer | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Importer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -128,87 +141,27 @@ export const Importers = memo(function Importers() {
     }
   };
 
-  const columns = createTableColumns<Importer>(
-    [
-      {
-        accessorKey: "name",
-        header: "Importer",
-        cell: (row) => (
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              size={40}
-              radius="lg"
-              variant="light"
-              color="cyan"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Truck size={18} />
-            </ThemeIcon>
-            <Stack gap={2}>
-              <Text fw={700} size="sm">
-                {row.name}
-              </Text>
-              <Group gap="xs">
-                {row.address ? (
-                  <Group gap={4} wrap="nowrap">
-                    <MapPin size={12} color="var(--mantine-color-gray-5)" />
-                    <Text size="11px" c="dimmed" lineClamp={1}>
-                      {row.address}
-                    </Text>
-                  </Group>
-                ) : null}
-              </Group>
-            </Stack>
-          </Group>
-        ),
-      },
-      {
-        accessorKey: "phone",
-        header: "Contact",
-        cell: (row) => (
-          <Stack gap={4}>
-            <Group gap={6} wrap="nowrap">
-              <Phone size={13} color="var(--mantine-color-cyan-4)" />
-              <Text size="sm">{row.phone || "N/A"}</Text>
-            </Group>
-            <Group gap={6} wrap="nowrap">
-              <Mail size={13} color="var(--mantine-color-cyan-4)" />
-              <Text size="11px" c="dimmed" lineClamp={1}>
-                {row.email || "No email"}
-              </Text>
-            </Group>
-          </Stack>
-        ),
-      },
-      {
-        accessorKey: "created_at",
-        header: "Created",
-        cell: (row) => (
-          <Text size="11px" c="dimmed">
-            {row.created_at
-              ? format(new Date(row.created_at), "dd MMM yyyy")
-              : "N/A"}
-          </Text>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: (row) => openEditModal(row),
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget(row),
-        variant: "destructive",
-      },
-    ],
-  );
+  const filteredImporters = useMemo(() => {
+    if (!search.trim()) return importers;
+    const searchLower = search.toLowerCase();
+    return importers.filter(
+      (importer) =>
+        importer.name.toLowerCase().includes(searchLower) ||
+        (importer.email &&
+          importer.email.toLowerCase().includes(searchLower)) ||
+        (importer.phone &&
+          importer.phone.toLowerCase().includes(searchLower)) ||
+        (importer.address &&
+          importer.address.toLowerCase().includes(searchLower)),
+    );
+  }, [importers, search]);
+
+  const importerStats = useMemo(() => {
+    const withEmail = importers.filter((item) => item.email).length;
+    const withPhone = importers.filter((item) => item.phone).length;
+    const withAddress = importers.filter((item) => item.address).length;
+    return { withEmail, withPhone, withAddress };
+  }, [importers]);
 
   return (
     <>
@@ -218,36 +171,165 @@ export const Importers = memo(function Importers() {
         icon={Building2}
         hideHeader
       >
-        <OperationsPanel
-          title="Importer Directory"
-          description="Unified table styling, search, and row actions."
-          icon={Truck}
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Text size="11px" c="dimmed">
-                {importers.length} partners
-              </Text>
-              <Text size="11px" c="dimmed">
-                {importers.filter((item) => item.email).length} with email
-              </Text>
-              <Text size="11px" c="dimmed">
-                {importers.filter((item) => item.phone).length} with phone
-              </Text>
-              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-                New Importer
-              </Button>
-            </Group>
-          }
-        >
-          <DataTable
-            columns={columns}
-            data={importers}
-            loading={isLoading}
-            searchPlaceholder="Search importers..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
-        </OperationsPanel>
+        <Stack gap="sm">
+          <OperationsPanel
+            title="Importer Directory"
+            description="Unified table styling, search, and row actions."
+            icon={Truck}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="light" color="gray">
+                  {importers.length} partners
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="blue">
+                  {importerStats.withEmail} with email
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="green">
+                  {importerStats.withPhone} with phone
+                </Badge>
+                <Input
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search importers, email, phone..."
+                  leftElement={<Search size={14} />}
+                />
+                <ActionIcon
+                  size="sm"
+                  radius="md"
+                  variant="light"
+                  color="gray"
+                  onClick={() => void loadImporters()}
+                  loading={isLoading}
+                  aria-label="Refresh importer data"
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  leftIcon={<Plus size={14} />}
+                >
+                  New Importer
+                </Button>
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isLoading ? (
+              <Center h={260}>
+                <Loader2 size={18} className="animate-spin text-cyan-400" />
+              </Center>
+            ) : filteredImporters.length === 0 ? (
+              <OperationsEmptyState
+                icon={Truck}
+                title="No importers found"
+                description="No importer records match current search."
+              />
+            ) : (
+              <ScrollArea>
+                <Table
+                  highlightOnHover
+                  stickyHeader
+                  verticalSpacing={6}
+                  horizontalSpacing="sm"
+                  style={{ minWidth: 800, fontSize: 12 }}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Importer</Table.Th>
+                      <Table.Th>Address</Table.Th>
+                      <Table.Th>Phone</Table.Th>
+                      <Table.Th>Email</Table.Th>
+                      <Table.Th>Created</Table.Th>
+                      <Table.Th ta="right">Action</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filteredImporters.map((row) => (
+                      <Table.Tr key={row.id}>
+                        <Table.Td>
+                          <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon
+                              size={36}
+                              radius="lg"
+                              variant="light"
+                              color="cyan"
+                              style={{
+                                background: "rgba(30, 192, 243, 0.12)",
+                                border: "1px solid rgba(30, 192, 243, 0.18)",
+                              }}
+                            >
+                              <Truck size={16} />
+                            </ThemeIcon>
+                            <Text fw={700} size="sm">
+                              {row.name}
+                            </Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" lineClamp={1} maw={200}>
+                            {row.address || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" ff="monospace">
+                            {row.phone || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" c="cyan.3" lineClamp={1} maw={180}>
+                            {row.email || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            variant="light"
+                            color="gray"
+                            size="xs"
+                            radius="sm"
+                          >
+                            {row.created_at
+                              ? format(new Date(row.created_at), "dd-MMM-yy")
+                              : "N/A"}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit importer">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="blue"
+                                onClick={() => openEditModal(row)}
+                              >
+                                <Edit2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete importer">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteTarget(row)}
+                              >
+                                <Trash2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </OperationsPanel>
+        </Stack>
       </OperationsPage>
 
       <Modal

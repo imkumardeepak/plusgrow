@@ -1,5 +1,18 @@
-import React, { memo, useEffect, useState } from "react";
-import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import React, { memo, useEffect, useMemo, useState } from "react";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Center,
+  Group,
+  Paper,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
 import {
   CheckCircle2,
   Download,
@@ -7,6 +20,8 @@ import {
   FileSpreadsheet,
   Loader2,
   Plus,
+  RefreshCw,
+  Search,
   Tag,
   Trash2,
   Upload,
@@ -15,10 +30,7 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -34,7 +46,7 @@ export const Commodities = memo(function Commodities() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Commodity | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Commodity | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -177,55 +189,13 @@ export const Commodities = memo(function Commodities() {
     }
   };
 
-  const columns = createTableColumns<Commodity>(
-    [
-      {
-        accessorKey: "id",
-        header: "ID",
-        cell: (row) => (
-          <Text size="11px" c="dimmed" ff="monospace">
-            #{row.id}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "name",
-        header: "Commodity",
-        cell: (row) => (
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              size={40}
-              radius="lg"
-              variant="light"
-              color="cyan"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Tag size={18} />
-            </ThemeIcon>
-            <Text fw={700} size="sm">
-              {row.name}
-            </Text>
-          </Group>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: (row) => openEditModal(row),
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget(row),
-        variant: "destructive",
-      },
-    ],
-  );
+  const filteredCommodities = useMemo(() => {
+    if (!search.trim()) return commodities;
+    const searchLower = search.toLowerCase();
+    return commodities.filter((c) =>
+      c.name.toLowerCase().includes(searchLower),
+    );
+  }, [commodities, search]);
 
   return (
     <>
@@ -235,38 +205,142 @@ export const Commodities = memo(function Commodities() {
         icon={Tag}
         hideHeader
       >
-        <OperationsPanel
-          title="Commodity Registry"
-          description="Single search, single action menu, single visual system."
-          icon={Tag}
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Text size="11px" c="dimmed">
-                {commodities.length} categories
-              </Text>
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Upload size={16} />}
-                onClick={() => setIsUploadModalOpen(true)}
-              >
-                Import Excel
-              </Button>
-              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-                New Commodity
-              </Button>
-            </Group>
-          }
-        >
-          <DataTable
-            columns={columns}
-            data={commodities}
-            loading={isLoading}
-            searchPlaceholder="Search commodities..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
-        </OperationsPanel>
+        <Stack gap="sm">
+          <OperationsPanel
+            title="Commodity Registry"
+            description="Single search, single action menu, single visual system."
+            icon={Tag}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="light" color="gray">
+                  {commodities.length} categories
+                </Badge>
+                <Input
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search commodities..."
+                  leftElement={<Search size={14} />}
+                />
+                <ActionIcon
+                  size="sm"
+                  radius="md"
+                  variant="light"
+                  color="gray"
+                  onClick={() => void loadCommodities()}
+                  loading={isLoading}
+                  aria-label="Refresh commodity data"
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => setIsUploadModalOpen(true)}
+                >
+                  Import Excel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  leftIcon={<Plus size={14} />}
+                >
+                  New Commodity
+                </Button>
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isLoading ? (
+              <Center h={260}>
+                <Loader2 size={18} className="animate-spin text-cyan-400" />
+              </Center>
+            ) : filteredCommodities.length === 0 ? (
+              <OperationsEmptyState
+                icon={Tag}
+                title="No commodities found"
+                description="No commodity records match current search."
+              />
+            ) : (
+              <ScrollArea>
+                <Table
+                  highlightOnHover
+                  stickyHeader
+                  verticalSpacing={6}
+                  horizontalSpacing="sm"
+                  style={{ minWidth: 600, fontSize: 12 }}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>ID</Table.Th>
+                      <Table.Th>Commodity</Table.Th>
+                      <Table.Th ta="right">Action</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filteredCommodities.map((row) => (
+                      <Table.Tr key={row.id}>
+                        <Table.Td>
+                          <Text size="xs" c="dimmed" ff="monospace">
+                            #{row.id}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon
+                              size={36}
+                              radius="lg"
+                              variant="light"
+                              color="cyan"
+                              style={{
+                                background: "rgba(30, 192, 243, 0.12)",
+                                border: "1px solid rgba(30, 192, 243, 0.18)",
+                              }}
+                            >
+                              <Tag size={16} />
+                            </ThemeIcon>
+                            <Text fw={700} size="sm">
+                              {row.name}
+                            </Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit commodity">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="blue"
+                                onClick={() => openEditModal(row)}
+                              >
+                                <Edit2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete commodity">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteTarget(row)}
+                              >
+                                <Trash2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </OperationsPanel>
+        </Stack>
       </OperationsPage>
 
       <Modal

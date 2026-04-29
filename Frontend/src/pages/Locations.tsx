@@ -1,29 +1,38 @@
-import React, { memo, useCallback, useEffect, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  ActionIcon,
+  Badge,
+  Box,
+  Center,
   Group,
   MultiSelect,
-  Stack,
-  Text,
-  ThemeIcon,
-  Badge,
-  ScrollArea,
   Paper,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
   TextInput,
-  Center,
+  ThemeIcon,
+  Tooltip,
 } from "@mantine/core";
 import {
-  Box,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Download,
   Edit2,
   FileSpreadsheet,
   Loader2,
   MapPin,
   Plus,
+  RefreshCw,
+  ScanBarcode,
+  Search,
   Trash2,
   Upload,
-  ScanBarcode,
   X,
   ArrowRight,
 } from "lucide-react";
@@ -31,10 +40,7 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -53,7 +59,7 @@ export const Locations = memo(function Locations() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Location | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -62,6 +68,8 @@ export const Locations = memo(function Locations() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isBinMapModalOpen, setIsBinMapModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [binMapLocation, setBinMapLocation] = useState<Location | null>(null);
   const [scannedLocationCode, setScannedLocationCode] = useState("");
   const [scannedBins, setScannedBins] = useState<string[]>([]);
@@ -349,78 +357,54 @@ export const Locations = memo(function Locations() {
     }
   };
 
-  const columns = createTableColumns<Location>(
-    [
-      {
-        accessorKey: "locationCode",
-        header: "Location",
-        cell: (row) => (
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              size={40}
-              radius="lg"
-              variant="light"
-              color="cyan"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <MapPin size={18} />
-            </ThemeIcon>
-            <Stack gap={2}>
-              <Text fw={700} size="sm">
-                {row.locationCode}
-              </Text>
-              <Text size="11px" c="dimmed">
-                A:{row.aisle} R:{row.rack} S:{row.shelf}
-              </Text>
-            </Stack>
-          </Group>
-        ),
-      },
-      {
-        accessorKey: "bins",
-        header: "Bins",
-        cell: (row) => (
-          <Text size="11px" c="dimmed" lineClamp={2}>
-            {row.bins && row.bins.length > 0
-              ? row.bins.join(", ")
-              : "No bins assigned"}
-          </Text>
-        ),
-      },
-      {
-        accessorKey: "createdAt",
-        header: "Created",
-        cell: (row) => (
-          <Text size="11px" c="dimmed">
-            {row.createdAt
-              ? format(new Date(row.createdAt), "dd MMM yyyy")
-              : "N/A"}
-          </Text>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Bin Map",
-        icon: <ScanBarcode className="h-4 w-4" />,
-        onClick: (row) => openBinMapModal(row),
-      },
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: (row) => openEditModal(row),
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget(row),
-        variant: "destructive",
-      },
-    ],
-  );
+  const filteredLocations = useMemo(() => {
+    if (!search.trim()) return locations;
+    const searchLower = search.toLowerCase();
+    return locations.filter(
+      (loc) =>
+        loc.locationCode.toLowerCase().includes(searchLower) ||
+        loc.aisle.toLowerCase().includes(searchLower) ||
+        loc.rack.toLowerCase().includes(searchLower) ||
+        loc.shelf.toLowerCase().includes(searchLower) ||
+        (loc.bins &&
+          loc.bins.some((b) => b.toLowerCase().includes(searchLower))),
+    );
+  }, [locations, search]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const paginationData = useMemo(() => {
+    const totalItems = filteredLocations.length;
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalItems);
+    const paginatedItems = filteredLocations.slice(startIndex, endIndex);
+
+    return {
+      totalItems,
+      totalPages,
+      startIndex,
+      endIndex,
+      paginatedItems,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1,
+    };
+  }, [filteredLocations, currentPage, pageSize]);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, paginationData.totalPages || 1)));
+  };
+
+  const locationStats = useMemo(() => {
+    const totalBins = locations.reduce(
+      (acc, item) => acc + (item.bins?.length ?? 0),
+      0,
+    );
+    return { totalBins };
+  }, [locations]);
 
   const binOptions = bins.map((bin) => ({
     value: bin.binCode,
@@ -435,41 +419,296 @@ export const Locations = memo(function Locations() {
         icon={MapPin}
         hideHeader
       >
-        <OperationsPanel
-          title="Location Directory"
-          description="Import, edit, and assign bins inside one common enterprise shell."
-          icon={MapPin}
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Text size="11px" c="dimmed">
-                {locations.length} locations
-              </Text>
-              <Text size="11px" c="dimmed">
-                {locations.reduce((acc, item) => acc + (item.bins?.length ?? 0), 0)} bins assigned
-              </Text>
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Upload size={16} />}
-                onClick={() => setIsUploadModalOpen(true)}
-              >
-                Import Excel
-              </Button>
-              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-                New Location
-              </Button>
-            </Group>
-          }
-        >
-          <DataTable
-            columns={columns}
-            data={locations}
-            loading={isLoading}
-            searchPlaceholder="Search locations..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
-        </OperationsPanel>
+        <Stack gap="sm">
+          <OperationsPanel
+            title="Location Directory"
+            description="Import, edit, and assign bins inside one common enterprise shell."
+            icon={MapPin}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="light" color="gray">
+                  {locations.length} locations
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="cyan">
+                  {locationStats.totalBins} bins assigned
+                </Badge>
+                <Input
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search locations, bins..."
+                  leftElement={<Search size={14} />}
+                />
+                <ActionIcon
+                  size="sm"
+                  radius="md"
+                  variant="light"
+                  color="gray"
+                  onClick={() => void loadData()}
+                  loading={isLoading}
+                  aria-label="Refresh location data"
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => setIsUploadModalOpen(true)}
+                >
+                  Import Excel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  leftIcon={<Plus size={14} />}
+                >
+                  New Location
+                </Button>
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isLoading ? (
+              <Center h={260}>
+                <Loader2 size={18} className="animate-spin text-cyan-400" />
+              </Center>
+            ) : filteredLocations.length === 0 ? (
+              <OperationsEmptyState
+                icon={MapPin}
+                title="No locations found"
+                description="No location records match current search."
+              />
+            ) : (
+              <>
+                <ScrollArea>
+                  <Table
+                    highlightOnHover
+                    stickyHeader
+                    verticalSpacing={6}
+                    horizontalSpacing="sm"
+                    style={{ minWidth: 900, fontSize: 12 }}
+                  >
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Location</Table.Th>
+                        <Table.Th>Aisle</Table.Th>
+                        <Table.Th>Rack</Table.Th>
+                        <Table.Th>Shelf</Table.Th>
+                        <Table.Th>Bins</Table.Th>
+                        <Table.Th>Created</Table.Th>
+                        <Table.Th ta="right">Action</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {paginationData.paginatedItems.map((row) => (
+                        <Table.Tr key={row.id}>
+                          <Table.Td>
+                            <Group gap="sm" wrap="nowrap">
+                              <ThemeIcon
+                                size={36}
+                                radius="lg"
+                                variant="light"
+                                color="cyan"
+                                style={{
+                                  background: "rgba(30, 192, 243, 0.12)",
+                                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                                }}
+                              >
+                                <MapPin size={16} />
+                              </ThemeIcon>
+                              <Text fw={700} size="sm" ff="monospace">
+                                {row.locationCode}
+                              </Text>
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">{row.aisle}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">{row.rack}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs">{row.shelf}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" lineClamp={2} maw={240}>
+                              {row.bins && row.bins.length > 0
+                                ? row.bins.join(", ")
+                                : "No bins assigned"}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              variant="light"
+                              color="gray"
+                              size="xs"
+                              radius="sm"
+                            >
+                              {row.createdAt
+                                ? format(new Date(row.createdAt), "dd-MMM-yy")
+                                : "N/A"}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td ta="right">
+                            <Group gap="xs" justify="flex-end" wrap="nowrap">
+                              <Tooltip label="Map bins">
+                                <ActionIcon
+                                  size="sm"
+                                  radius="md"
+                                  variant="light"
+                                  color="cyan"
+                                  onClick={() => openBinMapModal(row)}
+                                >
+                                  <ScanBarcode size={15} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Edit location">
+                                <ActionIcon
+                                  size="sm"
+                                  radius="md"
+                                  variant="light"
+                                  color="blue"
+                                  onClick={() => openEditModal(row)}
+                                >
+                                  <Edit2 size={15} />
+                                </ActionIcon>
+                              </Tooltip>
+                              <Tooltip label="Delete location">
+                                <ActionIcon
+                                  size="sm"
+                                  radius="md"
+                                  variant="light"
+                                  color="red"
+                                  onClick={() => setDeleteTarget(row)}
+                                >
+                                  <Trash2 size={15} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </ScrollArea>
+
+                {/* Pagination Controls */}
+                {paginationData.totalItems > pageSize && (
+                  <Group
+                    justify="space-between"
+                    align="center"
+                    px="md"
+                    py="sm"
+                    style={{
+                      borderTop: "1px solid rgba(255, 255, 255, 0.07)",
+                    }}
+                  >
+                    <Text size="xs" c="dimmed">
+                      Showing{" "}
+                      <Text component="span" fw={700} c="cyan.3">
+                        {paginationData.startIndex + 1}-
+                        {paginationData.endIndex}
+                      </Text>{" "}
+                      of{" "}
+                      <Text component="span" fw={700} c="cyan.3">
+                        {paginationData.totalItems}
+                      </Text>{" "}
+                      locations
+                    </Text>
+
+                    <Group gap="xs" wrap="nowrap">
+                      <ActionIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        onClick={() => goToPage(1)}
+                        disabled={!paginationData.hasPrevPage}
+                        aria-label="First page"
+                      >
+                        <ChevronsLeft size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={!paginationData.hasPrevPage}
+                        aria-label="Previous page"
+                      >
+                        <ChevronLeft size={16} />
+                      </ActionIcon>
+
+                      <Group gap={4} wrap="nowrap">
+                        {Array.from(
+                          { length: Math.min(5, paginationData.totalPages) },
+                          (_, i) => {
+                            let pageNum: number;
+                            if (paginationData.totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (
+                              currentPage >=
+                              paginationData.totalPages - 2
+                            ) {
+                              pageNum = paginationData.totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <ActionIcon
+                                key={pageNum}
+                                size="sm"
+                                variant={
+                                  currentPage === pageNum ? "filled" : "light"
+                                }
+                                color={
+                                  currentPage === pageNum ? "cyan" : "gray"
+                                }
+                                onClick={() => goToPage(pageNum)}
+                                style={{
+                                  fontWeight: 700,
+                                  fontSize: 11,
+                                }}
+                              >
+                                {pageNum}
+                              </ActionIcon>
+                            );
+                          },
+                        )}
+                      </Group>
+
+                      <ActionIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        onClick={() => goToPage(currentPage + 1)}
+                        disabled={!paginationData.hasNextPage}
+                        aria-label="Next page"
+                      >
+                        <ChevronRight size={16} />
+                      </ActionIcon>
+                      <ActionIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        onClick={() => goToPage(paginationData.totalPages)}
+                        disabled={!paginationData.hasNextPage}
+                        aria-label="Last page"
+                      >
+                        <ChevronsRight size={16} />
+                      </ActionIcon>
+                    </Group>
+                  </Group>
+                )}
+              </>
+            )}
+          </OperationsPanel>
+        </Stack>
       </OperationsPage>
 
       <Modal

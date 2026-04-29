@@ -1,6 +1,19 @@
-import React, { memo, useEffect, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Center,
+  Group,
+  Paper,
+  ScrollArea,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
+  Tooltip,
+} from "@mantine/core";
 import {
   Building,
   CheckCircle2,
@@ -12,6 +25,8 @@ import {
   Loader2,
   MapPin,
   Plus,
+  RefreshCw,
+  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -19,10 +34,7 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -38,7 +50,7 @@ export const Manufacturers = memo(function Manufacturers() {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Manufacturer | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Manufacturer | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -189,77 +201,22 @@ export const Manufacturers = memo(function Manufacturers() {
     }
   };
 
-  const columns = createTableColumns<Manufacturer>(
-    [
-      {
-        accessorKey: "name",
-        header: "Manufacturer",
-        cell: (row) => (
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              size={40}
-              radius="lg"
-              variant="light"
-              color="cyan"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Factory size={18} />
-            </ThemeIcon>
-            <Stack gap={2}>
-              <Text fw={700} size="sm">
-                {row.name}
-              </Text>
-              <Group gap="xs">
-                {row.country ? (
-                  <Group gap={4} wrap="nowrap">
-                    <Globe size={12} color="var(--mantine-color-gray-5)" />
-                    <Text size="11px" c="dimmed">
-                      {row.country}
-                    </Text>
-                  </Group>
-                ) : null}
-                {row.address ? (
-                  <Group gap={4} wrap="nowrap">
-                    <MapPin size={12} color="var(--mantine-color-gray-5)" />
-                    <Text size="11px" c="dimmed" lineClamp={1}>
-                      {row.address}
-                    </Text>
-                  </Group>
-                ) : null}
-              </Group>
-            </Stack>
-          </Group>
-        ),
-      },
-      {
-        accessorKey: "created_at",
-        header: "Registered",
-        cell: (row) => (
-          <Text size="11px" c="dimmed">
-            {row.created_at
-              ? format(new Date(row.created_at), "dd MMM yyyy")
-              : "N/A"}
-          </Text>
-        ),
-      },
-    ],
-    [
-      {
-        label: "Edit",
-        icon: <Edit2 className="h-4 w-4" />,
-        onClick: (row) => openEditModal(row),
-      },
-      {
-        label: "Delete",
-        icon: <Trash2 className="h-4 w-4" />,
-        onClick: (row) => setDeleteTarget(row),
-        variant: "destructive",
-      },
-    ],
-  );
+  const filteredManufacturers = useMemo(() => {
+    if (!search.trim()) return manufacturers;
+    const searchLower = search.toLowerCase();
+    return manufacturers.filter(
+      (m) =>
+        m.name.toLowerCase().includes(searchLower) ||
+        (m.country && m.country.toLowerCase().includes(searchLower)) ||
+        (m.address && m.address.toLowerCase().includes(searchLower)),
+    );
+  }, [manufacturers, search]);
+
+  const manufacturerStats = useMemo(() => {
+    const withCountry = manufacturers.filter((m) => m.country).length;
+    const withAddress = manufacturers.filter((m) => m.address).length;
+    return { withCountry, withAddress };
+  }, [manufacturers]);
 
   return (
     <>
@@ -269,41 +226,164 @@ export const Manufacturers = memo(function Manufacturers() {
         icon={Factory}
         hideHeader
       >
-        <OperationsPanel
-          title="Manufacturer Directory"
-          description="Same table system, same spacing, same action model."
-          icon={Factory}
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Text size="11px" c="dimmed">
-                {manufacturers.length} partners
-              </Text>
-              <Text size="11px" c="dimmed">
-                {manufacturers.filter((item) => item.country).length} with country
-              </Text>
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Upload size={16} />}
-                onClick={() => setIsUploadModalOpen(true)}
-              >
-                Import Excel
-              </Button>
-              <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
-                New Manufacturer
-              </Button>
-            </Group>
-          }
-        >
-          <DataTable
-            columns={columns}
-            data={manufacturers}
-            loading={isLoading}
-            searchPlaceholder="Search manufacturers..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
-        </OperationsPanel>
+        <Stack gap="sm">
+          <OperationsPanel
+            title="Manufacturer Directory"
+            description="Same table system, same spacing, same action model."
+            icon={Factory}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="light" color="gray">
+                  {manufacturers.length} partners
+                </Badge>
+                <Badge size="sm" radius="md" variant="light" color="blue">
+                  {manufacturerStats.withCountry} with country
+                </Badge>
+                <Input
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search manufacturers, country..."
+                  leftElement={<Search size={14} />}
+                />
+                <ActionIcon
+                  size="sm"
+                  radius="md"
+                  variant="light"
+                  color="gray"
+                  onClick={() => void loadManufacturers()}
+                  loading={isLoading}
+                  aria-label="Refresh manufacturer data"
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => setIsUploadModalOpen(true)}
+                >
+                  Import Excel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  leftIcon={<Plus size={14} />}
+                >
+                  New Manufacturer
+                </Button>
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isLoading ? (
+              <Center h={260}>
+                <Loader2 size={18} className="animate-spin text-cyan-400" />
+              </Center>
+            ) : filteredManufacturers.length === 0 ? (
+              <OperationsEmptyState
+                icon={Factory}
+                title="No manufacturers found"
+                description="No manufacturer records match current search."
+              />
+            ) : (
+              <ScrollArea>
+                <Table
+                  highlightOnHover
+                  stickyHeader
+                  verticalSpacing={6}
+                  horizontalSpacing="sm"
+                  style={{ minWidth: 900, fontSize: 12 }}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Manufacturer</Table.Th>
+                      <Table.Th>Country</Table.Th>
+                      <Table.Th>Address</Table.Th>
+                      <Table.Th>Registered</Table.Th>
+                      <Table.Th ta="right">Action</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filteredManufacturers.map((row) => (
+                      <Table.Tr key={row.id}>
+                        <Table.Td>
+                          <Group gap="sm" wrap="nowrap">
+                            <ThemeIcon
+                              size={36}
+                              radius="lg"
+                              variant="light"
+                              color="cyan"
+                              style={{
+                                background: "rgba(30, 192, 243, 0.12)",
+                                border: "1px solid rgba(30, 192, 243, 0.18)",
+                              }}
+                            >
+                              <Factory size={16} />
+                            </ThemeIcon>
+                            <Text fw={700} size="sm">
+                              {row.name}
+                            </Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" c="cyan.3">
+                            {row.country || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="xs" lineClamp={1} maw={240}>
+                            {row.address || "N/A"}
+                          </Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            variant="light"
+                            color="gray"
+                            size="xs"
+                            radius="sm"
+                          >
+                            {row.created_at
+                              ? format(new Date(row.created_at), "dd-MMM-yy")
+                              : "N/A"}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            <Tooltip label="Edit manufacturer">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="blue"
+                                onClick={() => openEditModal(row)}
+                              >
+                                <Edit2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Delete manufacturer">
+                              <ActionIcon
+                                size="sm"
+                                radius="md"
+                                variant="light"
+                                color="red"
+                                onClick={() => setDeleteTarget(row)}
+                              >
+                                <Trash2 size={15} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
+          </OperationsPanel>
+        </Stack>
       </OperationsPage>
 
       <Modal
