@@ -1,5 +1,5 @@
-using System.Text;
 using System.Net.Sockets;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
@@ -9,6 +9,16 @@ namespace PlusgrowWms.Api.Services;
 
 public class StickerService : IStickerService
 {
+    private const string DefaultCompanyName = "PLUSGROW MERCHANTRY PVT LTD,";
+    private const string DefaultCompanyAddress1 = "T 31A, MIDC INDUSTRIAL AREA, HINGNA RD,";
+    private const string DefaultCompanyAddress2 = "NAGPUR 440016, MAHARASHTRA";
+    private const string DefaultCompanyPhone = "99600 88888";
+    private const string DefaultCompanyEmail = "CONNECT@PLUSGROW.COM";
+    private const string DefaultImporterName = "SAGO INDUSTRIES PVT LTD.";
+    private const string DefaultImporterAddress1 = "C501, KAMAL PARK CSH, LBS MARG, BHANDUP WEST,";
+    private const string DefaultImporterAddress2 = "MUMBAI 78";
+    private const string DefaultImporterCountry = "INDIA";
+
     private readonly PlusgrowDbContext _context;
     private readonly IWebHostEnvironment _env;
     private readonly HttpClient _httpClient;
@@ -27,7 +37,10 @@ public class StickerService : IStickerService
             .Include(p => p.Manufacturer)
             .FirstOrDefaultAsync(p => p.Id == request.ProductId);
 
-        if (product == null) throw new Exception("Product not found");
+        if (product == null)
+        {
+            throw new Exception("Product not found");
+        }
 
         Importer? importer = null;
         if (request.ImporterId.HasValue)
@@ -35,54 +48,70 @@ public class StickerService : IStickerService
             importer = await _context.Importers.FindAsync(request.ImporterId.Value);
         }
 
-        string templateFileName = $"PlusGrowExport-{request.Size}-IM.prn";
-        string templatePath = Path.Combine(_env.WebRootPath, "Stickers", templateFileName);
+        Manufacturer? manufacturer = null;
+        if (request.ManufacturerId.HasValue)
+        {
+            manufacturer = await _context.Manufacturers.FindAsync(request.ManufacturerId.Value);
+        }
+
+        var templateFileName = GetTemplateFileName(request.Size, request.Type);
+        var templatePath = Path.Combine(_env.WebRootPath, "Stickers", templateFileName);
 
         if (!File.Exists(templatePath))
         {
-            // Fallback to first available if size doesn't match exactly
-            templatePath = Directory.GetFiles(Path.Combine(_env.WebRootPath, "Stickers"), "*.prn").FirstOrDefault();
+            throw new Exception($"Template not found: {templateFileName}");
         }
 
-        if (templatePath == null || !File.Exists(templatePath))
-            throw new Exception("Template not found");
+        var zpl = await File.ReadAllTextAsync(templatePath);
+        var selectedManufacturer = manufacturer ?? product.Manufacturer;
+        var addressSource = selectedManufacturer?.Address ?? importer?.Address;
+        var importerParts = SplitAddress(
+            addressSource,
+            selectedManufacturer?.Country);
+        var manufacturerCountry = FirstFilled(
+            selectedManufacturer?.Country,
+            importerParts.Country,
+            DefaultImporterCountry);
+        var quantity = request.Quantity > 0 ? request.Quantity : 1;
+        var bestBeforeYears = product.BestBeforeMonths > 0
+            ? Math.Max(1, product.BestBeforeMonths / 12)
+            : 1;
+        var companyHeader = string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase)
+            ? "MARKETED BY"
+            : "IMPORTED & MARKETED BY";
+        var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
 
-        string zpl = await File.ReadAllTextAsync(templatePath);
-
-        // Header Logic
-        string companyHeader = request.Type == "Combined" ? "IMPORTED & MARKETED BY" : "MARKETED BY";
-        string importHeader = "IMPORTED BY:";
-
-        // Data Matrix Data
-        string dmData = $"{product.Sku}#{request.BatchNumber}#{request.MonthYear}#INA0001";
-
-        // Placeholders Replacement
         var values = new Dictionary<string, string>
         {
-            { "{{COMPANY_HEADER}}", companyHeader },
-            { "{{CO_NAME}}", "PLUSGROW MERCHANTRY PVT LTD," },
-            { "{{CO_ADDR1}}", "T 31A, MIDC INDUSTRIAL AREA, HINGNA RD," },
-            { "{{CO_ADDR2}}", "NAGPUR 440016, MAHARASHTRA" },
-            { "{{CO_CARE_PHONE}}", "99600 88888" },
-            { "{{CO_CARE_EMAIL}}", "CONNECT@PLUSGROW.COM" },
-            { "{{IMPORT_HEADER}}", importHeader },
-            { "{{IMP_NAME}}", importer?.Name ?? "SAGO INDUSTRIES PVT LTD." },
-            { "{{IMP_ADDR1}}", importer?.Address?.Split(',').Take(importer.Address.Split(',').Length / 2).Aggregate((a,b) => a + ", " + b) ?? "C501, KAMAL PARK CSH, LBS MARG, BHANDUP WEST," },
-            { "{{IMP_ADDR2}}", importer?.Address?.Split(',').Skip(importer.Address.Split(',').Length / 2).Aggregate((a,b) => a + ", " + b) ?? "MUMBAI 78, INDIA" },
-            { "{{GENERIC_NAME}}", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS" },
-            { "{{MONTH_YEAR}}", request.MonthYear },
-            { "{{ORIGIN}}", product.CountryOfOrigin ?? "INDIA" },
-            { "{{NET_QTY}}", product.NetQuantity ?? "0 ml" },
-            { "{{MRP}}", product.Mrp?.ToString("N2") ?? "0.00" },
-            { "{{USP}}", product.Ussp?.ToString("N4") ?? "0.0000" },
-            { "{{UNIT}}", product.UnitType ?? "ml" },
-            { "{{BEST_BEFORE}}", $"{product.BestBeforeMonths / 12} YEARS" },
-            { "{{SKU}}", product.Sku ?? "" },
-            { "{{PRODUCT_NAME_1}}", product.Name.Length > 30 ? product.Name.Substring(0, 30) : product.Name },
-            { "{{PRODUCT_NAME_2}}", product.Name.Length > 30 ? product.Name.Substring(30) : "" },
-            { "{{NOTE1}}", request.Note.Length > 30 ? request.Note.Substring(0, 30) : request.Note },
-            { "{{NOTE2}}", request.Note.Length > 30 ? request.Note.Substring(30) : "" },
-            { "{{DM_DATA}}", dmData }
+            { "<COMPANYHEADER>", companyHeader },
+            { "<COMPANYNAME>", DefaultCompanyName },
+            { "<COMPANYADDRESS1>", DefaultCompanyAddress1 },
+            { "<COMPANYADDRESS2>", DefaultCompanyAddress2 },
+            { "<COMPANYPHONE>", DefaultCompanyPhone },
+            { "<COMPANYEMAIL>", DefaultCompanyEmail },
+            { "<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name, DefaultImporterName).ToUpperInvariant() },
+            { "<COUNTYOFIMPORT>", manufacturerCountry },
+            { "<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS" },
+            { "<DATEOFIMPORT>", request.MonthYear },
+            { "<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA" },
+            { "<NETQNTY>", product.NetQuantity ?? "0 ml" },
+            { "<MRP>", product.Mrp?.ToString("N2") ?? "0.00" },
+            { "<FACTOR>", product.Factor ?? product.Ussp?.ToString("N4") ?? "0.0000" },
+            { "<UNIT>", product.UnitType ?? "Pcs" },
+            { "<BESTBEFORE>", bestBeforeYears.ToString() },
+            { "<SKUCODE>", product.Sku ?? string.Empty },
+            { "<ITEMDESC1>", SplitIntoLength(product.Name, 30, 0) },
+            { "<ITEMDESC2>", SplitIntoLength(product.Name, 30, 1) },
+            { "<NOTE1>", SplitIntoLength(request.Note, 30, 0) },
+            { "<NOTE2>", SplitIntoLength(request.Note, 30, 1) },
+            { "<ADDRESS1>", importerParts.Line1 },
+            { "<ADDRESS2>", importerParts.Line2 },
+            { "<COUNTRY>", manufacturerCountry },
+            { "<QNTY>", quantity.ToString() },
+            { "<INVOICENUMBER>", request.BatchNumber },
+            { "42721-002#100#MAR/2026#INA0001", dmData },
+            { "84505C-0023#100#Mar/2026#INA0001", dmData },
+            { "<SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER>", dmData }
         };
 
         foreach (var item in values)
@@ -95,21 +124,16 @@ public class StickerService : IStickerService
 
     public async Task<byte[]> GetPreviewImageAsync(string zpl, string size)
     {
-        // Labelary API
-        // Format: /v1/printers/{dpmm}/labels/{width}x{height}/{index}/
-        // Sizes for 300dpi (12dpmm):
-        // 50mm = ~2in
-        // 60mm = ~2.4in
-        // 75mm = ~3in
-
         string labelSize = "2x2";
         if (size == "60x60") labelSize = "2.4x2.4";
         if (size == "75x75") labelSize = "3x3";
 
         var url = $"http://api.labelary.com/v1/printers/12dpmm/labels/{labelSize}/0/";
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url);
-        request.Content = new StringContent(zpl, Encoding.UTF8, "application/x-www-form-urlencoded");
+        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new StringContent(zpl, Encoding.UTF8, "application/x-www-form-urlencoded")
+        };
 
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
@@ -119,20 +143,21 @@ public class StickerService : IStickerService
 
     public List<StickerTemplateDto> GetAvailableTemplates()
     {
-        var templates = new List<StickerTemplateDto>
-        {
-            new StickerTemplateDto { Name = "Small (50x50)", Size = "50x50", FileName = "PlusGrowExport-50x50-IM.prn" },
-            new StickerTemplateDto { Name = "Medium (60x60)", Size = "60x60", FileName = "PlusGrowExport-60x60-IM.prn" },
-            new StickerTemplateDto { Name = "Large (75x75)", Size = "75x75", FileName = "PlusGrowExport-75x75-IM.prn" }
-        };
-        return templates;
+        return
+        [
+            new StickerTemplateDto { Name = "Imported & Marketed By 50 x 50", Size = "50x50", Type = "Combined", FileName = "IMPORTED_MARKTED-50x50.prn" },
+            new StickerTemplateDto { Name = "Imported By + Marketed By 50 x 50", Size = "50x50", Type = "Separate", FileName = "MARKTEDBY-50x50.prn" },
+            new StickerTemplateDto { Name = "Imported & Marketed By 60 x 60", Size = "60x60", Type = "Combined", FileName = "IMPORTED_MARKTED-60x60.prn" },
+            new StickerTemplateDto { Name = "Imported By + Marketed By 60 x 60", Size = "60x60", Type = "Separate", FileName = "MARKTEDBY-60x60.prn" },
+            new StickerTemplateDto { Name = "Imported & Marketed By 75 x 75", Size = "75x75", Type = "Combined", FileName = "IMPORTED_MARKTED-75x75.prn" },
+            new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" }
+        ];
     }
 
     public async Task PrintAsync(string zpl, string printerAddress)
     {
         try
         {
-            // Parse IP:Port format
             var parts = printerAddress.Split(':');
             var printerIp = parts[0];
             var printerPort = parts.Length > 1 ? int.Parse(parts[1]) : 9100;
@@ -146,12 +171,77 @@ public class StickerService : IStickerService
             }
 
             using var stream = client.GetStream();
-            byte[] data = Encoding.ASCII.GetBytes(zpl);
+            var data = Encoding.ASCII.GetBytes(zpl);
             await stream.WriteAsync(data, 0, data.Length);
         }
         catch (Exception ex)
         {
             throw new Exception($"Failed to print to {printerAddress}: {ex.Message}");
         }
+    }
+
+    private static string GetTemplateFileName(string size, string type)
+    {
+        var normalizedType = string.Equals(type, "Separate", StringComparison.OrdinalIgnoreCase)
+            ? "Separate"
+            : "Combined";
+
+        return normalizedType switch
+        {
+            "Separate" => $"MARKTEDBY-{size}.prn",
+            _ => $"IMPORTED_MARKTED-{size}.prn"
+        };
+    }
+
+    private static (string Line1, string Line2, string Country) SplitAddress(string? address, string? countryOverride)
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            return (
+                DefaultImporterAddress1,
+                DefaultImporterAddress2,
+                FirstFilled(countryOverride, DefaultImporterCountry));
+        }
+
+        var parts = address
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        if (parts.Count == 0)
+        {
+            return (
+                DefaultImporterAddress1,
+                DefaultImporterAddress2,
+                FirstFilled(countryOverride, DefaultImporterCountry));
+        }
+
+        var country = FirstFilled(countryOverride, DefaultImporterCountry);
+        var midpoint = Math.Max(1, (int)Math.Ceiling(parts.Count / 2d));
+        var line1 = string.Join(", ", parts.Take(midpoint));
+        var line2 = string.Join(", ", parts.Skip(midpoint));
+
+        return (
+            string.IsNullOrWhiteSpace(line1) ? DefaultImporterAddress1 : $"{line1},",
+            string.IsNullOrWhiteSpace(line2) ? DefaultImporterAddress2 : line2,
+            string.IsNullOrWhiteSpace(country) ? DefaultImporterCountry : country
+        );
+    }
+
+    private static string SplitIntoLength(string? value, int length, int segment)
+    {
+        var source = value ?? string.Empty;
+        var start = segment * length;
+
+        if (source.Length <= start)
+        {
+            return string.Empty;
+        }
+
+        return source.Substring(start, Math.Min(length, source.Length - start));
+    }
+
+    private static string FirstFilled(params string?[] values)
+    {
+        return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
     }
 }

@@ -47,16 +47,19 @@ export interface Product {
 }
 
 export interface CreateManufacturerDto {
+  id?: number;
   name: string;
   country?: string;
   address?: string;
 }
 
 export interface CreateCommodityDto {
+  id?: number;
   name: string;
 }
 
 export interface CreateImporterDto {
+  id?: number;
   name: string;
   address?: string;
   phone?: string;
@@ -221,7 +224,7 @@ export const manufacturersApi = {
   },
 
   update: async (id: number, data: CreateManufacturerDto): Promise<Manufacturer> => {
-    const response = await api.put<ApiResponse<Manufacturer>>(`/manufacturers/${id}`, data);
+    const response = await api.put<ApiResponse<Manufacturer>>(`/manufacturers/${id}`, { ...data, id });
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
@@ -278,7 +281,7 @@ export const commoditiesApi = {
   },
 
   update: async (id: number, data: CreateCommodityDto): Promise<Commodity> => {
-    const response = await api.put<ApiResponse<Commodity>>(`/commodities/${id}`, data);
+    const response = await api.put<ApiResponse<Commodity>>(`/commodities/${id}`, { ...data, id });
     return response.data.data!;
   },
 
@@ -330,7 +333,7 @@ export const importersApi = {
   },
 
   update: async (id: number, data: CreateImporterDto): Promise<Importer> => {
-    const response = await api.put<ApiResponse<Importer>>(`/importers/${id}`, data);
+    const response = await api.put<ApiResponse<Importer>>(`/importers/${id}`, { ...data, id });
     return response.data.data!;
   },
 

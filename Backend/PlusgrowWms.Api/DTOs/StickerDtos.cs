@@ -3,18 +3,21 @@ namespace PlusgrowWms.Api.DTOs;
 public class StickerPreviewRequest
 {
     public int ProductId { get; set; }
+    public int? ManufacturerId { get; set; }
     public int? ImporterId { get; set; }
     public string Size { get; set; } = "50x50"; // 50x50, 60x60, 75x75
     public string Type { get; set; } = "Combined"; // Combined, Separate
     public string MonthYear { get; set; } = string.Empty;
     public string BatchNumber { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
+    public int Quantity { get; set; } = 1;
 }
 
 public class StickerTemplateDto
 {
     public string Name { get; set; } = string.Empty;
     public string Size { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
 }
 

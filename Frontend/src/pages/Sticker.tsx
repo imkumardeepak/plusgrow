@@ -1,47 +1,58 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
+  IconAlertCircle,
   IconCheck,
+  IconInfoCircle,
   IconLayersIntersect,
   IconPrinter,
   IconTag,
-  IconAlertCircle,
-  IconInfoCircle,
 } from "@tabler/icons-react";
 import {
-  Select,
-  TextInput,
-  Button,
+  Alert,
   Badge,
+  Box,
+  Button,
+  Center,
+  Divider,
+  Grid,
   Group,
+  Image,
+  Loader,
+  Modal,
+  Paper,
+  ScrollArea,
+  SegmentedControl,
+  Select,
+  SimpleGrid,
   Stack,
   Text,
-  Box,
-  SimpleGrid,
-  ScrollArea,
-  Image,
-  Center,
-  Loader,
-  Paper,
+  TextInput,
+  ThemeIcon,
   UnstyledButton,
-  Grid,
-  Modal,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { Printer } from "lucide-react";
+import { Printer, RefreshCw, Search } from "lucide-react";
 
 import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
-  OperationsEmptyState,
 } from "../components/organisms/Operations/OperationsShell";
 import {
   Importer,
+  Manufacturer,
   PoInvoice,
+  Product,
   importersApi,
+  manufacturersApi,
   poInvoicesApi,
+  productsApi,
 } from "../services/masterApi";
-import { stickersApi } from "../services/stickersApi";
+import {
+  StickerTemplate,
+  stickersApi,
+} from "../services/stickersApi";
 import {
   StickerPrinterConfig,
   stickerPrinterConfigsApi,
@@ -64,15 +75,20 @@ const buildBatchKey = (invoiceDate: string, partyName: string) =>
 
 export const Sticker = memo(function Sticker() {
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [importers, setImporters] = useState<Importer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
     [],
   );
+  const [templates, setTemplates] = useState<StickerTemplate[]>([]);
   const [selectedBatchKey, setSelectedBatchKey] = useState("");
+  const [batchSearch, setBatchSearch] = useState("");
   const [stickerSize, setStickerSize] = useState("50x50");
   const [stickerType, setStickerType] = useState<"Combined" | "Separate">(
     "Combined",
   );
+  const [manufacturerId, setManufacturerId] = useState<string | null>(null);
   const [importerId, setImporterId] = useState<string | null>(null);
   const [printerIp, setPrinterIp] = useState("192.168.10.151");
   const [printerPort, setPrinterPort] = useState(9100);
@@ -85,15 +101,28 @@ export const Sticker = memo(function Sticker() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [invoiceData, importerData, configData] = await Promise.all([
+      const [
+        invoiceData,
+        manufacturerData,
+        importerData,
+        productData,
+        configData,
+        templateData,
+      ] = await Promise.all([
         poInvoicesApi.getAll(),
+        manufacturersApi.getAll(),
         importersApi.getAll(),
+        productsApi.getAll(),
         stickerPrinterConfigsApi.getAll(),
+        stickersApi.getTemplates(),
       ]);
 
       setPoInvoices(invoiceData);
+      setManufacturers(manufacturerData);
       setImporters(importerData);
+      setProducts(productData);
       setPrinterConfigs(configData);
+      setTemplates(templateData);
     } catch (error) {
       notifications.show({
         title: "Error",
@@ -112,13 +141,13 @@ export const Sticker = memo(function Sticker() {
 
   useEffect(() => {
     const config = printerConfigs.find(
-      (c) => c.stickerSize === stickerSize && c.isActive,
+      (item) => item.stickerSize === stickerSize && item.isActive,
     );
     if (config) {
       setPrinterIp(config.printerIp);
       setPrinterPort(config.printerPort);
     }
-  }, [stickerSize, printerConfigs]);
+  }, [printerConfigs, stickerSize]);
 
   const batches = useMemo<StickerBatch[]>(() => {
     const grouped = new Map<string, PoInvoice[]>();
@@ -131,6 +160,7 @@ export const Sticker = memo(function Sticker() {
     return Array.from(grouped.entries())
       .map(([key, rows]) => {
         const pendingRows = rows.filter((row) => !row.printed);
+
         return {
           key,
           invoiceDate: rows[0].invoiceDate,
@@ -154,6 +184,21 @@ export const Sticker = memo(function Sticker() {
       });
   }, [poInvoices]);
 
+  const filteredBatches = useMemo(() => {
+    const query = batchSearch.trim().toLowerCase();
+    if (!query) return batches;
+
+    return batches.filter((batch) => {
+      const dateLabel = format(new Date(batch.invoiceDate), "dd MMM yyyy")
+        .toLowerCase();
+      return (
+        batch.partyName.toLowerCase().includes(query) ||
+        batch.invoiceNumber.toLowerCase().includes(query) ||
+        dateLabel.includes(query)
+      );
+    });
+  }, [batchSearch, batches]);
+
   const selectedBatch = useMemo(
     () => batches.find((batch) => batch.key === selectedBatchKey) ?? null,
     [batches, selectedBatchKey],
@@ -161,6 +206,25 @@ export const Sticker = memo(function Sticker() {
 
   const previewRow =
     selectedBatch?.pendingRows[0] ?? selectedBatch?.rows[0] ?? null;
+
+  const previewProduct = useMemo(
+    () =>
+      previewRow
+        ? products.find((item) => item.id === previewRow.productId) ?? null
+        : null,
+    [previewRow, products],
+  );
+
+  const selectedManufacturer = useMemo(
+    () =>
+      manufacturers.find((item) => String(item.id) === manufacturerId) ?? null,
+    [manufacturerId, manufacturers],
+  );
+
+  const selectedImporter = useMemo(
+    () => importers.find((item) => String(item.id) === importerId) ?? null,
+    [importerId, importers],
+  );
 
   const monthYear = useMemo(
     () =>
@@ -170,24 +234,55 @@ export const Sticker = memo(function Sticker() {
     [selectedBatch],
   );
 
-  const invoiceNumber = useMemo(
-    () => (selectedBatch ? selectedBatch.invoiceNumber : ""),
-    [selectedBatch],
+  const invoiceNumber = selectedBatch?.invoiceNumber ?? "";
+  const previewQuantity = previewRow?.billedQty ?? 1;
+
+  const activeTemplate = useMemo(
+    () =>
+      templates.find(
+        (template) =>
+          template.size === stickerSize && template.type === stickerType,
+      ) ?? null,
+    [stickerSize, stickerType, templates],
+  );
+
+  const manufacturerOptions = useMemo(
+    () =>
+      manufacturers.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+      })),
+    [manufacturers],
+  );
+
+  const importerOptions = useMemo(
+    () =>
+      importers.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+      })),
+    [importers],
   );
 
   useEffect(() => {
-    if (!batches.length) {
+    if (stickerType === "Combined") {
+      setImporterId(null);
+    }
+  }, [stickerType]);
+
+  useEffect(() => {
+    if (!filteredBatches.length) {
       setSelectedBatchKey("");
       return;
     }
 
     if (
       !selectedBatchKey ||
-      !batches.some((batch) => batch.key === selectedBatchKey)
+      !filteredBatches.some((batch) => batch.key === selectedBatchKey)
     ) {
-      setSelectedBatchKey(batches[0].key);
+      setSelectedBatchKey(filteredBatches[0].key);
     }
-  }, [batches, selectedBatchKey]);
+  }, [filteredBatches, selectedBatchKey]);
 
   const handlePreview = useCallback(async () => {
     if (!previewRow || !selectedBatch) {
@@ -199,13 +294,19 @@ export const Sticker = memo(function Sticker() {
     try {
       const nextPreview = await stickersApi.getPreview({
         productId: previewRow.productId,
-        importerId: importerId ? Number(importerId) : undefined,
+        manufacturerId: manufacturerId ? Number(manufacturerId) : undefined,
+        importerId:
+          stickerType === "Separate" && importerId
+            ? Number(importerId)
+            : undefined,
         size: stickerSize,
         type: stickerType,
         monthYear,
         batchNumber: invoiceNumber,
         note: "",
+        quantity: previewQuantity,
       });
+
       setPreviewUrl((previousPreview) => {
         if (previousPreview) {
           URL.revokeObjectURL(previousPreview);
@@ -213,14 +314,16 @@ export const Sticker = memo(function Sticker() {
         return nextPreview;
       });
     } catch (error) {
-      // Quietly fail for preview to avoid spamming toast
+      setPreviewUrl(null);
     } finally {
       setIsPreviewLoading(false);
     }
   }, [
-    invoiceNumber,
     importerId,
+    invoiceNumber,
+    manufacturerId,
     monthYear,
+    previewQuantity,
     previewRow,
     selectedBatch,
     stickerSize,
@@ -247,7 +350,7 @@ export const Sticker = memo(function Sticker() {
     if (!selectedBatch) {
       notifications.show({
         title: "Selection Required",
-        message: "Select an invoice batch first",
+        message: "Select invoice batch first",
         color: "orange",
       });
       return;
@@ -260,7 +363,7 @@ export const Sticker = memo(function Sticker() {
     if (!printableRows.length) {
       notifications.show({
         title: "Complete",
-        message: "All stickers for this invoice batch are already printed",
+        message: "All stickers for this batch already printed",
         color: "blue",
       });
       return;
@@ -282,24 +385,31 @@ export const Sticker = memo(function Sticker() {
         items: printableRows.map((row) => ({
           config: {
             productId: row.productId,
-            importerId: importerId ? Number(importerId) : undefined,
+            manufacturerId: manufacturerId ? Number(manufacturerId) : undefined,
+            importerId:
+              stickerType === "Separate" && importerId
+                ? Number(importerId)
+                : undefined,
             size: stickerSize,
             type: stickerType,
             monthYear,
             batchNumber: invoiceNumber,
             note: "",
+            quantity: row.billedQty,
           },
           quantity: row.billedQty,
         })),
       });
 
       await poInvoicesApi.markPrinted(printableRows.map((row) => row.id));
+
       notifications.show({
         title: "Success",
         message: `Printed ${selectedBatch.pendingLabels} stickers for ${selectedBatch.partyName}`,
         color: "green",
         icon: <IconCheck size={18} />,
       });
+
       await loadData();
     } catch (error: any) {
       notifications.show({
@@ -322,11 +432,14 @@ export const Sticker = memo(function Sticker() {
     0,
   );
   const totalPrintedLines = poInvoices.filter((row) => row.printed).length;
+  const readyToPrint = Boolean(
+    selectedBatch && selectedBatch.pendingRows.length > 0 && printerIp.trim(),
+  );
 
   return (
     <OperationsPage
-      title="Sticker Printing"
-      description="Pick invoice batch, confirm format, preview first sticker, then print all pending labels together."
+      title="Sticker Studio"
+      description="Work batch by batch. Pick queue item, verify label setup, inspect live preview, then print pending stickers in one controlled run."
       icon={Printer}
       metrics={[
         { label: "Batches", value: totalBatches },
@@ -334,221 +447,352 @@ export const Sticker = memo(function Sticker() {
         { label: "Pending Labels", value: totalPendingLabels, tone: "brand" },
         { label: "Printed Lines", value: totalPrintedLines, tone: "success" },
       ]}
+      actions={
+        <Button
+          variant="light"
+          color="gray"
+          leftSection={<RefreshCw size={14} />}
+          onClick={() => void loadData()}
+          loading={isLoading}
+        >
+          Refresh Queue
+        </Button>
+      }
     >
       <Grid gutter="md">
-        <Grid.Col span={{ base: 12, lg: 4 }}>
+        <Grid.Col span={{ base: 12, xl: 3 }}>
           <OperationsPanel
-            title="Invoice Batches"
+            title="Batch Queue"
             icon={IconLayersIntersect}
-            description="Batches grouped by invoice date and party."
+            description="Recent invoice batches with pending status."
           >
-            <ScrollArea.Autosize mah={600}>
-              <Stack gap="xs">
-                {isLoading ? (
-                  <Center h={200}>
-                    <Loader size="sm" />
-                  </Center>
-                ) : batches.length === 0 ? (
-                  <OperationsEmptyState
-                    icon={IconLayersIntersect}
-                    title="No invoice batches"
-                    description="Upload invoice rows in inward first."
-                  />
-                ) : (
-                  batches.map((batch) => {
-                    const isActive = batch.key === selectedBatchKey;
-                    const isComplete = batch.pendingRows.length === 0;
+            <Stack gap="md" h="100%">
+              <TextInput
+                value={batchSearch}
+                onChange={(event) => setBatchSearch(event.currentTarget.value)}
+                placeholder="Search party, invoice, date..."
+                leftSection={<Search size={14} />}
+                radius="xl"
+              />
 
-                    return (
-                      <UnstyledButton
-                        key={batch.key}
-                        onClick={() => setSelectedBatchKey(batch.key)}
-                        style={{
-                          width: "100%",
-                          borderRadius: "12px",
-                          border: `1px solid ${isActive ? "var(--mantine-color-blue-4)" : "rgba(255, 255, 255, 0.05)"}`,
-                          background: isActive
-                            ? "rgba(34, 139, 230, 0.1)"
-                            : "rgba(255, 255, 255, 0.02)",
-                          padding: "12px",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        <Group justify="space-between" mb={8} wrap="nowrap">
-                          <Box style={{ flex: 1 }}>
-                            <Text fw={700} size="sm" c="white" lineClamp={1}>
-                              {batch.partyName}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {format(new Date(batch.invoiceDate), "dd-MMM-yy")}
-                            </Text>
-                          </Box>
-                          <Badge
-                            variant={isComplete ? "light" : "outline"}
-                            color={isComplete ? "green" : "orange"}
-                            size="xs"
-                          >
-                            {isComplete ? "Printed" : "Pending"}
-                          </Badge>
-                        </Group>
+              <ScrollArea.Autosize mah={620}>
+                <Stack gap="xs">
+                  {isLoading ? (
+                    <Center h={220}>
+                      <Loader size="sm" />
+                    </Center>
+                  ) : filteredBatches.length === 0 ? (
+                    <OperationsEmptyState
+                      icon={IconLayersIntersect}
+                      title="No invoice batches"
+                      description="Upload inward rows first or clear search filter."
+                    />
+                  ) : (
+                    filteredBatches.map((batch) => {
+                      const isActive = batch.key === selectedBatchKey;
+                      const isComplete = batch.pendingRows.length === 0;
 
-                        <SimpleGrid cols={3} gap="xs">
-                          <Box>
-                            <Text
-                              size="10px"
-                              fw={800}
-                              c="dimmed"
-                              style={{ letterSpacing: "0.5px" }}
-                            >
-                              LINES
-                            </Text>
-                            <Text size="sm" fw={700}>
-                              {batch.totalLines}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text
-                              size="10px"
-                              fw={800}
-                              c="dimmed"
-                              style={{ letterSpacing: "0.5px" }}
-                            >
-                              LABELS
-                            </Text>
-                            <Text size="sm" fw={700} c="blue.4">
-                              {batch.totalLabels}
-                            </Text>
-                          </Box>
-                          <Box>
-                            <Text
-                              size="10px"
-                              fw={800}
-                              c="dimmed"
-                              style={{ letterSpacing: "0.5px" }}
-                            >
-                              OPEN
-                            </Text>
-                            <Text size="sm" fw={700} c="orange.4">
-                              {batch.pendingLabels}
-                            </Text>
-                          </Box>
-                        </SimpleGrid>
-                      </UnstyledButton>
-                    );
-                  })
-                )}
-              </Stack>
-            </ScrollArea.Autosize>
+                      return (
+                        <UnstyledButton
+                          key={batch.key}
+                          onClick={() => setSelectedBatchKey(batch.key)}
+                          style={{
+                            width: "100%",
+                            borderRadius: 18,
+                            border: isActive
+                              ? "1px solid rgba(67, 212, 255, 0.45)"
+                              : "1px solid rgba(255,255,255,0.07)",
+                            background: isActive
+                              ? "linear-gradient(180deg, rgba(30,192,243,0.14) 0%, rgba(255,255,255,0.04) 100%)"
+                              : "rgba(255,255,255,0.02)",
+                            padding: 14,
+                            boxShadow: isActive
+                              ? "0 12px 28px rgba(30,192,243,0.12)"
+                              : "none",
+                            transition: "all 180ms ease",
+                          }}
+                        >
+                          <Stack gap={10}>
+                            <Group justify="space-between" align="flex-start" wrap="nowrap">
+                              <Box style={{ minWidth: 0 }}>
+                                <Text fw={700} size="sm" c="white" lineClamp={1}>
+                                  {batch.partyName}
+                                </Text>
+                                <Text size="xs" c="dimmed" mt={2}>
+                                  {batch.invoiceNumber}
+                                </Text>
+                              </Box>
+                              <Badge
+                                color={isComplete ? "green" : "orange"}
+                                variant={isComplete ? "light" : "filled"}
+                                radius="xl"
+                              >
+                                {isComplete ? "Printed" : "Open"}
+                              </Badge>
+                            </Group>
+
+                            <Group justify="space-between" gap="sm" wrap="nowrap">
+                              <Text size="11px" c="dimmed">
+                                {format(new Date(batch.invoiceDate), "dd MMM yyyy")}
+                              </Text>
+                              <Text size="11px" fw={700} c="cyan.3">
+                                {batch.pendingLabels}/{batch.totalLabels} labels
+                              </Text>
+                            </Group>
+
+                            <SimpleGrid cols={3} spacing="xs">
+                              <Paper
+                                radius="lg"
+                                p="xs"
+                                withBorder
+                                style={{ background: "rgba(255,255,255,0.02)" }}
+                              >
+                                <Text size="10px" c="dimmed" fw={800}>
+                                  LINES
+                                </Text>
+                                <Text fw={800} mt={4}>
+                                  {batch.totalLines}
+                                </Text>
+                              </Paper>
+                              <Paper
+                                radius="lg"
+                                p="xs"
+                                withBorder
+                                style={{ background: "rgba(255,255,255,0.02)" }}
+                              >
+                                <Text size="10px" c="dimmed" fw={800}>
+                                  PENDING
+                                </Text>
+                                <Text fw={800} mt={4} c="orange.3">
+                                  {batch.pendingRows.length}
+                                </Text>
+                              </Paper>
+                              <Paper
+                                radius="lg"
+                                p="xs"
+                                withBorder
+                                style={{ background: "rgba(255,255,255,0.02)" }}
+                              >
+                                <Text size="10px" c="dimmed" fw={800}>
+                                  LABELS
+                                </Text>
+                                <Text fw={800} mt={4} c="cyan.3">
+                                  {batch.totalLabels}
+                                </Text>
+                              </Paper>
+                            </SimpleGrid>
+                          </Stack>
+                        </UnstyledButton>
+                      );
+                    })
+                  )}
+                </Stack>
+              </ScrollArea.Autosize>
+            </Stack>
           </OperationsPanel>
         </Grid.Col>
 
-        <Grid.Col span={{ base: 12, lg: 4 }}>
+        <Grid.Col span={{ base: 12, xl: 6 }}>
           <OperationsPanel
-            title="Sticker Setup"
+            title="Print Studio"
             icon={IconTag}
-            description="Printer and label format configuration."
+            description="Configure label, validate entity mapping, inspect first output."
           >
             {selectedBatch ? (
               <Stack gap="md">
                 <Paper
-                  p="sm"
+                  radius="xl"
+                  p="md"
                   withBorder
-                  style={{ background: "rgba(255, 255, 255, 0.02)" }}
+                  style={{
+                    background:
+                      "linear-gradient(135deg, rgba(30,192,243,0.12) 0%, rgba(255,255,255,0.03) 100%)",
+                  }}
                 >
-                  <Stack gap="xs">
-                    <Group justify="space-between">
-                      <Text size="xs" fw={700} c="white">
+                  <Group justify="space-between" align="flex-start" gap="md">
+                    <Box style={{ minWidth: 0 }}>
+                      <Text size="10px" fw={900} c="cyan.3" style={{ letterSpacing: "0.16em" }}>
+                        ACTIVE BATCH
+                      </Text>
+                      <Text fw={800} size="lg" c="white" mt={6} lineClamp={1}>
                         {selectedBatch.partyName}
                       </Text>
-                      <Badge variant="light" color="blue" size="sm">
-                        {invoiceNumber}
+                      <Text size="sm" c="dimmed" mt={4}>
+                        {selectedBatch.invoiceNumber} ·{" "}
+                        {format(new Date(selectedBatch.invoiceDate), "dd MMM yyyy")} · {monthYear}
+                      </Text>
+                    </Box>
+                    <Group gap="xs">
+                      <Badge radius="xl" variant="light" color="cyan">
+                        {selectedBatch.totalLines} rows
+                      </Badge>
+                      <Badge
+                        radius="xl"
+                        variant="filled"
+                        color={
+                          selectedBatch.pendingRows.length > 0 ? "orange" : "green"
+                        }
+                      >
+                        {selectedBatch.pendingLabels} pending
                       </Badge>
                     </Group>
-                    <Text size="xs" c="dimmed">
-                      Invoice Date:{" "}
-                      {format(new Date(selectedBatch.invoiceDate), "dd-MMM-yy")}{" "}
-                      | Month: {monthYear}
-                    </Text>
-                  </Stack>
+                  </Group>
                 </Paper>
 
-                <SimpleGrid cols={2} gap="sm">
-                  <Select
-                    label="Sticker Size"
-                    value={stickerSize}
-                    onChange={(val) => setStickerSize(val || "50x50")}
-                    data={[
-                      { value: "50x50", label: "50 x 50 MM" },
-                      { value: "60x60", label: "60 x 60 MM" },
-                      { value: "75x75", label: "75 x 75 MM" },
-                    ]}
-                  />
-                  <Select
-                    label="Sticker Type"
-                    value={stickerType}
-                    onChange={(val) =>
-                      setStickerType(val as "Combined" | "Separate")
-                    }
-                    data={[
-                      { value: "Combined", label: "Combined" },
-                      { value: "Separate", label: "Separate" },
-                    ]}
-                  />
-                  <Select
-                    label="Importer"
-                    value={importerId}
-                    onChange={setImporterId}
-                    placeholder="No importer"
-                    clearable
-                    data={importers.map((i) => ({
-                      value: String(i.id),
-                      label: i.name,
-                    }))}
-                  />
-                  <Box>
-                    <Text size="xs" fw={700} mb={5}>
-                      Printer (Auto)
-                    </Text>
-                    <Paper
-                      p="xs"
-                      withBorder
-                      style={{ background: "rgba(255, 255, 255, 0.02)" }}
-                    >
-                      <Text size="sm" fontFamily="monospace">
-                        {printerIp}:{printerPort}
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <Paper radius="xl" p="md" withBorder style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Stack gap="sm">
+                      <Text size="xs" fw={800} c="dimmed">
+                        LABEL SIZE
                       </Text>
-                    </Paper>
-                  </Box>
+                      <SegmentedControl
+                        fullWidth
+                        radius="xl"
+                        value={stickerSize}
+                        onChange={setStickerSize}
+                        data={[
+                          { value: "50x50", label: "50×50" },
+                          { value: "60x60", label: "60×60" },
+                          { value: "75x75", label: "75×75" },
+                        ]}
+                      />
+                    </Stack>
+                  </Paper>
+
+                  <Paper radius="xl" p="md" withBorder style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Stack gap="sm">
+                      <Text size="xs" fw={800} c="dimmed">
+                        LABEL MODE
+                      </Text>
+                      <SegmentedControl
+                        fullWidth
+                        radius="xl"
+                        value={stickerType}
+                        onChange={(value) =>
+                          setStickerType(value as "Combined" | "Separate")
+                        }
+                        data={[
+                          { value: "Combined", label: "Combined" },
+                          { value: "Separate", label: "Separate" },
+                        ]}
+                      />
+                    </Stack>
+                  </Paper>
+                </SimpleGrid>
+
+                <SimpleGrid cols={{ base: 1, md: stickerType === "Separate" ? 2 : 1 }} spacing="md">
+                  <Select
+                    label="Manufacturer"
+                    value={manufacturerId}
+                    onChange={setManufacturerId}
+                    placeholder="Select manufacturer"
+                    searchable
+                    clearable
+                    radius="xl"
+                    data={manufacturerOptions}
+                  />
+
+                  {stickerType === "Separate" ? (
+                    <Select
+                      label="Importer"
+                      value={importerId}
+                      onChange={setImporterId}
+                      placeholder="Select importer"
+                      searchable
+                      clearable
+                      radius="xl"
+                      data={importerOptions}
+                    />
+                  ) : null}
+                </SimpleGrid>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <Paper radius="xl" p="md" withBorder style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Stack gap={6}>
+                      <Text size="xs" fw={800} c="dimmed">
+                        ACTIVE TEMPLATE
+                      </Text>
+                      <Text fw={700} c="white">
+                        {activeTemplate?.name || "Template not found"}
+                      </Text>
+                      <Text size="sm" c="dimmed" ff="monospace">
+                        {activeTemplate?.fileName || `${stickerType}-${stickerSize}`}
+                      </Text>
+                      <Divider my={4} opacity={0.2} />
+                      <Text size="sm" c="dimmed">
+                        Product: {previewProduct?.name || "No product"}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Unit: {previewProduct?.unitType || "No unit"}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Preview quantity: {previewQuantity}
+                      </Text>
+                    </Stack>
+                  </Paper>
+
+                  <Paper radius="xl" p="md" withBorder style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Stack gap={6}>
+                      <Text size="xs" fw={800} c="dimmed">
+                        ENTITY MAPPING
+                      </Text>
+                      <Text fw={700} c="white">
+                        {selectedManufacturer?.name || "Use product manufacturer"}
+                      </Text>
+                      <Text size="sm" c="dimmed" lineClamp={2}>
+                        {selectedManufacturer?.address || "No manufacturer address"}
+                      </Text>
+                      {stickerType === "Separate" ? (
+                        <>
+                          <Divider my={4} opacity={0.2} />
+                          <Text fw={700} c="white">
+                            {selectedImporter?.name || "No importer selected"}
+                          </Text>
+                          <Text size="sm" c="dimmed" lineClamp={2}>
+                            {selectedImporter?.address || "No importer address"}
+                          </Text>
+                        </>
+                      ) : null}
+                    </Stack>
+                  </Paper>
                 </SimpleGrid>
 
                 <Paper
-                  p="sm"
+                  radius="xl"
+                  p="md"
                   withBorder
-                  style={{ background: "rgba(255, 255, 255, 0.02)" }}
+                  style={{
+                    background:
+                      "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
+                  }}
                 >
-                  <Group justify="space-between" mb="sm">
+                  <Group justify="space-between" align="center" mb="sm">
                     <Group gap="xs">
-                      <IconInfoCircle
-                        size={14}
-                        color="var(--mantine-color-blue-4)"
-                      />
-                      <Text size="xs" fw={700}>
-                        Preview
-                      </Text>
+                      <ThemeIcon radius="xl" size="lg" variant="light" color="cyan">
+                        <IconInfoCircle size={16} />
+                      </ThemeIcon>
+                      <Box>
+                        <Text fw={700}>Live Preview</Text>
+                        <Text size="xs" c="dimmed">
+                          First printable row for this batch.
+                        </Text>
+                      </Box>
                     </Group>
-                    {previewUrl && (
+
+                    {previewUrl ? (
                       <Button
                         size="xs"
+                        radius="xl"
                         variant="light"
                         onClick={() => setIsPreviewModalOpen(true)}
                       >
-                        View Large
+                        Open Large
                       </Button>
-                    )}
+                    ) : null}
                   </Group>
 
                   {isPreviewLoading ? (
-                    <Center h={180}>
+                    <Center h={320}>
                       <Loader size="sm" variant="dots" />
                     </Center>
                   ) : previewUrl ? (
@@ -557,23 +801,23 @@ export const Sticker = memo(function Sticker() {
                         src={previewUrl}
                         alt="Sticker preview"
                         fit="contain"
-                        mah={180}
-                        radius="md"
+                        mah={320}
+                        radius="lg"
                         style={{
-                          border: "1px solid rgba(255, 255, 255, 0.1)",
                           background: "white",
-                          padding: "10px",
+                          padding: 18,
+                          border: "1px solid rgba(255,255,255,0.08)",
                           cursor: "pointer",
                         }}
                         onClick={() => setIsPreviewModalOpen(true)}
                       />
                     </Center>
                   ) : (
-                    <Center h={180}>
-                      <Text size="xs" c="dimmed">
-                        No preview available
-                      </Text>
-                    </Center>
+                    <OperationsEmptyState
+                      icon={IconTag}
+                      title="Preview unavailable"
+                      description="Pick batch and confirm setup to generate sticker preview."
+                    />
                   )}
                 </Paper>
               </Stack>
@@ -581,114 +825,125 @@ export const Sticker = memo(function Sticker() {
               <OperationsEmptyState
                 icon={IconTag}
                 title="No batch selected"
-                description="Choose invoice batch from left panel to configure printing."
+                description="Choose batch from queue to open sticker studio."
               />
             )}
           </OperationsPanel>
         </Grid.Col>
 
-        <Grid.Col span={{ base: 12, lg: 4 }}>
+        <Grid.Col span={{ base: 12, xl: 3 }}>
           <OperationsPanel
-            title="Batch Items"
+            title="Run Summary"
             icon={IconPrinter}
-            description="Print all pending labels for batch."
-            action={
-              <Button
-                size="xs"
-                onClick={handlePrintBatch}
-                disabled={
-                  !selectedBatch ||
-                  isPrinting ||
-                  selectedBatch.pendingRows.length === 0
-                }
-                loading={isPrinting}
-                leftSection={<IconPrinter size={14} />}
-                variant="gradient"
-                gradient={{ from: "blue", to: "cyan" }}
-              >
-                Print All Pending
-              </Button>
-            }
+            description="Readiness, printer endpoint, and row-level print status."
           >
             {selectedBatch ? (
-              <Stack gap="md" style={{ height: "100%" }}>
-                <Paper
-                  p="sm"
-                  withBorder
-                  style={{ background: "rgba(255, 255, 255, 0.02)" }}
+              <Stack gap="md" h="100%">
+                <Alert
+                  radius="xl"
+                  color={readyToPrint ? "teal" : "orange"}
+                  icon={readyToPrint ? <IconCheck size={16} /> : <IconAlertCircle size={16} />}
                 >
-                  <SimpleGrid cols={3} gap="xs" ta="center">
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        ROWS
+                  {readyToPrint
+                    ? "Batch ready. Preview checked, endpoint loaded, pending labels found."
+                    : "Check printer setup or pending rows before printing."}
+                </Alert>
+
+                <Paper radius="xl" p="md" withBorder style={{ background: "rgba(255,255,255,0.02)" }}>
+                  <Stack gap="sm">
+                    <Group justify="space-between">
+                      <Text size="xs" fw={800} c="dimmed">
+                        PRINTER ENDPOINT
                       </Text>
-                      <Text fw={700}>{selectedBatch.totalLines}</Text>
-                    </Box>
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        PENDING
-                      </Text>
-                      <Text fw={700} c="orange.4">
-                        {selectedBatch.pendingLabels}
-                      </Text>
-                    </Box>
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        DONE
-                      </Text>
-                      <Text fw={700} c="green.4">
-                        {selectedBatch.rows.length -
-                          selectedBatch.pendingRows.length}
-                      </Text>
-                    </Box>
-                  </SimpleGrid>
+                      <Badge radius="xl" variant="light" color="cyan">
+                        Auto
+                      </Badge>
+                    </Group>
+                    <Text ff="monospace" fw={800} c="white">
+                      {printerIp}:{printerPort}
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Size profile: {stickerSize} · {stickerType}
+                    </Text>
+                  </Stack>
                 </Paper>
 
-                <ScrollArea.Autosize mah={480}>
+                <SimpleGrid cols={3} spacing="sm">
+                  <Paper radius="xl" p="sm" withBorder ta="center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Text size="10px" fw={800} c="dimmed">
+                      ROWS
+                    </Text>
+                    <Text mt={6} fw={900} size="lg">
+                      {selectedBatch.totalLines}
+                    </Text>
+                  </Paper>
+                  <Paper radius="xl" p="sm" withBorder ta="center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Text size="10px" fw={800} c="dimmed">
+                      DONE
+                    </Text>
+                    <Text mt={6} fw={900} size="lg" c="green.4">
+                      {selectedBatch.rows.length - selectedBatch.pendingRows.length}
+                    </Text>
+                  </Paper>
+                  <Paper radius="xl" p="sm" withBorder ta="center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                    <Text size="10px" fw={800} c="dimmed">
+                      OPEN
+                    </Text>
+                    <Text mt={6} fw={900} size="lg" c="orange.4">
+                      {selectedBatch.pendingLabels}
+                    </Text>
+                  </Paper>
+                </SimpleGrid>
+
+                <Button
+                  fullWidth
+                  size="md"
+                  radius="xl"
+                  leftSection={<IconPrinter size={16} />}
+                  onClick={handlePrintBatch}
+                  disabled={!selectedBatch || isPrinting || !readyToPrint}
+                  loading={isPrinting}
+                >
+                  Print All Pending
+                </Button>
+
+                <ScrollArea.Autosize mah={420}>
                   <Stack gap="xs">
                     {selectedBatch.rows.map((row) => (
                       <Paper
                         key={row.id}
-                        p="xs"
+                        radius="xl"
+                        p="sm"
                         withBorder
                         style={{
-                          background: "rgba(255, 255, 255, 0.01)",
-                          borderColor: "rgba(255, 255, 255, 0.05)",
+                          background: row.printed
+                            ? "rgba(16, 185, 129, 0.08)"
+                            : "rgba(255,255,255,0.02)",
                         }}
                       >
-                        <Group
-                          justify="space-between"
-                          wrap="nowrap"
-                          align="flex-start"
-                        >
-                          <Box style={{ flex: 1 }}>
-                            <Group gap={5} mb={2}>
-                              <Text
-                                size="xs"
-                                fw={800}
-                                c="blue.4"
-                                fontFamily="monospace"
-                              >
+                        <Group justify="space-between" align="flex-start" wrap="nowrap">
+                          <Box style={{ minWidth: 0 }}>
+                            <Group gap={6} mb={4}>
+                              <Text size="xs" fw={900} c="cyan.3" ff="monospace">
                                 {row.skuCode}
                               </Text>
                               <Badge
-                                size="xs"
-                                variant="dot"
+                                radius="xl"
+                                size="sm"
+                                variant={row.printed ? "light" : "filled"}
                                 color={row.printed ? "green" : "orange"}
                               >
                                 {row.printed ? "Printed" : "Pending"}
                               </Badge>
                             </Group>
-                            <Text size="xs" fw={600} lineClamp={1}>
+                            <Text size="sm" fw={700} lineClamp={1}>
                               {row.productName}
                             </Text>
                           </Box>
                           <Box ta="right">
-                            <Text size="xs" fw={800}>
-                              {row.billedQty}
-                            </Text>
+                            <Text fw={900}>{row.billedQty}</Text>
                             <Text size="10px" c="dimmed">
-                              Labels
+                              labels
                             </Text>
                           </Box>
                         </Group>
@@ -700,8 +955,8 @@ export const Sticker = memo(function Sticker() {
             ) : (
               <OperationsEmptyState
                 icon={IconPrinter}
-                title="No items to show"
-                description="Select invoice batch to review rows and print status."
+                title="No manifest"
+                description="Select batch to review row status and run print."
               />
             )}
           </OperationsPanel>
@@ -716,19 +971,16 @@ export const Sticker = memo(function Sticker() {
         centered
       >
         <Center>
-          {previewUrl && (
+          {previewUrl ? (
             <Image
               src={previewUrl}
               alt="Sticker preview large"
               fit="contain"
               mah="70vh"
               radius="md"
-              style={{
-                background: "white",
-                padding: "20px",
-              }}
+              style={{ background: "white", padding: 20 }}
             />
-          )}
+          ) : null}
         </Center>
       </Modal>
     </OperationsPage>
