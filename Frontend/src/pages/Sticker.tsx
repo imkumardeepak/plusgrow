@@ -22,6 +22,7 @@ import {
   Modal,
   NumberInput,
   Paper,
+  Radio,
   ScrollArea,
   SegmentedControl,
   Select,
@@ -61,6 +62,10 @@ type StickerMode = "Combined" | "Separate";
 type StickerStatusFilter = "all" | "pending" | "printed";
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
+const labelModeText: Record<StickerMode, string> = {
+  Combined: "Imported & Marketed By",
+  Separate: "Marketed / Imported",
+};
 const defaultToDate = format(new Date(), "yyyy-MM-dd");
 const defaultFromDate = format(
   new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -614,17 +619,23 @@ export const Sticker = memo(function Sticker() {
                     <Text size="10px" fw={800} c="dimmed" mb={5}>
                       LABEL MODE
                     </Text>
-                    <SegmentedControl
-                      fullWidth
-                      size="xs"
-                      radius="md"
+                    <Radio.Group
                       value={stickerType}
                       onChange={(value) => setStickerType(value as StickerMode)}
-                      data={[
-                        { value: "Combined", label: "Combined" },
-                        { value: "Separate", label: "Separate" },
-                      ]}
-                    />
+                    >
+                      <Stack gap={6}>
+                        <Radio
+                          value="Combined"
+                          label={labelModeText.Combined}
+                          size="xs"
+                        />
+                        <Radio
+                          value="Separate"
+                          label={labelModeText.Separate}
+                          size="xs"
+                        />
+                      </Stack>
+                    </Radio.Group>
                   </Box>
                   <Select
                     label="Manufacturer"
@@ -719,7 +730,7 @@ export const Sticker = memo(function Sticker() {
                       MODE
                     </Text>
                     <Text size="xs" fw={800}>
-                      {stickerType}
+                      {labelModeText[stickerType]}
                     </Text>
                   </Box>
                   <Box>

@@ -1,4 +1,5 @@
 import React, { useState, memo, useMemo, useEffect, useCallback } from "react";
+import { ActionIcon } from "@mantine/core";
 import {
   locationsApi,
   productAllottedLocationsApi,
@@ -13,7 +14,6 @@ import {
   Search,
   Map as MapIcon,
   MapPin,
-  Crosshair,
   ArrowRight,
   Route,
   Layers,
@@ -24,6 +24,8 @@ import {
   Boxes,
   Warehouse,
   Zap,
+  ChevronRight,
+  Filter,
 } from "lucide-react";
 import { Input } from "../components/atoms/Input";
 import { cn } from "../lib/utils";
@@ -74,6 +76,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
     string | null
   >(null);
   const [viewMode, setViewMode] = useState<ViewMode>("2d");
+  const [activeRackKey, setActiveRackKey] = useState<string | null>(null);
 
   // Fetch all data from real APIs
   const loadData = useCallback(async () => {
@@ -202,7 +205,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
     return Object.values(result).sort((a, b) => b.totalQty - a.totalQty);
   }, [allocations]);
 
-  // Filter sidebar by search
+  // Global product list filter
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return storedProducts;
     const q = searchTerm.toLowerCase();
@@ -264,6 +267,83 @@ export const WarehouseMap = memo(function WarehouseMap() {
     [storedProducts, selectedProductId],
   );
 
+  const productAisles = useMemo(() => {
+    if (!selectedProduct) return new Set<string>();
+    const aisles = new Set<string>();
+    selectedProduct.locations.forEach((item) => {
+      const location = locations.find(
+        (loc) =>
+          loc.locationCode.toUpperCase() === item.locationCode.toUpperCase(),
+      );
+      if (location?.aisle) {
+        aisles.add(location.aisle);
+      }
+    });
+    return aisles;
+  }, [locations, selectedProduct]);
+
+  const filteredAisles = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    return warehouseStructure
+      .map((aisle) => {
+        const racks = aisle.racks.filter((rack) => {
+          const rackMatchesSearch =
+            !q ||
+            aisle.aisle.toLowerCase().includes(q) ||
+            rack.rack.toLowerCase().includes(q) ||
+            rack.shelves.some((shelf) => {
+              const locationCode = shelf.location.locationCode.toLowerCase();
+              const shelfCode = shelf.location.shelf.toLowerCase();
+              const binText = (shelf.location.bins || []).join(" ").toLowerCase();
+              const productText = shelf.products
+                .map((p) => `${p.skuCode} ${p.productName}`)
+                .join(" ")
+                .toLowerCase();
+
+              return (
+                locationCode.includes(q) ||
+                shelfCode.includes(q) ||
+                binText.includes(q) ||
+                productText.includes(q)
+              );
+            });
+
+          const rackMatchesProduct =
+            !selectedProductId ||
+            rack.shelves.some((shelf) =>
+              highlightedLocationCodes.has(
+                shelf.location.locationCode.toUpperCase(),
+              ),
+            );
+
+          return rackMatchesSearch && rackMatchesProduct;
+        });
+
+        return {
+          ...aisle,
+          racks,
+          totalQty: racks.reduce((sum, rack) => sum + rack.totalQty, 0),
+        };
+      })
+      .filter((aisle) => aisle.racks.length > 0);
+  }, [highlightedLocationCodes, searchTerm, selectedProductId, warehouseStructure]);
+
+  useEffect(() => {
+    if (!selectedProduct || selectedProduct.locations.length === 0) return;
+
+    const firstLocation = locations.find(
+      (loc) =>
+        loc.locationCode.toUpperCase() ===
+        selectedProduct.locations[0].locationCode.toUpperCase(),
+    );
+
+    if (firstLocation) {
+      setActiveRackKey(`${firstLocation.aisle}-${firstLocation.rack}`);
+      setSelectedLocationCode(firstLocation.locationCode);
+    }
+  }, [locations, selectedProduct]);
+
   const selectedShelf = useMemo(() => {
     if (!selectedLocationCode) return null;
     const key = selectedLocationCode.toUpperCase();
@@ -283,6 +363,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
       title="Facility Mapping"
       description="Live warehouse layout generated from Location Master, populated from Product Allocations"
       icon={MapIcon}
+      hideHeader
       actions={
         <div className="flex items-center gap-2">
           <div className="relative group">
@@ -325,6 +406,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
               setSelectedProductId(null);
               setSelectedLocationCode(null);
               setSearchTerm("");
+              setActiveRackKey(null);
             }}
             variant="outline"
             size="xs"
@@ -342,22 +424,93 @@ export const WarehouseMap = memo(function WarehouseMap() {
           </Button>
         </div>
       }
-      metrics={[
-        { label: "Aisles", value: warehouseStructure.length, tone: "brand" },
-        {
-          label: "Locations",
-          value: locations.length,
-          tone: "brand",
-        },
-        {
-          label: "Occupied",
-          value: `${occupiedLocations}/${locations.length}`,
-          tone: "success",
-        },
-        { label: "SKUs Stored", value: storedProducts.length, tone: "warning" },
-        { label: "Total Units", value: totalUnits, tone: "warning" },
-      ]}
     >
+      <OperationsPanel
+        title="Global Search"
+        icon={Search}
+        description="Search product name, SKU, aisle, rack, shelf, bin, or location code."
+        action={
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              size="sm"
+              className="text-[9px] bg-white/5 text-neutral-300 border-white/10"
+            >
+              {filteredProducts.length} products
+            </Badge>
+            <Badge
+              variant="secondary"
+              size="sm"
+              className="text-[9px] bg-white/5 text-neutral-300 border-white/10"
+            >
+              {filteredAisles.length} aisles
+            </Badge>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-xl">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
+            <Input
+              placeholder="Search product name, SKU, aisle, rack, shelf, bin..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-8 pl-8 text-[12px] bg-white/[0.03] border-white/10"
+              fullWidth
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 items-center overflow-hidden rounded-md border border-white/10 bg-white/[0.03]">
+              <button
+                type="button"
+                onClick={() => setViewMode("2d")}
+                className={cn(
+                  "flex h-full items-center gap-1 px-2 text-[10px] font-bold uppercase transition-colors",
+                  viewMode === "2d"
+                    ? "bg-orange-500/20 text-orange-400"
+                    : "text-neutral-500 hover:text-neutral-300",
+                )}
+              >
+                <Grid3x3 className="h-3 w-3" /> 2D
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("3d")}
+                className={cn(
+                  "flex h-full items-center gap-1 border-l border-white/10 px-2 text-[10px] font-bold uppercase transition-colors",
+                  viewMode === "3d"
+                    ? "bg-orange-500/20 text-orange-400"
+                    : "text-neutral-500 hover:text-neutral-300",
+                )}
+              >
+                <Boxes className="h-3 w-3" /> 3D
+              </button>
+            </div>
+            <Button
+              onClick={() => {
+                setSelectedProductId(null);
+                setSelectedLocationCode(null);
+                setSearchTerm("");
+                setActiveRackKey(null);
+              }}
+              variant="outline"
+              size="xs"
+              className="h-8 border-white/10"
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={loadData}
+              variant="outline"
+              size="xs"
+              className="h-8 border-white/10"
+            >
+              Refresh
+            </Button>
+          </div>
+        </div>
+      </OperationsPanel>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* LEFT: Product directory from product_allotted_locations */}
         <OperationsPanel
@@ -468,10 +621,27 @@ export const WarehouseMap = memo(function WarehouseMap() {
           contentClassName="overflow-auto"
           action={
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)] animate-pulse"></span>
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest">
-                {isLoading ? "Loading..." : "System Live"}
-              </span>
+              <Badge
+                variant="secondary"
+                size="sm"
+                className="text-[9px] bg-white/5 text-neutral-300 border-white/10"
+              >
+                {filteredAisles.length} aisles
+              </Badge>
+              <Badge
+                variant="secondary"
+                size="sm"
+                className="text-[9px] bg-white/5 text-neutral-300 border-white/10"
+              >
+                {occupiedLocations}/{locations.length} occupied
+              </Badge>
+              <Badge
+                variant="secondary"
+                size="sm"
+                className="text-[9px] bg-white/5 text-neutral-300 border-white/10"
+              >
+                {totalUnits} units
+              </Badge>
             </div>
           }
         >
@@ -500,18 +670,18 @@ export const WarehouseMap = memo(function WarehouseMap() {
           ) : (
             <div
               className={cn(
-                "relative h-full min-h-[480px] p-6 overflow-auto",
+                "relative h-full min-h-[480px] p-4 overflow-auto",
                 "bg-[radial-gradient(#222_1px,transparent_1px)] [background-size:15px_15px]",
               )}
             >
               {/* Warehouse floor */}
               <div
                 className={cn(
-                  "flex flex-col gap-8 w-full min-w-max",
+                  "grid grid-cols-1 xl:grid-cols-2 gap-4 w-full min-w-0",
                   viewMode === "3d" && "[perspective:1600px]",
                 )}
               >
-                {warehouseStructure.map((aisle) => (
+                {filteredAisles.map((aisle) => (
                   <AisleView
                     key={aisle.aisle}
                     aisle={aisle}
@@ -519,7 +689,13 @@ export const WarehouseMap = memo(function WarehouseMap() {
                     highlightedLocationCodes={highlightedLocationCodes}
                     selectedLocationCode={selectedLocationCode}
                     selectedProductId={selectedProductId}
+                    activeRackKey={activeRackKey}
                     maxShelfQty={maxShelfQty}
+                    onRackClick={(rackKey) =>
+                      setActiveRackKey((current) =>
+                        current === rackKey ? null : rackKey,
+                      )
+                    }
                     onShelfClick={(code) => {
                       setSelectedLocationCode(
                         selectedLocationCode === code ? null : code,
@@ -561,7 +737,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
 
               {/* Selected product overlay */}
               {selectedProduct && (
-                <div className="absolute top-4 right-4 w-[260px] bg-neutral-900/95 backdrop-blur-md border border-orange-500/30 p-3 rounded-lg shadow-[0_0_20px_rgba(249,115,22,0.2)] animate-in slide-in-from-top-4 duration-300 z-20">
+                <div className="mt-3 w-full bg-neutral-900/95 backdrop-blur-md border border-orange-500/30 p-3 rounded-lg shadow-[0_0_20px_rgba(249,115,22,0.12)]">
                   <div className="flex items-center gap-2 border-b border-white/5 pb-2 mb-2">
                     <div className="w-8 h-8 rounded bg-orange-500/20 text-orange-400 flex items-center justify-center border border-orange-500/30">
                       <Package className="w-4 h-4" />
@@ -578,7 +754,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                       </p>
                     </div>
                   </div>
-                  <div className="space-y-1 max-h-[240px] overflow-y-auto scrollbar-thin">
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
                     {selectedProduct.locations.map((l, i) => (
                       <div
                         key={i}
@@ -614,7 +790,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
 
               {/* Selected shelf overlay */}
               {selectedShelf && (
-                <div className="absolute bottom-16 right-4 w-[260px] bg-neutral-900/95 backdrop-blur-md border border-cyan-500/30 p-3 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.2)] animate-in slide-in-from-bottom-4 duration-300 z-20">
+                <div className="mt-3 w-full bg-neutral-900/95 backdrop-blur-md border border-cyan-500/30 p-3 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.12)]">
                   <div className="flex items-center gap-2 border-b border-white/5 pb-2 mb-2">
                     <div className="w-8 h-8 rounded bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
                       <MapPin className="w-4 h-4" />
@@ -637,7 +813,7 @@ export const WarehouseMap = memo(function WarehouseMap() {
                       No products stored here
                     </div>
                   ) : (
-                    <div className="space-y-1 max-h-[200px] overflow-y-auto scrollbar-thin">
+                    <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-3">
                       {selectedShelf.products.map((p) => (
                         <div
                           key={p.productId}
@@ -685,7 +861,9 @@ interface AisleViewProps {
   highlightedLocationCodes: Set<string>;
   selectedLocationCode: string | null;
   selectedProductId: number | null;
+  activeRackKey: string | null;
   maxShelfQty: number;
+  onRackClick: (rackKey: string) => void;
   onShelfClick: (locationCode: string) => void;
 }
 
@@ -695,7 +873,9 @@ const AisleView = memo(function AisleView({
   highlightedLocationCodes,
   selectedLocationCode,
   selectedProductId,
+  activeRackKey,
   maxShelfQty,
+  onRackClick,
   onShelfClick,
 }: AisleViewProps) {
   const aisleHighlighted =
@@ -707,40 +887,36 @@ const AisleView = memo(function AisleView({
     );
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Aisle label */}
-      <div className="flex items-center gap-2 pl-1">
-        <div
-          className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded border transition-colors",
-            aisleHighlighted
-              ? "bg-orange-500/15 border-orange-500/40 text-orange-300"
-              : "bg-white/[0.03] border-white/10 text-neutral-400",
-          )}
-        >
-          <Warehouse className="w-3 h-3" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">
-            Aisle {aisle.aisle}
-          </span>
+    <div
+      className={cn(
+        "rounded-xl border p-3 transition-colors",
+        aisleHighlighted
+          ? "border-orange-500/40 bg-orange-500/6"
+          : "border-white/10 bg-white/[0.03]",
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded border transition-colors",
+              aisleHighlighted
+                ? "bg-orange-500/15 border-orange-500/40 text-orange-300"
+                : "bg-white/[0.03] border-white/10 text-neutral-400",
+            )}
+          >
+            <Warehouse className="w-3 h-3" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">
+              Aisle {aisle.aisle}
+            </span>
+          </div>
         </div>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/10 to-transparent" />
         <span className="text-[9px] font-mono text-neutral-500">
           {aisle.racks.length} racks · {aisle.totalQty} units
         </span>
       </div>
 
-      {/* Racks row */}
-      <div
-        className={cn(
-          "flex gap-3 items-end",
-          viewMode === "3d" && "[transform-style:preserve-3d]",
-        )}
-        style={
-          viewMode === "3d"
-            ? { transform: "rotateX(22deg) rotateY(-18deg)" }
-            : undefined
-        }
-      >
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {aisle.racks.map((rack) => (
           <RackView
             key={`${aisle.aisle}-${rack.rack}`}
@@ -749,7 +925,9 @@ const AisleView = memo(function AisleView({
             highlightedLocationCodes={highlightedLocationCodes}
             selectedLocationCode={selectedLocationCode}
             selectedProductId={selectedProductId}
+            isOpen={activeRackKey === `${aisle.aisle}-${rack.rack}`}
             maxShelfQty={maxShelfQty}
+            onRackClick={() => onRackClick(`${aisle.aisle}-${rack.rack}`)}
             onShelfClick={onShelfClick}
           />
         ))}
@@ -764,7 +942,9 @@ interface RackViewProps {
   highlightedLocationCodes: Set<string>;
   selectedLocationCode: string | null;
   selectedProductId: number | null;
+  isOpen: boolean;
   maxShelfQty: number;
+  onRackClick: () => void;
   onShelfClick: (locationCode: string) => void;
 }
 
@@ -774,7 +954,9 @@ const RackView = memo(function RackView({
   highlightedLocationCodes,
   selectedLocationCode,
   selectedProductId,
+  isOpen,
   maxShelfQty,
+  onRackClick,
   onShelfClick,
 }: RackViewProps) {
   const rackHighlighted =
@@ -786,7 +968,7 @@ const RackView = memo(function RackView({
   return (
     <div
       className={cn(
-        "relative flex flex-col w-[140px] border rounded-lg overflow-hidden transition-all duration-500",
+        "relative flex flex-col border rounded-lg overflow-hidden transition-all duration-500",
         rackHighlighted
           ? "border-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.25)] bg-orange-950/20"
           : "border-neutral-800 bg-neutral-900/60 hover:border-neutral-700",
@@ -803,53 +985,74 @@ const RackView = memo(function RackView({
       }
     >
       {/* Rack header */}
-      <div
+      <button
+        type="button"
+        onClick={onRackClick}
         className={cn(
-          "py-1.5 px-2 text-center border-b transition-colors",
-          rackHighlighted
+          "py-2 px-2 text-center border-b transition-colors cursor-pointer",
+          isOpen || rackHighlighted
             ? "bg-orange-500 text-white border-orange-600"
             : "bg-neutral-900 text-neutral-400 border-neutral-800",
         )}
       >
-        <div className="flex items-center justify-center gap-1">
-          <Layers className="w-3 h-3" />
-          <span className="font-heading font-bold tracking-wider text-[10px]">
-            {rack.aisle}-{rack.rack}
-          </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <Layers className="w-3 h-3" />
+            <span className="font-heading font-bold tracking-wider text-[10px]">
+              {rack.aisle}-{rack.rack}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[8px] font-mono opacity-80">
+              {rack.totalQty} u
+            </span>
+            <ChevronRight
+              className={cn(
+                "w-3 h-3 transition-transform",
+                isOpen ? "rotate-90" : "",
+              )}
+            />
+          </div>
         </div>
-      </div>
+      </button>
 
-      {/* Shelves - stacked like real rack: top shelf first */}
-      <div className="flex flex-col p-1.5 gap-1">
-        {[...rack.shelves].reverse().map((shelf) => (
-          <ShelfView
-            key={shelf.location.id}
-            shelf={shelf}
-            isHighlighted={highlightedLocationCodes.has(
-              shelf.location.locationCode.toUpperCase(),
+      {isOpen ? (
+        <>
+          <div className="flex flex-col p-1.5 gap-1">
+            {[...rack.shelves].reverse().map((shelf) => (
+              <ShelfView
+                key={shelf.location.id}
+                shelf={shelf}
+                isHighlighted={highlightedLocationCodes.has(
+                  shelf.location.locationCode.toUpperCase(),
+                )}
+                isSelected={
+                  selectedLocationCode?.toUpperCase() ===
+                  shelf.location.locationCode.toUpperCase()
+                }
+                maxShelfQty={maxShelfQty}
+                viewMode={viewMode}
+                onClick={() => onShelfClick(shelf.location.locationCode)}
+              />
+            ))}
+          </div>
+
+          <div
+            className={cn(
+              "text-[8px] font-mono text-center py-1 border-t transition-colors",
+              rackHighlighted
+                ? "bg-orange-600 text-white border-orange-700"
+                : "bg-neutral-900 text-neutral-500 border-neutral-800",
             )}
-            isSelected={
-              selectedLocationCode?.toUpperCase() ===
-              shelf.location.locationCode.toUpperCase()
-            }
-            maxShelfQty={maxShelfQty}
-            viewMode={viewMode}
-            onClick={() => onShelfClick(shelf.location.locationCode)}
-          />
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div
-        className={cn(
-          "text-[8px] font-mono text-center py-1 border-t transition-colors",
-          rackHighlighted
-            ? "bg-orange-600 text-white border-orange-700"
-            : "bg-neutral-900 text-neutral-500 border-neutral-800",
-        )}
-      >
-        {rack.totalQty} units · {rack.totalBins} bins
-      </div>
+          >
+            {rack.shelves.length} shelves · {rack.totalBins} bins
+          </div>
+        </>
+      ) : (
+        <div className="px-2 py-2 text-[9px] text-neutral-500">
+          Open rack for shelves
+        </div>
+      )}
     </div>
   );
 });
