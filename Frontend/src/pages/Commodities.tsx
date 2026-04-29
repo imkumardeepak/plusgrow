@@ -2,13 +2,8 @@ import React, { memo, useEffect, useMemo, useState } from "react";
 import {
   ActionIcon,
   Badge,
-  Box,
-  Center,
   Group,
-  Paper,
-  ScrollArea,
   Stack,
-  Table,
   Text,
   ThemeIcon,
   Tooltip,
@@ -30,10 +25,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import { toast } from "../lib/toast";
 import {
   commoditiesApi,
@@ -197,6 +195,74 @@ export const Commodities = memo(function Commodities() {
     );
   }, [commodities, search]);
 
+  const columns: DataTableColumn<Commodity>[] = [
+    {
+      key: "id",
+      header: "ID",
+      render: (row) => (
+        <Text size="xs" c="dimmed" ff="monospace">
+          #{row.id}
+        </Text>
+      ),
+      width: 80,
+    },
+    {
+      key: "name",
+      header: "Commodity",
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={36}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <Tag size={16} />
+          </ThemeIcon>
+          <Text fw={700} size="sm">
+            {row.name}
+          </Text>
+        </Group>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit commodity">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditModal(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete commodity">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 120,
+    },
+  ];
+
   return (
     <>
       <OperationsPage
@@ -254,91 +320,17 @@ export const Commodities = memo(function Commodities() {
             }
             contentClassName="p-0"
           >
-            {isLoading ? (
-              <Center h={260}>
-                <Loader2 size={18} className="animate-spin text-cyan-400" />
-              </Center>
-            ) : filteredCommodities.length === 0 ? (
-              <OperationsEmptyState
-                icon={Tag}
-                title="No commodities found"
-                description="No commodity records match current search."
-              />
-            ) : (
-              <ScrollArea>
-                <Table
-                  highlightOnHover
-                  stickyHeader
-                  verticalSpacing={6}
-                  horizontalSpacing="sm"
-                  style={{ minWidth: 600, fontSize: 12 }}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>ID</Table.Th>
-                      <Table.Th>Commodity</Table.Th>
-                      <Table.Th ta="right">Action</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {filteredCommodities.map((row) => (
-                      <Table.Tr key={row.id}>
-                        <Table.Td>
-                          <Text size="xs" c="dimmed" ff="monospace">
-                            #{row.id}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="sm" wrap="nowrap">
-                            <ThemeIcon
-                              size={36}
-                              radius="lg"
-                              variant="light"
-                              color="cyan"
-                              style={{
-                                background: "rgba(30, 192, 243, 0.12)",
-                                border: "1px solid rgba(30, 192, 243, 0.18)",
-                              }}
-                            >
-                              <Tag size={16} />
-                            </ThemeIcon>
-                            <Text fw={700} size="sm">
-                              {row.name}
-                            </Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          <Group gap="xs" justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit commodity">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="blue"
-                                onClick={() => openEditModal(row)}
-                              >
-                                <Edit2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete commodity">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="red"
-                                onClick={() => setDeleteTarget(row)}
-                              >
-                                <Trash2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
+            <MantineDataTable<Commodity>
+              data={filteredCommodities}
+              columns={columns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              emptyIcon={Tag}
+              emptyTitle="No commodities found"
+              emptyDescription="No commodity records match current search."
+              itemLabel="categories"
+              resetPageKey={search}
+            />
           </OperationsPanel>
         </Stack>
       </OperationsPage>

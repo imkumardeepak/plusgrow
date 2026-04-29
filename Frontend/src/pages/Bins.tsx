@@ -4,12 +4,8 @@ import {
   ActionIcon,
   Badge,
   Box,
-  Center,
   Group,
-  Paper,
-  ScrollArea,
   Stack,
-  Table,
   Text,
   ThemeIcon,
   Tooltip,
@@ -17,10 +13,6 @@ import {
 import {
   Box as BoxIcon,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   Download,
   Edit2,
   FileSpreadsheet,
@@ -35,10 +27,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import { toast } from "../lib/toast";
 import { binsApi, Bin, CreateBinDto } from "../services/masterApi";
 
@@ -55,8 +50,6 @@ export const Bins = memo(function Bins() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [formData, setFormData] = useState<CreateBinDto>({
     binCode: "",
   });
@@ -195,32 +188,73 @@ export const Bins = memo(function Bins() {
     return bins.filter((b) => b.binCode.toLowerCase().includes(searchLower));
   }, [bins, search]);
 
-  // Reset to page 1 when search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search]);
-
-  const paginationData = useMemo(() => {
-    const totalItems = filteredBins.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const startIndex = (currentPage - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalItems);
-    const paginatedItems = filteredBins.slice(startIndex, endIndex);
-
-    return {
-      totalItems,
-      totalPages,
-      startIndex,
-      endIndex,
-      paginatedItems,
-      hasNextPage: currentPage < totalPages,
-      hasPrevPage: currentPage > 1,
-    };
-  }, [filteredBins, currentPage, pageSize]);
-
-  const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, paginationData.totalPages || 1)));
-  };
+  const columns: DataTableColumn<Bin>[] = [
+    {
+      key: "binCode",
+      header: "Bin Code",
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={36}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <BoxIcon size={16} />
+          </ThemeIcon>
+          <Text fw={700} size="sm" ff="monospace">
+            {row.binCode}
+          </Text>
+        </Group>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Created",
+      render: (row) => (
+        <Badge variant="light" color="gray" size="xs" radius="sm">
+          {row.createdAt ? format(new Date(row.createdAt), "dd-MMM-yy") : "N/A"}
+        </Badge>
+      ),
+      width: 140,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit bin">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditModal(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete bin">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 120,
+    },
+  ];
 
   return (
     <>
@@ -279,211 +313,17 @@ export const Bins = memo(function Bins() {
             }
             contentClassName="p-0"
           >
-            {isLoading ? (
-              <Center h={260}>
-                <Loader2 size={18} className="animate-spin text-cyan-400" />
-              </Center>
-            ) : filteredBins.length === 0 ? (
-              <OperationsEmptyState
-                icon={BoxIcon}
-                title="No bins found"
-                description="No bin records match current search."
-              />
-            ) : (
-              <>
-                <ScrollArea>
-                  <Table
-                    highlightOnHover
-                    stickyHeader
-                    verticalSpacing={6}
-                    horizontalSpacing="sm"
-                    style={{ minWidth: 600, fontSize: 12 }}
-                  >
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Bin Code</Table.Th>
-                        <Table.Th>Created</Table.Th>
-                        <Table.Th ta="right">Action</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {paginationData.paginatedItems.map((row) => (
-                        <Table.Tr key={row.id}>
-                          <Table.Td>
-                            <Group gap="sm" wrap="nowrap">
-                              <ThemeIcon
-                                size={36}
-                                radius="lg"
-                                variant="light"
-                                color="cyan"
-                                style={{
-                                  background: "rgba(30, 192, 243, 0.12)",
-                                  border: "1px solid rgba(30, 192, 243, 0.18)",
-                                }}
-                              >
-                                <BoxIcon size={16} />
-                              </ThemeIcon>
-                              <Text fw={700} size="sm" ff="monospace">
-                                {row.binCode}
-                              </Text>
-                            </Group>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge
-                              variant="light"
-                              color="gray"
-                              size="xs"
-                              radius="sm"
-                            >
-                              {row.createdAt
-                                ? format(new Date(row.createdAt), "dd-MMM-yy")
-                                : "N/A"}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td ta="right">
-                            <Group gap="xs" justify="flex-end" wrap="nowrap">
-                              <Tooltip label="Edit bin">
-                                <ActionIcon
-                                  size="sm"
-                                  radius="md"
-                                  variant="light"
-                                  color="blue"
-                                  onClick={() => openEditModal(row)}
-                                >
-                                  <Edit2 size={15} />
-                                </ActionIcon>
-                              </Tooltip>
-                              <Tooltip label="Delete bin">
-                                <ActionIcon
-                                  size="sm"
-                                  radius="md"
-                                  variant="light"
-                                  color="red"
-                                  onClick={() => setDeleteTarget(row)}
-                                >
-                                  <Trash2 size={15} />
-                                </ActionIcon>
-                              </Tooltip>
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </ScrollArea>
-
-                {/* Pagination Controls */}
-                {paginationData.totalItems > pageSize && (
-                  <Group
-                    justify="space-between"
-                    align="center"
-                    px="md"
-                    py="sm"
-                    style={{
-                      borderTop: "1px solid rgba(255, 255, 255, 0.07)",
-                    }}
-                  >
-                    <Text size="xs" c="dimmed">
-                      Showing{" "}
-                      <Text component="span" fw={700} c="cyan.3">
-                        {paginationData.startIndex + 1}-
-                        {paginationData.endIndex}
-                      </Text>{" "}
-                      of{" "}
-                      <Text component="span" fw={700} c="cyan.3">
-                        {paginationData.totalItems}
-                      </Text>{" "}
-                      bins
-                    </Text>
-
-                    <Group gap="xs" wrap="nowrap">
-                      <ActionIcon
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        onClick={() => goToPage(1)}
-                        disabled={!paginationData.hasPrevPage}
-                        aria-label="First page"
-                      >
-                        <ChevronsLeft size={16} />
-                      </ActionIcon>
-                      <ActionIcon
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={!paginationData.hasPrevPage}
-                        aria-label="Previous page"
-                      >
-                        <ChevronLeft size={16} />
-                      </ActionIcon>
-
-                      <Group gap={4} wrap="nowrap">
-                        {Array.from(
-                          { length: Math.min(5, paginationData.totalPages) },
-                          (_, i) => {
-                            let pageNum: number;
-                            if (paginationData.totalPages <= 5) {
-                              pageNum = i + 1;
-                            } else if (currentPage <= 3) {
-                              pageNum = i + 1;
-                            } else if (
-                              currentPage >=
-                              paginationData.totalPages - 2
-                            ) {
-                              pageNum = paginationData.totalPages - 4 + i;
-                            } else {
-                              pageNum = currentPage - 2 + i;
-                            }
-
-                            return (
-                              <ActionIcon
-                                key={pageNum}
-                                size="sm"
-                                variant={
-                                  currentPage === pageNum ? "filled" : "light"
-                                }
-                                color={
-                                  currentPage === pageNum ? "cyan" : "gray"
-                                }
-                                onClick={() => goToPage(pageNum)}
-                                style={{
-                                  fontWeight: 700,
-                                  fontSize: 11,
-                                }}
-                              >
-                                {pageNum}
-                              </ActionIcon>
-                            );
-                          },
-                        )}
-                      </Group>
-
-                      <ActionIcon
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={!paginationData.hasNextPage}
-                        aria-label="Next page"
-                      >
-                        <ChevronRight size={16} />
-                      </ActionIcon>
-                      <ActionIcon
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        onClick={() => goToPage(paginationData.totalPages)}
-                        disabled={!paginationData.hasNextPage}
-                        aria-label="Last page"
-                      >
-                        <ChevronsRight size={16} />
-                      </ActionIcon>
-                    </Group>
-                  </Group>
-                )}
-              </>
-            )}
+            <MantineDataTable<Bin>
+              data={filteredBins}
+              columns={columns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              emptyIcon={BoxIcon}
+              emptyTitle="No bins found"
+              emptyDescription="No bin records match current search."
+              itemLabel="bins"
+              resetPageKey={search}
+            />
           </OperationsPanel>
         </Stack>
       </OperationsPage>

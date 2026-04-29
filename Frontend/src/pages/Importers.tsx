@@ -3,13 +3,8 @@ import { format } from "date-fns";
 import {
   ActionIcon,
   Badge,
-  Box,
-  Center,
   Group,
-  Paper,
-  ScrollArea,
   Stack,
-  Table,
   Text,
   ThemeIcon,
   Tooltip,
@@ -31,10 +26,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import { toast } from "../lib/toast";
 import {
   importersApi,
@@ -156,6 +154,104 @@ export const Importers = memo(function Importers() {
     );
   }, [importers, search]);
 
+  const columns: DataTableColumn<Importer>[] = [
+    {
+      key: "name",
+      header: "Importer",
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={36}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <Truck size={16} />
+          </ThemeIcon>
+          <Text fw={700} size="sm">
+            {row.name}
+          </Text>
+        </Group>
+      ),
+    },
+    {
+      key: "address",
+      header: "Address",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={200}>
+          {row.address || "N/A"}
+        </Text>
+      ),
+    },
+    {
+      key: "phone",
+      header: "Phone",
+      render: (row) => (
+        <Text size="xs" ff="monospace">
+          {row.phone || "N/A"}
+        </Text>
+      ),
+      width: 140,
+    },
+    {
+      key: "email",
+      header: "Email",
+      render: (row) => (
+        <Text size="xs" c="cyan.3" lineClamp={1} maw={180}>
+          {row.email || "N/A"}
+        </Text>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Created",
+      render: (row) => (
+        <Badge variant="light" color="gray" size="xs" radius="sm">
+          {row.created_at
+            ? format(new Date(row.created_at), "dd-MMM-yy")
+            : "N/A"}
+        </Badge>
+      ),
+      width: 120,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit importer">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditModal(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete importer">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 120,
+    },
+  ];
+
   const importerStats = useMemo(() => {
     const withEmail = importers.filter((item) => item.email).length;
     const withPhone = importers.filter((item) => item.phone).length;
@@ -218,116 +314,17 @@ export const Importers = memo(function Importers() {
             }
             contentClassName="p-0"
           >
-            {isLoading ? (
-              <Center h={260}>
-                <Loader2 size={18} className="animate-spin text-cyan-400" />
-              </Center>
-            ) : filteredImporters.length === 0 ? (
-              <OperationsEmptyState
-                icon={Truck}
-                title="No importers found"
-                description="No importer records match current search."
-              />
-            ) : (
-              <ScrollArea>
-                <Table
-                  highlightOnHover
-                  stickyHeader
-                  verticalSpacing={6}
-                  horizontalSpacing="sm"
-                  style={{ minWidth: 800, fontSize: 12 }}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Importer</Table.Th>
-                      <Table.Th>Address</Table.Th>
-                      <Table.Th>Phone</Table.Th>
-                      <Table.Th>Email</Table.Th>
-                      <Table.Th>Created</Table.Th>
-                      <Table.Th ta="right">Action</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {filteredImporters.map((row) => (
-                      <Table.Tr key={row.id}>
-                        <Table.Td>
-                          <Group gap="sm" wrap="nowrap">
-                            <ThemeIcon
-                              size={36}
-                              radius="lg"
-                              variant="light"
-                              color="cyan"
-                              style={{
-                                background: "rgba(30, 192, 243, 0.12)",
-                                border: "1px solid rgba(30, 192, 243, 0.18)",
-                              }}
-                            >
-                              <Truck size={16} />
-                            </ThemeIcon>
-                            <Text fw={700} size="sm">
-                              {row.name}
-                            </Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" lineClamp={1} maw={200}>
-                            {row.address || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" ff="monospace">
-                            {row.phone || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" c="cyan.3" lineClamp={1} maw={180}>
-                            {row.email || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            variant="light"
-                            color="gray"
-                            size="xs"
-                            radius="sm"
-                          >
-                            {row.created_at
-                              ? format(new Date(row.created_at), "dd-MMM-yy")
-                              : "N/A"}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          <Group gap="xs" justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit importer">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="blue"
-                                onClick={() => openEditModal(row)}
-                              >
-                                <Edit2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete importer">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="red"
-                                onClick={() => setDeleteTarget(row)}
-                              >
-                                <Trash2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
+            <MantineDataTable<Importer>
+              data={filteredImporters}
+              columns={columns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              emptyIcon={Truck}
+              emptyTitle="No importers found"
+              emptyDescription="No importer records match current search."
+              itemLabel="partners"
+              resetPageKey={search}
+            />
           </OperationsPanel>
         </Stack>
       </OperationsPage>

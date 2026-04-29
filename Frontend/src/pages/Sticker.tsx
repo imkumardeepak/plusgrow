@@ -23,12 +23,10 @@ import {
   NumberInput,
   Paper,
   Radio,
-  ScrollArea,
   SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
   Tooltip,
@@ -37,10 +35,13 @@ import { notifications } from "@mantine/notifications";
 import { Printer } from "lucide-react";
 
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import {
   Importer,
   Manufacturer,
@@ -86,8 +87,7 @@ export const Sticker = memo(function Sticker() {
   const [manufacturerId, setManufacturerId] = useState<string | null>(null);
   const [importerId, setImporterId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<StickerStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StickerStatusFilter>("all");
   const [fromDate, setFromDate] = useState(defaultFromDate);
   const [toDate, setToDate] = useState(defaultToDate);
   const [selectedRow, setSelectedRow] = useState<PoInvoice | null>(null);
@@ -185,13 +185,119 @@ export const Sticker = memo(function Sticker() {
   const selectedProduct = useMemo(
     () =>
       selectedRow
-        ? products.find((product) => product.id === selectedRow.productId) ??
-          null
+        ? (products.find((product) => product.id === selectedRow.productId) ??
+          null)
         : null,
     [products, selectedRow],
   );
 
   const filteredRows = poInvoices;
+
+  const columns: DataTableColumn<PoInvoice>[] = [
+    {
+      key: "invoiceNumber",
+      header: "Invoice No",
+      render: (row) => (
+        <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+          {row.invoiceNumber}
+        </Text>
+      ),
+      width: 140,
+    },
+    {
+      key: "invoiceDate",
+      header: "Invoice Date",
+      render: (row) => (
+        <Text size="xs" fw={500} lineClamp={1}>
+          {format(new Date(row.invoiceDate), "dd MMM yyyy")}
+        </Text>
+      ),
+      width: 120,
+    },
+    {
+      key: "partyName",
+      header: "Party Name",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={150}>
+          {row.partyName || "N/A"}
+        </Text>
+      ),
+      width: 150,
+    },
+    {
+      key: "productName",
+      header: "Product",
+      render: (row) => (
+        <Text size="xs" fw={600} lineClamp={1} maw={180}>
+          {row.productName}
+        </Text>
+      ),
+      width: 180,
+    },
+    {
+      key: "billedQty",
+      header: "Billed Qty",
+      align: "right",
+      render: (row) => (
+        <Text size="xs" fw={800} c="cyan.3">
+          {row.billedQty}
+        </Text>
+      ),
+      width: 100,
+    },
+    {
+      key: "remainingAllocation",
+      header: "Remaining",
+      align: "right",
+      render: (row) => (
+        <Text
+          size="xs"
+          fw={800}
+          c={row.remainingAllocation > 0 ? "orange.3" : "green.3"}
+        >
+          {row.remainingAllocation}
+        </Text>
+      ),
+      width: 100,
+    },
+    {
+      key: "printed",
+      header: "Sticker Status",
+      render: (row) => (
+        <Badge
+          size="sm"
+          radius="md"
+          variant="light"
+          color={row.printed ? "green" : "orange"}
+        >
+          {row.printed ? "Printed" : "Pending"}
+        </Badge>
+      ),
+      width: 120,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="View print options">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="cyan"
+              onClick={() => setSelectedRow(row)}
+              aria-label="View print options"
+            >
+              <IconEye size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 90,
+    },
+  ];
 
   const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
     try {
@@ -300,7 +406,8 @@ export const Sticker = memo(function Sticker() {
     const from = Number(reprintFrom || 1);
     const to = Number(reprintTo || from);
     const reprintQuantity = Math.max(1, to - from + 1);
-    const quantity = mode === "normal" ? selectedRow.billedQty : reprintQuantity;
+    const quantity =
+      mode === "normal" ? selectedRow.billedQty : reprintQuantity;
 
     setIsPrinting(true);
     try {
@@ -311,9 +418,7 @@ export const Sticker = memo(function Sticker() {
             config: {
               ...buildPayload(selectedRow, quantity),
               note:
-                mode === "reprint"
-                  ? `Reprint sticker ${from} to ${to}`
-                  : "",
+                mode === "reprint" ? `Reprint sticker ${from} to ${to}` : "",
             },
             quantity,
           },
@@ -486,100 +591,17 @@ export const Sticker = memo(function Sticker() {
           }
           contentClassName="p-0"
         >
-          {isLoading || isRowsLoading ? (
-            <Center h={260}>
-              <Loader size="sm" />
-            </Center>
-          ) : filteredRows.length === 0 ? (
-            <OperationsEmptyState
-              icon={IconPrinter}
-              title="No PO invoice rows"
-              description="No sticker rows match current search."
-            />
-          ) : (
-            <ScrollArea>
-              <Table
-                highlightOnHover
-                stickyHeader
-                verticalSpacing={6}
-                horizontalSpacing="sm"
-                style={{ minWidth: 980, fontSize: 12 }}
-              >
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Invoice</Table.Th>
-                    <Table.Th>Date</Table.Th>
-                    <Table.Th>Party</Table.Th>
-                    <Table.Th>SKU</Table.Th>
-                    <Table.Th>Product</Table.Th>
-                    <Table.Th ta="right">Qty</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th ta="right">Action</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredRows.map((row) => (
-                    <Table.Tr key={row.id}>
-                      <Table.Td>
-                        <Text size="xs" fw={800} ff="monospace">
-                          {row.invoiceNumber}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs">
-                          {format(new Date(row.invoiceDate), "dd-MMM-yy")}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" fw={650} lineClamp={1}>
-                          {row.partyName}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" fw={800} ff="monospace" c="cyan.3">
-                          {row.skuCode}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" lineClamp={1} maw={320}>
-                          {row.productName}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Text size="xs" fw={800}>
-                          {row.billedQty}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          size="xs"
-                          radius="sm"
-                          color={rowStatusColor(row.printed)}
-                          variant={row.printed ? "light" : "filled"}
-                        >
-                          {row.printed ? "Printed" : "Pending"}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Tooltip label="View print options">
-                          <ActionIcon
-                            size="sm"
-                            radius="md"
-                            variant="light"
-                            color="cyan"
-                            onClick={() => setSelectedRow(row)}
-                            aria-label="View print options"
-                          >
-                            <IconEye size={15} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          )}
+          <MantineDataTable<PoInvoice>
+            data={filteredRows}
+            columns={columns}
+            rowKey={(row) => row.id}
+            isLoading={isLoading || isRowsLoading}
+            emptyIcon={IconPrinter}
+            emptyTitle="No PO invoice rows"
+            emptyDescription="No sticker rows match current search."
+            itemLabel="invoices"
+            resetPageKey={`${search}-${statusFilter}-${fromDate}-${toDate}`}
+          />
         </OperationsPanel>
       </Stack>
 
@@ -818,11 +840,20 @@ export const Sticker = memo(function Sticker() {
                   />
                 </Center>
               ) : (
-                <OperationsEmptyState
-                  icon={IconTag}
-                  title="No preview"
-                  description="Preview not available for this row."
-                />
+                <Paper
+                  withBorder
+                  radius="md"
+                  p="xl"
+                  style={{ textAlign: "center" }}
+                >
+                  <IconTag size={48} style={{ marginBottom: 12 }} />
+                  <Text fw={700} size="lg" mb="xs">
+                    No preview
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    Preview not available for this row.
+                  </Text>
+                </Paper>
               )}
             </Paper>
           </SimpleGrid>

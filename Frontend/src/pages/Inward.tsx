@@ -4,15 +4,12 @@ import {
   ActionIcon,
   Badge,
   Box,
-  Center,
   Group,
   Paper,
-  ScrollArea,
   Select,
   SegmentedControl,
   SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
   ThemeIcon,
@@ -38,10 +35,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import {
   CreatePoInvoiceDto,
   PoInvoiceFilters,
@@ -163,6 +163,122 @@ export const Inward = memo(function Inward() {
       allottedCount,
     };
   }, [poInvoices]);
+
+  const columns: DataTableColumn<PoInvoice>[] = [
+    {
+      key: "invoiceNo",
+      header: "Invoice No",
+      render: (row) => (
+        <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+          {row.invoiceNumber}
+        </Text>
+      ),
+      width: 160,
+    },
+    {
+      key: "product",
+      header: "Product",
+      render: (row) => (
+        <Text size="xs" fw={600} lineClamp={1} maw={200}>
+          {row.productName}
+        </Text>
+      ),
+      width: 200,
+    },
+    {
+      key: "date",
+      header: "Invoice Date",
+      render: (row) => (
+        <Text size="xs" fw={500} lineClamp={1}>
+          {format(new Date(row.invoiceDate), "dd MMM yyyy")}
+        </Text>
+      ),
+      width: 120,
+    },
+    {
+      key: "partyName",
+      header: "Party Name",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={160}>
+          {row.partyName || "N/A"}
+        </Text>
+      ),
+      width: 160,
+    },
+    {
+      key: "billed",
+      header: "Billed",
+      align: "right",
+      render: (row) => (
+        <Text size="xs" fw={800} c="cyan.3">
+          {row.billedQty}
+        </Text>
+      ),
+      width: 90,
+    },
+    {
+      key: "remaining",
+      header: "Remaining",
+      align: "right",
+      render: (row) => (
+        <Text
+          size="xs"
+          fw={800}
+          c={row.remainingAllocation > 0 ? "orange.3" : "green.3"}
+        >
+          {row.remainingAllocation}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "printed",
+      header: "Sticker Status",
+      render: (row) => (
+        <Badge
+          size="sm"
+          radius="md"
+          variant="light"
+          color={row.printed ? "green" : "orange"}
+        >
+          {row.printed ? "Printed" : "Pending"}
+        </Badge>
+      ),
+      width: 130,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit invoice">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditInvoice(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete invoice">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget({ kind: "invoice", row })}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 110,
+    },
+  ];
 
   const resetInvoiceModal = () => {
     setEditingInvoice(null);
@@ -440,137 +556,17 @@ export const Inward = memo(function Inward() {
           }
           contentClassName="p-0"
         >
-          {isLoading || isRowsLoading ? (
-            <Center h={260}>
-              <Loader2 size={18} className="animate-spin text-cyan-400" />
-            </Center>
-          ) : poInvoices.length === 0 ? (
-            <OperationsEmptyState
-              icon={FileText}
-              title="No inward rows"
-              description="No PO invoice rows match current search or filter."
-            />
-          ) : (
-            <ScrollArea>
-              <Table
-                highlightOnHover
-                stickyHeader
-                verticalSpacing={6}
-                horizontalSpacing="sm"
-                style={{ minWidth: 1120, fontSize: 12 }}
-              >
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Invoice</Table.Th>
-                    <Table.Th>Date</Table.Th>
-                    <Table.Th>Party</Table.Th>
-                    <Table.Th>SKU</Table.Th>
-                    <Table.Th>Product</Table.Th>
-                    <Table.Th ta="right">Billed</Table.Th>
-                    <Table.Th ta="right">MRP</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th ta="right">Remaining</Table.Th>
-                    <Table.Th>Allotted</Table.Th>
-                    <Table.Th ta="right">Action</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {poInvoices.map((row) => (
-                    <Table.Tr key={row.id}>
-                      <Table.Td>
-                        <Text size="xs" fw={800} ff="monospace">
-                          {row.invoiceNumber}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge variant="light" color="gray" size="xs" radius="sm">
-                          {format(new Date(row.invoiceDate), "dd-MMM-yy")}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" fw={700} lineClamp={1} maw={180}>
-                          {row.partyName}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text ff="monospace" size="11px" c="cyan.3" fw={700}>
-                          {row.skuCode}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" lineClamp={1} maw={260}>
-                          {row.productName}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Text size="xs" fw={800}>
-                          {row.billedQty}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Text size="xs" fw={700} c="green.4">
-                          ₹{(row.mrp || 0).toLocaleString()}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          size="xs"
-                          radius="sm"
-                          color={row.printed ? "green" : "orange"}
-                          variant={row.printed ? "light" : "filled"}
-                        >
-                          {row.printed ? "Printed" : "Pending"}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Text size="xs" fw={700} c="cyan.3">
-                          {row.remainingAllocation}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          size="xs"
-                          radius="sm"
-                          color={row.locationAllotted ? "cyan" : "gray"}
-                          variant={row.locationAllotted ? "light" : "filled"}
-                        >
-                          {row.locationAllotted ? "Yes" : "No"}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Group gap="xs" justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Edit row">
-                            <ActionIcon
-                              size="sm"
-                              radius="md"
-                              variant="light"
-                              color="blue"
-                              onClick={() => openEditInvoice(row)}
-                            >
-                              <Edit2 size={15} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete row">
-                            <ActionIcon
-                              size="sm"
-                              radius="md"
-                              variant="light"
-                              color="red"
-                              onClick={() =>
-                                setDeleteTarget({ kind: "invoice", row })
-                              }
-                            >
-                              <Trash2 size={15} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          )}
+          <MantineDataTable<PoInvoice>
+            data={poInvoices}
+            columns={columns}
+            rowKey={(row) => row.id}
+            isLoading={isLoading || isRowsLoading}
+            emptyIcon={FileText}
+            emptyTitle="No inward rows"
+            emptyDescription="No PO invoice rows match current search or filter."
+            itemLabel="invoices"
+            resetPageKey={`${search}-${statusFilter}-${fromDate}-${toDate}`}
+          />
         </OperationsPanel>
       </Stack>
 
@@ -716,11 +712,18 @@ export const Inward = memo(function Inward() {
               <Text size="11px" fw={800} c="dimmed" tt="uppercase">
                 Excel File
               </Text>
-              <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+              />
 
               {uploadFile ? (
                 <Group gap="sm" wrap="nowrap">
-                  <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+                  <CheckCircle2
+                    size={18}
+                    color="var(--mantine-color-green-4)"
+                  />
                   <Stack gap={2}>
                     <Text fw={600}>{uploadFile.name}</Text>
                     <Text size="sm" c="dimmed">

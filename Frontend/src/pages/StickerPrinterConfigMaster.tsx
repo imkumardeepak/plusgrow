@@ -13,29 +13,28 @@ import {
   ActionIcon,
   Badge,
   Button,
-  Center,
   Group,
   Modal,
   NumberInput,
   Paper,
-  ScrollArea,
   SegmentedControl,
   Select,
   Stack,
   Switch,
-  Table,
   Text,
   TextInput,
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useForm } from "@mantine/form";
-
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import {
   StickerPrinterConfig,
   stickerPrinterConfigsApi,
@@ -56,8 +55,7 @@ export default function StickerPrinterConfigMaster() {
   const [editingConfig, setEditingConfig] =
     useState<StickerPrinterConfig | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] =
-    useState<ConfigStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<ConfigStatusFilter>("all");
 
   const form = useForm({
     initialValues: {
@@ -113,6 +111,84 @@ export default function StickerPrinterConfigMaster() {
       return matchesStatus && matchesSearch;
     });
   }, [configs, search, statusFilter]);
+
+  const columns: DataTableColumn<StickerPrinterConfig>[] = [
+    {
+      key: "stickerSize",
+      header: "Sticker Size",
+      render: (row) => (
+        <Badge variant="light" color="blue" size="sm">
+          {row.stickerSize}
+        </Badge>
+      ),
+      width: 140,
+    },
+    {
+      key: "printerIp",
+      header: "Printer IP",
+      render: (row) => (
+        <Text size="xs" fw={700} ff="monospace">
+          {row.printerIp}
+        </Text>
+      ),
+    },
+    {
+      key: "printerPort",
+      header: "Port",
+      render: (row) => (
+        <Text size="xs" fw={600}>
+          {row.printerPort}
+        </Text>
+      ),
+      width: 100,
+    },
+    {
+      key: "isActive",
+      header: "Status",
+      render: (row) => (
+        <Badge
+          variant={row.isActive ? "light" : "filled"}
+          color={row.isActive ? "green" : "gray"}
+          size="sm"
+        >
+          {row.isActive ? "Active" : "Inactive"}
+        </Badge>
+      ),
+      width: 120,
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit config">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => handleOpenModal(row)}
+            >
+              <IconEdit size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete config">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => handleDelete(row)}
+            >
+              <IconTrash size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 120,
+    },
+  ];
 
   const handleOpenModal = useCallback(
     (config?: StickerPrinterConfig) => {
@@ -291,93 +367,17 @@ export default function StickerPrinterConfigMaster() {
           }
           contentClassName="p-0"
         >
-          {isLoading ? (
-            <Center h={220}>
-              <Text size="sm" c="dimmed">
-                Loading printer configurations...
-              </Text>
-            </Center>
-          ) : filteredConfigs.length === 0 ? (
-            <OperationsEmptyState
-              icon={IconPrinter}
-              title="No printer configs"
-              description="Add printer configuration for each sticker size."
-            />
-          ) : (
-            <ScrollArea>
-              <Table
-                highlightOnHover
-                stickyHeader
-                verticalSpacing={6}
-                horizontalSpacing="sm"
-                style={{ minWidth: 760, fontSize: 12 }}
-              >
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Sticker Size</Table.Th>
-                    <Table.Th>Printer IP</Table.Th>
-                    <Table.Th>Port</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th ta="right">Actions</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredConfigs.map((config) => (
-                    <Table.Tr key={config.id}>
-                      <Table.Td>
-                        <Badge variant="light" color="blue" size="sm">
-                          {config.stickerSize}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" fw={700} ff="monospace">
-                          {config.printerIp}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" fw={600}>
-                          {config.printerPort}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          variant={config.isActive ? "light" : "filled"}
-                          color={config.isActive ? "green" : "gray"}
-                          size="sm"
-                        >
-                          {config.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td ta="right">
-                        <Group gap="xs" justify="flex-end" wrap="nowrap">
-                          <Tooltip label="Edit">
-                            <ActionIcon
-                              variant="light"
-                              color="blue"
-                              size="sm"
-                              onClick={() => handleOpenModal(config)}
-                            >
-                              <IconEdit size={15} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Delete">
-                            <ActionIcon
-                              variant="light"
-                              color="red"
-                              size="sm"
-                              onClick={() => handleDelete(config)}
-                            >
-                              <IconTrash size={15} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          )}
+          <MantineDataTable<StickerPrinterConfig>
+            data={filteredConfigs}
+            columns={columns}
+            rowKey={(row) => row.id}
+            isLoading={isLoading}
+            emptyIcon={IconPrinter}
+            emptyTitle="No printer configs"
+            emptyDescription="Add printer configuration for each sticker size."
+            itemLabel="configs"
+            resetPageKey={`${search}-${statusFilter}`}
+          />
         </OperationsPanel>
       </Stack>
 

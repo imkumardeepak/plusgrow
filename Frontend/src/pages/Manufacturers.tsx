@@ -3,13 +3,8 @@ import { format } from "date-fns";
 import {
   ActionIcon,
   Badge,
-  Box,
-  Center,
   Group,
-  Paper,
-  ScrollArea,
   Stack,
-  Table,
   Text,
   ThemeIcon,
   Tooltip,
@@ -34,10 +29,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import { toast } from "../lib/toast";
 import {
   manufacturersApi,
@@ -212,6 +210,95 @@ export const Manufacturers = memo(function Manufacturers() {
     );
   }, [manufacturers, search]);
 
+  const columns: DataTableColumn<Manufacturer>[] = [
+    {
+      key: "name",
+      header: "Manufacturer",
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={36}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <Factory size={16} />
+          </ThemeIcon>
+          <Text fw={700} size="sm">
+            {row.name}
+          </Text>
+        </Group>
+      ),
+    },
+    {
+      key: "country",
+      header: "Country",
+      render: (row) => (
+        <Text size="xs" c="cyan.3">
+          {row.country || "N/A"}
+        </Text>
+      ),
+      width: 120,
+    },
+    {
+      key: "address",
+      header: "Address",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={240}>
+          {row.address || "N/A"}
+        </Text>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Registered",
+      render: (row) => (
+        <Badge variant="light" color="gray" size="xs" radius="sm">
+          {row.created_at
+            ? format(new Date(row.created_at), "dd-MMM-yy")
+            : "N/A"}
+        </Badge>
+      ),
+      width: 140,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit manufacturer">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditModal(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete manufacturer">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 120,
+    },
+  ];
+
   const manufacturerStats = useMemo(() => {
     const withCountry = manufacturers.filter((m) => m.country).length;
     const withAddress = manufacturers.filter((m) => m.address).length;
@@ -278,110 +365,17 @@ export const Manufacturers = memo(function Manufacturers() {
             }
             contentClassName="p-0"
           >
-            {isLoading ? (
-              <Center h={260}>
-                <Loader2 size={18} className="animate-spin text-cyan-400" />
-              </Center>
-            ) : filteredManufacturers.length === 0 ? (
-              <OperationsEmptyState
-                icon={Factory}
-                title="No manufacturers found"
-                description="No manufacturer records match current search."
-              />
-            ) : (
-              <ScrollArea>
-                <Table
-                  highlightOnHover
-                  stickyHeader
-                  verticalSpacing={6}
-                  horizontalSpacing="sm"
-                  style={{ minWidth: 900, fontSize: 12 }}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Manufacturer</Table.Th>
-                      <Table.Th>Country</Table.Th>
-                      <Table.Th>Address</Table.Th>
-                      <Table.Th>Registered</Table.Th>
-                      <Table.Th ta="right">Action</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {filteredManufacturers.map((row) => (
-                      <Table.Tr key={row.id}>
-                        <Table.Td>
-                          <Group gap="sm" wrap="nowrap">
-                            <ThemeIcon
-                              size={36}
-                              radius="lg"
-                              variant="light"
-                              color="cyan"
-                              style={{
-                                background: "rgba(30, 192, 243, 0.12)",
-                                border: "1px solid rgba(30, 192, 243, 0.18)",
-                              }}
-                            >
-                              <Factory size={16} />
-                            </ThemeIcon>
-                            <Text fw={700} size="sm">
-                              {row.name}
-                            </Text>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" c="cyan.3">
-                            {row.country || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs" lineClamp={1} maw={240}>
-                            {row.address || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            variant="light"
-                            color="gray"
-                            size="xs"
-                            radius="sm"
-                          >
-                            {row.created_at
-                              ? format(new Date(row.created_at), "dd-MMM-yy")
-                              : "N/A"}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td ta="right">
-                          <Group gap="xs" justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit manufacturer">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="blue"
-                                onClick={() => openEditModal(row)}
-                              >
-                                <Edit2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete manufacturer">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="red"
-                                onClick={() => setDeleteTarget(row)}
-                              >
-                                <Trash2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
+            <MantineDataTable<Manufacturer>
+              data={filteredManufacturers}
+              columns={columns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              emptyIcon={Factory}
+              emptyTitle="No manufacturers found"
+              emptyDescription="No manufacturer records match current search."
+              itemLabel="partners"
+              resetPageKey={search}
+            />
           </OperationsPanel>
         </Stack>
       </OperationsPage>

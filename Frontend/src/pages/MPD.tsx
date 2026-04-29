@@ -3,15 +3,12 @@ import {
   ActionIcon,
   Badge,
   Box,
-  Center,
   Group,
   Paper,
-  ScrollArea,
   Select,
   SegmentedControl,
   SimpleGrid,
   Stack,
-  Table,
   Text,
   TextInput,
   ThemeIcon,
@@ -37,10 +34,13 @@ import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 import { toast } from "../lib/toast";
 import {
   productsApi,
@@ -277,7 +277,9 @@ export const MPD = memo(function MPD() {
     (item) => item.manufacturerId || item.commodityId,
   ).length;
 
-  const withPricing = products.filter((item) => Number(item.mrp || 0) > 0).length;
+  const withPricing = products.filter(
+    (item) => Number(item.mrp || 0) > 0,
+  ).length;
   const unpricedProducts = products.length - withPricing;
 
   const filteredProducts = useMemo(() => {
@@ -293,12 +295,129 @@ export const MPD = memo(function MPD() {
 
       const matchesFilter =
         filterMode === "all" ||
-        (filterMode === "mapped" && (item.manufacturerId || item.commodityId)) ||
+        (filterMode === "mapped" &&
+          (item.manufacturerId || item.commodityId)) ||
         (filterMode === "unpriced" && Number(item.mrp || 0) <= 0);
 
       return matchesSearch && matchesFilter;
     });
   }, [filterMode, products, search]);
+
+  const columns: DataTableColumn<Product>[] = [
+    {
+      key: "sku",
+      header: "SKU",
+      render: (row) => (
+        <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+          {row.sku || "N/A"}
+        </Text>
+      ),
+      width: 120,
+    },
+    {
+      key: "name",
+      header: "Product",
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={38}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <Package size={18} />
+          </ThemeIcon>
+          <Stack gap={2} style={{ minWidth: 0 }}>
+            <Text size="xs" fw={700} lineClamp={1} maw={190}>
+              {row.name}
+            </Text>
+            <Text size="11px" c="dimmed" lineClamp={1}>
+              {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
+            </Text>
+          </Stack>
+        </Group>
+      ),
+      width: 280,
+    },
+    {
+      key: "commodity",
+      header: "Commodity",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={130}>
+          {row.commodity?.name || "N/A"}
+        </Text>
+      ),
+      width: 150,
+    },
+    {
+      key: "mrp",
+      header: "MRP",
+      align: "right",
+      render: (row) => (
+        <Text size="xs" fw={800} c="green.3">
+          Rs {Number(row.mrp || 0).toFixed(2)}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "ussp",
+      header: "USSP",
+      align: "right",
+      render: (row) => (
+        <Text size="xs" fw={700} c="cyan.3">
+          Rs {Number(row.ussp || 0).toFixed(2)}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "pack",
+      header: "Pack",
+      render: (row) => (
+        <Text size="xs" lineClamp={1}>
+          {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo
+        </Text>
+      ),
+      width: 150,
+    },
+    {
+      key: "actions",
+      header: "Action",
+      align: "right",
+      render: (row) => (
+        <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Edit product">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="blue"
+              onClick={() => openEditModal(row)}
+            >
+              <Edit2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Delete product">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="red"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 size={15} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      ),
+      width: 110,
+    },
+  ];
 
   return (
     <>
@@ -324,7 +443,9 @@ export const MPD = memo(function MPD() {
                   size="xs"
                   radius="md"
                   value={filterMode}
-                  onChange={(value) => setFilterMode(value as ProductFilterMode)}
+                  onChange={(value) =>
+                    setFilterMode(value as ProductFilterMode)
+                  }
                   data={[
                     { value: "all", label: "All" },
                     { value: "mapped", label: "Mapped" },
@@ -413,127 +534,28 @@ export const MPD = memo(function MPD() {
                 >
                   Import Excel
                 </Button>
-                <Button size="sm" onClick={openCreateModal} leftIcon={<Plus size={16} />}>
+                <Button
+                  size="sm"
+                  onClick={openCreateModal}
+                  leftIcon={<Plus size={16} />}
+                >
                   New Product
                 </Button>
               </Group>
             }
             contentClassName="p-0"
           >
-            {isLoading ? (
-              <Center h={260}>
-                <Loader2 size={18} className="animate-spin text-cyan-400" />
-              </Center>
-            ) : filteredProducts.length === 0 ? (
-              <OperationsEmptyState
-                icon={Package}
-                title="No product rows"
-                description="No products match current search or filter."
-              />
-            ) : (
-              <ScrollArea>
-                <Table
-                  highlightOnHover
-                  stickyHeader
-                  verticalSpacing={6}
-                  horizontalSpacing="sm"
-                  style={{ minWidth: 980, fontSize: 12, tableLayout: "fixed" }}
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th w={120}>SKU</Table.Th>
-                      <Table.Th w={280}>Product</Table.Th>
-                      <Table.Th w={150}>Commodity</Table.Th>
-                      <Table.Th w={110} ta="right">MRP</Table.Th>
-                      <Table.Th w={110} ta="right">USSP</Table.Th>
-                      <Table.Th w={150}>Pack</Table.Th>
-                      <Table.Th w={110} ta="right">Action</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {filteredProducts.map((row) => (
-                      <Table.Tr key={row.id}>
-                        <Table.Td w={120}>
-                          <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
-                            {row.sku || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td w={280}>
-                          <Group gap="sm" wrap="nowrap">
-                            <ThemeIcon
-                              size={38}
-                              radius="lg"
-                              variant="light"
-                              color="cyan"
-                              style={{
-                                background: "rgba(30, 192, 243, 0.12)",
-                                border: "1px solid rgba(30, 192, 243, 0.18)",
-                              }}
-                            >
-                              <Package size={18} />
-                            </ThemeIcon>
-                            <Stack gap={2} style={{ minWidth: 0 }}>
-                              <Text size="xs" fw={700} lineClamp={1} maw={190}>
-                                {row.name}
-                              </Text>
-                              <Text size="11px" c="dimmed" lineClamp={1}>
-                                {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
-                              </Text>
-                            </Stack>
-                          </Group>
-                        </Table.Td>
-                        <Table.Td w={150}>
-                          <Text size="xs" lineClamp={1} maw={130}>
-                            {row.commodity?.name || "N/A"}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td w={110} ta="right">
-                          <Text size="xs" fw={800} c="green.3">
-                            Rs {Number(row.mrp || 0).toFixed(2)}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td w={110} ta="right">
-                          <Text size="xs" fw={700} c="cyan.3">
-                            Rs {Number(row.ussp || 0).toFixed(2)}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td w={150}>
-                          <Text size="xs" lineClamp={1}>
-                            {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo
-                          </Text>
-                        </Table.Td>
-                        <Table.Td w={110} ta="right">
-                          <Group gap="xs" justify="flex-end" wrap="nowrap">
-                            <Tooltip label="Edit product">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="blue"
-                                onClick={() => openEditModal(row)}
-                              >
-                                <Edit2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                            <Tooltip label="Delete product">
-                              <ActionIcon
-                                size="sm"
-                                radius="md"
-                                variant="light"
-                                color="red"
-                                onClick={() => setDeleteTarget(row)}
-                              >
-                                <Trash2 size={15} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
+            <MantineDataTable<Product>
+              data={filteredProducts}
+              columns={columns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              emptyIcon={Package}
+              emptyTitle="No product rows"
+              emptyDescription="No products match current search or filter."
+              itemLabel="products"
+              resetPageKey={`${search}-${filterMode}`}
+            />
           </OperationsPanel>
         </Stack>
       </OperationsPage>
@@ -556,7 +578,10 @@ export const MPD = memo(function MPD() {
                   placeholder="Mechanical keyboard pro"
                   value={formData.name}
                   onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, name: event.target.value }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
                   }
                   leftElement={<Package size={16} />}
                   required
@@ -770,9 +795,9 @@ export const MPD = memo(function MPD() {
                 <Stack gap={2}>
                   <Text fw={700}>Product Import Template</Text>
                   <Text size="sm" c="dimmed">
-                    Download template first. Manufacturer and commodity names are
-                    auto-created if missing. Use Stock Qnty column to set initial
-                    inventory.
+                    Download template first. Manufacturer and commodity names
+                    are auto-created if missing. Use Stock Qnty column to set
+                    initial inventory.
                   </Text>
                 </Stack>
               </Group>
@@ -791,11 +816,18 @@ export const MPD = memo(function MPD() {
               <Text size="11px" fw={800} c="dimmed" tt="uppercase">
                 Excel File
               </Text>
-              <input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} />
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+              />
 
               {uploadFile ? (
                 <Group gap="sm" wrap="nowrap">
-                  <CheckCircle2 size={18} color="var(--mantine-color-green-4)" />
+                  <CheckCircle2
+                    size={18}
+                    color="var(--mantine-color-green-4)"
+                  />
                   <Stack gap={2}>
                     <Text fw={600}>{uploadFile.name}</Text>
                     <Text size="sm" c="dimmed">
