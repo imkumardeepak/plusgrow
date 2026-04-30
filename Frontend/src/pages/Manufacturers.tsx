@@ -214,6 +214,8 @@ export const Manufacturers = memo(function Manufacturers() {
     {
       key: "name",
       header: "Manufacturer",
+      sortable: true,
+      sortAccessor: (row) => row.name,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon
@@ -237,6 +239,8 @@ export const Manufacturers = memo(function Manufacturers() {
     {
       key: "country",
       header: "Country",
+      sortable: true,
+      sortAccessor: (row) => row.country,
       render: (row) => (
         <Text size="xs" c="cyan.3">
           {row.country || "N/A"}
@@ -247,6 +251,8 @@ export const Manufacturers = memo(function Manufacturers() {
     {
       key: "address",
       header: "Address",
+      sortable: true,
+      sortAccessor: (row) => row.address,
       render: (row) => (
         <Text size="xs" lineClamp={1} maw={240}>
           {row.address || "N/A"}
@@ -256,6 +262,8 @@ export const Manufacturers = memo(function Manufacturers() {
     {
       key: "created_at",
       header: "Registered",
+      sortable: true,
+      sortAccessor: (row) => row.created_at,
       render: (row) => (
         <Badge variant="light" color="gray" size="xs" radius="sm">
           {row.created_at

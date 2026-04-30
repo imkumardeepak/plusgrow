@@ -14,6 +14,9 @@ import {
   ChevronsRight,
   LucideIcon,
   Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { OperationsEmptyState } from "../../organisms/Operations/OperationsShell";
 
@@ -34,6 +37,17 @@ export interface DataTableColumn<T> {
   className?: string;
   /** Header tooltip or any node */
   headerNode?: React.ReactNode;
+  /** Enable sorting for this column */
+  sortable?: boolean;
+  /** Custom sort accessor - extracts value from row for sorting */
+  sortAccessor?: (row: T) => string | number | null | undefined;
+}
+
+export type SortDirection = "asc" | "desc" | null;
+
+export interface SortState {
+  columnKey: string;
+  direction: SortDirection;
 }
 
 export interface MantineDataTableProps<T> {
@@ -67,6 +81,11 @@ export interface MantineDataTableProps<T> {
 
   /** Optional additional container classes */
   className?: string;
+
+  /** Controlled sort state (optional) */
+  sortState?: SortState;
+  /** Callback when sort changes (optional) */
+  onSortChange?: (sort: SortState | null) => void;
 }
 
 function MantineDataTableInner<T>({
@@ -85,16 +104,79 @@ function MantineDataTableInner<T>({
   maxHeight,
   fontSize = 12,
   className,
+  sortState: controlledSortState,
+  onSortChange,
 }: MantineDataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [internalSortState, setInternalSortState] = useState<SortState | null>(
+    null,
+  );
+
+  // Use controlled or uncontrolled sort state
+  const sortState = controlledSortState ?? internalSortState;
 
   // Reset to page 1 when external filter key changes
   useEffect(() => {
     setCurrentPage(1);
   }, [resetPageKey]);
 
+  const handleSort = (columnKey: string) => {
+    const newSortState: SortState | null = (() => {
+      if (sortState?.columnKey !== columnKey) {
+        return { columnKey, direction: "asc" };
+      }
+      if (sortState.direction === "asc") {
+        return { columnKey, direction: "desc" };
+      }
+      if (sortState.direction === "desc") {
+        return null;
+      }
+      return { columnKey, direction: "asc" };
+    })();
+
+    if (onSortChange) {
+      onSortChange(newSortState);
+    } else {
+      setInternalSortState(newSortState);
+    }
+
+    // Reset to page 1 when sorting changes
+    setCurrentPage(1);
+  };
+
+  const sortedData = useMemo(() => {
+    if (!sortState || !sortState.direction) return data;
+
+    const column = columns.find((col) => col.key === sortState.columnKey);
+    if (!column || !column.sortable) return data;
+
+    const accessor =
+      column.sortAccessor ?? ((row: any) => row[sortState.columnKey]);
+    const direction = sortState.direction === "asc" ? 1 : -1;
+
+    return [...data].sort((a, b) => {
+      const aVal = accessor(a);
+      const bVal = accessor(b);
+
+      // Handle null/undefined
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      // Numeric comparison
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return (aVal - bVal) * direction;
+      }
+
+      // String comparison
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      return aStr.localeCompare(bStr) * direction;
+    });
+  }, [data, sortState, columns]);
+
   const pagination = useMemo(() => {
-    const totalItems = data.length;
+    const totalItems = sortedData.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     const safePage = Math.min(currentPage, totalPages);
     const startIndex = enablePagination ? (safePage - 1) * pageSize : 0;
@@ -102,8 +184,8 @@ function MantineDataTableInner<T>({
       ? Math.min(startIndex + pageSize, totalItems)
       : totalItems;
     const paginatedItems = enablePagination
-      ? data.slice(startIndex, endIndex)
-      : data;
+      ? sortedData.slice(startIndex, endIndex)
+      : sortedData;
 
     return {
       totalItems,
@@ -115,7 +197,7 @@ function MantineDataTableInner<T>({
       hasPrevPage: safePage > 1,
       currentPage: safePage,
     };
-  }, [data, currentPage, pageSize, enablePagination]);
+  }, [sortedData, currentPage, pageSize, enablePagination]);
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, pagination.totalPages)));
@@ -151,16 +233,58 @@ function MantineDataTableInner<T>({
         >
           <Table.Thead>
             <Table.Tr>
-              {columns.map((col) => (
-                <Table.Th
-                  key={col.key}
-                  ta={col.align}
-                  style={col.width ? { width: col.width } : undefined}
-                  className={col.className}
-                >
-                  {col.headerNode ?? col.header}
-                </Table.Th>
-              ))}
+              {columns.map((col) => {
+                const isSorted = sortState?.columnKey === col.key;
+                const sortDirection = isSorted ? sortState?.direction : null;
+                const isSortable = col.sortable === true;
+
+                return (
+                  <Table.Th
+                    key={col.key}
+                    ta={col.align}
+                    style={{
+                      ...((col.width
+                        ? { width: col.width }
+                        : undefined) as React.CSSProperties),
+                      ...(isSortable
+                        ? { cursor: "pointer", userSelect: "none" }
+                        : undefined),
+                    }}
+                    className={col.className}
+                    onClick={() => isSortable && handleSort(col.key)}
+                  >
+                    <Group
+                      gap="xs"
+                      wrap="nowrap"
+                      justify={
+                        col.align === "right"
+                          ? "flex-end"
+                          : col.align === "center"
+                            ? "center"
+                            : "flex-start"
+                      }
+                    >
+                      <span>{col.headerNode ?? col.header}</span>
+                      {isSortable && (
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          color={isSorted ? "cyan" : "gray"}
+                          style={{ opacity: isSorted ? 1 : 0.5 }}
+                        >
+                          {!isSorted && <ArrowUpDown size={14} />}
+                          {isSorted && sortDirection === "asc" && (
+                            <ArrowUp size={14} />
+                          )}
+                          {isSorted && sortDirection === "desc" && (
+                            <ArrowDown size={14} />
+                          )}
+                        </ActionIcon>
+                      )}
+                    </Group>
+                  </Table.Th>
+                );
+              })}
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>

@@ -307,6 +307,8 @@ export const MPD = memo(function MPD() {
     {
       key: "sku",
       header: "SKU",
+      sortable: true,
+      sortAccessor: (row) => row.sku,
       render: (row) => (
         <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
           {row.sku || "N/A"}
@@ -317,6 +319,8 @@ export const MPD = memo(function MPD() {
     {
       key: "name",
       header: "Product",
+      sortable: true,
+      sortAccessor: (row) => row.name,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon
@@ -346,6 +350,8 @@ export const MPD = memo(function MPD() {
     {
       key: "commodity",
       header: "Commodity",
+      sortable: true,
+      sortAccessor: (row) => row.commodity?.name,
       render: (row) => (
         <Text size="xs" lineClamp={1} maw={130}>
           {row.commodity?.name || "N/A"}
@@ -357,6 +363,8 @@ export const MPD = memo(function MPD() {
       key: "mrp",
       header: "MRP",
       align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.mrp,
       render: (row) => (
         <Text size="xs" fw={800} c="green.3">
           Rs {Number(row.mrp || 0).toFixed(2)}
@@ -368,6 +376,8 @@ export const MPD = memo(function MPD() {
       key: "ussp",
       header: "USSP",
       align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.ussp,
       render: (row) => (
         <Text size="xs" fw={700} c="cyan.3">
           Rs {Number(row.ussp || 0).toFixed(2)}
@@ -378,6 +388,8 @@ export const MPD = memo(function MPD() {
     {
       key: "pack",
       header: "Pack",
+      sortable: true,
+      sortAccessor: (row) => `${row.netQuantity}-${row.bestBeforeMonths}`,
       render: (row) => (
         <Text size="xs" lineClamp={1}>
           {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo

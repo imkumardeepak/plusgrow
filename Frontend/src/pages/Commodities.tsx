@@ -199,6 +199,8 @@ export const Commodities = memo(function Commodities() {
     {
       key: "id",
       header: "ID",
+      sortable: true,
+      sortAccessor: (row) => row.id,
       render: (row) => (
         <Text size="xs" c="dimmed" ff="monospace">
           #{row.id}
@@ -209,6 +211,8 @@ export const Commodities = memo(function Commodities() {
     {
       key: "name",
       header: "Commodity",
+      sortable: true,
+      sortAccessor: (row) => row.name,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon

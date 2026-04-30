@@ -158,6 +158,8 @@ export const Importers = memo(function Importers() {
     {
       key: "name",
       header: "Importer",
+      sortable: true,
+      sortAccessor: (row) => row.name,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon
@@ -181,6 +183,8 @@ export const Importers = memo(function Importers() {
     {
       key: "address",
       header: "Address",
+      sortable: true,
+      sortAccessor: (row) => row.address,
       render: (row) => (
         <Text size="xs" lineClamp={1} maw={200}>
           {row.address || "N/A"}
@@ -190,6 +194,8 @@ export const Importers = memo(function Importers() {
     {
       key: "phone",
       header: "Phone",
+      sortable: true,
+      sortAccessor: (row) => row.phone,
       render: (row) => (
         <Text size="xs" ff="monospace">
           {row.phone || "N/A"}
@@ -200,6 +206,8 @@ export const Importers = memo(function Importers() {
     {
       key: "email",
       header: "Email",
+      sortable: true,
+      sortAccessor: (row) => row.email,
       render: (row) => (
         <Text size="xs" c="cyan.3" lineClamp={1} maw={180}>
           {row.email || "N/A"}
@@ -209,6 +217,8 @@ export const Importers = memo(function Importers() {
     {
       key: "created_at",
       header: "Created",
+      sortable: true,
+      sortAccessor: (row) => row.created_at,
       render: (row) => (
         <Badge variant="light" color="gray" size="xs" radius="sm">
           {row.created_at

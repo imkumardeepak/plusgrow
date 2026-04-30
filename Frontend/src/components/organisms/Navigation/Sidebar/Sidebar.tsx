@@ -34,17 +34,17 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
   return (
     <AppShell.Navbar
-      p="md"
+      p={10}
       withBorder
       style={{
-        width: 240,
+        width: 228,
         background:
           "linear-gradient(180deg, rgba(9,17,30,0.98) 0%, rgba(7,13,24,0.99) 100%)",
         borderColor: "rgba(148, 163, 184, 0.12)",
       }}
     >
       <AppShell.Section>
-        <Group justify="flex-end" wrap="nowrap" mb="md">
+        <Group justify="flex-end" wrap="nowrap" mb={6}>
           <ActionIcon
             hiddenFrom="md"
             variant="subtle"
@@ -79,7 +79,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
           },
         }}
       >
-        <Stack gap="xs" pb="xl">
+        <Stack gap={8} pb="lg">
           {navigationGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.id);
             const hasActiveItem = group.items.some(
@@ -91,25 +91,36 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                 <Group
                   justify="space-between"
                   wrap="nowrap"
-                  px="xs"
+                  px={8}
                   style={{
                     cursor: "pointer",
                     borderRadius: 8,
-                    padding: "4px 8px",
-                    transition: "background 0.15s ease",
+                    minHeight: 30,
+                    padding: "3px 8px",
+                    transition: "background 0.15s ease, border-color 0.15s ease",
+                    border: hasActiveItem
+                      ? "1px solid rgba(34, 211, 238, 0.14)"
+                      : "1px solid transparent",
+                    background: hasActiveItem
+                      ? "rgba(15, 23, 42, 0.55)"
+                      : "transparent",
                   }}
                   onClick={() => toggleGroup(group.id)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background =
-                      "rgba(255, 255, 255, 0.05)";
+                      hasActiveItem
+                        ? "rgba(15, 23, 42, 0.75)"
+                        : "rgba(255, 255, 255, 0.05)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.background = hasActiveItem
+                      ? "rgba(15, 23, 42, 0.55)"
+                      : "transparent";
                   }}
                 >
-                  <Group gap="xs" wrap="nowrap">
+                  <Group gap={7} wrap="nowrap">
                     <group.icon
-                      size={12}
+                      size={11}
                       color={
                         hasActiveItem
                           ? "var(--mantine-color-cyan-4)"
@@ -117,20 +128,20 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                       }
                     />
                     <Text
-                      size="xs"
+                      size="10px"
                       tt="uppercase"
                       fw={700}
                       c={hasActiveItem ? "cyan.4" : "dimmed"}
-                      style={{ letterSpacing: "0.16em" }}
+                      style={{ letterSpacing: "0.14em", lineHeight: 1.1 }}
                     >
                       {group.label}
                     </Text>
                   </Group>
-                  <ActionIcon size="sm" variant="transparent" color="dimmed">
+                  <ActionIcon size={24} variant="transparent" color="dimmed">
                     {isExpanded ? (
-                      <ChevronDown size={14} />
+                      <ChevronDown size={13} />
                     ) : (
-                      <ChevronRight size={14} />
+                      <ChevronRight size={13} />
                     )}
                   </ActionIcon>
                 </Group>
@@ -141,7 +152,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                     isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
-                  <Stack gap={2}>
+                  <Stack gap={4} pt={4}>
                     {group.items.map((item) => (
                       <NavLink
                         key={item.id}
@@ -151,13 +162,14 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                         active={location.pathname === item.href}
                         variant="light"
                         color="cyan"
-                        leftSection={<item.icon size={18} />}
+                        leftSection={<item.icon size={15} strokeWidth={1.8} />}
                         label={item.label}
-                        radius="xl"
+                        radius="md"
                         styles={{
                           root: {
-                            minHeight: 44,
-                            borderRadius: 18,
+                            minHeight: 34,
+                            paddingInline: 10,
+                            borderRadius: 10,
                             color:
                               location.pathname === item.href
                                 ? "var(--mantine-color-cyan-0)"
@@ -173,9 +185,14 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                           },
                           label: {
                             fontWeight: 600,
+                            fontSize: "12px",
+                            lineHeight: 1.2,
                           },
                           description: {
                             color: "var(--mantine-color-gray-5)",
+                          },
+                          section: {
+                            marginInlineEnd: 8,
                           },
                         }}
                       />

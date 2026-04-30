@@ -168,6 +168,8 @@ export const Inward = memo(function Inward() {
     {
       key: "invoiceNo",
       header: "Invoice No",
+      sortable: true,
+      sortAccessor: (row) => row.invoiceNumber,
       render: (row) => (
         <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
           {row.invoiceNumber}
@@ -178,6 +180,8 @@ export const Inward = memo(function Inward() {
     {
       key: "product",
       header: "Product",
+      sortable: true,
+      sortAccessor: (row) => row.productName,
       render: (row) => (
         <Text size="xs" fw={600} lineClamp={1} maw={200}>
           {row.productName}
@@ -188,6 +192,8 @@ export const Inward = memo(function Inward() {
     {
       key: "date",
       header: "Invoice Date",
+      sortable: true,
+      sortAccessor: (row) => row.invoiceDate,
       render: (row) => (
         <Text size="xs" fw={500} lineClamp={1}>
           {format(new Date(row.invoiceDate), "dd MMM yyyy")}
@@ -198,6 +204,8 @@ export const Inward = memo(function Inward() {
     {
       key: "partyName",
       header: "Party Name",
+      sortable: true,
+      sortAccessor: (row) => row.partyName,
       render: (row) => (
         <Text size="xs" lineClamp={1} maw={160}>
           {row.partyName || "N/A"}
@@ -209,6 +217,8 @@ export const Inward = memo(function Inward() {
       key: "billed",
       header: "Billed",
       align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.billedQty,
       render: (row) => (
         <Text size="xs" fw={800} c="cyan.3">
           {row.billedQty}
@@ -220,6 +230,8 @@ export const Inward = memo(function Inward() {
       key: "remaining",
       header: "Remaining",
       align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.remainingAllocation,
       render: (row) => (
         <Text
           size="xs"
@@ -234,6 +246,8 @@ export const Inward = memo(function Inward() {
     {
       key: "printed",
       header: "Sticker Status",
+      sortable: true,
+      sortAccessor: (row) => (row.printed ? "1" : "0"),
       render: (row) => (
         <Badge
           size="sm"

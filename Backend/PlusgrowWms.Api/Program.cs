@@ -120,7 +120,19 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed database on startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<PlusgrowDbContext>();
+    
+    if (dbContext.Database.GetPendingMigrations().Any())
+    {
+        Log.Information("Applying {Count} pending migrations...", dbContext.Database.GetPendingMigrations().Count());
+        await dbContext.Database.MigrateAsync();
+    }
+    
+    var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
+    await seeder.SeedAsync();
+}
 using (var scope = app.Services.CreateScope())
 {
     var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();

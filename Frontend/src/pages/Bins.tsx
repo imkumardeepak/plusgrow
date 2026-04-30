@@ -192,6 +192,8 @@ export const Bins = memo(function Bins() {
     {
       key: "binCode",
       header: "Bin Code",
+      sortable: true,
+      sortAccessor: (row) => row.binCode,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon
@@ -215,6 +217,8 @@ export const Bins = memo(function Bins() {
     {
       key: "createdAt",
       header: "Created",
+      sortable: true,
+      sortAccessor: (row) => row.createdAt,
       render: (row) => (
         <Badge variant="light" color="gray" size="xs" radius="sm">
           {row.createdAt ? format(new Date(row.createdAt), "dd-MMM-yy") : "N/A"}

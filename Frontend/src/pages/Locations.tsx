@@ -372,6 +372,8 @@ export const Locations = memo(function Locations() {
     {
       key: "locationCode",
       header: "Location",
+      sortable: true,
+      sortAccessor: (row) => row.locationCode,
       render: (row) => (
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon
@@ -395,18 +397,24 @@ export const Locations = memo(function Locations() {
     {
       key: "aisle",
       header: "Aisle",
+      sortable: true,
+      sortAccessor: (row) => row.aisle,
       render: (row) => <Text size="xs">{row.aisle}</Text>,
       width: 80,
     },
     {
       key: "rack",
       header: "Rack",
+      sortable: true,
+      sortAccessor: (row) => row.rack,
       render: (row) => <Text size="xs">{row.rack}</Text>,
       width: 80,
     },
     {
       key: "shelf",
       header: "Shelf",
+      sortable: true,
+      sortAccessor: (row) => row.shelf,
       render: (row) => <Text size="xs">{row.shelf}</Text>,
       width: 80,
     },
@@ -424,6 +432,8 @@ export const Locations = memo(function Locations() {
     {
       key: "createdAt",
       header: "Created",
+      sortable: true,
+      sortAccessor: (row) => row.createdAt,
       render: (row) => (
         <Badge variant="light" color="gray" size="xs" radius="sm">
           {row.createdAt ? format(new Date(row.createdAt), "dd-MMM-yy") : "N/A"}
