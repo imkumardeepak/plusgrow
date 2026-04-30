@@ -13,7 +13,7 @@ using PlusgrowWms.Api.Data;
 namespace PlusgrowWms.Api.Migrations
 {
     [DbContext(typeof(PlusgrowDbContext))]
-    [Migration("20260430074619_AddOutwardOrdersWorkflow")]
+    [Migration("20260430075143_AddOutwardOrdersWorkflow")]
     partial class AddOutwardOrdersWorkflow
     {
         /// <inheritdoc />
@@ -197,6 +197,78 @@ namespace PlusgrowWms.Api.Migrations
                     b.HasIndex("Country");
 
                     b.ToTable("manufacturers");
+                });
+
+            modelBuilder.Entity("PlusgrowWms.Api.Models.OutwardOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CartonId")
+                        .HasColumnType("text")
+                        .HasColumnName("carton_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("customer_name");
+
+                    b.Property<DateTime?>("DispatchedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("dispatched_at");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("order_date");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("order_number");
+
+                    b.Property<int>("PickedQuantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("picked_quantity");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("outward_orders");
                 });
 
             modelBuilder.Entity("PlusgrowWms.Api.Models.PoInvoice", b =>
@@ -647,6 +719,17 @@ namespace PlusgrowWms.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("users");
+                });
+
+            modelBuilder.Entity("PlusgrowWms.Api.Models.OutwardOrder", b =>
+                {
+                    b.HasOne("PlusgrowWms.Api.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("PlusgrowWms.Api.Models.PoInvoice", b =>
