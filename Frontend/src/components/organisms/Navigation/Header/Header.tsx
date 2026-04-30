@@ -4,15 +4,27 @@ import {
   Avatar,
   Burger,
   Button,
+  Divider,
   Group,
   Indicator,
   Menu,
   Paper,
+  ScrollArea,
   Stack,
   Text,
 } from "@mantine/core";
-import { Bell, HelpCircle, LogOut, RefreshCw, Settings, User } from "lucide-react";
+import {
+  Bell,
+  CheckCheck,
+  HelpCircle,
+  LogOut,
+  RefreshCw,
+  Settings,
+  Trash2,
+  User,
+} from "lucide-react";
 import { Logo } from "../../../atoms/Logo";
+import type { RealtimeNotification } from "../../../../context/NotificationContext";
 
 export interface HeaderProps {
   onMenuClick?: () => void;
@@ -22,8 +34,24 @@ export interface HeaderProps {
   userRole?: string;
   userInitials?: string;
   notificationCount?: number;
+  notifications?: RealtimeNotification[];
+  notificationConnectionStatus?: "connected" | "connecting" | "disconnected" | "error";
+  onMarkNotificationsRead?: () => void;
+  onClearNotifications?: () => void;
   onLogout?: () => void;
   onProfileClick?: () => void;
+}
+
+function formatNotificationTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Now";
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function Header({
@@ -33,7 +61,11 @@ export function Header({
   userName = "John Doe",
   userRole = "Warehouse Manager",
   userInitials = "JD",
-  notificationCount = 3,
+  notificationCount = 0,
+  notifications = [],
+  notificationConnectionStatus = "disconnected",
+  onMarkNotificationsRead,
+  onClearNotifications,
   onLogout,
   onProfileClick,
 }: HeaderProps) {
@@ -94,24 +126,111 @@ export function Header({
             Sync
           </Button>
 
-          <Indicator
-            inline
-            disabled={notificationCount <= 0}
-            color="red"
-            size={8}
-            offset={6}
-            processing={notificationCount > 0}
-          >
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              radius="md"
-              size="md"
-              aria-label="Notifications"
-            >
-              <Bell size={15} />
-            </ActionIcon>
-          </Indicator>
+          <Menu shadow="lg" width={340} radius="lg" position="bottom-end">
+            <Menu.Target>
+              <Indicator
+                inline
+                disabled={notificationCount <= 0}
+                label={notificationCount > 9 ? "9+" : notificationCount}
+                color="red"
+                size={16}
+                offset={4}
+                processing={notificationCount > 0}
+              >
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  radius="md"
+                  size="md"
+                  aria-label="Notifications"
+                  onClick={onMarkNotificationsRead}
+                >
+                  <Bell size={15} />
+                </ActionIcon>
+              </Indicator>
+            </Menu.Target>
+
+            <Menu.Dropdown>
+              <Group justify="space-between" px="sm" py={6} wrap="nowrap">
+                <Stack gap={0}>
+                  <Text size="sm" fw={800}>
+                    Notifications
+                  </Text>
+                  <Text size="11px" c="dimmed">
+                    {notificationConnectionStatus === "connected"
+                      ? "Live WMS activity"
+                      : `Live status: ${notificationConnectionStatus}`}
+                  </Text>
+                </Stack>
+                <Group gap={4} wrap="nowrap">
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    color="gray"
+                    aria-label="Mark notifications as read"
+                    onClick={onMarkNotificationsRead}
+                  >
+                    <CheckCheck size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    color="red"
+                    aria-label="Clear notifications"
+                    onClick={onClearNotifications}
+                  >
+                    <Trash2 size={14} />
+                  </ActionIcon>
+                </Group>
+              </Group>
+
+              <Divider />
+
+              {notifications.length > 0 ? (
+                <ScrollArea.Autosize mah={320} type="auto">
+                  <Stack gap={0}>
+                    {notifications.map((notification) => (
+                      <Menu.Item key={notification.id} closeMenuOnClick={false}>
+                        <Group align="flex-start" gap="xs" wrap="nowrap">
+                          <Indicator
+                            disabled={notification.read}
+                            color="cyan"
+                            size={7}
+                            offset={2}
+                          >
+                            <Bell size={14} />
+                          </Indicator>
+                          <Stack gap={2} style={{ minWidth: 0 }}>
+                            <Group justify="space-between" gap="xs" wrap="nowrap">
+                              <Text size="xs" fw={800} lineClamp={1}>
+                                {notification.title}
+                              </Text>
+                              <Text size="10px" c="dimmed" miw={42} ta="right">
+                                {formatNotificationTime(notification.createdAt)}
+                              </Text>
+                            </Group>
+                            <Text size="11px" c="dimmed" lineClamp={2}>
+                              {notification.message}
+                            </Text>
+                          </Stack>
+                        </Group>
+                      </Menu.Item>
+                    ))}
+                  </Stack>
+                </ScrollArea.Autosize>
+              ) : (
+                <Stack gap={4} align="center" px="md" py="xl">
+                  <Bell size={20} color="var(--mantine-color-dimmed)" />
+                  <Text size="sm" fw={700}>
+                    No notifications
+                  </Text>
+                  <Text size="xs" c="dimmed" ta="center">
+                    New inward and location activity will appear here.
+                  </Text>
+                </Stack>
+              )}
+            </Menu.Dropdown>
+          </Menu>
 
           <Menu shadow="lg" width={220} radius="lg" position="bottom-end">
             <Menu.Target>

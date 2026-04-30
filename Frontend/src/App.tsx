@@ -7,6 +7,7 @@ import React, { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { WmsProvider } from "./context/WmsContext";
 import { MantineProvider, createTheme } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -14,7 +15,6 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { DashboardLayout } from "./components/templates/DashboardLayout";
 import { PageLoader } from "./components/molecules/PageLoader/PageLoader";
-import { RealtimeNotificationListener } from "./components/organisms/Notifications";
 
 // Lazy load pages for code splitting
 const Login = lazy(() => import("./pages/Login"));
@@ -53,12 +53,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return <>{children}</>;
-};
-
-const AuthenticatedNotifications = () => {
-  const { isAuthenticated } = useAuth();
-
-  return isAuthenticated ? <RealtimeNotificationListener /> : null;
 };
 
 // Create Query Client
@@ -102,9 +96,9 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <WmsProvider>
-              <AuthenticatedNotifications />
-              <Routes>
+            <NotificationProvider>
+              <WmsProvider>
+                <Routes>
                 {/* Public Routes */}
                 <Route
                   path="/login"
@@ -286,8 +280,9 @@ export default function App() {
 
                 {/* Catch all - redirect to login */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
-            </WmsProvider>
+                </Routes>
+              </WmsProvider>
+            </NotificationProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

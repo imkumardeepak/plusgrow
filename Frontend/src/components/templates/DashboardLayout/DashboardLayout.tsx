@@ -9,6 +9,7 @@ import {
 } from "../../organisms/Navigation/Breadcrumbs/Breadcrumbs";
 import { useWms } from "../../../context/WmsContext";
 import { useAuth } from "../../../context/AuthContext";
+import { useNotifications } from "../../../context/NotificationContext";
 import { cn } from "../../../lib/utils";
 
 export interface DashboardLayoutProps {
@@ -29,6 +30,13 @@ export function DashboardLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { refreshData, isLoading } = useWms();
   const { user, logout } = useAuth();
+  const {
+    notifications,
+    unreadCount,
+    connectionStatus,
+    markAllRead,
+    clearNotifications,
+  } = useNotifications();
   const navigate = useNavigate();
 
   const authUser = user as {
@@ -83,6 +91,11 @@ export function DashboardLayout({
           userName={resolvedUserName}
           userRole={resolvedUserRole}
           userInitials={getInitials(resolvedUserName)}
+          notificationCount={unreadCount}
+          notifications={notifications}
+          notificationConnectionStatus={connectionStatus}
+          onMarkNotificationsRead={markAllRead}
+          onClearNotifications={clearNotifications}
           onLogout={handleLogout}
           onProfileClick={() => navigate("/profile")}
         />

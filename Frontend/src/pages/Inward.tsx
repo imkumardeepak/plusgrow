@@ -167,7 +167,7 @@ export const Inward = memo(function Inward() {
   const columns: DataTableColumn<PoInvoice>[] = [
     {
       key: "invoiceNo",
-      header: "Invoice No",
+      header: "Invoice No.",
       sortable: true,
       sortAccessor: (row) => row.invoiceNumber,
       render: (row) => (
@@ -179,7 +179,7 @@ export const Inward = memo(function Inward() {
     },
     {
       key: "product",
-      header: "Product",
+      header: "Product Name",
       sortable: true,
       sortAccessor: (row) => row.productName,
       render: (row) => (
@@ -203,7 +203,7 @@ export const Inward = memo(function Inward() {
     },
     {
       key: "partyName",
-      header: "Party Name",
+      header: "Party / Supplier",
       sortable: true,
       sortAccessor: (row) => row.partyName,
       render: (row) => (
@@ -215,7 +215,7 @@ export const Inward = memo(function Inward() {
     },
     {
       key: "billed",
-      header: "Billed",
+      header: "Billed Qty.",
       align: "right",
       sortable: true,
       sortAccessor: (row) => row.billedQty,
@@ -228,7 +228,7 @@ export const Inward = memo(function Inward() {
     },
     {
       key: "remaining",
-      header: "Remaining",
+      header: "Location Allot Pending",
       align: "right",
       sortable: true,
       sortAccessor: (row) => row.remainingAllocation,
@@ -241,11 +241,11 @@ export const Inward = memo(function Inward() {
           {row.remainingAllocation}
         </Text>
       ),
-      width: 110,
+      width: 140,
     },
     {
       key: "printed",
-      header: "Sticker Status",
+      header: "Sticker Print",
       sortable: true,
       sortAccessor: (row) => (row.printed ? "1" : "0"),
       render: (row) => (
@@ -259,38 +259,6 @@ export const Inward = memo(function Inward() {
         </Badge>
       ),
       width: 130,
-    },
-    {
-      key: "actions",
-      header: "Action",
-      align: "right",
-      render: (row) => (
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Tooltip label="Edit invoice">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="blue"
-              onClick={() => openEditInvoice(row)}
-            >
-              <Edit2 size={15} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Delete invoice">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="red"
-              onClick={() => setDeleteTarget({ kind: "invoice", row })}
-            >
-              <Trash2 size={15} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      ),
-      width: 110,
     },
   ];
 
@@ -507,22 +475,22 @@ export const Inward = memo(function Inward() {
           action={
             <Group gap="xs" wrap="nowrap">
               <Badge size="sm" radius="md" variant="light" color="gray">
-                {poInvoices.length} rows
+                {poInvoices.length} Rows
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="orange">
-                {invoiceStats.pendingPrint} pending
+                {invoiceStats.pendingPrint} Pending
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="green">
-                {invoiceStats.printedCount} printed
+                {invoiceStats.printedCount} Printed
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="cyan">
-                {invoiceStats.totalRemaining} remain
+                {invoiceStats.totalRemaining} Remaining
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="blue">
-                {invoiceStats.totalBilled} billed
+                {invoiceStats.totalBilled} Billed
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="teal">
-                {invoiceStats.allottedCount} allotted
+                {invoiceStats.allottedCount} Allotted
               </Badge>
               <TextInput
                 size="xs"

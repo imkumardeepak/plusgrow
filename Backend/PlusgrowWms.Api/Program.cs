@@ -108,7 +108,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.SetIsOriginAllowed(origin =>
+            Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+            (uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1" || uri.IsLoopback))
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

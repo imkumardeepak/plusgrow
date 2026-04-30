@@ -104,8 +104,8 @@ public class PoInvoicesController : BaseController
         await SendNotificationAsync(new RealtimeNotificationDto
         {
             Type = "po_invoice.created",
-            Title = "New invoice added",
-            Message = $"{response.InvoiceNumber} for {response.PartyName} was added.",
+            Title = "New inward / PO added",
+            Message = $"{response.InvoiceNumber} for {response.PartyName} was added to inward.",
             Severity = "success",
             Data = new Dictionary<string, object?>
             {

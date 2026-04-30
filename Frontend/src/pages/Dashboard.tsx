@@ -228,7 +228,7 @@ export const Dashboard = memo(function Dashboard() {
                 size="xs"
                 color="blue"
                 striped
-                animate
+                animated
               />
             </Box>
           </Group>
@@ -461,8 +461,13 @@ export const Dashboard = memo(function Dashboard() {
                 </Group>
                 <Badge variant="outline">30 Days</Badge>
               </Group>
-              <Box style={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <Box style={{ width: "100%", minWidth: 0, height: 300, minHeight: 300 }}>
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={0}
+                  minHeight={300}
+                >
                   <BarChart
                     data={chartData}
                     margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
