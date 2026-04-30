@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   ActionIcon,
   Avatar,
@@ -10,17 +10,8 @@ import {
   Paper,
   Stack,
   Text,
-  TextInput,
 } from "@mantine/core";
-import {
-  Bell,
-  HelpCircle,
-  LogOut,
-  RefreshCw,
-  Search,
-  Settings,
-  User,
-} from "lucide-react";
+import { Bell, HelpCircle, LogOut, RefreshCw, Settings, User } from "lucide-react";
 import { Logo } from "../../../atoms/Logo";
 
 export interface HeaderProps {
@@ -46,14 +37,12 @@ export function Header({
   onLogout,
   onProfileClick,
 }: HeaderProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
   return (
     <Paper
       radius={0}
       h="100%"
-      px={{ base: "sm", md: "lg" }}
-      py="sm"
+      px={{ base: 10, md: 16 }}
+      py={8}
       withBorder
       style={{
         background:
@@ -62,53 +51,40 @@ export function Header({
         backdropFilter: "blur(18px)",
       }}
     >
-      <Group justify="space-between" wrap="nowrap" h="100%" gap="md">
-        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
+      <Group justify="space-between" wrap="nowrap" h="100%" gap="sm">
+        <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
           <Burger
             hiddenFrom="md"
             opened={false}
             onClick={onMenuClick}
             aria-label="Open navigation"
+            size="sm"
           />
 
-          <Logo style={{ maxHeight: 36, objectFit: "contain" }} />
+          <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+            <Logo style={{ maxHeight: 30, objectFit: "contain" }} />
+            <Text
+              size="sm"
+              fw={800}
+              c="white"
+              style={{ letterSpacing: "0.12em", lineHeight: 1 }}
+            >
+              WMS
+            </Text>
+          </Group>
         </Group>
 
-        <Group gap="xs" wrap="nowrap">
-          <TextInput
-            visibleFrom="sm"
-            w={{ sm: 220, lg: 320 }}
-            placeholder="Search SKU, invoice, location..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.currentTarget.value)}
-            leftSection={<Search size={16} />}
-            radius="xl"
-            styles={{
-              input: {
-                backgroundColor: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.1)",
-              },
-            }}
-          />
-
-          <ActionIcon
-            hiddenFrom="sm"
-            variant="subtle"
-            color="gray"
-            radius="xl"
-            aria-label="Search"
-          >
-            <Search size={16} />
-          </ActionIcon>
-
+        <Group gap={6} wrap="nowrap">
           <Button
             visibleFrom="sm"
             variant="light"
             color="cyan"
-            radius="xl"
+            radius="md"
+            size="xs"
+            px="sm"
             leftSection={
               <RefreshCw
-                size={16}
+                size={14}
                 className={isSyncing ? "animate-spin" : undefined}
               />
             }
@@ -129,25 +105,26 @@ export function Header({
             <ActionIcon
               variant="subtle"
               color="gray"
-              radius="xl"
+              radius="md"
+              size="md"
               aria-label="Notifications"
             >
-              <Bell size={16} />
+              <Bell size={15} />
             </ActionIcon>
           </Indicator>
 
-          <Menu shadow="lg" width={240} radius="xl" position="bottom-end">
+          <Menu shadow="lg" width={220} radius="lg" position="bottom-end">
             <Menu.Target>
-              <Button variant="subtle" color="gray" radius="xl" px="xs">
-                <Group gap="xs" wrap="nowrap">
-                  <Avatar radius="xl" color="cyan">
+              <Button variant="subtle" color="gray" radius="md" px={6} h={36}>
+                <Group gap={8} wrap="nowrap">
+                  <Avatar radius="xl" color="cyan" size={28}>
                     {userInitials}
                   </Avatar>
                   <Stack gap={0} visibleFrom="sm" align="flex-start">
-                    <Text size="sm" fw={600} c="white" lh={1.15}>
+                    <Text size="xs" fw={600} c="white" lh={1.1}>
                       {userName}
                     </Text>
-                    <Text size="xs" c="dimmed">
+                    <Text size="10px" c="dimmed" lh={1.1}>
                       {userRole}
                     </Text>
                   </Stack>
