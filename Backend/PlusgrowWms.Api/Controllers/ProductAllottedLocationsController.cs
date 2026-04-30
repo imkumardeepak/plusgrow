@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
+using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -10,10 +12,12 @@ namespace PlusgrowWms.Api.Controllers;
 public class ProductAllottedLocationsController : BaseController
 {
     private readonly PlusgrowDbContext _context;
+    private readonly IHubContext<NotificationHub> _notificationHub;
 
-    public ProductAllottedLocationsController(PlusgrowDbContext context)
+    public ProductAllottedLocationsController(PlusgrowDbContext context, IHubContext<NotificationHub> notificationHub)
     {
         _context = context;
+        _notificationHub = notificationHub;
     }
 
     [HttpGet]
@@ -47,7 +51,22 @@ public class ProductAllottedLocationsController : BaseController
         await _context.SaveChangesAsync();
 
         var created = await _context.ProductAllottedLocations.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
-        return Success(MapLocation(created), "Product allotted location created successfully");
+        var response = MapLocation(created);
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "product_location.created",
+            Title = "Location allotted",
+            Message = $"{response.ProductName} location allotment was created.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = response.ProductId,
+                ["productName"] = response.ProductName,
+                ["skuCode"] = response.SkuCode,
+            },
+        });
+
+        return Success(response, "Product allotted location created successfully");
     }
 
     [HttpPut("{id}")]
@@ -75,7 +94,22 @@ public class ProductAllottedLocationsController : BaseController
         await _context.SaveChangesAsync();
 
         var updated = await _context.ProductAllottedLocations.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
-        return Success(MapLocation(updated), "Product allotted location updated successfully");
+        var response = MapLocation(updated);
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "product_location.updated",
+            Title = "Location allotment updated",
+            Message = $"{response.ProductName} location allotment was updated.",
+            Severity = "info",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = response.ProductId,
+                ["productName"] = response.ProductName,
+                ["skuCode"] = response.SkuCode,
+            },
+        });
+
+        return Success(response, "Product allotted location updated successfully");
     }
 
     [HttpDelete("{id}")]
@@ -169,6 +203,22 @@ public class ProductAllottedLocationsController : BaseController
             TotalAllocatedQuantity = totalAllocatedAfter,
             RemainingUnassignedQuantity = Math.Max(currentQuantity - totalAllocatedAfter, 0),
         };
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "putaway.assigned",
+            Title = "Location allotted",
+            Message = $"{response.AssignedQuantity} units of {response.ProductName} allotted to {response.ResolvedLocationCode}.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = response.ProductId,
+                ["productName"] = response.ProductName,
+                ["skuCode"] = response.SkuCode,
+                ["locationCode"] = response.ResolvedLocationCode,
+                ["assignedQuantity"] = response.AssignedQuantity,
+                ["remainingUnassignedQuantity"] = response.RemainingUnassignedQuantity,
+            },
+        });
 
         return Success(response, "Put-away assignment saved successfully");
     }
@@ -205,5 +255,10 @@ public class ProductAllottedLocationsController : BaseController
             invoice.LocationAllotted = invoice.RemainingAllocation <= 0;
             remainingToAllocate -= reduceBy;
         }
+    }
+
+    private Task SendNotificationAsync(RealtimeNotificationDto notification)
+    {
+        return _notificationHub.Clients.All.SendAsync("ReceiveNotification", notification);
     }
 }

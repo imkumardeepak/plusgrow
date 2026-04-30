@@ -3,9 +3,9 @@
   "active": true,
   "skill": "analyze",
   "keyword": "Investigate",
-  "phase": "executing",
+  "phase": "reviewing",
   "activated_at": "2026-04-27T12:01:13.355Z",
-  "updated_at": "2026-04-30T05:44:30.640Z",
+  "updated_at": "2026-04-30T05:49:50.054Z",
   "source": "keyword-detector",
   "input_lock": null
 }

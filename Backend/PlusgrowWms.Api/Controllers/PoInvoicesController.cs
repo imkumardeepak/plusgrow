@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
+using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
 using ClosedXML.Excel;
 using System.Globalization;
@@ -13,11 +15,16 @@ public class PoInvoicesController : BaseController
 {
     private readonly PlusgrowDbContext _context;
     private readonly ILogger<PoInvoicesController> _logger;
+    private readonly IHubContext<NotificationHub> _notificationHub;
 
-    public PoInvoicesController(PlusgrowDbContext context, ILogger<PoInvoicesController> logger)
+    public PoInvoicesController(
+        PlusgrowDbContext context,
+        ILogger<PoInvoicesController> logger,
+        IHubContext<NotificationHub> notificationHub)
     {
         _context = context;
         _logger = logger;
+        _notificationHub = notificationHub;
     }
 
     [HttpGet]
@@ -93,7 +100,24 @@ public class PoInvoicesController : BaseController
         await _context.SaveChangesAsync();
 
         var created = await _context.PoInvoices.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
-        return Success(MapInvoice(created), "PO invoice created successfully");
+        var response = MapInvoice(created);
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "po_invoice.created",
+            Title = "New invoice added",
+            Message = $"{response.InvoiceNumber} for {response.PartyName} was added.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["invoiceId"] = response.Id,
+                ["invoiceNumber"] = response.InvoiceNumber,
+                ["productId"] = response.ProductId,
+                ["productName"] = response.ProductName,
+                ["billedQty"] = response.BilledQty,
+            },
+        });
+
+        return Success(response, "PO invoice created successfully");
     }
 
     [HttpPut("{id}")]
@@ -263,6 +287,21 @@ public class PoInvoicesController : BaseController
 
             await _context.SaveChangesAsync();
             result.Success = true;
+            if (result.ImportedCount > 0)
+            {
+                await SendNotificationAsync(new RealtimeNotificationDto
+                {
+                    Type = "po_invoice.imported",
+                    Title = "Invoices imported",
+                    Message = $"{result.ImportedCount} invoice rows were imported.",
+                    Severity = "success",
+                    Data = new Dictionary<string, object?>
+                    {
+                        ["importedCount"] = result.ImportedCount,
+                        ["errorCount"] = result.Errors.Count,
+                    },
+                });
+            }
 
             return Success(result, $"Imported {result.ImportedCount} invoice rows successfully");
         }
@@ -403,5 +442,10 @@ public class PoInvoicesController : BaseController
             return NormalizeInvoiceDate(parsed);
 
         return null;
+    }
+
+    private Task SendNotificationAsync(RealtimeNotificationDto notification)
+    {
+        return _notificationHub.Clients.All.SendAsync("ReceiveNotification", notification);
     }
 }

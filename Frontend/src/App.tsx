@@ -14,6 +14,7 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { DashboardLayout } from "./components/templates/DashboardLayout";
 import { PageLoader } from "./components/molecules/PageLoader/PageLoader";
+import { RealtimeNotificationListener } from "./components/organisms/Notifications";
 
 // Lazy load pages for code splitting
 const Login = lazy(() => import("./pages/Login"));
@@ -52,6 +53,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return <>{children}</>;
+};
+
+const AuthenticatedNotifications = () => {
+  const { isAuthenticated } = useAuth();
+
+  return isAuthenticated ? <RealtimeNotificationListener /> : null;
 };
 
 // Create Query Client
@@ -96,6 +103,7 @@ export default function App() {
         <BrowserRouter>
           <AuthProvider>
             <WmsProvider>
+              <AuthenticatedNotifications />
               <Routes>
                 {/* Public Routes */}
                 <Route
