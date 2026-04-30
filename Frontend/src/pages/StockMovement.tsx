@@ -1,301 +1,687 @@
-import React, { useState, memo } from "react";
-import { useWms } from "../context/WmsContext";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  AlertCircle,
+  ArrowDownRight,
+  ArrowRightLeft,
+  ArrowUpRight,
+  History,
+  Move,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import {
+  Box,
+  Group,
+  Paper,
+  Select,
+  SimpleGrid,
+  Text,
+  TextInput,
+} from "@mantine/core";
+import confetti from "canvas-confetti";
+
 import { Button } from "../components/atoms/Button";
 import { Badge } from "../components/atoms/Badge";
 import { Input } from "../components/atoms/Input";
 import {
-  DataTable,
-  createTableColumns,
-} from "../components/molecules/DataTable";
-import {
-  Move,
-  Search,
-  AlertCircle,
-  ArrowUpRight,
-  ArrowDownRight,
-  Package,
-  CheckCircle2,
-  History,
-  Database,
-  ArrowRightLeft,
-} from "lucide-react";
-import { toast } from "../lib/toast";
-import { cn } from "../lib/utils";
-import confetti from "canvas-confetti";
-import {
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  DataTableColumn,
+  MantineDataTable,
+} from "../components/molecules/MantineDataTable";
+import {
+  CreateStockAdjustmentDto,
+  Product,
+  ProductQuantityRecord,
+  ProductStockMovementRecord,
+  productQuantitiesApi,
+  productsApi,
+} from "../services/masterApi";
+import { toast } from "../lib/toast";
+
+type StockLedgerRow = {
+  productId: number;
+  skuCode: string;
+  productName: string;
+  currentQuantity: number;
+  updatedAt: string | null;
+  hasQuantityRow: boolean;
+};
+
+const adjustmentReasonOptions = [
+  { value: "Manual Reconciliation", label: "Manual Reconciliation" },
+  { value: "Damage / Spoilage", label: "Damage / Spoilage" },
+  { value: "Loss / Theft", label: "Loss / Theft" },
+  { value: "Found Inventory", label: "Found Inventory" },
+  { value: "Cycle Count Correction", label: "Cycle Count Correction" },
+  { value: "Warehouse Correction", label: "Warehouse Correction" },
+];
+
+const emptyAdjustmentForm: CreateStockAdjustmentDto = {
+  productId: 0,
+  quantityChange: 0,
+  reason: "Manual Reconciliation",
+  notes: "",
+};
 
 export const StockMovement = memo(function StockMovement() {
-  const { stock, updateStock, products } = useWms();
-  const [sku, setSku] = useState("");
-  const [qtyChange, setQtyChange] = useState<number | "">("");
-  const [reason, setReason] = useState("Manual");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
+  const [movements, setMovements] = useState<ProductStockMovementRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
+  const [adjustmentForm, setAdjustmentForm] =
+    useState<CreateStockAdjustmentDto>(emptyAdjustmentForm);
 
-  const handleMovement = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sku || !qtyChange || !reason) {
-      toast.error("Please fill all required fields");
-      return;
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [productsData, quantityData, movementData] = await Promise.all([
+        productsApi.getAll(),
+        productQuantitiesApi.getAll(),
+        productQuantitiesApi.getMovements(),
+      ]);
+
+      setProducts(productsData);
+      setQuantityRows(quantityData);
+      setMovements(movementData);
+    } catch {
+      toast.error("Failed to load stock movement data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const refreshMovements = useCallback(async () => {
+    try {
+      const movementData = await productQuantitiesApi.getMovements(historySearch);
+      setMovements(movementData);
+    } catch {
+      toast.error("Failed to refresh movement history");
+    }
+  }, [historySearch]);
+
+  useEffect(() => {
+    void refreshMovements();
+  }, [refreshMovements]);
+
+  const ledgerRows = useMemo<StockLedgerRow[]>(() => {
+    return products
+      .map((product) => {
+        const quantityRow =
+          quantityRows.find((row) => row.productId === product.id) ?? null;
+
+        return {
+          productId: product.id,
+          skuCode: product.sku || "NO-SKU",
+          productName: product.name,
+          currentQuantity: quantityRow?.currentQuantity ?? 0,
+          updatedAt: quantityRow?.updatedAt ?? null,
+          hasQuantityRow: Boolean(quantityRow),
+        };
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName));
+  }, [products, quantityRows]);
+
+  const filteredLedgerRows = useMemo(() => {
+    const normalized = searchTerm.trim().toLowerCase();
+    if (!normalized) {
+      return ledgerRows;
     }
 
-    const currentStock = stock
-      .filter((s) => s.sku.toUpperCase() === sku.toUpperCase())
-      .reduce((acc, s) => acc + s.quantity, 0);
-    const change = Number(qtyChange);
+    return ledgerRows.filter(
+      (row) =>
+        row.skuCode.toLowerCase().includes(normalized) ||
+        row.productName.toLowerCase().includes(normalized),
+    );
+  }, [ledgerRows, searchTerm]);
 
-    if (currentStock + change < 0) {
-      toast.error(
-        `Cannot reduce stock below 0. Current stock is only ${currentStock} units.`,
-      );
-      return;
-    }
-
-    updateStock(sku.toUpperCase(), change, `Manual Adjustment: ${reason}`);
-
-    // Quick success celebration
-    confetti({
-      particleCount: 80,
-      spread: 40,
-      origin: { y: 0.7, x: 0.25 },
-      colors: change > 0 ? ["#10b981", "#4E8EA2"] : ["#ef4444", "#f59e0b"],
-    });
-
-    toast.success(`Inventory adjusted successfully for ${sku.toUpperCase()}`);
-
-    setSku("");
-    setQtyChange("");
-    setReason("Manual");
-  };
-
-  const filteredStock = stock.filter(
-    (s) =>
-      s.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (
-        products.find((p) => p.sku === s.sku)?.title.toLowerCase() || ""
-      ).includes(searchTerm.toLowerCase()),
+  const selectedLedgerRow = useMemo(
+    () =>
+      ledgerRows.find((row) => row.productId === adjustmentForm.productId) ?? null,
+    [adjustmentForm.productId, ledgerRows],
   );
 
-  // Create table columns
-  const columns = createTableColumns<(typeof stock)[0]>([
+  const projectedQuantity = useMemo(() => {
+    if (!selectedLedgerRow) {
+      return null;
+    }
+
+    return selectedLedgerRow.currentQuantity + adjustmentForm.quantityChange;
+  }, [adjustmentForm.quantityChange, selectedLedgerRow]);
+
+  const movementStats = useMemo(() => {
+    const increases = movements.filter((row) => row.quantityChange > 0).length;
+    const decreases = movements.filter((row) => row.quantityChange < 0).length;
+    const totalOnHand = quantityRows.reduce(
+      (sum, row) => sum + row.currentQuantity,
+      0,
+    );
+
+    return {
+      increases,
+      decreases,
+      totalOnHand,
+    };
+  }, [movements, quantityRows]);
+
+  const productOptions = useMemo(
+    () =>
+      ledgerRows.map((row) => ({
+        value: String(row.productId),
+        label: `${row.skuCode} - ${row.productName}`,
+      })),
+    [ledgerRows],
+  );
+
+  const ledgerColumns: DataTableColumn<StockLedgerRow>[] = [
     {
-      accessorKey: "sku",
-      header: "SKU Code",
-      cell: (row) => (
-        <span className="text-sm font-bold font-mono text-neutral-100">
-          {row.sku}
-        </span>
+      key: "sku",
+      header: "SKU",
+      sortable: true,
+      sortAccessor: (row) => row.skuCode,
+      render: (row) => (
+        <Text size="11px" ff="monospace" fw={700} c="cyan.2">
+          {row.skuCode}
+        </Text>
       ),
+      width: 140,
     },
     {
-      accessorKey: "sku",
-      header: "Product Identity",
-      cell: (row) => {
-        const product = products.find((p) => p.sku === row.sku);
-        return (
-          <span
-            className="max-w-[250px] truncate text-sm text-neutral-300 font-medium"
-            title={product?.title}
-          >
-            {product?.title || "Unregistered SKU"}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "rack",
-      header: "Warehouse Loc.",
-      cell: (row) => (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded border border-white/10 bg-white/[0.02] text-[11px] font-mono text-neutral-300 tracking-wider">
-          {row.rack}-{row.shelf}-{row.bin}
-        </span>
+      key: "product",
+      header: "Product",
+      sortable: true,
+      sortAccessor: (row) => row.productName,
+      render: (row) => (
+        <Text size="xs" fw={600} lineClamp={1}>
+          {row.productName}
+        </Text>
       ),
+      width: 220,
     },
     {
-      accessorKey: "quantity",
-      header: "Qty",
-      cell: (row) => (
-        <span
-          className={cn(
-            "inline-flex items-center justify-center min-w-[3rem] px-2 py-1 rounded-lg font-bold text-sm",
-            row.quantity > 50
-              ? "bg-success-500/10 text-success-400 border border-success-500/20"
-              : row.quantity > 10
-                ? "bg-brand-500/10 text-brand-400 border border-brand-500/20"
-                : "bg-warning-500/10 text-warning-400 border border-warning-500/20",
-          )}
+      key: "qty",
+      header: "Current Qty.",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.currentQuantity,
+      render: (row) => (
+        <Text size="xs" fw={800} c={row.currentQuantity > 0 ? "green.3" : "gray.4"}>
+          {row.currentQuantity}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "row",
+      header: "Quantity Row",
+      sortable: true,
+      sortAccessor: (row) => (row.hasQuantityRow ? "1" : "0"),
+      render: (row) => (
+        <Badge size="sm" radius="md" variant={row.hasQuantityRow ? "success" : "default"}>
+          {row.hasQuantityRow ? "Live" : "Pending"}
+        </Badge>
+      ),
+      width: 120,
+    },
+    {
+      key: "updated",
+      header: "Last Updated",
+      sortable: true,
+      sortAccessor: (row) => row.updatedAt ?? "",
+      render: (row) => (
+        <Text size="xs" c="dimmed">
+          {row.updatedAt
+            ? format(new Date(row.updatedAt), "dd MMM yyyy HH:mm")
+            : "Not created"}
+        </Text>
+      ),
+      width: 150,
+    },
+  ];
+
+  const movementColumns: DataTableColumn<ProductStockMovementRecord>[] = [
+    {
+      key: "time",
+      header: "Posted At",
+      sortable: true,
+      sortAccessor: (row) => row.createdAt,
+      render: (row) => (
+        <Text size="xs" fw={600}>
+          {format(new Date(row.createdAt), "dd MMM yyyy HH:mm")}
+        </Text>
+      ),
+      width: 150,
+    },
+    {
+      key: "sku",
+      header: "SKU",
+      sortable: true,
+      sortAccessor: (row) => row.skuCode,
+      render: (row) => (
+        <Text size="11px" ff="monospace" fw={700} c="cyan.2">
+          {row.skuCode}
+        </Text>
+      ),
+      width: 140,
+    },
+    {
+      key: "product",
+      header: "Product",
+      sortable: true,
+      sortAccessor: (row) => row.productName,
+      render: (row) => (
+        <Text size="xs" fw={600} lineClamp={1}>
+          {row.productName}
+        </Text>
+      ),
+      width: 220,
+    },
+    {
+      key: "change",
+      header: "Delta",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.quantityChange,
+      render: (row) => (
+        <Text
+          size="xs"
+          fw={800}
+          c={row.quantityChange > 0 ? "green.3" : "red.3"}
         >
-          {row.quantity}
-        </span>
+          {row.quantityChange > 0 ? "+" : ""}
+          {row.quantityChange}
+        </Text>
       ),
+      width: 90,
     },
-  ]);
+    {
+      key: "balance",
+      header: "Balance",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.quantityAfter,
+      render: (row) => (
+        <Text size="xs" fw={700}>
+          {row.quantityBefore} {"->"} {row.quantityAfter}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "reason",
+      header: "Reason",
+      sortable: true,
+      sortAccessor: (row) => row.reason,
+      render: (row) => (
+        <Text size="xs" lineClamp={1}>
+          {row.reason}
+        </Text>
+      ),
+      width: 160,
+    },
+    {
+      key: "by",
+      header: "Posted By",
+      sortable: true,
+      sortAccessor: (row) => row.performedByName ?? "",
+      render: (row) => (
+        <Text size="xs" c="dimmed" lineClamp={1}>
+          {row.performedByName || "System User"}
+        </Text>
+      ),
+      width: 140,
+    },
+  ];
+
+  const handleAdjust = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (adjustmentForm.productId <= 0) {
+      toast.error("Select a product first");
+      return;
+    }
+
+    if (adjustmentForm.quantityChange === 0) {
+      toast.error("Quantity change cannot be zero");
+      return;
+    }
+
+    if (!adjustmentForm.reason.trim()) {
+      toast.error("Reason is required");
+      return;
+    }
+
+    if (projectedQuantity !== null && projectedQuantity < 0) {
+      toast.error("This adjustment would reduce stock below zero");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const result = await productQuantitiesApi.adjust({
+        productId: adjustmentForm.productId,
+        quantityChange: adjustmentForm.quantityChange,
+        reason: adjustmentForm.reason,
+        notes: adjustmentForm.notes?.trim() || null,
+      });
+
+      await loadData();
+      await refreshMovements();
+
+      confetti({
+        particleCount: 80,
+        spread: 45,
+        origin: { y: 0.65, x: 0.25 },
+        colors:
+          result.movement.quantityChange > 0
+            ? ["#10b981", "#4E8EA2"]
+            : ["#ef4444", "#f59e0b"],
+      });
+
+      toast.success(
+        `Stock updated for ${result.movement.skuCode} (${result.movement.quantityChange > 0 ? "+" : ""}${result.movement.quantityChange})`,
+      );
+
+      setAdjustmentForm(emptyAdjustmentForm);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to post stock adjustment");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <OperationsPage
       title="Stock Movements"
-      description="Inventory adjustments & historical logs."
+      description="Post live quantity adjustments, review current on-hand stock, and keep a clean movement trail from the warehouse floor."
       icon={ArrowRightLeft}
-      metrics={[{ label: "Total SKUs", value: stock.length, tone: "brand" }]}
+      hideHeader
+      metrics={[
+        { label: "Live Quantity Rows", value: quantityRows.length, tone: "brand" },
+        { label: "Total On Hand", value: movementStats.totalOnHand, tone: "success" },
+        { label: "Movement Entries", value: movements.length, tone: "default" },
+      ]}
     >
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
         <OperationsPanel
-          title="Execute Adjustment"
+          title="Post Adjustment"
           icon={Move}
           className="lg:col-span-4 flex flex-col overflow-hidden h-full"
-          contentClassName="overflow-y-auto scrollbar-thin"
+          contentClassName="overflow-y-auto scrollbar-thin space-y-4"
         >
-          <form
-            onSubmit={handleMovement}
-            className="space-y-3 animate-in fade-in slide-in-from-left-2 duration-300"
-          >
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest pl-1">
-                Target SKU
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                  <Package className="h-3.5 w-3.5 text-brand-500 group-focus-within:text-brand-400 transition-colors" />
-                </div>
-                <Input
-                  type="text"
-                  placeholder="Scan or enter SKU..."
-                  value={sku}
-                  onChange={(e) => setSku(e.target.value)}
-                  required
-                  className="block w-full h-8 pl-8 pr-3 text-[11px] rounded-lg border-white/10 bg-white/[0.03] focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 transition-all font-mono uppercase text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">
-                  Qty Delta
-                </label>
-                <span className="text-[9px] text-neutral-500 font-medium">
-                  (- for deductions)
-                </span>
-              </div>
-              <div className="relative group">
-                {qtyChange !== "" && (
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none">
-                    {Number(qtyChange) > 0 ? (
-                      <ArrowUpRight className="w-4 h-4 text-success-500 animate-in zoom-in" />
-                    ) : Number(qtyChange) < 0 ? (
-                      <ArrowDownRight className="w-4 h-4 text-danger-500 animate-in zoom-in" />
-                    ) : null}
-                  </div>
-                )}
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={qtyChange}
-                  onChange={(e) =>
-                    setQtyChange(e.target.value ? Number(e.target.value) : "")
-                  }
-                  required
-                  className={cn(
-                    "block w-full h-10 pr-3 rounded-lg border-white/10 text-lg font-bold font-mono transition-all",
-                    qtyChange !== "" ? "pl-9" : "pl-3",
-                    Number(qtyChange) > 0
-                      ? "border-success-500/30 text-success-400 bg-success-500/5 focus:border-success-500 focus:ring-success-500/20"
-                      : Number(qtyChange) < 0
-                        ? "border-danger-500/30 text-danger-400 bg-danger-500/5 focus:border-danger-500 focus:ring-danger-500/20"
-                        : "bg-white/[0.03] focus:border-brand-500/50 focus:ring-brand-500/10 text-white",
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest pl-1">
-                Reason
-              </label>
-              <div className="relative group">
-                <select
-                  className="block w-full h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-[11px] focus:border-brand-500/50 focus:ring-2 focus:ring-brand-500/10 transition-all outline-none appearance-none font-medium text-neutral-200"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  required
-                >
-                  <option value="Manual">Manual Reconciliation</option>
-                  <option value="Damage">Damage / Spoilage</option>
-                  <option value="Loss">Loss / Theft</option>
-                  <option value="Found">Found Inventory</option>
-                  <option value="Correction">Cycle Count Correction</option>
-                  <option value="Other">Other Adjustment</option>
-                </select>
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                  <svg
-                    className="w-3 h-3 text-neutral-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    ></path>
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-1">
-              <Button
-                type="submit"
+          <form onSubmit={handleAdjust} className="space-y-4">
+            <div className="space-y-1.5">
+              <Text size="10px" fw={800} c="dimmed">
+                PRODUCT
+              </Text>
+              <Select
                 size="sm"
-                className="w-full h-9 text-xs font-bold shadow-[0_0_15px_rgba(6,182,212,0.1)] group relative overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-1.5">
-                  <Move className="w-3.5 h-3.5" /> Execute
-                </span>
-                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-              </Button>
-            </div>
-          </form>
-
-          <div className="mt-4 flex items-start gap-2 bg-warning-500/5 p-2.5 rounded-lg border border-warning-500/10 shadow-inner">
-            <AlertCircle className="w-3.5 h-3.5 text-warning-400 shrink-0 mt-0.5" />
-            <p className="text-[9px] text-warning-200/60 leading-relaxed font-medium">
-              Adjustments directly manipulate the ledger and bypass workflows.
-              Use exclusively for discrepancy corrections.
-            </p>
-          </div>
-        </OperationsPanel>
-
-        <OperationsPanel
-          title="Inventory Ledger"
-          icon={Database}
-          className="lg:col-span-8 flex flex-col overflow-hidden h-full"
-          contentClassName="overflow-y-auto scrollbar-thin p-0"
-          action={
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-500" />
-              <Input
-                type="text"
-                placeholder="Filter database..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 h-7 w-48 text-[10px] bg-white/[0.03] border-white/10 rounded-md"
+                radius="md"
+                searchable
+                placeholder="Select SKU / Product"
+                data={productOptions}
+                value={
+                  adjustmentForm.productId > 0
+                    ? String(adjustmentForm.productId)
+                    : null
+                }
+                onChange={(value) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    productId: value ? Number(value) : 0,
+                  }))
+                }
+                nothingFoundMessage="No product found"
               />
             </div>
-          }
-        >
-          <DataTable
-            columns={columns}
-            data={filteredStock}
-            loading={false}
-            searchPlaceholder="Filter..."
-            onSearch={setSearchTerm}
-            searchValue={searchTerm}
-          />
+
+            <div className="space-y-1.5">
+              <Text size="10px" fw={800} c="dimmed">
+                QUANTITY DELTA
+              </Text>
+              <Input
+                type="number"
+                size="sm"
+                placeholder="Use + for increase, - for decrease"
+                value={
+                  adjustmentForm.quantityChange === 0
+                    ? ""
+                    : adjustmentForm.quantityChange
+                }
+                onChange={(event) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    quantityChange: event.target.value
+                      ? Number(event.target.value)
+                      : 0,
+                  }))
+                }
+                leftElement={
+                  adjustmentForm.quantityChange > 0 ? (
+                    <ArrowUpRight size={14} />
+                  ) : adjustmentForm.quantityChange < 0 ? (
+                    <ArrowDownRight size={14} />
+                  ) : undefined
+                }
+                className="font-mono font-bold"
+                fullWidth
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Text size="10px" fw={800} c="dimmed">
+                REASON
+              </Text>
+              <Select
+                size="sm"
+                radius="md"
+                data={adjustmentReasonOptions}
+                value={adjustmentForm.reason}
+                onChange={(value) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    reason: value || current.reason,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Text size="10px" fw={800} c="dimmed">
+                NOTES
+              </Text>
+              <TextInput
+                size="sm"
+                radius="md"
+                placeholder="Optional remark for audit trail"
+                value={adjustmentForm.notes || ""}
+                onChange={(event) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    notes: event.currentTarget.value,
+                  }))
+                }
+              />
+            </div>
+
+            <SimpleGrid cols={2} spacing="sm">
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  CURRENT QTY.
+                </Text>
+                <Text mt={6} size="lg" fw={800} ff="monospace">
+                  {selectedLedgerRow?.currentQuantity ?? "-"}
+                </Text>
+              </Paper>
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  PROJECTED QTY.
+                </Text>
+                <Text
+                  mt={6}
+                  size="lg"
+                  fw={800}
+                  ff="monospace"
+                  c={
+                    projectedQuantity == null
+                      ? "white"
+                      : projectedQuantity < 0
+                        ? "red.3"
+                        : "green.3"
+                  }
+                >
+                  {projectedQuantity ?? "-"}
+                </Text>
+              </Paper>
+            </SimpleGrid>
+
+            <Group gap="xs" wrap="nowrap">
+              <Button type="submit" size="sm" className="flex-1" loading={isSaving}>
+                Post Adjustment
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="subtle"
+                onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
+              >
+                Clear
+              </Button>
+            </Group>
+          </form>
+
+          <Paper
+            radius="lg"
+            p="sm"
+            withBorder
+            bg="rgba(245, 158, 11, 0.06)"
+            style={{ borderColor: "rgba(245, 158, 11, 0.16)" }}
+          >
+            <Group gap="sm" wrap="nowrap" align="flex-start">
+              <AlertCircle size={16} color="var(--mantine-color-yellow-4)" />
+              <Text size="xs" c="dimmed">
+                Manual adjustments update the live quantity row immediately and write a movement entry for audit.
+              </Text>
+            </Group>
+          </Paper>
         </OperationsPanel>
+
+        <div className="lg:col-span-8 grid grid-cols-1 gap-3 min-h-0">
+          <OperationsPanel
+            title="Live Quantity Ledger"
+            icon={RefreshCw}
+            className="flex flex-col overflow-hidden"
+            contentClassName="overflow-y-auto scrollbar-thin p-0"
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-500" />
+                  <Input
+                    type="text"
+                    placeholder="Filter SKU or product"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-7 h-7 w-52 text-[10px] rounded-md"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[10px]"
+                  onClick={() => void loadData()}
+                  loading={isLoading}
+                >
+                  Refresh
+                </Button>
+              </Group>
+            }
+          >
+            <MantineDataTable
+              data={filteredLedgerRows}
+              columns={ledgerColumns}
+              rowKey={(row) => row.productId}
+              isLoading={isLoading}
+              pageSize={8}
+              itemLabel="products"
+              resetPageKey={searchTerm}
+              minWidth={760}
+              emptyIcon={RefreshCw}
+              emptyTitle="No stock rows"
+              emptyDescription="Products and quantity rows will appear here once inventory is available."
+            />
+          </OperationsPanel>
+
+          <OperationsPanel
+            title="Movement History"
+            icon={History}
+            className="flex flex-col overflow-hidden"
+            contentClassName="overflow-y-auto scrollbar-thin p-0"
+            action={
+              <Box style={{ minWidth: 220 }}>
+                <Input
+                  type="text"
+                  placeholder="Search history"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  leftElement={<Search size={12} />}
+                  className="h-7 text-[10px] rounded-md"
+                  fullWidth
+                />
+              </Box>
+            }
+          >
+            <SimpleGrid cols={3} spacing="sm" className="p-3 pb-0">
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  INCREASES
+                </Text>
+                <Text mt={6} size="lg" fw={800} c="green.3">
+                  {movementStats.increases}
+                </Text>
+              </Paper>
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  DECREASES
+                </Text>
+                <Text mt={6} size="lg" fw={800} c="red.3">
+                  {movementStats.decreases}
+                </Text>
+              </Paper>
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  ENTRIES
+                </Text>
+                <Text mt={6} size="lg" fw={800}>
+                  {movements.length}
+                </Text>
+              </Paper>
+            </SimpleGrid>
+
+            <MantineDataTable
+              data={movements}
+              columns={movementColumns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              pageSize={8}
+              itemLabel="movements"
+              resetPageKey={historySearch}
+              minWidth={920}
+              emptyIcon={History}
+              emptyTitle="No movement history"
+              emptyDescription="Stock adjustments will create audit entries here."
+            />
+          </OperationsPanel>
+        </div>
       </div>
     </OperationsPage>
   );

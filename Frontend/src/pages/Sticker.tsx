@@ -98,6 +98,7 @@ export const Sticker = memo(function Sticker() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [reprintFrom, setReprintFrom] = useState<number | "">(1);
   const [reprintTo, setReprintTo] = useState<number | "">(1);
+  const [stickerNote, setStickerNote] = useState("");
 
   const loadMetaData = useCallback(async () => {
     try {
@@ -145,6 +146,7 @@ export const Sticker = memo(function Sticker() {
     if (!selectedRow) return;
     setReprintFrom(1);
     setReprintTo(selectedRow.billedQty || 1);
+    setStickerNote("");
   }, [selectedRow]);
 
   const printerConfig = useMemo(
@@ -357,10 +359,10 @@ export const Sticker = memo(function Sticker() {
       type: stickerType,
       monthYear: format(new Date(row.invoiceDate), "MMM/yyyy").toUpperCase(),
       batchNumber: row.invoiceNumber,
-      note: "",
+      note: stickerNote.trim(),
       quantity,
     }),
-    [importerId, manufacturerId, stickerSize, stickerType],
+    [importerId, manufacturerId, stickerNote, stickerSize, stickerType],
   );
 
   const refreshPreview = useCallback(async () => {
@@ -431,8 +433,7 @@ export const Sticker = memo(function Sticker() {
           {
             config: {
               ...buildPayload(selectedRow, quantity),
-              note:
-                mode === "reprint" ? `Reprint sticker ${from} to ${to}` : "",
+              note: stickerNote.trim(),
             },
             quantity,
           },
@@ -707,6 +708,15 @@ export const Sticker = memo(function Sticker() {
                     </Box>
                   )}
                 </SimpleGrid>
+                <TextInput
+                  label="Note"
+                  size="xs"
+                  radius="md"
+                  mt="sm"
+                  placeholder="Optional note for sticker"
+                  value={stickerNote}
+                  onChange={(event) => setStickerNote(event.currentTarget.value)}
+                />
               </Paper>
 
               <Paper radius="md" p="sm" withBorder>

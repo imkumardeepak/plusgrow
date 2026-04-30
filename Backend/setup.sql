@@ -11,6 +11,8 @@
 DROP TABLE IF EXISTS role_page_access CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS product_stock_movements CASCADE;
+DROP TABLE IF EXISTS product_quantities CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
 DROP TABLE IF EXISTS importers CASCADE;
 DROP TABLE IF EXISTS manufacturers CASCADE;
@@ -94,11 +96,34 @@ CREATE TABLE products (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE product_quantities (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL UNIQUE REFERENCES products(id) ON DELETE CASCADE,
+    current_quantity INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE product_stock_movements (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    quantity_change INTEGER NOT NULL,
+    quantity_before INTEGER NOT NULL,
+    quantity_after INTEGER NOT NULL,
+    reason VARCHAR(100) NOT NULL,
+    movement_type VARCHAR(20) NOT NULL,
+    notes TEXT,
+    performed_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    performed_by_name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- INDEXES FOR PERFORMANCE
 CREATE INDEX idx_products_commodity_id ON products(commodity_id);
 CREATE INDEX idx_products_manufacturer_id ON products(manufacturer_id);
 CREATE INDEX idx_products_hsn_code ON products(hsn_code);
 CREATE INDEX idx_products_name ON products(name);
+CREATE INDEX idx_product_stock_movements_product_id ON product_stock_movements(product_id);
+CREATE INDEX idx_product_stock_movements_created_at ON product_stock_movements(created_at);
 
 CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_is_active ON users(is_active);

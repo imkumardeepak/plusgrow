@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
+using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -10,10 +13,12 @@ namespace PlusgrowWms.Api.Controllers;
 public class ProductQuantitiesController : BaseController
 {
     private readonly PlusgrowDbContext _context;
+    private readonly IHubContext<NotificationHub> _notificationHub;
 
-    public ProductQuantitiesController(PlusgrowDbContext context)
+    public ProductQuantitiesController(PlusgrowDbContext context, IHubContext<NotificationHub> notificationHub)
     {
         _context = context;
+        _notificationHub = notificationHub;
     }
 
     [HttpGet]
@@ -77,6 +82,133 @@ public class ProductQuantitiesController : BaseController
         return Success(MapQuantity(updated), "Product quantity updated successfully");
     }
 
+    [HttpGet("movements")]
+    public async Task<ActionResult<ApiResponse<List<ProductStockMovementDto>>>> GetMovements([FromQuery] string? search)
+    {
+        var query = _context.ProductStockMovements
+            .Include(x => x.Product)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var normalized = search.Trim().ToLower();
+            query = query.Where(x =>
+                (x.Product != null && x.Product.Name.ToLower().Contains(normalized)) ||
+                (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(normalized)) ||
+                x.Reason.ToLower().Contains(normalized) ||
+                (x.Notes != null && x.Notes.ToLower().Contains(normalized)) ||
+                (x.PerformedByName != null && x.PerformedByName.ToLower().Contains(normalized)));
+        }
+
+        var rows = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(200)
+            .ToListAsync();
+
+        return Success(rows.Select(MapMovement).ToList());
+    }
+
+    [HttpPost("adjust")]
+    public async Task<ActionResult<ApiResponse<StockAdjustmentResultDto>>> AdjustStock([FromBody] CreateStockAdjustmentDto dto)
+    {
+        if (dto.ProductId <= 0)
+            return BadRequest<StockAdjustmentResultDto>("Product is required");
+
+        if (dto.QuantityChange == 0)
+            return BadRequest<StockAdjustmentResultDto>("Quantity change cannot be zero");
+
+        if (string.IsNullOrWhiteSpace(dto.Reason))
+            return BadRequest<StockAdjustmentResultDto>("Reason is required");
+
+        var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
+        if (product == null)
+            return NotFound<StockAdjustmentResultDto>("Selected product does not exist");
+
+        var quantityRow = await _context.ProductQuantities
+            .Include(x => x.Product)
+            .FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
+
+        var quantityBefore = quantityRow?.CurrentQuantity ?? 0;
+        var quantityAfter = quantityBefore + dto.QuantityChange;
+
+        if (quantityAfter < 0)
+            return BadRequest<StockAdjustmentResultDto>($"Cannot reduce stock below zero. Current quantity is {quantityBefore}");
+
+        if (quantityRow == null)
+        {
+            quantityRow = new ProductQuantity
+            {
+                ProductId = dto.ProductId,
+                CurrentQuantity = quantityAfter,
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            };
+            _context.ProductQuantities.Add(quantityRow);
+        }
+        else
+        {
+            quantityRow.CurrentQuantity = quantityAfter;
+            quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        }
+
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        var movement = new ProductStockMovement
+        {
+            ProductId = dto.ProductId,
+            QuantityChange = dto.QuantityChange,
+            QuantityBefore = quantityBefore,
+            QuantityAfter = quantityAfter,
+            Reason = dto.Reason.Trim(),
+            MovementType = dto.QuantityChange > 0 ? "increase" : "decrease",
+            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        };
+
+        _context.ProductStockMovements.Add(movement);
+        await _context.SaveChangesAsync();
+
+        var refreshedQuantity = await _context.ProductQuantities
+            .Include(x => x.Product)
+            .FirstAsync(x => x.Id == quantityRow.Id);
+
+        var refreshedMovement = await _context.ProductStockMovements
+            .Include(x => x.Product)
+            .FirstAsync(x => x.Id == movement.Id);
+
+        var response = new StockAdjustmentResultDto
+        {
+            Quantity = MapQuantity(refreshedQuantity),
+            Movement = MapMovement(refreshedMovement),
+        };
+
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "stock.adjusted",
+            Title = "Stock adjusted",
+            Message = $"{response.Movement.ProductName} quantity changed by {response.Movement.QuantityChange:+#;-#;0}.",
+            Severity = dto.QuantityChange > 0 ? "success" : "warning",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = response.Movement.ProductId,
+                ["productName"] = response.Movement.ProductName,
+                ["skuCode"] = response.Movement.SkuCode,
+                ["quantityBefore"] = response.Movement.QuantityBefore,
+                ["quantityAfter"] = response.Movement.QuantityAfter,
+                ["quantityChange"] = response.Movement.QuantityChange,
+                ["reason"] = response.Movement.Reason,
+                ["performedByName"] = response.Movement.PerformedByName,
+            },
+        });
+
+        return Success(response, "Stock adjusted successfully");
+    }
+
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteProductQuantity(int id)
     {
@@ -100,5 +232,30 @@ public class ProductQuantitiesController : BaseController
             CurrentQuantity = row.CurrentQuantity,
             UpdatedAt = row.UpdatedAt,
         };
+    }
+
+    private static ProductStockMovementDto MapMovement(ProductStockMovement row)
+    {
+        return new ProductStockMovementDto
+        {
+            Id = row.Id,
+            ProductId = row.ProductId,
+            SkuCode = row.Product?.Sku ?? string.Empty,
+            ProductName = row.Product?.Name ?? string.Empty,
+            QuantityChange = row.QuantityChange,
+            QuantityBefore = row.QuantityBefore,
+            QuantityAfter = row.QuantityAfter,
+            Reason = row.Reason,
+            MovementType = row.MovementType,
+            Notes = row.Notes,
+            PerformedByUserId = row.PerformedByUserId,
+            PerformedByName = row.PerformedByName,
+            CreatedAt = row.CreatedAt,
+        };
+    }
+
+    private Task SendNotificationAsync(RealtimeNotificationDto notification)
+    {
+        return _notificationHub.Clients.All.SendAsync("ReceiveNotification", notification);
     }
 }

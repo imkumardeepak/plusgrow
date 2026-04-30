@@ -173,6 +173,34 @@ export interface CreateProductQuantityDto {
   currentQuantity: number;
 }
 
+export interface ProductStockMovementRecord {
+  id: number;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  quantityChange: number;
+  quantityBefore: number;
+  quantityAfter: number;
+  reason: string;
+  movementType: string;
+  notes?: string | null;
+  performedByUserId?: number | null;
+  performedByName?: string | null;
+  createdAt: string;
+}
+
+export interface CreateStockAdjustmentDto {
+  productId: number;
+  quantityChange: number;
+  reason: string;
+  notes?: string | null;
+}
+
+export interface StockAdjustmentResult {
+  quantity: ProductQuantityRecord;
+  movement: ProductStockMovementRecord;
+}
+
 export interface ProductAllottedLocationRecord {
   id: number;
   productId: number;
@@ -605,8 +633,20 @@ export const productQuantitiesApi = {
     return response.data.data || [];
   },
 
+  getMovements: async (search?: string): Promise<ProductStockMovementRecord[]> => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    const response = await api.get<ApiResponse<ProductStockMovementRecord[]>>(`/productquantities/movements${query}`);
+    return response.data.data || [];
+  },
+
   create: async (data: CreateProductQuantityDto): Promise<ProductQuantityRecord> => {
     const response = await api.post<ApiResponse<ProductQuantityRecord>>('/productquantities', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  adjust: async (data: CreateStockAdjustmentDto): Promise<StockAdjustmentResult> => {
+    const response = await api.post<ApiResponse<StockAdjustmentResult>>('/productquantities/adjust', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

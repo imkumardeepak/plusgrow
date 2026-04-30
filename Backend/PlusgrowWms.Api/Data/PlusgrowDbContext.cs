@@ -51,6 +51,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<PoInvoice> PoInvoices => Set<PoInvoice>();
     public DbSet<ProductQuantity> ProductQuantities => Set<ProductQuantity>();
+    public DbSet<ProductStockMovement> ProductStockMovements => Set<ProductStockMovement>();
     public DbSet<ProductAllottedLocation> ProductAllottedLocations => Set<ProductAllottedLocation>();
     public DbSet<StickerPrinterConfig> StickerPrinterConfigs => Set<StickerPrinterConfig>();
 
@@ -113,6 +114,12 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.ProductId)
             .IsUnique();
 
+        modelBuilder.Entity<ProductStockMovement>()
+            .HasIndex(x => x.ProductId);
+
+        modelBuilder.Entity<ProductStockMovement>()
+            .HasIndex(x => x.CreatedAt);
+
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => new { x.InvoiceDate, x.ProductId });
 
@@ -148,6 +155,18 @@ public class PlusgrowDbContext : DbContext
             .WithMany()
             .HasForeignKey(x => x.ProductId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductStockMovement>()
+            .HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProductStockMovement>()
+            .HasOne(x => x.PerformedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.PerformedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.RoleId);
