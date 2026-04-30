@@ -268,6 +268,8 @@ export interface OutwardOrderFilters {
 
 export interface UpdateOutwardPickingDto {
   quantity: number;
+  skuCode?: string;
+  locationCode?: string;
 }
 
 export interface DispatchOutwardOrderDto {

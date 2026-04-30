@@ -123,6 +123,24 @@ public class OutwardOrdersController : BaseController
         if (nextPicked == order.PickedQuantity)
             return BadRequest<OutwardOrderDto>("Order is already fully picked");
 
+        var expectedSku = order.Product?.Sku?.Trim();
+        if (!string.IsNullOrWhiteSpace(expectedSku) && !string.IsNullOrWhiteSpace(dto.SkuCode))
+        {
+            if (!string.Equals(expectedSku, dto.SkuCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                return BadRequest<OutwardOrderDto>($"Scanned SKU {dto.SkuCode.Trim()} does not match {expectedSku}");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.LocationCode))
+            return BadRequest<OutwardOrderDto>("Location scan is required");
+
+        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        if (string.IsNullOrWhiteSpace(resolvedLocationCode))
+            return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
+
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty);
+        if (!reduceLocationResult.Success)
+            return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
+
         order.PickedQuantity = nextPicked;
         order.Status = order.PickedQuantity >= order.Quantity ? "Packed" : "Picking";
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
@@ -144,6 +162,7 @@ public class OutwardOrdersController : BaseController
                     ["orderId"] = response.Id,
                     ["orderNumber"] = response.OrderNumber,
                     ["customerName"] = response.CustomerName,
+                    ["locationCode"] = resolvedLocationCode,
                 },
             });
         }
@@ -174,8 +193,6 @@ public class OutwardOrdersController : BaseController
 
         quantityRow.CurrentQuantity -= order.Quantity;
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-
-        await ReduceAllocatedLocationsAsync(order.ProductId, order.Quantity);
 
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
@@ -246,34 +263,49 @@ public class OutwardOrdersController : BaseController
         return $"{prefix}-{nextSequence:000}";
     }
 
-    private async Task ReduceAllocatedLocationsAsync(int productId, int quantity)
+    private async Task<string?> ResolveLocationCodeAsync(string scannedLocationCode)
+    {
+        var normalized = scannedLocationCode.Trim();
+
+        var directLocation = await _context.Locations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.LocationCode.ToLower() == normalized.ToLower());
+
+        if (directLocation != null)
+            return directLocation.LocationCode;
+
+        var binLocation = await _context.Locations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Bins.Any(bin => bin.ToLower() == normalized.ToLower()));
+
+        return binLocation?.LocationCode;
+    }
+
+    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(int productId, string resolvedLocationCode, int quantity)
     {
         var row = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
-            return;
+            return (false, "No allotted location stock found for this product");
 
-        var remaining = quantity;
-        foreach (var locationKey in row.LocationJson.Keys.ToList())
-        {
-            if (remaining <= 0)
-                break;
+        var matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
+            string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
 
-            var available = row.LocationJson[locationKey];
-            if (available <= 0)
-                continue;
+        if (matchingKey == null)
+            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU");
 
-            var deduct = Math.Min(available, remaining);
-            var nextQty = available - deduct;
-            if (nextQty <= 0)
-                row.LocationJson.Remove(locationKey);
-            else
-                row.LocationJson[locationKey] = nextQty;
+        var available = row.LocationJson[matchingKey];
+        if (available < quantity)
+            return (false, $"Only {available} units are available in {matchingKey}");
 
-            remaining -= deduct;
-        }
+        var nextQty = available - quantity;
+        if (nextQty <= 0)
+            row.LocationJson.Remove(matchingKey);
+        else
+            row.LocationJson[matchingKey] = nextQty;
 
         row.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(row).Property(x => x.LocationJson).IsModified = true;
+        return (true, null);
     }
 
     private static string BuildCartonId(OutwardOrder order)

@@ -1,4 +1,5 @@
 import apiClient from '../client';
+import { clearStoredAuth, getStoredToken, isTokenExpired } from '../authToken';
 import type {
   User,
   CreateUserDto,
@@ -29,18 +30,33 @@ export const authService = {
     try {
       await apiClient.post('/auth/logout');
     } finally {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
+      clearStoredAuth();
     }
   },
 
   getCurrentUser: () => {
+    const token = getStoredToken();
+    if (!token || isTokenExpired(token)) {
+      clearStoredAuth();
+      return null;
+    }
+
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   },
 
   isAuthenticated: () => {
-    return !!localStorage.getItem('auth_token');
+    const token = getStoredToken();
+    if (!token) {
+      return false;
+    }
+
+    if (isTokenExpired(token)) {
+      clearStoredAuth();
+      return false;
+    }
+
+    return true;
   },
 
   refreshToken: async () => {

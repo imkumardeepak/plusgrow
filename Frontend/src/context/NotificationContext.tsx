@@ -13,6 +13,7 @@ import {
   LogLevel,
 } from "@microsoft/signalr";
 
+import { clearStoredAuth, isTokenExpired } from "../lib/api/authToken";
 import { toast } from "../lib/toast";
 import { useAuth } from "./AuthContext";
 
@@ -90,9 +91,27 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
       return;
     }
 
+    if (isTokenExpired(token)) {
+      clearStoredAuth();
+      setConnectionStatus("error");
+      toast.error("Session expired", {
+        description: "Please sign in again to receive live notifications.",
+      });
+      window.location.href = "/login";
+      return;
+    }
+
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
-        accessTokenFactory: () => localStorage.getItem("auth_token") ?? "",
+        accessTokenFactory: () => {
+          const nextToken = localStorage.getItem("auth_token");
+          if (!nextToken || isTokenExpired(nextToken)) {
+            clearStoredAuth();
+            return "";
+          }
+
+          return nextToken;
+        },
       })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)

@@ -1,6 +1,6 @@
 {
-  "last_turn_at": "2026-04-30T07:55:31.416Z",
-  "turn_count": 79,
-  "last_progress_at": "2026-04-30T07:55:31.416Z",
-  "last_agent_output": "Yes, we’ve moved past the real migration problem.\n\nWhat I verified:\n- The broken outward migration w"
+  "last_turn_at": "2026-04-30T08:15:04.202Z",
+  "turn_count": 86,
+  "last_progress_at": "2026-04-30T08:15:04.202Z",
+  "last_agent_output": "Fixed. The login toast was reading `user.full_name`, but your login response can carry `FullName`/`f"
 }

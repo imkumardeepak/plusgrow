@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearStoredAuth, isTokenExpired } from './authToken';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
 
@@ -14,6 +15,12 @@ apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
+      if (isTokenExpired(token)) {
+        clearStoredAuth();
+        window.location.href = '/login';
+        return Promise.reject(new axios.Cancel('Authentication token expired'));
+      }
+
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;

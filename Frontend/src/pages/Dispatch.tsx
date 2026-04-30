@@ -84,17 +84,26 @@ export const Dispatch = memo(function Dispatch() {
       title="Dispatch"
       description="Finalize packed orders, confirm carton details, and close the outward order with live stock deduction."
       icon={Send}
-      metrics={[
-        { label: "Awaiting Dispatch", value: dispatchQueue.length, tone: "warning" },
-        { label: "Dispatched Orders", value: dispatchedOrders, tone: "success" },
-        { label: "Completion", value: `${dispatchProgress}%`, tone: "brand" },
-      ]}
+      hideHeader
     >
       <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         <OperationsPanel
           title="Dispatch Queue"
           icon={ClipboardList}
-          description="Packed orders waiting for final shipment."
+          description="Packed orders waiting."
+          action={
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                {dispatchQueue.length} Waiting
+              </span>
+              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                {dispatchedOrders} Done
+              </span>
+              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                {dispatchProgress}% Complete
+              </span>
+            </div>
+          }
         >
           <input
             value={searchQuery}
@@ -112,7 +121,7 @@ export const Dispatch = memo(function Dispatch() {
                   <button
                     key={order.id}
                     onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full rounded-2xl border p-4 text-left transition ${
+                    className={`w-full rounded-xl border p-3 text-left transition ${
                       active
                         ? "border-brand-500/40 bg-brand-500/10"
                         : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
@@ -153,11 +162,11 @@ export const Dispatch = memo(function Dispatch() {
         <OperationsPanel
           title="Dispatch Workspace"
           icon={Truck}
-          description="Review packed order and confirm shipment."
+          description="Confirm shipment."
         >
           {activeOrder ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
+              <div className="rounded-xl border border-brand-500/20 bg-brand-500/10 p-3.5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold text-white">{activeOrder.orderNumber}</p>
@@ -170,22 +179,22 @@ export const Dispatch = memo(function Dispatch() {
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Carton ID</p>
                   <p className="mt-2 font-mono text-xl font-black text-brand-300">{cartonId || "-"}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Ship Date</p>
                   <p className="mt-2 text-xl font-black text-white">{activeOrder.orderDate.slice(0, 10)}</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Customer</p>
                   <div className="mt-2 flex items-center gap-2">
                     <User className="h-4 w-4 text-brand-400" />
                     <p className="text-sm font-semibold text-white">{activeOrder.customerName}</p>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Shipment</p>
                   <p className="mt-2 text-sm font-semibold text-white">{activeOrder.skuCode} · {activeOrder.quantity} units</p>
                 </div>
@@ -198,10 +207,10 @@ export const Dispatch = memo(function Dispatch() {
                 fullWidth
               />
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="mb-2 flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-brand-400" />
-                  <p className="text-sm font-semibold text-white">Dispatch Check</p>
+                  <p className="text-sm font-semibold text-white">Dispatch Rule</p>
                 </div>
                 <p className="text-sm text-neutral-400">
                   Dispatch will close the order, reduce live stock quantity, and update allotted location balances.

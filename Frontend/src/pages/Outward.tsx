@@ -1,10 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
 import {
   ActionIcon,
   Badge,
-  Box,
   Group,
   Select,
   SegmentedControl,
@@ -15,14 +13,10 @@ import {
 } from "@mantine/core";
 import {
   ArrowUpFromLine,
-  Download,
   FileText,
-  Package,
   Plus,
   RefreshCw,
   Search,
-  Truck,
-  Users,
 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
@@ -32,7 +26,6 @@ import {
   MantineDataTable,
 } from "../components/molecules/MantineDataTable";
 import {
-  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
@@ -77,7 +70,6 @@ export const Outward = memo(function Outward() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [orderForm, setOrderForm] = useState<CreateOutwardOrderDto>(emptyOrderForm());
-  const navigate = useNavigate();
 
   const loadData = useCallback(async () => {
     try {
@@ -238,158 +230,81 @@ export const Outward = memo(function Outward() {
       title="Outward Orders"
       description="Create outward orders, review the live order ledger, and move work into packing and dispatch."
       icon={ArrowUpFromLine}
-      actions={
-        <Group gap="xs">
-          <Button
-            size="sm"
-            variant="outline"
-            leftIcon={<RefreshCw className="h-4 w-4" />}
-            onClick={() => void loadData()}
-            loading={isLoading}
-          >
-            Refresh
-          </Button>
-          <Button
-            size="sm"
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            New Order
-          </Button>
-        </Group>
-      }
-      metrics={[
-        { label: "Total Orders", value: metrics.total },
-        { label: "Open Orders", value: metrics.open, tone: "warning" },
-        { label: "Packed Orders", value: metrics.packed, tone: "brand" },
-        { label: "Dispatched", value: metrics.dispatched, tone: "success" },
-      ]}
+      hideHeader
     >
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
-        <OperationsPanel
-          title="Sales Order Ledger"
-          icon={FileText}
-          description="Live outward orders stored in the database."
-          contentClassName="p-0"
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <SegmentedControl
-                size="xs"
-                radius="md"
-                value={statusFilter}
-                onChange={(value) => setStatusFilter(value as OutwardStatusFilter)}
-                data={[
-                  { value: "all", label: "All" },
-                  { value: "open", label: "Open" },
-                  { value: "packed", label: "Packed" },
-                  { value: "dispatched", label: "Done" },
-                ]}
-              />
-              <TextInput
-                size="xs"
-                radius="md"
-                w={240}
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                placeholder="Search order, customer, SKU..."
-                leftSection={<Search size={14} />}
-              />
-            </Group>
-          }
-        >
-          <MantineDataTable
-            data={orders}
-            columns={columns}
-            rowKey={(row) => row.id}
-            isLoading={isLoading}
-            itemLabel="orders"
-            resetPageKey={`${searchTerm}-${statusFilter}`}
-            emptyIcon={FileText}
-            emptyTitle="No outward orders"
-            emptyDescription="Create an outward order to start the outbound workflow."
-          />
-        </OperationsPanel>
-
-        <div className="grid gap-4">
-          <OperationsPanel
-            title="Workflow"
-            icon={Package}
-            description="Move live outward work into the next operation stage."
-          >
-            <div className="space-y-3">
-              <button
-                onClick={() => navigate("/packing")}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-brand-500/30 hover:bg-brand-500/10"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Picking & Packing</p>
-                    <p className="mt-1 text-xs text-neutral-400">Pick open orders and prepare packed cartons.</p>
-                  </div>
-                  <Package className="h-4 w-4 text-brand-400" />
-                </div>
-              </button>
-
-              <button
-                onClick={() => navigate("/dispatch")}
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-brand-500/30 hover:bg-brand-500/10"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">Dispatch</p>
-                    <p className="mt-1 text-xs text-neutral-400">Dispatch packed orders and deduct stock from the DB.</p>
-                  </div>
-                  <Truck className="h-4 w-4 text-brand-400" />
-                </div>
-              </button>
-            </div>
-          </OperationsPanel>
-
-          <OperationsPanel
-            title="Queue Snapshot"
-            icon={Users}
-            description="Latest outward activity from the live order queue."
-          >
-            {orders.length > 0 ? (
-              <div className="space-y-3">
-                {orders.slice(0, 5).map((row) => {
-                  const tone = statusTone(row.status);
-                  return (
-                    <div key={row.id} className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-white">{row.customerName}</p>
-                          <p className="mt-1 text-xs text-neutral-400">
-                            {row.orderNumber} · {row.skuCode}
-                          </p>
-                        </div>
-                        <Badge variant="light" color={tone.color}>
-                          {tone.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <OperationsEmptyState
-                icon={Download}
-                title="No outward orders"
-                description="Create a new order to start outward processing."
-                action={
-                  <Button
-                    size="sm"
-                    leftIcon={<Plus className="h-4 w-4" />}
-                    onClick={() => setIsCreateOpen(true)}
-                  >
-                    New Order
-                  </Button>
-                }
-              />
-            )}
-          </OperationsPanel>
-        </div>
-      </div>
+      <OperationsPanel
+        title="Sales Order Ledger"
+        icon={FileText}
+        description="Live outward orders."
+        contentClassName="p-0"
+        action={
+          <Group gap="xs" wrap="nowrap">
+            <Badge size="sm" radius="md" variant="light" color="gray">
+              {metrics.total} Orders
+            </Badge>
+            <Badge size="sm" radius="md" variant="light" color="orange">
+              {metrics.open} Open
+            </Badge>
+            <Badge size="sm" radius="md" variant="light" color="blue">
+              {metrics.packed} Packed
+            </Badge>
+            <Badge size="sm" radius="md" variant="light" color="green">
+              {metrics.dispatched} Dispatched
+            </Badge>
+            <SegmentedControl
+              size="xs"
+              radius="md"
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value as OutwardStatusFilter)}
+              data={[
+                { value: "all", label: "All" },
+                { value: "open", label: "Open" },
+                { value: "packed", label: "Packed" },
+                { value: "dispatched", label: "Done" },
+              ]}
+            />
+            <TextInput
+              size="xs"
+              radius="md"
+              w={240}
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.currentTarget.value)}
+              placeholder="Search order, customer, SKU..."
+              leftSection={<Search size={14} />}
+            />
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="gray"
+              onClick={() => void loadData()}
+              loading={isLoading}
+              aria-label="Refresh outward orders"
+            >
+              <RefreshCw size={14} />
+            </ActionIcon>
+            <Button
+              size="sm"
+              leftIcon={<Plus className="h-3.5 w-3.5" />}
+              onClick={() => setIsCreateOpen(true)}
+            >
+              New Order
+            </Button>
+          </Group>
+        }
+      >
+        <MantineDataTable
+          data={orders}
+          columns={columns}
+          rowKey={(row) => row.id}
+          isLoading={isLoading}
+          itemLabel="orders"
+          resetPageKey={`${searchTerm}-${statusFilter}`}
+          emptyIcon={FileText}
+          emptyTitle="No outward orders"
+          emptyDescription="Create an outward order to start the outbound workflow."
+        />
+      </OperationsPanel>
 
       <Modal
         isOpen={isCreateOpen}
@@ -412,22 +327,24 @@ export const Outward = memo(function Outward() {
             label="Order Date"
             type="date"
             value={orderForm.orderDate}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
               setOrderForm((current) => ({
                 ...current,
-                orderDate: event.currentTarget.value,
-              }))
-            }
+                orderDate: value,
+              }));
+            }}
           />
           <TextInput
             label="Customer Name"
             value={orderForm.customerName}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
               setOrderForm((current) => ({
                 ...current,
-                customerName: event.currentTarget.value,
-              }))
-            }
+                customerName: value,
+              }));
+            }}
           />
           <Select
             label="Product"
@@ -446,22 +363,24 @@ export const Outward = memo(function Outward() {
             type="number"
             min={1}
             value={String(orderForm.quantity)}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
               setOrderForm((current) => ({
                 ...current,
-                quantity: Number(event.currentTarget.value || 0),
-              }))
-            }
+                quantity: Number(value || 0),
+              }));
+            }}
           />
           <TextInput
             label="Notes"
             value={orderForm.notes || ""}
-            onChange={(event) =>
+            onChange={(event) => {
+              const { value } = event.currentTarget;
               setOrderForm((current) => ({
                 ...current,
-                notes: event.currentTarget.value,
-              }))
-            }
+                notes: value,
+              }));
+            }}
             className="md:col-span-2"
           />
         </SimpleGrid>

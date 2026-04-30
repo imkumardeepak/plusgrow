@@ -38,6 +38,8 @@ public class CreateOutwardOrderDto
 public class UpdateOutwardPickingDto
 {
     public int Quantity { get; set; } = 1;
+    public string? SkuCode { get; set; }
+    public string? LocationCode { get; set; }
 }
 
 public class DispatchOutwardOrderDto

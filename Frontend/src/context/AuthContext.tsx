@@ -7,6 +7,7 @@ import { toast } from '../lib/toast';
 interface ApiUser {
   id: number;
   username: string;
+  fullName?: string;
   full_name: string;
   email: string | null;
   phone: string | null;
@@ -61,8 +62,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await authService.login(credentials);
       if (response?.success && response.data) {
-        setUser(response.data.user);
-        toast.success(`Welcome back, ${response.data.user.full_name}!`);
+        const apiUser = response.data.user as ApiUser & { fullName?: string };
+        setUser(apiUser);
+        const displayName =
+          apiUser.fullName ||
+          apiUser.full_name ||
+          apiUser.username;
+        toast.success(`Welcome back, ${displayName}!`);
         return { success: true };
       }
       return { success: false, message: response?.message || 'Login failed' };
