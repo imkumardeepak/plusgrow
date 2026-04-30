@@ -11,6 +11,7 @@
 DROP TABLE IF EXISTS role_page_access CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS outward_orders CASCADE;
 DROP TABLE IF EXISTS product_stock_movements CASCADE;
 DROP TABLE IF EXISTS product_quantities CASCADE;
 DROP TABLE IF EXISTS products CASCADE;
@@ -117,6 +118,22 @@ CREATE TABLE product_stock_movements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE outward_orders (
+    id SERIAL PRIMARY KEY,
+    order_number VARCHAR(50) NOT NULL UNIQUE,
+    order_date TIMESTAMP NOT NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL,
+    picked_quantity INTEGER NOT NULL DEFAULT 0,
+    status VARCHAR(30) NOT NULL DEFAULT 'Open',
+    carton_id VARCHAR(100),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    dispatched_at TIMESTAMP
+);
+
 -- INDEXES FOR PERFORMANCE
 CREATE INDEX idx_products_commodity_id ON products(commodity_id);
 CREATE INDEX idx_products_manufacturer_id ON products(manufacturer_id);
@@ -124,6 +141,7 @@ CREATE INDEX idx_products_hsn_code ON products(hsn_code);
 CREATE INDEX idx_products_name ON products(name);
 CREATE INDEX idx_product_stock_movements_product_id ON product_stock_movements(product_id);
 CREATE INDEX idx_product_stock_movements_created_at ON product_stock_movements(created_at);
+CREATE INDEX idx_outward_orders_status ON outward_orders(status);
 
 CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_is_active ON users(is_active);

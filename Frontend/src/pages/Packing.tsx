@@ -1,79 +1,124 @@
-import React, { memo, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ClipboardList, MapPin, Package, ScanLine } from 'lucide-react';
-import { toast } from '../lib/toast';
-import confetti from 'canvas-confetti';
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  ClipboardList,
+  MapPin,
+  Package,
+  ScanLine,
+} from "lucide-react";
 
-import { Badge } from '../components/atoms/Badge';
-import { Button } from '../components/atoms/Button';
-import { OperationsEmptyState, OperationsPage, OperationsPanel } from '../components/organisms/Operations/OperationsShell';
-import { useWms } from '../context/WmsContext';
+import { Badge } from "../components/atoms/Badge";
+import { Button } from "../components/atoms/Button";
+import {
+  OperationsEmptyState,
+  OperationsPage,
+  OperationsPanel,
+} from "../components/organisms/Operations/OperationsShell";
+import {
+  OutwardOrder,
+  outwardOrdersApi,
+  productAllottedLocationsApi,
+  ProductAllottedLocationRecord,
+} from "../services/masterApi";
+import { toast } from "../lib/toast";
 
 export const Packing = memo(function Packing() {
-  const { salesInvoices, stock, products } = useWms();
-  const [selectedSi, setSelectedSi] = useState('');
-  const [pickedQty, setPickedQty] = useState<Record<string, number>>({});
-  const [searchQuery, setSearchQuery] = useState('');
+  const [orders, setOrders] = useState<OutwardOrder[]>([]);
+  const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPicking, setIsPicking] = useState(false);
   const navigate = useNavigate();
+
+  const loadData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [ordersData, locationsData] = await Promise.all([
+        outwardOrdersApi.getAll(),
+        productAllottedLocationsApi.getAll(),
+      ]);
+      setOrders(ordersData);
+      setLocations(locationsData);
+    } catch {
+      toast.error("Failed to load packing data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const openOrders = useMemo(() => {
     const query = searchQuery.toLowerCase();
-    return salesInvoices.filter(
-      (si) =>
-        si.status === 'Open' &&
-        (si.siNumber.toLowerCase().includes(query) ||
-          si.customerName.toLowerCase().includes(query) ||
-          si.sku.toLowerCase().includes(query))
+    return orders.filter(
+      (order) =>
+        (order.status === "Open" || order.status === "Picking" || order.status === "Packed") &&
+        (order.orderNumber.toLowerCase().includes(query) ||
+          order.customerName.toLowerCase().includes(query) ||
+          order.skuCode.toLowerCase().includes(query)),
     );
-  }, [salesInvoices, searchQuery]);
+  }, [orders, searchQuery]);
 
-  const activeOrder = salesInvoices.find((si) => si.id === selectedSi);
-  const productDetails = activeOrder ? products.find((p) => p.sku === activeOrder.sku) : null;
-  const stockLocation = activeOrder ? stock.find((s) => s.sku === activeOrder.sku) : null;
+  const activeOrder = openOrders.find((row) => row.id === selectedOrderId) ?? null;
+  const locationRow =
+    activeOrder
+      ? locations.find((row) => row.productId === activeOrder.productId) ?? null
+      : null;
 
-  const handlePick = () => {
+  const locationSummary = useMemo(() => {
+    if (!locationRow) return "Not mapped";
+    const entries = Object.entries(locationRow.locationJson || {});
+    if (entries.length === 0) return "Not mapped";
+    return entries
+      .slice(0, 3)
+      .map(([code, qty]) => `${code} (${qty})`)
+      .join(", ");
+  }, [locationRow]);
+
+  const readyOrders = openOrders.filter((row) => row.status === "Packed").length;
+  const pickedOrders = openOrders.filter((row) => row.pendingQuantity === 0).length;
+  const progress = openOrders.length > 0 ? Math.round((pickedOrders / openOrders.length) * 100) : 0;
+  const isFullyPicked = activeOrder ? activeOrder.pendingQuantity === 0 : false;
+
+  const handlePick = async () => {
     if (!activeOrder) return;
 
-    const current = pickedQty[activeOrder.id] || 0;
-    if (current >= activeOrder.quantity) {
-      toast.error('Order already fully picked');
-      return;
-    }
-
-    const nextQty = current + 1;
-    setPickedQty((prev) => ({ ...prev, [activeOrder.id]: nextQty }));
-
-    if (nextQty === activeOrder.quantity) {
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.65 }, colors: ['#10b981', '#11a7df'] });
-      toast.success(`Order ${activeOrder.siNumber} fully picked`);
-    } else {
-      toast.success(`Picked 1 unit of ${activeOrder.sku}`);
+    try {
+      setIsPicking(true);
+      const updated = await outwardOrdersApi.pick(activeOrder.id, { quantity: 1 });
+      setOrders((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+      toast.success(
+        updated.pendingQuantity === 0
+          ? `${updated.orderNumber} is packed and ready for dispatch`
+          : `Picked 1 unit for ${updated.orderNumber}`,
+      );
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update picking progress");
+    } finally {
+      setIsPicking(false);
     }
   };
-
-  const allOpenOrders = salesInvoices.filter((si) => si.status === 'Open');
-  const pickedOrders = allOpenOrders.filter((si) => (pickedQty[si.id] || 0) >= si.quantity).length;
-  const pendingOrders = allOpenOrders.length;
-  const progress = pendingOrders > 0 ? Math.round((pickedOrders / pendingOrders) * 100) : 0;
-  const isFullyPicked = activeOrder ? (pickedQty[activeOrder.id] || 0) === activeOrder.quantity : false;
-  const pendingUnits = activeOrder ? activeOrder.quantity - (pickedQty[activeOrder.id] || 0) : 0;
 
   return (
     <OperationsPage
       title="Picking & Packing"
-      description="Select open sales order, verify stock location, then log picked quantity until order is ready for dispatch."
+      description="Select a live outward order, review mapped pick locations, and complete picking until the order is packed."
       icon={Package}
       metrics={[
-        { label: 'Open Orders', value: pendingOrders, tone: 'warning' },
-        { label: 'Fully Picked', value: pickedOrders, tone: 'success' },
-        { label: 'Completion', value: `${progress}%`, tone: 'brand' },
+        { label: "Active Orders", value: openOrders.length, tone: "warning" },
+        { label: "Ready For Dispatch", value: readyOrders, tone: "success" },
+        { label: "Completion", value: `${progress}%`, tone: "brand" },
       ]}
     >
       <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         <OperationsPanel
           title="Open Orders"
           icon={ClipboardList}
-          description="Choose order to start picking."
+          description="Choose a live outward order to start picking."
         >
           <input
             value={searchQuery}
@@ -85,37 +130,36 @@ export const Packing = memo(function Packing() {
           {openOrders.length > 0 ? (
             <div className="max-h-[540px] space-y-2 overflow-y-auto scrollbar-thin">
               {openOrders.map((order) => {
-                const picked = pickedQty[order.id] || 0;
-                const done = picked >= order.quantity;
-                const active = order.id === selectedSi;
+                const done = order.pendingQuantity === 0;
+                const active = order.id === selectedOrderId;
 
                 return (
                   <button
                     key={order.id}
-                    onClick={() => setSelectedSi(order.id)}
+                    onClick={() => setSelectedOrderId(order.id)}
                     className={`w-full rounded-2xl border p-4 text-left transition ${
                       active
-                        ? 'border-brand-500/40 bg-brand-500/10'
-                        : 'border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]'
+                        ? "border-brand-500/40 bg-brand-500/10"
+                        : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-white">{order.siNumber}</p>
+                        <p className="text-sm font-semibold text-white">{order.orderNumber}</p>
                         <p className="mt-1 text-xs text-neutral-400">{order.customerName}</p>
                       </div>
-                      <Badge variant={done ? 'success' : 'warning'} shape="pill" className="border-none">
-                        {done ? 'Ready' : 'Pending'}
+                      <Badge variant={done ? "success" : "warning"} shape="pill" className="border-none">
+                        {done ? "Ready" : order.status}
                       </Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                       <div>
                         <p className="uppercase tracking-[0.18em] text-neutral-500">SKU</p>
-                        <p className="mt-1 font-mono text-brand-300">{order.sku}</p>
+                        <p className="mt-1 font-mono text-brand-300">{order.skuCode}</p>
                       </div>
                       <div>
                         <p className="uppercase tracking-[0.18em] text-neutral-500">Picked</p>
-                        <p className="mt-1 font-bold text-white">{picked} / {order.quantity}</p>
+                        <p className="mt-1 font-bold text-white">{order.pickedQuantity} / {order.quantity}</p>
                       </div>
                     </div>
                   </button>
@@ -125,8 +169,8 @@ export const Packing = memo(function Packing() {
           ) : (
             <OperationsEmptyState
               icon={ClipboardList}
-              title="No open orders"
-              description="Outward queue is empty or search found nothing."
+              title="No active orders"
+              description="No open outward orders are waiting for picking."
             />
           )}
         </OperationsPanel>
@@ -134,34 +178,32 @@ export const Packing = memo(function Packing() {
         <OperationsPanel
           title="Packing Workspace"
           icon={ScanLine}
-          description="Use order details and stock location to complete picking."
+          description="Use order details and mapped locations to complete picking."
         >
           {activeOrder ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-white">{activeOrder.siNumber}</p>
+                    <p className="text-sm font-semibold text-white">{activeOrder.orderNumber}</p>
                     <p className="mt-1 text-xs text-neutral-300">{activeOrder.customerName}</p>
                   </div>
-                  <Badge variant={isFullyPicked ? 'success' : 'warning'} shape="pill" className="border-none">
-                    {isFullyPicked ? 'Ready for Dispatch' : 'Picking'}
+                  <Badge variant={isFullyPicked ? "success" : "warning"} shape="pill" className="border-none">
+                    {isFullyPicked ? "Ready for Dispatch" : activeOrder.status}
                   </Badge>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Product</p>
-                    <p className="mt-1 text-sm font-semibold text-white">{productDetails?.title || 'Unknown Product'}</p>
+                    <p className="mt-1 text-sm font-semibold text-white">{activeOrder.productName}</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">SKU</p>
-                    <p className="mt-1 font-mono text-sm font-semibold text-brand-300">{activeOrder.sku}</p>
+                    <p className="mt-1 font-mono text-sm font-semibold text-brand-300">{activeOrder.skuCode}</p>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Location</p>
-                    <p className="mt-1 text-sm font-semibold text-white">
-                      {stockLocation ? `${stockLocation.rack}-${stockLocation.shelf}-${stockLocation.bin}` : 'Not mapped'}
-                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">{locationSummary}</p>
                   </div>
                 </div>
               </div>
@@ -173,25 +215,26 @@ export const Packing = memo(function Packing() {
                 </div>
                 <div className="rounded-2xl border border-brand-500/20 bg-brand-500/10 p-4">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Picked Qty</p>
-                  <p className="mt-2 text-2xl font-black text-brand-300">{pickedQty[activeOrder.id] || 0}</p>
+                  <p className="mt-2 text-2xl font-black text-brand-300">{activeOrder.pickedQuantity}</p>
                 </div>
                 <div className="rounded-2xl border border-warning-500/20 bg-warning-500/10 p-4">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Pending Qty</p>
-                  <p className="mt-2 text-2xl font-black text-warning-400">{pendingUnits}</p>
+                  <p className="mt-2 text-2xl font-black text-warning-400">{activeOrder.pendingQuantity}</p>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <Button
-                  onClick={handlePick}
+                  onClick={() => void handlePick()}
                   disabled={isFullyPicked}
+                  loading={isPicking}
                   leftIcon={<Package className="h-4 w-4" />}
                 >
                   Pick 1 Unit
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/dispatch')}
+                  onClick={() => navigate("/dispatch")}
                   disabled={!isFullyPicked}
                   rightIcon={<ArrowRight className="h-4 w-4" />}
                 >
@@ -205,7 +248,7 @@ export const Packing = memo(function Packing() {
                   <p className="text-sm font-semibold text-white">Operator Notes</p>
                 </div>
                 <p className="text-sm text-neutral-400">
-                  Pick from shown location. When picked quantity reaches required quantity, order is ready for dispatch handoff.
+                  Pick against the mapped outward locations. When picked quantity reaches required quantity, the order is packed automatically.
                 </p>
               </div>
             </div>
@@ -213,7 +256,7 @@ export const Packing = memo(function Packing() {
             <OperationsEmptyState
               icon={Package}
               title="No order selected"
-              description="Choose an open order from the left to start picking."
+              description="Choose a live outward order from the left to start picking."
             />
           )}
         </OperationsPanel>
@@ -223,4 +266,3 @@ export const Packing = memo(function Packing() {
 });
 
 export default Packing;
-

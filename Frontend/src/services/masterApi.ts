@@ -234,6 +234,46 @@ export interface PutAwayScanAssignmentResult {
   remainingUnassignedQuantity: number;
 }
 
+export interface OutwardOrder {
+  id: number;
+  orderNumber: string;
+  orderDate: string;
+  customerName: string;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  quantity: number;
+  pickedQuantity: number;
+  pendingQuantity: number;
+  status: "Open" | "Picking" | "Packed" | "Dispatched";
+  cartonId?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dispatchedAt?: string | null;
+}
+
+export interface CreateOutwardOrderDto {
+  orderDate: string;
+  customerName: string;
+  productId: number;
+  quantity: number;
+  notes?: string | null;
+}
+
+export interface OutwardOrderFilters {
+  search?: string;
+  status?: "all" | "open" | "picking" | "packed" | "dispatched";
+}
+
+export interface UpdateOutwardPickingDto {
+  quantity: number;
+}
+
+export interface DispatchOutwardOrderDto {
+  cartonId?: string | null;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -686,6 +726,35 @@ export const productAllottedLocationsApi = {
 
   assignScan: async (data: PutAwayScanAssignmentRequestDto): Promise<PutAwayScanAssignmentResult> => {
     const response = await api.post<ApiResponse<PutAwayScanAssignmentResult>>('/productallottedlocations/assign-scan', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+};
+
+export const outwardOrdersApi = {
+  getAll: async (filters: OutwardOrderFilters = {}): Promise<OutwardOrder[]> => {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.status) params.set('status', filters.status);
+    const query = params.toString();
+    const response = await api.get<ApiResponse<OutwardOrder[]>>(`/outwardorders${query ? `?${query}` : ''}`);
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateOutwardOrderDto): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>('/outwardorders', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  pick: async (id: number, data: UpdateOutwardPickingDto): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/pick`, data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  dispatch: async (id: number, data: DispatchOutwardOrderDto): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

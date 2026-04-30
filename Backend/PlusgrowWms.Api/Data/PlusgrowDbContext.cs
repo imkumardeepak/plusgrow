@@ -44,6 +44,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<Manufacturer> Manufacturers => Set<Manufacturer>();
     public DbSet<Commodity> Commodities => Set<Commodity>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<OutwardOrder> OutwardOrders => Set<OutwardOrder>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<RolePageAccess> RolePageAccesses => Set<RolePageAccess>();
@@ -89,6 +90,13 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<Product>()
             .HasIndex(p => p.Sku)
             .IsUnique();
+
+        modelBuilder.Entity<OutwardOrder>()
+            .HasIndex(x => x.OrderNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<OutwardOrder>()
+            .HasIndex(x => x.Status);
 
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Username)
@@ -151,6 +159,12 @@ public class PlusgrowDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ProductAllottedLocation>()
+            .HasOne(x => x.Product)
+            .WithMany()
+            .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<OutwardOrder>()
             .HasOne(x => x.Product)
             .WithMany()
             .HasForeignKey(x => x.ProductId)

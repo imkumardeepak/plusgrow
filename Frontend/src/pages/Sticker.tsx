@@ -790,6 +790,51 @@ export const Sticker = memo(function Sticker() {
                 </SimpleGrid>
               </Paper>
 
+            </Stack>
+
+            <Stack gap="sm">
+              <Paper radius="md" p="sm" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" fw={800}>
+                    Preview
+                  </Text>
+                  <Badge size="xs" variant="light" color="cyan">
+                    {activeTemplate?.fileName || "Template missing"}
+                  </Badge>
+                </Group>
+                {isPreviewLoading ? (
+                  <Center h={300}>
+                    <Loader size="sm" />
+                  </Center>
+                ) : previewUrl ? (
+                  <Center h={300}>
+                    <Image
+                      src={previewUrl}
+                      alt="Sticker preview"
+                      fit="contain"
+                      mah={280}
+                      radius="sm"
+                      style={{ background: "white", padding: 12 }}
+                    />
+                  </Center>
+                ) : (
+                  <Paper
+                    withBorder
+                    radius="md"
+                    p="xl"
+                    style={{ textAlign: "center" }}
+                  >
+                    <IconTag size={48} style={{ marginBottom: 12 }} />
+                    <Text fw={700} size="lg" mb="xs">
+                      No preview
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Preview not available for this row.
+                    </Text>
+                  </Paper>
+                )}
+              </Paper>
+
               <Paper radius="md" p="sm" withBorder>
                 <Text size="xs" fw={800} mb="xs">
                   Reprint Range
@@ -838,48 +883,6 @@ export const Sticker = memo(function Sticker() {
                 </Group>
               </Paper>
             </Stack>
-
-            <Paper radius="md" p="sm" withBorder>
-              <Group justify="space-between" mb="xs">
-                <Text size="xs" fw={800}>
-                  Preview
-                </Text>
-                <Badge size="xs" variant="light" color="cyan">
-                  {activeTemplate?.fileName || "Template missing"}
-                </Badge>
-              </Group>
-              {isPreviewLoading ? (
-                <Center h={300}>
-                  <Loader size="sm" />
-                </Center>
-              ) : previewUrl ? (
-                <Center h={300}>
-                  <Image
-                    src={previewUrl}
-                    alt="Sticker preview"
-                    fit="contain"
-                    mah={280}
-                    radius="sm"
-                    style={{ background: "white", padding: 12 }}
-                  />
-                </Center>
-              ) : (
-                <Paper
-                  withBorder
-                  radius="md"
-                  p="xl"
-                  style={{ textAlign: "center" }}
-                >
-                  <IconTag size={48} style={{ marginBottom: 12 }} />
-                  <Text fw={700} size="lg" mb="xs">
-                    No preview
-                  </Text>
-                  <Text size="sm" c="dimmed">
-                    Preview not available for this row.
-                  </Text>
-                </Paper>
-              )}
-            </Paper>
           </SimpleGrid>
         ) : null}
       </Modal>
