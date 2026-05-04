@@ -370,380 +370,364 @@ export const PutAway = () => {
       icon={Warehouse}
       hideHeader
     >
-      <Box maw={980}>
-          <OperationsPanel
-            title="Scan Workflow"
-            icon={ScanLine}
-            description="Scan SKU first, scan location second, then enter quantity and save."
-            action={
-              <Group gap="xs" wrap="nowrap">
-                <Badge size="sm" radius="md" variant="light" color="gray">
-                  {totalCurrent} stock
-                </Badge>
-                <Badge size="sm" radius="md" variant="light" color="cyan">
-                  {totalAllocated} stored
-                </Badge>
-                <Badge size="sm" radius="md" variant="light" color="orange">
-                  {totalRemaining} pending
-                </Badge>
-              </Group>
-            }
-          >
-            <Stack gap="sm">
+      <Box maw={1220}>
+        <OperationsPanel
+          title="Scan Workflow"
+          icon={ScanLine}
+          description="Scan SKU first, scan location second, then enter quantity and save."
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Badge size="sm" radius="md" variant="light" color="gray">
+                {totalCurrent} stock
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="cyan">
+                {totalAllocated} stored
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="orange">
+                {totalRemaining} pending
+              </Badge>
+            </Group>
+          }
+        >
+          <Stack gap="sm">
+            <Paper
+              radius="lg"
+              p="sm"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <Text fw={700} c="white" size="sm">
+                Simple flow
+              </Text>
+              <Text size="11px" c="dimmed" mt={4}>
+                1. Scan SKU. 2. Scan location QR. 3. Enter quantity. 4. Save.
+                Location stays filled so next SKU can go to same place.
+              </Text>
+            </Paper>
+
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed" mb={6}>
+                  STEP 1
+                </Text>
+                <Input
+                  id="product-scan-input"
+                  size="sm"
+                  label="Scan SKU"
+                  placeholder="Scan SKU QR code"
+                  value={productScanCode}
+                  onChange={(e) => {
+                    setProductScanCode(e.target.value);
+                    setProductError(null);
+                    setScannedProduct(null);
+                  }}
+                  onKeyDown={handleProductScan}
+                  error={productError}
+                  leftElement={<Package size={15} />}
+                  rightElement={
+                    isFetchingProduct ? (
+                      <div className="animate-spin">
+                        <Package size={15} />
+                      </div>
+                    ) : null
+                  }
+                  autoFocus
+                />
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed" mb={6}>
+                  STEP 2
+                </Text>
+                <Input
+                  size="sm"
+                  label="Scan Location"
+                  placeholder="Scan location or bin QR"
+                  value={locationScanCode}
+                  onChange={(e) => {
+                    setLocationScanCode(e.target.value);
+                    setLocationError(null);
+                  }}
+                  onKeyDown={handleLocationScan}
+                  error={locationError}
+                  leftElement={<MapPin size={15} />}
+                  id="location-scan-input"
+                  disabled={!selectedTask}
+                />
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed" mb={6}>
+                  STEP 3
+                </Text>
+                <Input
+                  id="putaway-qty-input"
+                  size="sm"
+                  label="Quantity"
+                  type="number"
+                  min="1"
+                  placeholder={
+                    selectedTask
+                      ? `Pending ${selectedTask.remainingQuantity}`
+                      : "Enter quantity"
+                  }
+                  value={assignQuantity}
+                  onChange={(e) =>
+                    setAssignQuantity(
+                      e.target.value ? Number(e.target.value) : "",
+                    )
+                  }
+                  disabled={!selectedTask || !locationScanCode.trim()}
+                />
+              </Paper>
+            </SimpleGrid>
+
+            {scannedProduct && !selectedTask && (
               <Paper
                 radius="lg"
                 p="sm"
                 style={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "rgba(255, 165, 0, 0.1)",
+                  border: "1px solid rgba(255, 165, 0, 0.2)",
+                }}
+              >
+                <Stack gap={4}>
+                  <Group justify="space-between">
+                    <Text fw={600} c="orange.3" size="xs">
+                      Product Found in Master Only
+                    </Text>
+                    <Badge variant="light" color="orange" size="xs">
+                      No Stock Qty
+                    </Badge>
+                  </Group>
+                  <Text ff="monospace" size="xs" c="orange.2" fw={700}>
+                    {scannedProduct.sku || "N/A"}
+                  </Text>
+                  <Text size="11px" c="white">
+                    {scannedProduct.name}
+                  </Text>
+                  <Text size="11px" c="dimmed" mt={4}>
+                    Product exists, but no inward stock is ready for put-away.
+                  </Text>
+                </Stack>
+              </Paper>
+            )}
+
+            {selectedTask ? (
+              <Paper
+                radius="lg"
+                p="sm"
+                style={{
+                  background: "rgba(30, 192, 243, 0.1)",
+                  border: "1px solid rgba(30, 192, 243, 0.2)",
+                }}
+              >
+                <Group
+                  align="flex-start"
+                  justify="space-between"
+                  wrap="nowrap"
+                  gap="md"
+                >
+                  <Stack gap={4}>
+                    <Text ff="monospace" size="xs" c="cyan.3" fw={700}>
+                      {selectedTask.skuCode}
+                    </Text>
+                    <Text size="11px" c="white">
+                      {selectedTask.productName}
+                    </Text>
+                  </Stack>
+                  <SimpleGrid cols={3} spacing="xs">
+                    <Stack gap={2} align="center">
+                      <Text
+                        size="8px"
+                        tt="uppercase"
+                        c="dimmed"
+                        style={{ letterSpacing: "0.2em" }}
+                      >
+                        Actual
+                      </Text>
+                      <Text size="md" fw={700} c="white">
+                        {selectedTask.currentQuantity}
+                      </Text>
+                    </Stack>
+                    <Stack gap={2} align="center">
+                      <Text
+                        size="8px"
+                        tt="uppercase"
+                        c="dimmed"
+                        style={{ letterSpacing: "0.2em" }}
+                      >
+                        Allocated
+                      </Text>
+                      <Text size="md" fw={700} c="cyan.3">
+                        {selectedTask.allocatedQuantity}
+                      </Text>
+                    </Stack>
+                    <Stack gap={2} align="center">
+                      <Text
+                        size="8px"
+                        tt="uppercase"
+                        c="dimmed"
+                        style={{ letterSpacing: "0.2em" }}
+                      >
+                        Pending
+                      </Text>
+                      <Text size="md" fw={700} c="yellow.4">
+                        {selectedTask.remainingQuantity}
+                      </Text>
+                    </Stack>
+                  </SimpleGrid>
+                </Group>
+              </Paper>
+            ) : (
+              <Paper
+                radius="lg"
+                p="sm"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.1)",
                 }}
               >
-                <Text fw={700} c="white" size="sm">
-                  Simple flow
-                </Text>
-                <Text size="11px" c="dimmed" mt={4}>
-                  1. Scan SKU. 2. Scan location QR. 3. Enter quantity. 4. Save.
-                  Location stays filled so next SKU can go to same place.
+                <Text size="11px" c="dimmed">
+                  Scan SKU to load pending quantity details.
                 </Text>
               </Paper>
+            )}
 
-              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed" mb={6}>
-                    STEP 1
-                  </Text>
-                  <Input
-                    id="product-scan-input"
-                    size="sm"
-                    label="Scan SKU"
-                    placeholder="Scan SKU QR code"
-                    value={productScanCode}
-                    onChange={(e) => {
-                      setProductScanCode(e.target.value);
-                      setProductError(null);
-                      setScannedProduct(null);
-                    }}
-                    onKeyDown={handleProductScan}
-                    error={productError}
-                    leftElement={<Package size={15} />}
-                    rightElement={
-                      isFetchingProduct ? (
-                        <div className="animate-spin">
-                          <Package size={15} />
-                        </div>
-                      ) : null
-                    }
-                    autoFocus
-                  />
-                </Paper>
-
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed" mb={6}>
-                    STEP 2
-                  </Text>
-                  <Input
-                    size="sm"
-                    label="Scan Location"
-                    placeholder="Scan location or bin QR"
-                    value={locationScanCode}
-                    onChange={(e) => {
-                      setLocationScanCode(e.target.value);
-                      setLocationError(null);
-                    }}
-                    onKeyDown={handleLocationScan}
-                    error={locationError}
-                    leftElement={<MapPin size={15} />}
-                    id="location-scan-input"
-                    disabled={!selectedTask}
-                  />
-                </Paper>
-
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed" mb={6}>
-                    STEP 3
-                  </Text>
-                  <Input
-                    id="putaway-qty-input"
-                    size="sm"
-                    label="Quantity"
-                    type="number"
-                    min="1"
-                    placeholder={
-                      selectedTask
-                        ? `Pending ${selectedTask.remainingQuantity}`
-                        : "Enter quantity"
-                    }
-                    value={assignQuantity}
-                    onChange={(e) =>
-                      setAssignQuantity(
-                        e.target.value ? Number(e.target.value) : "",
-                      )
-                    }
-                    disabled={!selectedTask || !locationScanCode.trim()}
-                  />
-                </Paper>
-              </SimpleGrid>
-
-              {scannedProduct && !selectedTask && (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  style={{
-                    background: "rgba(255, 165, 0, 0.1)",
-                    border: "1px solid rgba(255, 165, 0, 0.2)",
-                  }}
+            <Paper radius="lg" p="sm" withBorder bg="transparent">
+              <Group justify="space-between" align="center" mb="xs">
+                <Text size="11px" fw={700}>
+                  Current scan state
+                </Text>
+                <Badge
+                  size="xs"
+                  radius="sm"
+                  color={canAssign ? "green" : "gray"}
+                  variant={canAssign ? "filled" : "light"}
                 >
-                  <Stack gap={4}>
-                    <Group justify="space-between">
-                      <Text fw={600} c="orange.3" size="xs">
-                        Product Found in Master Only
+                  {canAssign ? "Ready to save" : "Waiting for scan"}
+                </Badge>
+              </Group>
+              <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed">
+                    SKU
+                  </Text>
+                  <Text size="11px" fw={700} mt={4} lineClamp={1}>
+                    {productScanCode || "Not scanned"}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed">
+                    LOCATION
+                  </Text>
+                  <Text size="11px" fw={700} mt={4} lineClamp={1}>
+                    {locationScanCode || "Not scanned"}
+                  </Text>
+                </Box>
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed">
+                    QUANTITY
+                  </Text>
+                  <Text size="11px" fw={700} mt={4}>
+                    {assignQuantity || "Not entered"}
+                  </Text>
+                </Box>
+              </SimpleGrid>
+            </Paper>
+
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
+              <Button
+                variant="outline"
+                onClick={clearProductOnly}
+                leftIcon={<RotateCcw className="h-4 w-4" />}
+                className="min-h-11 whitespace-normal px-3 text-center"
+              >
+                Next SKU
+              </Button>
+              <Button
+                variant="outline"
+                onClick={clearLocationOnly}
+                leftIcon={<MapPin className="h-4 w-4" />}
+                className="min-h-11 whitespace-normal px-3 text-center"
+              >
+                Change Location
+              </Button>
+              <Button
+                variant="outline"
+                onClick={resetAllScans}
+                leftIcon={<Eraser className="h-4 w-4" />}
+                className="min-h-11 whitespace-normal px-3 text-center"
+              >
+                Clear All
+              </Button>
+              <Button
+                onClick={handleAssign}
+                loading={isAssigning}
+                disabled={!canAssign}
+                className="min-h-11 whitespace-normal px-3 text-center"
+                leftIcon={
+                  isAssigning ? (
+                    <Package className="h-4 w-4 animate-pulse" />
+                  ) : (
+                    <ArrowRight className="h-4 w-4" />
+                  )
+                }
+              >
+                {isAssigning ? "Saving..." : "Save Put Away"}
+              </Button>
+            </SimpleGrid>
+
+            {lastAssignment && (
+              <Paper
+                radius="lg"
+                p="sm"
+                style={{
+                  background: "rgba(34, 197, 94, 0.1)",
+                  border: "1px solid rgba(34, 197, 94, 0.2)",
+                }}
+              >
+                <Group align="flex-start" gap="sm" wrap="nowrap">
+                  <ThemeIcon
+                    variant="light"
+                    color="green"
+                    radius="xl"
+                    size={36}
+                    style={{ marginTop: 2 }}
+                  >
+                    <CheckCircle2 size={18} />
+                  </ThemeIcon>
+                  <Stack gap={6}>
+                    <Text fw={600} c="white" size="sm">
+                      Stored successfully
+                    </Text>
+                    <Text size="11px" c="dimmed">
+                      Product{" "}
+                      <Text component="span" ff="monospace" c="cyan.3" fw={700}>
+                        {lastAssignment.skuCode}
+                      </Text>{" "}
+                      stored in{" "}
+                      <Text component="span" fw={600} c="green.4">
+                        {lastAssignment.resolvedLocationCode}
                       </Text>
-                      <Badge variant="light" color="orange" size="xs">
-                        No Stock Qty
+                      . Scan next SKU if same location continues.
+                    </Text>
+                    <Group gap="xs">
+                      <Badge variant="light" color="gray" size="xs" radius="xl">
+                        Assigned: {lastAssignment.assignedQuantity}
+                      </Badge>
+                      <Badge variant="light" color="gray" size="xs" radius="xl">
+                        Remaining: {lastAssignment.remainingUnassignedQuantity}
                       </Badge>
                     </Group>
-                    <Text ff="monospace" size="xs" c="orange.2" fw={700}>
-                      {scannedProduct.sku || "N/A"}
-                    </Text>
-                    <Text size="11px" c="white">
-                      {scannedProduct.name}
-                    </Text>
-                    <Text size="11px" c="dimmed" mt={4}>
-                      Product exists, but no inward stock is ready for put-away.
-                    </Text>
                   </Stack>
-                </Paper>
-              )}
-
-              {selectedTask ? (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  style={{
-                    background: "rgba(30, 192, 243, 0.1)",
-                    border: "1px solid rgba(30, 192, 243, 0.2)",
-                  }}
-                >
-                  <Group
-                    align="flex-start"
-                    justify="space-between"
-                    wrap="nowrap"
-                    gap="md"
-                  >
-                    <Stack gap={4}>
-                      <Text ff="monospace" size="xs" c="cyan.3" fw={700}>
-                        {selectedTask.skuCode}
-                      </Text>
-                      <Text size="11px" c="white">
-                        {selectedTask.productName}
-                      </Text>
-                    </Stack>
-                    <SimpleGrid cols={3} spacing="xs">
-                      <Stack gap={2} align="center">
-                        <Text
-                          size="8px"
-                          tt="uppercase"
-                          c="dimmed"
-                          style={{ letterSpacing: "0.2em" }}
-                        >
-                          Actual
-                        </Text>
-                        <Text size="md" fw={700} c="white">
-                          {selectedTask.currentQuantity}
-                        </Text>
-                      </Stack>
-                      <Stack gap={2} align="center">
-                        <Text
-                          size="8px"
-                          tt="uppercase"
-                          c="dimmed"
-                          style={{ letterSpacing: "0.2em" }}
-                        >
-                          Allocated
-                        </Text>
-                        <Text size="md" fw={700} c="cyan.3">
-                          {selectedTask.allocatedQuantity}
-                        </Text>
-                      </Stack>
-                      <Stack gap={2} align="center">
-                        <Text
-                          size="8px"
-                          tt="uppercase"
-                          c="dimmed"
-                          style={{ letterSpacing: "0.2em" }}
-                        >
-                          Pending
-                        </Text>
-                        <Text size="md" fw={700} c="yellow.4">
-                          {selectedTask.remainingQuantity}
-                        </Text>
-                      </Stack>
-                    </SimpleGrid>
-                  </Group>
-                </Paper>
-              ) : (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <Text size="11px" c="dimmed">
-                    Scan SKU to load pending quantity details.
-                  </Text>
-                </Paper>
-              )}
-
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Group justify="space-between" align="center" mb="xs">
-                  <Text size="11px" fw={700}>
-                    Current scan state
-                  </Text>
-                  <Badge
-                    size="xs"
-                    radius="sm"
-                    color={canAssign ? "green" : "gray"}
-                    variant={canAssign ? "filled" : "light"}
-                  >
-                    {canAssign ? "Ready to save" : "Waiting for scan"}
-                  </Badge>
                 </Group>
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="xs">
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      SKU
-                    </Text>
-                    <Text size="11px" fw={700} mt={4} lineClamp={1}>
-                      {productScanCode || "Not scanned"}
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      LOCATION
-                    </Text>
-                    <Text size="11px" fw={700} mt={4} lineClamp={1}>
-                      {locationScanCode || "Not scanned"}
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      QUANTITY
-                    </Text>
-                    <Text size="11px" fw={700} mt={4}>
-                      {assignQuantity || "Not entered"}
-                    </Text>
-                  </Box>
-                </SimpleGrid>
               </Paper>
-
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
-                <Button
-                  variant="outline"
-                  onClick={clearProductOnly}
-                  leftIcon={<RotateCcw className="h-4 w-4" />}
-                  className="min-h-11 whitespace-normal px-3 text-center"
-                >
-                  Next SKU
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={clearLocationOnly}
-                  leftIcon={<MapPin className="h-4 w-4" />}
-                  className="min-h-11 whitespace-normal px-3 text-center"
-                >
-                  Change Location
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={resetAllScans}
-                  leftIcon={<Eraser className="h-4 w-4" />}
-                  className="min-h-11 whitespace-normal px-3 text-center"
-                >
-                  Clear All
-                </Button>
-                <Button
-                  onClick={handleAssign}
-                  loading={isAssigning}
-                  disabled={!canAssign}
-                  className="min-h-11 whitespace-normal px-3 text-center"
-                  leftIcon={
-                    isAssigning ? (
-                      <Package className="h-4 w-4 animate-pulse" />
-                    ) : (
-                      <ArrowRight className="h-4 w-4" />
-                    )
-                  }
-                >
-                  {isAssigning ? "Saving..." : "Save Put Away"}
-                </Button>
-              </SimpleGrid>
-
-              {lastAssignment && (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  style={{
-                    background: "rgba(34, 197, 94, 0.1)",
-                    border: "1px solid rgba(34, 197, 94, 0.2)",
-                  }}
-                >
-                  <Group align="flex-start" gap="sm" wrap="nowrap">
-                    <ThemeIcon
-                      variant="light"
-                      color="green"
-                      radius="xl"
-                      size={36}
-                      style={{ marginTop: 2 }}
-                    >
-                      <CheckCircle2 size={18} />
-                    </ThemeIcon>
-                    <Stack gap={6}>
-                      <Text fw={600} c="white" size="sm">
-                        Stored successfully
-                      </Text>
-                      <Text size="11px" c="dimmed">
-                        Product{" "}
-                        <Text
-                          component="span"
-                          ff="monospace"
-                          c="cyan.3"
-                          fw={700}
-                        >
-                          {lastAssignment.skuCode}
-                        </Text>{" "}
-                        stored in{" "}
-                        <Text component="span" fw={600} c="green.4">
-                          {lastAssignment.resolvedLocationCode}
-                        </Text>
-                        . Scan next SKU if same location continues.
-                      </Text>
-                      <Group gap="xs">
-                        <Badge
-                          variant="light"
-                          color="gray"
-                          size="xs"
-                          radius="xl"
-                        >
-                          Assigned: {lastAssignment.assignedQuantity}
-                        </Badge>
-                        <Badge
-                          variant="light"
-                          color="gray"
-                          size="xs"
-                          radius="xl"
-                        >
-                          Remaining:{" "}
-                          {lastAssignment.remainingUnassignedQuantity}
-                        </Badge>
-                      </Group>
-                    </Stack>
-                  </Group>
-                </Paper>
-              )}
-            </Stack>
-          </OperationsPanel>
+            )}
+          </Stack>
+        </OperationsPanel>
       </Box>
     </OperationsPage>
   );
