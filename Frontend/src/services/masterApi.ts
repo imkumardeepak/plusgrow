@@ -132,6 +132,8 @@ export interface PoInvoiceFilters {
   status?: "all" | "pending" | "printed";
   fromDate?: string;
   toDate?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface PoInvoice {
@@ -264,6 +266,8 @@ export interface CreateOutwardOrderDto {
 export interface OutwardOrderFilters {
   search?: string;
   status?: "all" | "open" | "picking" | "packed" | "dispatched";
+  page?: number;
+  pageSize?: number;
 }
 
 export interface UpdateOutwardPickingDto {
@@ -276,17 +280,118 @@ export interface DispatchOutwardOrderDto {
   cartonId?: string | null;
 }
 
+export interface ListQuery {
+  search?: string;
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface DashboardQuantityMix {
+  name: string;
+  value: number;
+}
+
+export interface DashboardStockPosition {
+  id: number;
+  skuCode: string;
+  productName: string;
+  currentQuantity: number;
+}
+
+export interface DashboardDispatchQueue {
+  id: number;
+  orderNumber: string;
+  customerName: string;
+  productName: string;
+  pendingQuantity: number;
+  status: string;
+}
+
+export interface DashboardMovement {
+  id: number;
+  skuCode: string;
+  productName: string;
+  quantityChange: number;
+  quantityAfter: number;
+  reason: string;
+  createdAt: string;
+}
+
+export interface DashboardSummary {
+  productCount: number;
+  commodityCount: number;
+  manufacturerCount: number;
+  importerCount: number;
+  binCount: number;
+  locationCount: number;
+  productQuantityCount: number;
+  skusWithStock: number;
+  zeroStockProducts: number;
+  totalStockQuantity: number;
+  allocatedQuantity: number;
+  pendingPutAwayQuantity: number;
+  poInvoiceCount: number;
+  pendingPoInvoiceCount: number;
+  pendingStickerRows: number;
+  outwardOrderCount: number;
+  openOutwardOrderCount: number;
+  pendingDispatchQuantity: number;
+  totalOutboundQuantity: number;
+  pickedOutboundQuantity: number;
+  inventoryCoveragePercent: number;
+  locationUtilizationPercent: number;
+  dispatchProgressPercent: number;
+  quantityMix: DashboardQuantityMix[];
+  topStockPositions: DashboardStockPosition[];
+  activeDispatchQueue: DashboardDispatchQueue[];
+  recentStockMovements: DashboardMovement[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
+  pagination?: PaginationInfo;
 }
+
+export interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
+export interface PagedResult<T> {
+  data: T[];
+  pagination: PaginationInfo;
+}
+
+const emptyPagination = (page = 1, pageSize = 25): PaginationInfo => ({
+  page,
+  pageSize,
+  total: 0,
+  totalPages: 1,
+  hasNext: false,
+  hasPrevious: false,
+});
 
 // Manufacturers API - no /api prefix
 export const manufacturersApi = {
   getAll: async (): Promise<Manufacturer[]> => {
-    const response = await api.get<ApiResponse<Manufacturer[]>>('/manufacturers');
-    return response.data.data || [];
+    const result = await manufacturersApi.getPaged({ page: 1, pageSize: 200 });
+    return result.data;
+  },
+
+  getPaged: async (query: ListQuery = {}): Promise<PagedResult<Manufacturer>> => {
+    const response = await api.get<ApiResponse<Manufacturer[]>>('/manufacturers', { params: query });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(query.page, query.pageSize),
+    };
   },
 
   getById: async (id: number): Promise<Manufacturer | null> => {
@@ -343,8 +448,16 @@ export const manufacturersApi = {
 // Commodities API - no /api prefix
 export const commoditiesApi = {
   getAll: async (): Promise<Commodity[]> => {
-    const response = await api.get<ApiResponse<Commodity[]>>('/commodities');
-    return response.data.data || [];
+    const result = await commoditiesApi.getPaged({ page: 1, pageSize: 200 });
+    return result.data;
+  },
+
+  getPaged: async (query: ListQuery = {}): Promise<PagedResult<Commodity>> => {
+    const response = await api.get<ApiResponse<Commodity[]>>('/commodities', { params: query });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(query.page, query.pageSize),
+    };
   },
 
   getById: async (id: number): Promise<Commodity | null> => {
@@ -395,8 +508,16 @@ export const commoditiesApi = {
 // Importers API - no /api prefix
 export const importersApi = {
   getAll: async (): Promise<Importer[]> => {
-    const response = await api.get<ApiResponse<Importer[]>>('/importers');
-    return response.data.data || [];
+    const result = await importersApi.getPaged({ page: 1, pageSize: 200 });
+    return result.data;
+  },
+
+  getPaged: async (query: ListQuery = {}): Promise<PagedResult<Importer>> => {
+    const response = await api.get<ApiResponse<Importer[]>>('/importers', { params: query });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(query.page, query.pageSize),
+    };
   },
 
   getById: async (id: number): Promise<Importer | null> => {
@@ -422,8 +543,16 @@ export const importersApi = {
 // Products API - no /api prefix
 export const productsApi = {
   getAll: async (): Promise<Product[]> => {
-    const response = await api.get<ApiResponse<Product[]>>('/products');
-    return response.data.data || [];
+    const result = await productsApi.getPaged({ page: 1, pageSize: 200 });
+    return result.data;
+  },
+
+  getPaged: async (query: ListQuery = {}): Promise<PagedResult<Product>> => {
+    const response = await api.get<ApiResponse<Product[]>>('/products', { params: query });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(query.page, query.pageSize),
+    };
   },
 
   getById: async (id: number): Promise<Product | null> => {
@@ -596,15 +725,25 @@ export const locationsApi = {
 
 export const poInvoicesApi = {
   getAll: async (filters?: PoInvoiceFilters): Promise<PoInvoice[]> => {
+    const result = await poInvoicesApi.getPaged(filters);
+    return result.data;
+  },
+
+  getPaged: async (filters?: PoInvoiceFilters): Promise<PagedResult<PoInvoice>> => {
     const response = await api.get<ApiResponse<PoInvoice[]>>('/poinvoices', {
       params: {
         search: filters?.search || undefined,
         status: filters?.status && filters.status !== 'all' ? filters.status : undefined,
         fromDate: filters?.fromDate || undefined,
         toDate: filters?.toDate || undefined,
+        page: filters?.page,
+        pageSize: filters?.pageSize,
       },
     });
-    return response.data.data || [];
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(filters?.page, filters?.pageSize),
+    };
   },
 
   create: async (data: CreatePoInvoiceDto): Promise<PoInvoice> => {
@@ -735,12 +874,22 @@ export const productAllottedLocationsApi = {
 
 export const outwardOrdersApi = {
   getAll: async (filters: OutwardOrderFilters = {}): Promise<OutwardOrder[]> => {
+    const result = await outwardOrdersApi.getPaged(filters);
+    return result.data;
+  },
+
+  getPaged: async (filters: OutwardOrderFilters = {}): Promise<PagedResult<OutwardOrder>> => {
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
     if (filters.status) params.set('status', filters.status);
+    if (filters.page) params.set('page', String(filters.page));
+    if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
     const query = params.toString();
     const response = await api.get<ApiResponse<OutwardOrder[]>>(`/outwardorders${query ? `?${query}` : ''}`);
-    return response.data.data || [];
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(filters.page, filters.pageSize),
+    };
   },
 
   create: async (data: CreateOutwardOrderDto): Promise<OutwardOrder> => {
@@ -758,6 +907,14 @@ export const outwardOrdersApi = {
   dispatch: async (id: number, data: DispatchOutwardOrderDto): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
     if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+};
+
+export const dashboardApi = {
+  getSummary: async (): Promise<DashboardSummary> => {
+    const response = await api.get<ApiResponse<DashboardSummary>>('/dashboard/summary');
+    if (!response.data.success) throw new Error(response.data.message || 'Error loading dashboard summary');
     return response.data.data!;
   },
 };

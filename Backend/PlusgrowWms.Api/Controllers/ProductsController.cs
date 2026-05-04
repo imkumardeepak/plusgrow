@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Models;
+using PlusgrowWms.Api.DTOs;
 using System.Text.Json;
 using ClosedXML.Excel;
 
@@ -20,14 +21,43 @@ public class ProductsController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<Product>>>> GetProducts()
+    public async Task<ActionResult<ApiResponse<List<Product>>>> GetProducts([FromQuery] ListQueryDto queryDto)
     {
-        var products = await _context.Products
+        var page = Math.Max(queryDto.Page, 1);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var query = _context.Products
             .Include(p => p.Commodity)
             .Include(p => p.Manufacturer)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(queryDto.Search))
+        {
+            var search = queryDto.Search.Trim().ToLower();
+            query = query.Where(p =>
+                p.Name.ToLower().Contains(search) ||
+                (p.Sku != null && p.Sku.ToLower().Contains(search)) ||
+                (p.Manufacturer != null && p.Manufacturer.Name.ToLower().Contains(search)) ||
+                (p.Commodity != null && p.Commodity.Name.ToLower().Contains(search)));
+        }
+
+        query = (queryDto.SortBy?.Trim().ToLowerInvariant(), queryDto.SortDirection?.Trim().ToLowerInvariant()) switch
+        {
+            ("sku", "desc") => query.OrderByDescending(p => p.Sku),
+            ("sku", _) => query.OrderBy(p => p.Sku),
+            ("createdat", "desc") => query.OrderByDescending(p => p.CreatedAt),
+            ("createdat", _) => query.OrderBy(p => p.CreatedAt),
+            ("name", "desc") => query.OrderByDescending(p => p.Name),
+            _ => query.OrderBy(p => p.Name),
+        };
+
+        var total = await query.CountAsync();
+        var products = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        return Success(products);
+        return Success(products, page, pageSize, total);
     }
 
     [HttpGet("{id}")]
@@ -121,13 +151,13 @@ public class ProductsController : BaseController
     [HttpGet("search")]
     public async Task<ActionResult<ApiResponse<List<Product>>>> Search([FromQuery] string q)
     {
-        if (string.IsNullOrWhiteSpace(q))
-            return Success(await _context.Products.Include(p => p.Commodity).Include(p => p.Manufacturer).ToListAsync());
-
         var products = await _context.Products
             .Include(p => p.Commodity)
             .Include(p => p.Manufacturer)
-            .Where(p => p.Name.Contains(q) || (p.Sku != null && p.Sku.Contains(q)))
+            .AsNoTracking()
+            .Where(p => string.IsNullOrWhiteSpace(q) || p.Name.ToLower().Contains(q.Trim().ToLower()) || (p.Sku != null && p.Sku.ToLower().Contains(q.Trim().ToLower())))
+            .OrderBy(p => p.Name)
+            .Take(25)
             .ToListAsync();
 
         return Success(products);

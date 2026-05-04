@@ -32,6 +32,7 @@ import {
 import {
   CreateOutwardOrderDto,
   OutwardOrder,
+  PaginationInfo,
   outwardOrdersApi,
   Product,
   productsApi,
@@ -65,34 +66,60 @@ export const Outward = memo(function Outward() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [orderForm, setOrderForm] = useState<CreateOutwardOrderDto>(emptyOrderForm());
+  const [productSearch, setProductSearch] = useState("");
 
-  const loadData = useCallback(async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [ordersData, productsData] = await Promise.all([
-        outwardOrdersApi.getAll({
-          search: searchTerm,
-          status: statusFilter,
-        }),
-        productsApi.getAll(),
-      ]);
-      setOrders(ordersData);
+      const productsData = await productsApi.search(productSearch);
       setProducts(productsData);
+    } catch {
+      toast.error("Failed to load product lookup");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [productSearch]);
+
+  const loadOrders = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const ordersResult = await outwardOrdersApi.getPaged({
+        search: searchTerm,
+        status: statusFilter,
+        page,
+        pageSize: 25,
+      });
+      setOrders(ordersResult.data);
+      setPagination(ordersResult.pagination);
     } catch {
       toast.error("Failed to load outward orders");
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, statusFilter]);
+  }, [page, searchTerm, statusFilter]);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    const timer = window.setTimeout(() => {
+      void loadProducts();
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [loadProducts]);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter]);
 
   const productOptions = useMemo(
     () =>
@@ -104,7 +131,7 @@ export const Outward = memo(function Outward() {
   );
 
   const metrics = useMemo(() => {
-    const total = orders.length;
+    const total = pagination?.total ?? orders.length;
     const open = orders.filter((row) => row.status === "Open").length;
     const packed = orders.filter((row) => row.status === "Packed").length;
     const dispatched = orders.filter((row) => row.status === "Dispatched").length;
@@ -217,7 +244,7 @@ export const Outward = memo(function Outward() {
       toast.success("Outward order created");
       setIsCreateOpen(false);
       setOrderForm(emptyOrderForm());
-      await loadData();
+      await loadOrders();
     } catch (error: any) {
       toast.error(error.message || "Failed to create outward order");
     } finally {
@@ -277,7 +304,7 @@ export const Outward = memo(function Outward() {
               radius="md"
               variant="light"
               color="gray"
-              onClick={() => void loadData()}
+              onClick={() => void loadOrders()}
               loading={isLoading}
               aria-label="Refresh outward orders"
             >
@@ -298,6 +325,10 @@ export const Outward = memo(function Outward() {
           columns={columns}
           rowKey={(row) => row.id}
           isLoading={isLoading}
+          pageSize={pagination?.pageSize ?? 25}
+          currentPage={pagination?.page ?? page}
+          totalItems={pagination?.total}
+          onPageChange={setPage}
           itemLabel="orders"
           resetPageKey={`${searchTerm}-${statusFilter}`}
           emptyIcon={FileText}
@@ -350,6 +381,8 @@ export const Outward = memo(function Outward() {
             label="Product"
             searchable
             data={productOptions}
+            searchValue={productSearch}
+            onSearchChange={setProductSearch}
             value={orderForm.productId > 0 ? String(orderForm.productId) : null}
             onChange={(value) =>
               setOrderForm((current) => ({

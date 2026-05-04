@@ -118,9 +118,15 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.ProductId)
             .IsUnique();
 
+        modelBuilder.Entity<ProductQuantity>()
+            .HasIndex(x => x.CurrentQuantity);
+
         modelBuilder.Entity<ProductAllottedLocation>()
             .HasIndex(x => x.ProductId)
             .IsUnique();
+
+        modelBuilder.Entity<ProductAllottedLocation>()
+            .HasIndex(x => x.UpdatedAt);
 
         modelBuilder.Entity<ProductStockMovement>()
             .HasIndex(x => x.ProductId);
@@ -135,6 +141,20 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.InvoiceNumber)
             .IsUnique();
 
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => x.Printed);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => x.LocationAllotted);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => x.RemainingAllocation);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => new { x.ProductId, x.RemainingAllocation, x.InvoiceDate });
+
+        modelBuilder.Entity<OutwardOrder>()
+            .HasIndex(x => new { x.Status, x.OrderDate });
 
         // Additional indexes for performance
         modelBuilder.Entity<Product>()

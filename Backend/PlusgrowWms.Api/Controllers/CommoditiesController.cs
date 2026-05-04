@@ -18,10 +18,25 @@ public class CommoditiesController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<Commodity>>>> GetCommodities()
+    public async Task<ActionResult<ApiResponse<List<Commodity>>>> GetCommodities([FromQuery] ListQueryDto queryDto)
     {
-        var commodities = await _context.Commodities.ToListAsync();
-        return Success(commodities);
+        var page = Math.Max(queryDto.Page, 1);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var query = _context.Commodities.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(queryDto.Search))
+        {
+            var search = queryDto.Search.Trim().ToLower();
+            query = query.Where(x => x.Name.ToLower().Contains(search));
+        }
+
+        query = queryDto.SortDirection?.Trim().ToLowerInvariant() == "desc"
+            ? query.OrderByDescending(x => x.Name)
+            : query.OrderBy(x => x.Name);
+
+        var total = await query.CountAsync();
+        var commodities = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Success(commodities, page, pageSize, total);
     }
 
     [HttpGet("{id}")]

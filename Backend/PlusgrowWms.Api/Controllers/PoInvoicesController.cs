@@ -30,8 +30,11 @@ public class PoInvoicesController : BaseController
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<PoInvoiceDto>>>> GetPoInvoices([FromQuery] PoInvoiceFilterDto filter)
     {
+        var page = Math.Max(filter.Page, 1);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var query = _context.PoInvoices
             .Include(x => x.Product)
+            .AsNoTracking()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -69,12 +72,15 @@ public class PoInvoicesController : BaseController
             query = query.Where(x => x.InvoiceDate <= toDate);
         }
 
+        var total = await query.CountAsync();
         var invoices = await query
             .OrderByDescending(x => x.InvoiceDate)
             .ThenBy(x => x.PartyName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        return Success(invoices.Select(MapInvoice).ToList());
+        return Success(invoices.Select(MapInvoice).ToList(), page, pageSize, total);
     }
 
     [HttpPost]

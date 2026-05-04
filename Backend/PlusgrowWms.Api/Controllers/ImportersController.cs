@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Models;
+using PlusgrowWms.Api.DTOs;
 
 namespace PlusgrowWms.Api.Controllers;
 
@@ -16,10 +17,32 @@ public class ImportersController : BaseController
     }
     
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<Importer>>>> GetImporters()
+    public async Task<ActionResult<ApiResponse<List<Importer>>>> GetImporters([FromQuery] ListQueryDto queryDto)
     {
-        var importers = await _context.Importers.ToListAsync();
-        return Success(importers);
+        var page = Math.Max(queryDto.Page, 1);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var query = _context.Importers.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(queryDto.Search))
+        {
+            var search = queryDto.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(search) ||
+                (x.Phone != null && x.Phone.ToLower().Contains(search)) ||
+                (x.Email != null && x.Email.ToLower().Contains(search)));
+        }
+
+        query = (queryDto.SortBy?.Trim().ToLowerInvariant(), queryDto.SortDirection?.Trim().ToLowerInvariant()) switch
+        {
+            ("createdat", "desc") => query.OrderByDescending(x => x.CreatedAt),
+            ("createdat", _) => query.OrderBy(x => x.CreatedAt),
+            ("name", "desc") => query.OrderByDescending(x => x.Name),
+            _ => query.OrderBy(x => x.Name),
+        };
+
+        var total = await query.CountAsync();
+        var importers = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Success(importers, page, pageSize, total);
     }
     
     [HttpGet("{id}")]

@@ -18,10 +18,33 @@ public class ManufacturersController : BaseController
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<Manufacturer>>>> GetManufacturers()
+    public async Task<ActionResult<ApiResponse<List<Manufacturer>>>> GetManufacturers([FromQuery] ListQueryDto queryDto)
     {
-        var manufacturers = await _context.Manufacturers.ToListAsync();
-        return Success(manufacturers);
+        var page = Math.Max(queryDto.Page, 1);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var query = _context.Manufacturers.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(queryDto.Search))
+        {
+            var search = queryDto.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.Name.ToLower().Contains(search) ||
+                (x.Country != null && x.Country.ToLower().Contains(search)));
+        }
+
+        query = (queryDto.SortBy?.Trim().ToLowerInvariant(), queryDto.SortDirection?.Trim().ToLowerInvariant()) switch
+        {
+            ("country", "desc") => query.OrderByDescending(x => x.Country),
+            ("country", _) => query.OrderBy(x => x.Country),
+            ("createdat", "desc") => query.OrderByDescending(x => x.CreatedAt),
+            ("createdat", _) => query.OrderBy(x => x.CreatedAt),
+            ("name", "desc") => query.OrderByDescending(x => x.Name),
+            _ => query.OrderBy(x => x.Name),
+        };
+
+        var total = await query.CountAsync();
+        var manufacturers = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Success(manufacturers, page, pageSize, total);
     }
 
     [HttpGet("{id}")]

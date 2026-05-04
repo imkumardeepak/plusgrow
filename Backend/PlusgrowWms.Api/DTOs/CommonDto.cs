@@ -51,3 +51,12 @@ public class ImportResultDto
     public int ImportedCount { get; set; }
     public List<string> Errors { get; set; } = new();
 }
+
+public class ListQueryDto
+{
+    public string? Search { get; set; }
+    public string? SortBy { get; set; }
+    public string? SortDirection { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 25;
+}

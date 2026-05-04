@@ -69,6 +69,9 @@ export interface MantineDataTableProps<T> {
   /** Pagination */
   pageSize?: number;
   enablePagination?: boolean;
+  totalItems?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
   /** Label used in footer ("Showing X-Y of Z bins") */
   itemLabel?: string;
   /** Reset page when this value changes (e.g. the search string) */
@@ -98,6 +101,9 @@ function MantineDataTableInner<T>({
   emptyDescription = "No records match the current filters.",
   pageSize = 10,
   enablePagination = true,
+  totalItems,
+  currentPage: controlledPage,
+  onPageChange,
   itemLabel = "items",
   resetPageKey,
   minWidth = 600,
@@ -114,11 +120,17 @@ function MantineDataTableInner<T>({
 
   // Use controlled or uncontrolled sort state
   const sortState = controlledSortState ?? internalSortState;
+  const activePage = controlledPage ?? currentPage;
+  const isServerPaginated = typeof totalItems === "number" && Boolean(onPageChange);
 
   // Reset to page 1 when external filter key changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [resetPageKey]);
+    if (onPageChange) {
+      onPageChange(1);
+    } else {
+      setCurrentPage(1);
+    }
+  }, [onPageChange, resetPageKey]);
 
   const handleSort = (columnKey: string) => {
     const newSortState: SortState | null = (() => {
@@ -176,19 +188,19 @@ function MantineDataTableInner<T>({
   }, [data, sortState, columns]);
 
   const pagination = useMemo(() => {
-    const totalItems = sortedData.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-    const safePage = Math.min(currentPage, totalPages);
+    const resolvedTotalItems = totalItems ?? sortedData.length;
+    const totalPages = Math.max(1, Math.ceil(resolvedTotalItems / pageSize));
+    const safePage = Math.min(activePage, totalPages);
     const startIndex = enablePagination ? (safePage - 1) * pageSize : 0;
     const endIndex = enablePagination
-      ? Math.min(startIndex + pageSize, totalItems)
-      : totalItems;
-    const paginatedItems = enablePagination
+      ? Math.min(startIndex + pageSize, resolvedTotalItems)
+      : resolvedTotalItems;
+    const paginatedItems = enablePagination && !isServerPaginated
       ? sortedData.slice(startIndex, endIndex)
       : sortedData;
 
     return {
-      totalItems,
+      totalItems: resolvedTotalItems,
       totalPages,
       startIndex,
       endIndex,
@@ -197,10 +209,15 @@ function MantineDataTableInner<T>({
       hasPrevPage: safePage > 1,
       currentPage: safePage,
     };
-  }, [sortedData, currentPage, pageSize, enablePagination]);
+  }, [activePage, enablePagination, isServerPaginated, pageSize, sortedData, totalItems]);
 
   const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, pagination.totalPages)));
+    const nextPage = Math.max(1, Math.min(page, pagination.totalPages));
+    if (onPageChange) {
+      onPageChange(nextPage);
+      return;
+    }
+    setCurrentPage(nextPage);
   };
 
   if (isLoading) {

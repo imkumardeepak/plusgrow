@@ -45,6 +45,7 @@ import {
 import {
   Importer,
   Manufacturer,
+  PaginationInfo,
   PoInvoice,
   PoInvoiceFilters,
   Product,
@@ -77,7 +78,7 @@ export const Sticker = memo(function Sticker() {
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [importers, setImporters] = useState<Importer[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [templates, setTemplates] = useState<StickerTemplate[]>([]);
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
     [],
@@ -94,11 +95,15 @@ export const Sticker = memo(function Sticker() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRowsLoading, setIsRowsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [reprintFrom, setReprintFrom] = useState<number | "">(1);
   const [reprintTo, setReprintTo] = useState<number | "">(1);
   const [stickerNote, setStickerNote] = useState("");
+  const [manufacturerSearch, setManufacturerSearch] = useState("");
+  const [importerSearch, setImporterSearch] = useState("");
 
   const loadMetaData = useCallback(async () => {
     try {
@@ -106,20 +111,17 @@ export const Sticker = memo(function Sticker() {
       const [
         manufacturerData,
         importerData,
-        productData,
         templateData,
         configData,
       ] = await Promise.all([
-        manufacturersApi.getAll(),
-        importersApi.getAll(),
-        productsApi.getAll(),
+        manufacturersApi.getPaged({ page: 1, pageSize: 25 }),
+        importersApi.getPaged({ page: 1, pageSize: 25 }),
         stickersApi.getTemplates(),
         stickerPrinterConfigsApi.getAll(),
       ]);
 
-      setManufacturers(manufacturerData);
-      setImporters(importerData);
-      setProducts(productData);
+      setManufacturers(manufacturerData.data);
+      setImporters(importerData.data);
       setTemplates(templateData);
       setPrinterConfigs(configData);
     } catch (error) {
@@ -133,6 +135,44 @@ export const Sticker = memo(function Sticker() {
       setIsLoading(false);
     }
   }, []);
+
+  const loadManufacturerLookup = useCallback(async (query: string) => {
+    const result = await manufacturersApi.getPaged({
+      search: query,
+      page: 1,
+      pageSize: 25,
+      sortBy: "name",
+      sortDirection: "asc",
+    });
+    setManufacturers(result.data);
+  }, []);
+
+  const loadImporterLookup = useCallback(async (query: string) => {
+    const result = await importersApi.getPaged({
+      search: query,
+      page: 1,
+      pageSize: 25,
+      sortBy: "name",
+      sortDirection: "asc",
+    });
+    setImporters(result.data);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadManufacturerLookup(manufacturerSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [loadManufacturerLookup, manufacturerSearch]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadImporterLookup(importerSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [importerSearch, loadImporterLookup]);
 
   useEffect(() => {
     loadMetaData();
@@ -184,14 +224,25 @@ export const Sticker = memo(function Sticker() {
     [importers],
   );
 
-  const selectedProduct = useMemo(
-    () =>
-      selectedRow
-        ? (products.find((product) => product.id === selectedRow.productId) ??
-          null)
-        : null,
-    [products, selectedRow],
-  );
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSelectedProduct = async () => {
+      if (!selectedRow) {
+        setSelectedProduct(null);
+        return;
+      }
+
+      const product = await productsApi.getById(selectedRow.productId);
+      if (isMounted) setSelectedProduct(product);
+    };
+
+    void loadSelectedProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedRow]);
 
   const filteredRows = poInvoices;
 
@@ -318,8 +369,9 @@ export const Sticker = memo(function Sticker() {
   const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
     try {
       setIsRowsLoading(true);
-      const invoiceData = await poInvoicesApi.getAll(filters);
-      setPoInvoices(invoiceData);
+      const result = await poInvoicesApi.getPaged(filters);
+      setPoInvoices(result.data);
+      setPagination(result.pagination);
     } catch (error) {
       notifications.show({
         title: "Rows load failed",
@@ -338,8 +390,14 @@ export const Sticker = memo(function Sticker() {
       status: statusFilter,
       fromDate,
       toDate,
+      page,
+      pageSize: 25,
     });
-  }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
+  }, [fromDate, loadInvoiceRows, page, search, statusFilter, toDate]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, search, statusFilter, toDate]);
 
   const pendingRows = poInvoices.filter((row) => !row.printed).length;
   const printedRows = poInvoices.length - pendingRows;
@@ -447,6 +505,8 @@ export const Sticker = memo(function Sticker() {
           status: statusFilter,
           fromDate,
           toDate,
+          page,
+          pageSize: 25,
         });
         setSelectedRow((current) =>
           current ? { ...current, printed: true } : current,
@@ -611,6 +671,10 @@ export const Sticker = memo(function Sticker() {
             columns={columns}
             rowKey={(row) => row.id}
             isLoading={isLoading || isRowsLoading}
+            pageSize={pagination?.pageSize ?? 25}
+            currentPage={pagination?.page ?? page}
+            totalItems={pagination?.total}
+            onPageChange={setPage}
             emptyIcon={IconPrinter}
             emptyTitle="No PO invoice rows"
             emptyDescription="No sticker rows match current search."
@@ -682,6 +746,8 @@ export const Sticker = memo(function Sticker() {
                     value={manufacturerId}
                     onChange={setManufacturerId}
                     searchable
+                    searchValue={manufacturerSearch}
+                    onSearchChange={setManufacturerSearch}
                     clearable
                     data={manufacturerOptions}
                   />
@@ -694,6 +760,8 @@ export const Sticker = memo(function Sticker() {
                       value={importerId}
                       onChange={setImporterId}
                       searchable
+                      searchValue={importerSearch}
+                      onSearchChange={setImporterSearch}
                       clearable
                       data={importerOptions}
                     />

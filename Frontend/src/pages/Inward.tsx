@@ -46,6 +46,7 @@ import {
   CreatePoInvoiceDto,
   PoInvoiceFilters,
   PoInvoice,
+  PaginationInfo,
   Product,
   poInvoicesApi,
   productsApi,
@@ -72,6 +73,8 @@ export const Inward = memo(function Inward() {
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRowsLoading, setIsRowsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("all");
@@ -91,23 +94,37 @@ export const Inward = memo(function Inward() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
 
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, invoicesData] = await Promise.all([
-        productsApi.getAll(),
-        poInvoicesApi.getAll(),
-      ]);
+      const productsData = await productsApi.search("");
 
       setProducts(productsData);
-      setPoInvoices(invoicesData);
     } catch (error) {
       toast.error("Failed to load inward data");
     } finally {
       setIsLoading(false);
     }
   }, []);
+
+  const loadProductLookup = useCallback(async (query: string) => {
+    try {
+      const productsData = await productsApi.search(query);
+      setProducts(productsData);
+    } catch {
+      toast.error("Failed to search products");
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadProductLookup(productSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [loadProductLookup, productSearch]);
 
   useEffect(() => {
     void loadData();
@@ -116,8 +133,9 @@ export const Inward = memo(function Inward() {
   const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
     try {
       setIsRowsLoading(true);
-      const invoiceData = await poInvoicesApi.getAll(filters);
-      setPoInvoices(invoiceData);
+      const result = await poInvoicesApi.getPaged(filters);
+      setPoInvoices(result.data);
+      setPagination(result.pagination);
     } catch {
       toast.error("Failed to load inward rows");
     } finally {
@@ -131,8 +149,14 @@ export const Inward = memo(function Inward() {
       status: statusFilter,
       fromDate,
       toDate,
+      page,
+      pageSize: 25,
     });
-  }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
+  }, [fromDate, loadInvoiceRows, page, search, statusFilter, toDate]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, search, statusFilter, toDate]);
 
   const productOptions = useMemo(
     () =>
@@ -307,6 +331,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page,
+        pageSize: 25,
       });
       resetInvoiceModal();
     } catch (error: any) {
@@ -330,6 +356,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page,
+        pageSize: 25,
       });
       setDeleteTarget(null);
     } catch (error: any) {
@@ -368,6 +396,14 @@ export const Inward = memo(function Inward() {
           toast.warning(`${result.errors.length} rows had errors`);
         }
         await loadData();
+        await loadInvoiceRows({
+          search,
+          status: statusFilter,
+          fromDate,
+          toDate,
+          page: 1,
+          pageSize: 25,
+        });
         setIsUploadModalOpen(false);
         setUploadFile(null);
       } else {
@@ -512,6 +548,8 @@ export const Inward = memo(function Inward() {
                     status: statusFilter,
                     fromDate,
                     toDate,
+                    page,
+                    pageSize: 25,
                   })
                 }
                 loading={isRowsLoading}
@@ -543,6 +581,10 @@ export const Inward = memo(function Inward() {
             columns={columns}
             rowKey={(row) => row.id}
             isLoading={isLoading || isRowsLoading}
+            pageSize={pagination?.pageSize ?? 25}
+            currentPage={pagination?.page ?? page}
+            totalItems={pagination?.total}
+            onPageChange={setPage}
             emptyIcon={FileText}
             emptyTitle="No inward rows"
             emptyDescription="No PO invoice rows match current search or filter."
@@ -596,6 +638,8 @@ export const Inward = memo(function Inward() {
                     value: String(p.value),
                     label: p.label,
                   }))}
+                  searchValue={productSearch}
+                  onSearchChange={setProductSearch}
                   value={
                     invoiceForm.productId ? String(invoiceForm.productId) : null
                   }

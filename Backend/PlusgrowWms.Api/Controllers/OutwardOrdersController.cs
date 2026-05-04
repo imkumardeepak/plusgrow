@@ -24,8 +24,11 @@ public class OutwardOrdersController : BaseController
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<OutwardOrderDto>>>> GetOrders([FromQuery] OutwardOrderFilterDto filter)
     {
+        var page = Math.Max(filter.Page, 1);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var query = _context.OutwardOrders
             .Include(x => x.Product)
+            .AsNoTracking()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -45,12 +48,15 @@ public class OutwardOrdersController : BaseController
             query = query.Where(x => x.Status.ToLower() == status);
         }
 
+        var total = await query.CountAsync();
         var rows = await query
             .OrderByDescending(x => x.OrderDate)
             .ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        return Success(rows.Select(MapOrder).ToList());
+        return Success(rows.Select(MapOrder).ToList(), page, pageSize, total);
     }
 
     [HttpPost]
