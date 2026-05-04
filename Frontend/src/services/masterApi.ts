@@ -560,8 +560,10 @@ export const productsApi = {
     return response.data.data || null;
   },
 
-  search: async (query: string): Promise<Product[]> => {
-    const response = await api.get<ApiResponse<Product[]>>(`/products/search?q=${encodeURIComponent(query)}`);
+  search: async (query: string = ''): Promise<Product[]> => {
+    const response = await api.get<ApiResponse<Product[]>>('/products/search', {
+      params: { q: query.trim() || undefined },
+    });
     return response.data.data || [];
   },
 

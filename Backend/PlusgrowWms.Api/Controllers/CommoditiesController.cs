@@ -4,6 +4,7 @@ using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Models;
 using PlusgrowWms.Api.DTOs;
+using PlusgrowWms.Api.Services;
 using ClosedXML.Excel;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -11,38 +12,25 @@ namespace PlusgrowWms.Api.Controllers;
 public class CommoditiesController : BaseController
 {
     private readonly PlusgrowDbContext _context;
+    private readonly ICommodityService _commodityService;
 
-    public CommoditiesController(PlusgrowDbContext context)
+    public CommoditiesController(PlusgrowDbContext context, ICommodityService commodityService)
     {
         _context = context;
+        _commodityService = commodityService;
     }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<Commodity>>>> GetCommodities([FromQuery] ListQueryDto queryDto)
     {
-        var page = Math.Max(queryDto.Page, 1);
-        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
-        var query = _context.Commodities.AsNoTracking().AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(queryDto.Search))
-        {
-            var search = queryDto.Search.Trim().ToLower();
-            query = query.Where(x => x.Name.ToLower().Contains(search));
-        }
-
-        query = queryDto.SortDirection?.Trim().ToLowerInvariant() == "desc"
-            ? query.OrderByDescending(x => x.Name)
-            : query.OrderBy(x => x.Name);
-
-        var total = await query.CountAsync();
-        var commodities = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        return Success(commodities, page, pageSize, total);
+        var result = await _commodityService.GetPagedAsync(queryDto);
+        return Success(result.Items, result.Page, result.PageSize, result.Total);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<Commodity>>> GetCommodity(int id)
     {
-        var commodity = await _context.Commodities.FindAsync(id);
+        var commodity = await _commodityService.GetByIdAsync(id);
         if (commodity == null)
             return NotFound<Commodity>("Commodity not found");
         return Success(commodity);
@@ -51,47 +39,32 @@ public class CommoditiesController : BaseController
     [HttpPost]
     public async Task<ActionResult<ApiResponse<Commodity>>> CreateCommodity([FromBody] Commodity commodity)
     {
-        _context.Commodities.Add(commodity);
-        await _context.SaveChangesAsync();
-        return Success(commodity, "Commodity created successfully");
+        var createdCommodity = await _commodityService.CreateAsync(commodity);
+        return Success(createdCommodity, "Commodity created successfully");
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<Commodity>>> UpdateCommodity(int id, [FromBody] Commodity commodity)
     {
-        if (id != commodity.Id)
-            return BadRequest<Commodity>("ID mismatch");
+        var (updatedCommodity, error) = await _commodityService.UpdateAsync(id, commodity);
+        if (error == "ID mismatch")
+            return BadRequest<Commodity>(error);
 
-        _context.Entry(commodity).State = EntityState.Modified;
+        if (updatedCommodity == null)
+            return NotFound<Commodity>("Commodity not found");
 
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!CommodityExists(id))
-                return NotFound<Commodity>("Commodity not found");
-            throw;
-        }
-
-        return Success(commodity, "Commodity updated successfully");
+        return Success(updatedCommodity, "Commodity updated successfully");
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteCommodity(int id)
     {
-        var commodity = await _context.Commodities.FindAsync(id);
-        if (commodity == null)
+        var deleted = await _commodityService.DeleteAsync(id);
+        if (!deleted)
             return NotFound("Commodity not found");
-
-        _context.Commodities.Remove(commodity);
-        await _context.SaveChangesAsync();
 
         return Ok("Commodity deleted successfully");
     }
-
-    private bool CommodityExists(int id) => _context.Commodities.Any(e => e.Id == id);
 
     [HttpPost("upload")]
     [DisableRequestSizeLimit]

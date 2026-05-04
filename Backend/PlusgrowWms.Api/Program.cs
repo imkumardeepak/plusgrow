@@ -40,11 +40,23 @@ builder.Services.AddDbContext<PlusgrowDbContext>((sp, options) =>
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IManufacturerRepository, ManufacturerRepository>();
+builder.Services.AddScoped<IImporterRepository, ImporterRepository>();
+builder.Services.AddScoped<ICommodityRepository, CommodityRepository>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IBinRepository, BinRepository>();
 
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
 builder.Services.AddScoped<IStickerService, StickerService>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IManufacturerService, ManufacturerService>();
+builder.Services.AddScoped<IImporterService, ImporterService>();
+builder.Services.AddScoped<ICommodityService, CommodityService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IBinService, BinService>();
 
 // Add HttpClient for StickerService
 builder.Services.AddHttpClient();

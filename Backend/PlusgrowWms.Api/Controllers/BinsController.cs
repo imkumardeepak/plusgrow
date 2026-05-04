@@ -6,19 +6,20 @@ using PlusgrowWms.Api.Models;
 using PlusgrowWms.Api.DTOs;
 using AutoMapper;
 using ClosedXML.Excel;
+using PlusgrowWms.Api.Services;
 
 namespace PlusgrowWms.Api.Controllers;
 
 public class BinsController : BaseController
 {
     private readonly PlusgrowDbContext _context;
-    private readonly IMapper _mapper;
+    private readonly IBinService _binService;
     private readonly ILogger<BinsController> _logger;
     
-    public BinsController(PlusgrowDbContext context, IMapper mapper, ILogger<BinsController> logger)
+    public BinsController(PlusgrowDbContext context, IBinService binService, ILogger<BinsController> logger)
     {
         _context = context;
-        _mapper = mapper;
+        _binService = binService;
         _logger = logger;
     }
     
@@ -27,9 +28,9 @@ public class BinsController : BaseController
     {
         try
         {
-            var bins = await _context.Bins.OrderBy(b => b.BinCode).ToListAsync();
+            var bins = await _binService.GetAllAsync();
             _logger.LogInformation("Fetched {Count} bins from DB", bins.Count);
-            return Success(_mapper.Map<List<BinDto>>(bins));
+            return Success(bins);
         }
         catch (Exception ex)
         {
@@ -41,10 +42,10 @@ public class BinsController : BaseController
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<BinDto>>> GetBin(int id)
     {
-        var bin = await _context.Bins.FindAsync(id);
+        var bin = await _binService.GetByIdAsync(id);
         if (bin == null)
             return NotFound<BinDto>("Bin not found");
-        return Success(_mapper.Map<BinDto>(bin));
+        return Success(bin);
     }
     
     [HttpPost]
@@ -52,11 +53,8 @@ public class BinsController : BaseController
     {
         try
         {
-            var bin = _mapper.Map<Bin>(createBinDto);
-            _context.Bins.Add(bin);
-            await _context.SaveChangesAsync();
-            var totalCount = await _context.Bins.CountAsync();
-            return Success(_mapper.Map<BinDto>(bin), $"Bin created successfully. Total in DB: {totalCount}");
+            var (bin, totalCount) = await _binService.CreateAsync(createBinDto);
+            return Success(bin!, $"Bin created successfully. Total in DB: {totalCount}");
         }
         catch (Exception ex)
         {
@@ -68,28 +66,20 @@ public class BinsController : BaseController
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<BinDto>>> UpdateBin(int id, [FromBody] UpdateBinDto updateBinDto)
     {
-        if (id != updateBinDto.Id)
-            return BadRequest<BinDto>("ID mismatch");
-            
-        var bin = await _context.Bins.FindAsync(id);
+        var (bin, error) = await _binService.UpdateAsync(id, updateBinDto);
+        if (error == "ID mismatch")
+            return BadRequest<BinDto>(error);
         if (bin == null)
             return NotFound<BinDto>("Bin not found");
-            
-        _mapper.Map(updateBinDto, bin);
-        await _context.SaveChangesAsync();
         
-        return Success(_mapper.Map<BinDto>(bin), "Bin updated successfully");
+        return Success(bin, "Bin updated successfully");
     }
     
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteBin(int id)
     {
-        var bin = await _context.Bins.FindAsync(id);
-        if (bin == null)
+        if (!await _binService.DeleteAsync(id))
             return NotFound("Bin not found");
-            
-        _context.Bins.Remove(bin);
-        await _context.SaveChangesAsync();
         
         return Ok("Bin deleted successfully");
     }

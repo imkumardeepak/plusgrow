@@ -1,13 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
 import {
-  ActionIcon,
   Badge,
   Box,
-  Grid,
   Group,
   Paper,
-  ScrollArea,
   SimpleGrid,
   Stack,
   Text,
@@ -15,7 +11,6 @@ import {
 } from "@mantine/core";
 import {
   ArrowRight,
-  CircleAlert,
   CheckCircle2,
   Eraser,
   MapPin,
@@ -28,10 +23,6 @@ import { toast } from "../../lib/toast";
 
 import { Button } from "../../components/atoms/Button";
 import { Input } from "../../components/atoms/Input";
-import {
-  DataTable,
-  createTableColumns,
-} from "../../components/molecules/DataTable";
 import {
   OperationsPage,
   OperationsPanel,
@@ -69,7 +60,6 @@ export const PutAway = () => {
   >([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const [productScanCode, setProductScanCode] = useState("");
   const [locationScanCode, setLocationScanCode] = useState("");
   const [assignQuantity, setAssignQuantity] = useState<number | "">("");
@@ -145,15 +135,7 @@ export const PutAway = () => {
       .sort((a, b) => b.remainingQuantity - a.remainingQuantity);
   }, [allocations, productQuantities, poInvoices]);
 
-  const tasks = useMemo<PutAwayTask[]>(() => {
-    return allTasks.filter((task) => {
-      const query = searchQuery.toLowerCase();
-      return (
-        task.skuCode.toLowerCase().includes(query) ||
-        task.productName.toLowerCase().includes(query)
-      );
-    });
-  }, [allTasks, searchQuery]);
+  const tasks = allTasks;
 
   const selectedTask = useMemo(() => {
     if (!productScanCode.trim()) return null;
@@ -261,22 +243,6 @@ export const PutAway = () => {
     }
   };
 
-  const handleChooseTask = (task: PutAwayTask) => {
-    setProductScanCode(task.skuCode);
-    setAssignQuantity(task.remainingQuantity > 0 ? task.remainingQuantity : "");
-    setLastAssignment(null);
-    setProductError(null);
-    setLocationError(null);
-    setScannedProduct(null);
-
-    window.setTimeout(() => {
-      const locationInput = document.getElementById("location-scan-input");
-      if (locationInput) {
-        locationInput.focus();
-      }
-    }, 0);
-  };
-
   const handleAssign = async () => {
     const quantity = Number(assignQuantity);
 
@@ -348,61 +314,6 @@ export const PutAway = () => {
     }
   };
 
-  const allocationColumns = createTableColumns<ProductAllottedLocationRecord>([
-    {
-      accessorKey: "skuCode",
-      header: "SKU Code",
-      cell: (row) => (
-        <Text ff="monospace" size="11px" c="cyan.3" fw={700}>
-          {row.skuCode}
-        </Text>
-      ),
-    },
-    {
-      accessorKey: "productName",
-      header: "Product Name",
-      cell: (row) => (
-        <Text fw={700} c="white" size="sm">
-          {row.productName}
-        </Text>
-      ),
-    },
-    {
-      accessorKey: "locationJson",
-      header: "Stored Locations",
-      cell: (row) => (
-        <Group gap="xs" wrap="wrap">
-          {Object.entries(row.locationJson || {}).length > 0 ? (
-            Object.entries(row.locationJson).map(([key, value]) => (
-              <Badge
-                key={key}
-                variant="light"
-                color="gray"
-                size="sm"
-                radius="md"
-              >
-                {key}: {value}
-              </Badge>
-            ))
-          ) : (
-            <Text size="xs" c="dimmed">
-              No locations mapped
-            </Text>
-          )}
-        </Group>
-      ),
-    },
-    {
-      accessorKey: "updatedAt",
-      header: "Updated",
-      cell: (row) => (
-        <Text size="11px" c="dimmed">
-          {format(new Date(row.updatedAt), "dd-MMM-yy hh:mm a")}
-        </Text>
-      ),
-    },
-  ]);
-
   const totalCurrent = tasks.reduce(
     (sum, task) => sum + task.currentQuantity,
     0,
@@ -459,8 +370,7 @@ export const PutAway = () => {
       icon={Warehouse}
       hideHeader
     >
-      <Grid gutter="md">
-        <Grid.Col span={{ base: 12, xl: 7 }}>
+      <Box maw={980}>
           <OperationsPanel
             title="Scan Workflow"
             icon={ScanLine}
@@ -728,11 +638,12 @@ export const PutAway = () => {
                 </SimpleGrid>
               </Paper>
 
-              <Group grow>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="sm">
                 <Button
                   variant="outline"
                   onClick={clearProductOnly}
                   leftIcon={<RotateCcw className="h-4 w-4" />}
+                  className="min-h-11 whitespace-normal px-3 text-center"
                 >
                   Next SKU
                 </Button>
@@ -740,6 +651,7 @@ export const PutAway = () => {
                   variant="outline"
                   onClick={clearLocationOnly}
                   leftIcon={<MapPin className="h-4 w-4" />}
+                  className="min-h-11 whitespace-normal px-3 text-center"
                 >
                   Change Location
                 </Button>
@@ -747,6 +659,7 @@ export const PutAway = () => {
                   variant="outline"
                   onClick={resetAllScans}
                   leftIcon={<Eraser className="h-4 w-4" />}
+                  className="min-h-11 whitespace-normal px-3 text-center"
                 >
                   Clear All
                 </Button>
@@ -754,6 +667,7 @@ export const PutAway = () => {
                   onClick={handleAssign}
                   loading={isAssigning}
                   disabled={!canAssign}
+                  className="min-h-11 whitespace-normal px-3 text-center"
                   leftIcon={
                     isAssigning ? (
                       <Package className="h-4 w-4 animate-pulse" />
@@ -764,7 +678,7 @@ export const PutAway = () => {
                 >
                   {isAssigning ? "Saving..." : "Save Put Away"}
                 </Button>
-              </Group>
+              </SimpleGrid>
 
               {lastAssignment && (
                 <Paper
@@ -830,11 +744,7 @@ export const PutAway = () => {
               )}
             </Stack>
           </OperationsPanel>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, xl: 5 }}>
-        </Grid.Col>
-      </Grid>
+      </Box>
     </OperationsPage>
   );
 };

@@ -4,6 +4,7 @@ using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Models;
 using PlusgrowWms.Api.DTOs;
+using PlusgrowWms.Api.Services;
 using ClosedXML.Excel;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -11,46 +12,25 @@ namespace PlusgrowWms.Api.Controllers;
 public class ManufacturersController : BaseController
 {
     private readonly PlusgrowDbContext _context;
+    private readonly IManufacturerService _manufacturerService;
 
-    public ManufacturersController(PlusgrowDbContext context)
+    public ManufacturersController(PlusgrowDbContext context, IManufacturerService manufacturerService)
     {
         _context = context;
+        _manufacturerService = manufacturerService;
     }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<Manufacturer>>>> GetManufacturers([FromQuery] ListQueryDto queryDto)
     {
-        var page = Math.Max(queryDto.Page, 1);
-        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
-        var query = _context.Manufacturers.AsNoTracking().AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(queryDto.Search))
-        {
-            var search = queryDto.Search.Trim().ToLower();
-            query = query.Where(x =>
-                x.Name.ToLower().Contains(search) ||
-                (x.Country != null && x.Country.ToLower().Contains(search)));
-        }
-
-        query = (queryDto.SortBy?.Trim().ToLowerInvariant(), queryDto.SortDirection?.Trim().ToLowerInvariant()) switch
-        {
-            ("country", "desc") => query.OrderByDescending(x => x.Country),
-            ("country", _) => query.OrderBy(x => x.Country),
-            ("createdat", "desc") => query.OrderByDescending(x => x.CreatedAt),
-            ("createdat", _) => query.OrderBy(x => x.CreatedAt),
-            ("name", "desc") => query.OrderByDescending(x => x.Name),
-            _ => query.OrderBy(x => x.Name),
-        };
-
-        var total = await query.CountAsync();
-        var manufacturers = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
-        return Success(manufacturers, page, pageSize, total);
+        var result = await _manufacturerService.GetPagedAsync(queryDto);
+        return Success(result.Items, result.Page, result.PageSize, result.Total);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<Manufacturer>>> GetManufacturer(int id)
     {
-        var manufacturer = await _context.Manufacturers.FindAsync(id);
+        var manufacturer = await _manufacturerService.GetByIdAsync(id);
         if (manufacturer == null)
             return NotFound<Manufacturer>("Manufacturer not found");
         return Success(manufacturer);
@@ -59,42 +39,25 @@ public class ManufacturersController : BaseController
     [HttpPost]
     public async Task<ActionResult<ApiResponse<Manufacturer>>> CreateManufacturer([FromBody] Manufacturer manufacturer)
     {
-        _context.Manufacturers.Add(manufacturer);
-        await _context.SaveChangesAsync();
-        return Success(manufacturer, "Manufacturer created successfully");
+        return Success(await _manufacturerService.CreateAsync(manufacturer), "Manufacturer created successfully");
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<Manufacturer>>> UpdateManufacturer(int id, [FromBody] Manufacturer manufacturer)
     {
-        if (id != manufacturer.Id)
-            return BadRequest<Manufacturer>("ID mismatch");
-
-        _context.Entry(manufacturer).State = EntityState.Modified;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ManufacturerExists(id))
-                return NotFound<Manufacturer>("Manufacturer not found");
-            throw;
-        }
-
-        return Success(manufacturer, "Manufacturer updated successfully");
+        var (updated, error) = await _manufacturerService.UpdateAsync(id, manufacturer);
+        if (error == "ID mismatch")
+            return BadRequest<Manufacturer>(error);
+        if (updated == null)
+            return NotFound<Manufacturer>("Manufacturer not found");
+        return Success(updated, "Manufacturer updated successfully");
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteManufacturer(int id)
     {
-        var manufacturer = await _context.Manufacturers.FindAsync(id);
-        if (manufacturer == null)
+        if (!await _manufacturerService.DeleteAsync(id))
             return NotFound("Manufacturer not found");
-
-        _context.Manufacturers.Remove(manufacturer);
-        await _context.SaveChangesAsync();
 
         return Ok("Manufacturer deleted successfully");
     }

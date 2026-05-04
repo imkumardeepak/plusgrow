@@ -4,7 +4,7 @@ using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Models;
 using PlusgrowWms.Api.DTOs;
-using System.Text.Json;
+using PlusgrowWms.Api.Services;
 using ClosedXML.Excel;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -12,61 +12,27 @@ namespace PlusgrowWms.Api.Controllers;
 public class ProductsController : BaseController
 {
     private readonly PlusgrowDbContext _context;
+    private readonly IProductService _productService;
     private readonly ILogger<ProductsController> _logger;
 
-    public ProductsController(PlusgrowDbContext context, ILogger<ProductsController> logger)
+    public ProductsController(PlusgrowDbContext context, IProductService productService, ILogger<ProductsController> logger)
     {
         _context = context;
+        _productService = productService;
         _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<Product>>>> GetProducts([FromQuery] ListQueryDto queryDto)
     {
-        var page = Math.Max(queryDto.Page, 1);
-        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
-        var query = _context.Products
-            .Include(p => p.Commodity)
-            .Include(p => p.Manufacturer)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(queryDto.Search))
-        {
-            var search = queryDto.Search.Trim().ToLower();
-            query = query.Where(p =>
-                p.Name.ToLower().Contains(search) ||
-                (p.Sku != null && p.Sku.ToLower().Contains(search)) ||
-                (p.Manufacturer != null && p.Manufacturer.Name.ToLower().Contains(search)) ||
-                (p.Commodity != null && p.Commodity.Name.ToLower().Contains(search)));
-        }
-
-        query = (queryDto.SortBy?.Trim().ToLowerInvariant(), queryDto.SortDirection?.Trim().ToLowerInvariant()) switch
-        {
-            ("sku", "desc") => query.OrderByDescending(p => p.Sku),
-            ("sku", _) => query.OrderBy(p => p.Sku),
-            ("createdat", "desc") => query.OrderByDescending(p => p.CreatedAt),
-            ("createdat", _) => query.OrderBy(p => p.CreatedAt),
-            ("name", "desc") => query.OrderByDescending(p => p.Name),
-            _ => query.OrderBy(p => p.Name),
-        };
-
-        var total = await query.CountAsync();
-        var products = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-
-        return Success(products, page, pageSize, total);
+        var result = await _productService.GetPagedAsync(queryDto);
+        return Success(result.Items, result.Page, result.PageSize, result.Total);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<Product>>> GetProduct(int id)
     {
-        var product = await _context.Products
-            .Include(p => p.Commodity)
-            .Include(p => p.Manufacturer)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        var product = await _productService.GetByIdAsync(id);
 
         if (product == null)
             return NotFound<Product>("Product not found");
@@ -77,89 +43,36 @@ public class ProductsController : BaseController
     [HttpPost]
     public async Task<ActionResult<ApiResponse<Product>>> CreateProduct([FromBody] Product product)
     {
-        _context.Products.Add(product);
-        await _context.SaveChangesAsync();
-
-        // Fetch with includes
-        var created = await _context.Products
-            .Include(p => p.Commodity)
-            .Include(p => p.Manufacturer)
-            .FirstOrDefaultAsync(p => p.Id == product.Id);
-
-        return Success(created!, "Product created successfully");
+        var created = await _productService.CreateAsync(product);
+        return Success(created, "Product created successfully");
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<Product>>> UpdateProduct(int id, [FromBody] Product product)
     {
-        _logger.LogInformation("UpdateProduct called with id: {Id}, product: {Product}", id, JsonSerializer.Serialize(product));
-
-        if (id != product.Id)
-            return BadRequest<Product>("ID mismatch");
-
-        // Fetch existing entity and update fields manually
-        var existing = await _context.Products.FindAsync(id);
-        if (existing == null)
+        var (updated, error) = await _productService.UpdateAsync(id, product);
+        if (error == "ID mismatch")
+            return BadRequest<Product>(error);
+        if (updated == null)
             return NotFound<Product>("Product not found");
 
-        // Update all fields
-        existing.Name = product.Name;
-        existing.Sku = product.Sku;
-        existing.CommodityId = product.CommodityId;
-        existing.ManufacturerId = product.ManufacturerId;
-        existing.CountryOfOrigin = product.CountryOfOrigin;
-        existing.Factor = product.Factor;
-        existing.NetQuantity = product.NetQuantity;
-        existing.UnitType = product.UnitType;
-        existing.Ussp = product.Ussp;
-        existing.Mrp = product.Mrp;
-        existing.BestBeforeMonths = product.BestBeforeMonths;
-
-        try
-        {
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("Product updated successfully with Ussp: {Ussp}", product.Ussp);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!ProductExists(id))
-                return NotFound<Product>("Product not found");
-            throw;
-        }
-
-        var updated = await _context.Products
-            .Include(p => p.Commodity)
-            .Include(p => p.Manufacturer)
-            .FirstOrDefaultAsync(p => p.Id == id);
-
-        return Success(updated!, "Product updated successfully");
+        _logger.LogInformation("Product {ProductId} updated successfully", id);
+        return Success(updated, "Product updated successfully");
     }
 
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteProduct(int id)
     {
-        var product = await _context.Products.FindAsync(id);
-        if (product == null)
+        if (!await _productService.DeleteAsync(id))
             return NotFound("Product not found");
-
-        _context.Products.Remove(product);
-        await _context.SaveChangesAsync();
 
         return Ok("Product deleted successfully");
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<ApiResponse<List<Product>>>> Search([FromQuery] string q)
+    public async Task<ActionResult<ApiResponse<List<Product>>>> Search([FromQuery] string? q)
     {
-        var products = await _context.Products
-            .Include(p => p.Commodity)
-            .Include(p => p.Manufacturer)
-            .AsNoTracking()
-            .Where(p => string.IsNullOrWhiteSpace(q) || p.Name.ToLower().Contains(q.Trim().ToLower()) || (p.Sku != null && p.Sku.ToLower().Contains(q.Trim().ToLower())))
-            .OrderBy(p => p.Name)
-            .Take(25)
-            .ToListAsync();
-
+        var products = await _productService.SearchAsync(q);
         return Success(products);
     }
 
