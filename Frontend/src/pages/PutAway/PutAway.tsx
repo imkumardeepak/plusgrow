@@ -35,8 +35,6 @@ import {
   productQuantitiesApi,
   productsApi,
   Product,
-  PoInvoice,
-  poInvoicesApi,
 } from "../../services/masterApi";
 
 type PutAwayTask = {
@@ -58,7 +56,6 @@ export const PutAway = () => {
   const [allocations, setAllocations] = useState<
     ProductAllottedLocationRecord[]
   >([]);
-  const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [productScanCode, setProductScanCode] = useState("");
   const [locationScanCode, setLocationScanCode] = useState("");
@@ -74,17 +71,13 @@ export const PutAway = () => {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [quantitiesData, allocationsData, invoicesData] = await Promise.all(
-        [
-          productQuantitiesApi.getAll(),
-          productAllottedLocationsApi.getAll(),
-          poInvoicesApi.getAll(),
-        ],
-      );
+      const [quantitiesData, allocationsData] = await Promise.all([
+        productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
+      ]);
 
       setProductQuantities(quantitiesData);
       setAllocations(allocationsData);
-      setPoInvoices(invoicesData);
     } catch (error) {
       toast.error("Failed to load put-away data");
     } finally {
@@ -99,15 +92,6 @@ export const PutAway = () => {
   const allTasks = useMemo<PutAwayTask[]>(() => {
     return productQuantities
       .map((quantityRow) => {
-        // Get remaining allocation from PO invoices for this product
-        const productInvoices = poInvoices.filter(
-          (inv) => inv.productId === quantityRow.productId,
-        );
-        const remainingAllocation = productInvoices.reduce(
-          (sum, inv) => sum + inv.remainingAllocation,
-          0,
-        );
-
         const allocationRow = allocations.find(
           (entry) => entry.productId === quantityRow.productId,
         );
@@ -115,11 +99,11 @@ export const PutAway = () => {
           (allocationRow?.locationJson || {}) as Record<string, number>,
         ).reduce((sum, qty) => sum + Number(qty), 0);
 
-        // Use remainingAllocation from invoices if available, otherwise fall back to calculation
-        const remainingQuantity =
-          remainingAllocation > 0
-            ? remainingAllocation
-            : Math.max(quantityRow.currentQuantity - allocatedQuantity, 0);
+        // Calculate remaining using the same logic as backend: currentQuantity - allocatedQuantity
+        const remainingQuantity = Math.max(
+          quantityRow.currentQuantity - allocatedQuantity,
+          0,
+        );
 
         return {
           productId: quantityRow.productId,
@@ -133,7 +117,7 @@ export const PutAway = () => {
       })
       .filter((task) => task.remainingQuantity > 0)
       .sort((a, b) => b.remainingQuantity - a.remainingQuantity);
-  }, [allocations, productQuantities, poInvoices]);
+  }, [allocations, productQuantities]);
 
   const tasks = allTasks;
 

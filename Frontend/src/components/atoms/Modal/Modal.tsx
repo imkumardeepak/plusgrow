@@ -1,6 +1,13 @@
 import React from "react";
 import { AlertCircle, AlertTriangle, CheckCircle, Info } from "lucide-react";
-import { Box, Group, Modal as MantineModal, Stack, Text, ThemeIcon } from "@mantine/core";
+import {
+  Box,
+  Group,
+  Modal as MantineModal,
+  Stack,
+  Text,
+  ThemeIcon,
+} from "@mantine/core";
 import { Button } from "../Button";
 
 export interface ModalProps {
@@ -36,7 +43,9 @@ const modalSizeMap: Record<NonNullable<ModalProps["size"]>, string> = {
   full: "100%",
 };
 
-function getThemeIcon(variant: NonNullable<ModalProps["variant"] | ConfirmDialogProps["variant"]>) {
+function getThemeIcon(
+  variant: NonNullable<ModalProps["variant"] | ConfirmDialogProps["variant"]>,
+) {
   switch (variant) {
     case "danger":
       return {
@@ -85,7 +94,12 @@ export function Modal({
       title={
         <Group gap="sm">
           {variant !== "default" ? (
-            <ThemeIcon variant="light" color={badge.color} radius="xl" size={36}>
+            <ThemeIcon
+              variant="light"
+              color={badge.color}
+              radius="xl"
+              size={36}
+            >
               {badge.icon}
             </ThemeIcon>
           ) : null}
@@ -104,15 +118,27 @@ export function Modal({
       className={className}
       styles={{
         content: {
-          background: "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
+          background:
+            "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
           border: "1px solid rgba(255,255,255,0.1)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          maxHeight: "80vh",
         },
         header: {
-          background: "transparent",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background:
+            "linear-gradient(180deg, rgba(16,24,40,0.99) 0%, rgba(12,20,35,0.98) 100%)",
+          borderBottom: "1px solid rgba(148,163,184,0.18)",
+          boxShadow: "0 10px 26px rgba(0,0,0,0.28)",
         },
         body: {
-          paddingTop: 20,
+          paddingTop: 16,
+          overflowY: "auto",
+          flex: 1,
         },
       }}
     >
@@ -151,7 +177,8 @@ export function ConfirmDialog({
       }}
       styles={{
         content: {
-          background: "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
+          background:
+            "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
           border: "1px solid rgba(255,255,255,0.1)",
         },
         header: {
@@ -177,7 +204,13 @@ export function ConfirmDialog({
             {cancelText}
           </Button>
           <Button
-            variant={variant === "warning" ? "warning" : variant === "default" ? "primary" : "destructive"}
+            variant={
+              variant === "warning"
+                ? "warning"
+                : variant === "default"
+                  ? "primary"
+                  : "destructive"
+            }
             onClick={onConfirm}
             loading={isLoading}
           >
