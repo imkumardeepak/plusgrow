@@ -21,7 +21,6 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inward = lazy(() => import("./pages/Inward"));
-const Sticker = lazy(() => import("./pages/Sticker"));
 const PutAway = lazy(() => import("./pages/PutAway"));
 const Outward = lazy(() => import("./pages/Outward"));
 const Packing = lazy(() => import("./pages/Packing"));
@@ -148,14 +147,7 @@ export default function App() {
                       </Suspense>
                     }
                   />
-                  <Route
-                    path="sticker"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Sticker />
-                      </Suspense>
-                    }
-                  />
+                  <Route path="sticker" element={<Navigate to="/inward" replace />} />
                   <Route
                     path="putaway"
                     element={

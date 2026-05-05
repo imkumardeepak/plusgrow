@@ -13,7 +13,6 @@ import {
   Move,
   Package,
   Printer,
-  Tags,
   Truck,
   User,
   Warehouse,
@@ -107,12 +106,6 @@ export const navigationGroups: NavGroup[] = [
         label: "Purchase Invoices",
         icon: ArrowDownToLine,
         href: "/inward",
-      },
-      {
-        id: "sticker",
-        label: "Sticker Generation",
-        icon: Tags,
-        href: "/sticker",
       },
       {
         id: "putaway",

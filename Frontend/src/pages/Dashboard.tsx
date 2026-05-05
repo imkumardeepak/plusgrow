@@ -307,7 +307,7 @@ export const Dashboard = memo(function Dashboard() {
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Stack gap="md">
             <SimpleGrid cols={{ base: 1, sm: 3 }} gap="md">
-              <Link to="/sticker" className="no-underline">
+              <Link to="/inward" className="no-underline">
                 <Card withBorder radius="md" p="md">
                   <Group gap="sm">
                     <ThemeIcon color="violet" variant="light" size={40}>

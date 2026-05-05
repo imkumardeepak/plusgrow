@@ -21,7 +21,6 @@ export const ROLES = {
 export const PAGE_KEYS = {
   DASHBOARD: 'dashboard',
   INWARD: 'inward',
-  STICKER: 'sticker',
   RECEIVING: 'receiving',
   PUTAWAY: 'putaway',
   OUTWARD: 'outward',

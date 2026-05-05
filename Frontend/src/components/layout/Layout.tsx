@@ -22,7 +22,6 @@ import {
   Factory,
   RefreshCw,
   Box,
-  Tags,
   Truck,
   ClipboardCheck,
   Move,
@@ -74,7 +73,6 @@ const navGroups: NavGroup[] = [
     label: "Inward Operations",
     items: [
       { to: "/inward", icon: ArrowDownToLine, label: "Purchase Invoices" },
-      { to: "/sticker", icon: Tags, label: "Sticker Generation" },
       { to: "/putaway", icon: Warehouse, label: "Put Away" },
     ],
   },

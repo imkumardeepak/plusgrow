@@ -73,8 +73,8 @@ public class StickerService : IStickerService
             importerParts.Country,
             DefaultImporterCountry);
         var quantity = request.Quantity > 0 ? request.Quantity : 1;
-        var bestBeforeYears = product.BestBeforeMonths > 0
-            ? Math.Max(1, product.BestBeforeMonths / 12)
+        var bestBeforeMonths = product.BestBeforeMonths > 0
+            ? product.BestBeforeMonths
             : 1;
         var companyHeader = string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase)
             ? "MARKETED BY"
@@ -95,10 +95,10 @@ public class StickerService : IStickerService
             { "<DATEOFIMPORT>", request.MonthYear },
             { "<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA" },
             { "<NETQNTY>", product.NetQuantity ?? "0 ml" },
-            { "<MRP>", product.Mrp?.ToString("N2") ?? "0.00" },
-            { "<FACTOR>", product.Factor ?? product.Ussp?.ToString("N4") ?? "0.0000" },
+            { "<MRP>", FormatRupee(product.Mrp, 2) },
+            { "<FACTOR>", FormatRupee(product.Ussp, 2) },
             { "<UNIT>", product.UnitType ?? "Pcs" },
-            { "<BESTBEFORE>", bestBeforeYears.ToString() },
+            { "<BESTBEFORE>", bestBeforeMonths.ToString() },
             { "<SKUCODE>", product.Sku ?? string.Empty },
             { "<ITEMDESC1>", SplitIntoLength(product.Name, 30, 0) },
             { "<ITEMDESC2>", SplitIntoLength(product.Name, 30, 1) },
@@ -243,5 +243,10 @@ public class StickerService : IStickerService
     private static string FirstFilled(params string?[] values)
     {
         return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
+    }
+
+    private static string FormatRupee(decimal? value, int decimals)
+    {
+        return $"Rs.{(value ?? 0m).ToString($"N{decimals}")}";
     }
 }

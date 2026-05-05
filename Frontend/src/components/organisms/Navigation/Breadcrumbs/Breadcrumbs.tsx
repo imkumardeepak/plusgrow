@@ -24,7 +24,6 @@ const routeLabels: Record<string, string> = {
   "/bins": "Bin Master",
   "/locations": "Location Master",
   "/inward": "Purchase Invoices",
-  "/sticker": "Sticker Generation",
   "/putaway": "Put Away",
   "/outward": "Sales Orders",
   "/packing": "Picking & Packing",
