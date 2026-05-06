@@ -122,7 +122,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       {
         id: "outward",
-        label: "Sales Orders",
+        label: "Sales Invoice",
         icon: ArrowUpFromLine,
         href: "/outward",
       },

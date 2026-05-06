@@ -23,6 +23,7 @@ out/
 .opencode/
 .cursor/
 .omx/
+graphify-out/
 
 # NuGet
 *.nupkg
