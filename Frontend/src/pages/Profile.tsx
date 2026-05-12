@@ -80,6 +80,7 @@ export const Profile = memo(function Profile() {
 
     setIsLoading(true);
     const result = await changePassword({
+      userId: user.id,
       currentPassword: passwordData.currentPassword,
       newPassword: passwordData.newPassword,
     });

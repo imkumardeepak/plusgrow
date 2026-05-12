@@ -67,8 +67,9 @@ export const authService = {
     return response.data;
   },
 
-  changePassword: async (currentPassword: string, newPassword: string) => {
+  changePassword: async (userId:Int16Array,currentPassword: string, newPassword: string) => {
     const response = await apiClient.put<ApiResponse<void>>('/auth/change-password', {
+      userId,
       currentPassword,
       newPassword
     });
