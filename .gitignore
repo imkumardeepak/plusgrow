@@ -88,6 +88,11 @@ credentials/
 *.swp
 *~
 
+# Docs
+docs/
+Frontend/docs/
+Backend/docs/
+
 # Azure
 .azure/
 *.publishsettings

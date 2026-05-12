@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ActionIcon,
@@ -51,12 +52,13 @@ import {
 } from "../services/masterApi";
 
 export const Locations = memo(function Locations() {
+  const [searchParams] = useSearchParams();
   const [locations, setLocations] = useState<Location[]>([]);
   const [bins, setBins] = useState<Bin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Location | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Location | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

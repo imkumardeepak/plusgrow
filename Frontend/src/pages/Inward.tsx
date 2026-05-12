@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ActionIcon,
@@ -94,6 +95,7 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
 });
 
 export const Inward = memo(function Inward() {
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
@@ -108,7 +110,7 @@ export const Inward = memo(function Inward() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("all");
   const [fromDate, setFromDate] = useState(defaultFromDate);
   const [toDate, setToDate] = useState(defaultToDate);

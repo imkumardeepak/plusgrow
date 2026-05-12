@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ActionIcon,
   Badge,
@@ -55,6 +56,7 @@ import {
 type ProductFilterMode = "all" | "mapped" | "unpriced";
 
 export const MPD = memo(function MPD() {
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [commodities, setCommodities] = useState<Commodity[]>([]);
@@ -62,7 +64,7 @@ export const MPD = memo(function MPD() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Product | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [filterMode, setFilterMode] = useState<ProductFilterMode>("all");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

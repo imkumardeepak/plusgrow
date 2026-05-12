@@ -1,72 +1,118 @@
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Box,
-  CheckCircle2,
+  Boxes,
   ClipboardCheck,
+  ExternalLink,
+  FileText,
+  IndianRupee,
+  MapPin,
   Navigation,
+  Package,
   RefreshCw,
   ScanLine,
   Search,
+  Tag,
 } from "lucide-react";
-import confetti from "canvas-confetti";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Group, Paper, SimpleGrid, Text, TextInput } from "@mantine/core";
+import { Group, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, TextInput } from "@mantine/core";
 
 import { Button } from "../components/atoms/Button";
 import { Badge } from "../components/atoms/Badge";
-import { cn } from "../lib/utils";
 import { toast } from "../lib/toast";
 import {
+  OperationsEmptyState,
   OperationsPage,
   OperationsPanel,
-  OperationsEmptyState,
 } from "../components/organisms/Operations/OperationsShell";
 import {
+  poInvoicesApi,
+  PoInvoice,
+  productAllottedLocationsApi,
+  ProductAllottedLocationRecord,
   productQuantitiesApi,
-  productsApi,
   Product,
   ProductQuantityRecord,
+  productsApi,
 } from "../services/masterApi";
 
-type StockCheckResult = {
-  quantityRow: ProductQuantityRecord | null;
-  product: Product | null;
+type LocationStock = {
+  locationCode: string;
+  quantity: number;
+};
+
+type ProductLookupResult = {
   sku: string;
-  title: string;
-  systemQty: number;
-  physicalQty: number;
-  difference: number;
+  product: Product | null;
+  quantityRow: ProductQuantityRecord | null;
+  allottedLocation: ProductAllottedLocationRecord | null;
+  invoices: PoInvoice[];
+  locations: LocationStock[];
+  totalPoQuantity: number;
+  totalLocationStock: number;
+};
+
+const formatMoney = (value?: number | null) =>
+  typeof value === "number"
+    ? new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 2,
+      }).format(value)
+    : "-";
+
+const normalizeSku = (value?: string | null) => (value || "").trim().toUpperCase();
+
+const masterHref = (path: string, search: string) =>
+  `${path}?search=${encodeURIComponent(search)}`;
+
+const getLocationJson = (row: ProductAllottedLocationRecord | null) => {
+  if (!row) return {};
+  return (
+    row.locationJson ||
+    (row as unknown as { LocationJson?: Record<string, number> }).LocationJson ||
+    {}
+  );
 };
 
 export const StockCheck = memo(function StockCheck() {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
+  const [allottedLocations, setAllottedLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isReconciling, setIsReconciling] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [scanInput, setScanInput] = useState("");
-  const [physicalQty, setPhysicalQty] = useState<number | "">("");
-  const [checkResult, setCheckResult] = useState<StockCheckResult | null>(null);
+  const [lookupResult, setLookupResult] = useState<ProductLookupResult | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const hasVariance = checkResult ? checkResult.difference !== 0 : false;
-  const varianceTone = hasVariance ? "danger" : "success";
-  const resolvedChecks = checkResult && !hasVariance ? 1 : 0;
+
+  const knownSkuCount = useMemo(() => {
+    const skuSet = new Set<string>();
+    products.forEach((product) => {
+      const sku = normalizeSku(product.sku);
+      if (sku) skuSet.add(sku);
+    });
+    quantityRows.forEach((row) => skuSet.add(normalizeSku(row.skuCode)));
+    allottedLocations.forEach((row) => skuSet.add(normalizeSku(row.skuCode)));
+    return skuSet.size;
+  }, [allottedLocations, products, quantityRows]);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [productsData, quantityData] = await Promise.all([
+      const [productsData, quantityData, allottedData] = await Promise.all([
         productsApi.getAll(),
         productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
       ]);
 
       setProducts(productsData);
       setQuantityRows(quantityData);
+      setAllottedLocations(allottedData);
     } catch {
-      toast.error("Failed to load stock check data");
+      toast.error("Failed to load product detail data");
     } finally {
       setIsLoading(false);
     }
@@ -84,112 +130,75 @@ export const StockCheck = memo(function StockCheck() {
     setTimeout(() => inputRef.current?.focus(), 10);
   };
 
-  const handleCheck = (event: React.FormEvent) => {
+  const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!scanInput.trim() || physicalQty === "") {
-      return;
-    }
 
-    const normalizedScan = scanInput.trim().toUpperCase();
-    const quantityRow =
-      quantityRows.find((row) => row.skuCode.toUpperCase() === normalizedScan) ??
-      null;
+    const sku = normalizeSku(scanInput);
+    if (!sku) return;
+
     const product =
-      products.find((item) => item.sku?.toUpperCase() === normalizedScan) ?? null;
-
-    const systemQty = quantityRow?.currentQuantity ?? 0;
-    const title =
-      quantityRow?.productName || product?.name || "Unknown Product";
-    const physicalValue = Number(physicalQty);
-    const difference = physicalValue - systemQty;
-
-    setCheckResult({
-      quantityRow,
-      product,
-      sku: normalizedScan,
-      title,
-      systemQty,
-      physicalQty: physicalValue,
-      difference,
-    });
-
-    if (difference === 0) {
-      confetti({
-        particleCount: 100,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ["#10b981", "#4E8EA2", "#0A4174"],
-      });
-    }
-
-    setScanInput("");
-    setPhysicalQty("");
-    focusScanner();
-  };
-
-  const handleReconcile = async () => {
-    if (!checkResult) {
-      return;
-    }
-
-    const productId = checkResult.quantityRow?.productId ?? checkResult.product?.id;
-    if (!productId) {
-      toast.error("This SKU is not mapped to a product in the database");
-      return;
-    }
+      products.find((item) => normalizeSku(item.sku) === sku) ?? null;
+    const quantityRow =
+      quantityRows.find((row) => normalizeSku(row.skuCode) === sku) ?? null;
+    const resolvedProductId =
+      product?.id ?? quantityRow?.productId ?? null;
+    const allottedLocation =
+      allottedLocations.find((row) =>
+        resolvedProductId
+          ? row.productId === resolvedProductId
+          : normalizeSku(row.skuCode) === sku,
+      ) ??
+      allottedLocations.find((row) => normalizeSku(row.skuCode) === sku) ??
+      null;
 
     try {
-      setIsReconciling(true);
+      setIsSearching(true);
+      const invoiceRows = await poInvoicesApi.getAll({
+        search: sku,
+        pageSize: 100,
+      });
+      const invoices = invoiceRows.filter((row) => normalizeSku(row.skuCode) === sku);
+      const locations = Object.entries(getLocationJson(allottedLocation))
+        .map(([locationCode, quantity]) => ({
+          locationCode,
+          quantity: Number(quantity) || 0,
+        }))
+        .filter((entry) => entry.quantity > 0)
+        .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
 
-      if (checkResult.quantityRow) {
-        const updated = await productQuantitiesApi.update(checkResult.quantityRow.id, {
-          id: checkResult.quantityRow.id,
-          productId,
-          currentQuantity: checkResult.physicalQty,
-        });
+      setLookupResult({
+        sku,
+        product,
+        quantityRow,
+        allottedLocation,
+        invoices,
+        locations,
+        totalPoQuantity: invoices.reduce((sum, row) => sum + Number(row.billedQty || 0), 0),
+        totalLocationStock: locations.reduce((sum, row) => sum + row.quantity, 0),
+      });
 
-        setCheckResult((current) =>
-          current
-            ? {
-                ...current,
-                quantityRow: updated,
-                systemQty: updated.currentQuantity,
-                difference: current.physicalQty - updated.currentQuantity,
-              }
-            : current,
-        );
-      } else {
-        const created = await productQuantitiesApi.create({
-          productId,
-          currentQuantity: checkResult.physicalQty,
-        });
-
-        setCheckResult((current) =>
-          current
-            ? {
-                ...current,
-                quantityRow: created,
-                systemQty: created.currentQuantity,
-                difference: current.physicalQty - created.currentQuantity,
-              }
-            : current,
-        );
+      if (!product && !quantityRow && !allottedLocation && invoices.length === 0) {
+        toast.error("No product details found for this SKU");
       }
-
-      await loadData();
-      toast.success("Stock quantity updated in database");
-      focusScanner();
     } catch (error: any) {
-      toast.error(error.message || "Failed to reconcile stock");
+      toast.error(error.message || "Failed to load SKU details");
     } finally {
-      setIsReconciling(false);
+      setIsSearching(false);
+      focusScanner();
     }
   };
+
+  const productTitle =
+    lookupResult?.product?.name ||
+    lookupResult?.quantityRow?.productName ||
+    lookupResult?.allottedLocation?.productName ||
+    lookupResult?.invoices[0]?.productName ||
+    "Product Details";
 
   return (
     <OperationsPage
-      title="Stock Reconciliation"
-      description="Scan a live SKU, compare shelf count against the database, and post stock corrections from one focused audit workspace."
+      title="Inventory Item Card"
+      description="Enter a SKU to view product master references, invoice pricing, total quantity, and allotted location stock."
       icon={ClipboardCheck}
       hideHeader
       actions={
@@ -214,23 +223,27 @@ export const StockCheck = memo(function StockCheck() {
         </div>
       }
       metrics={[
-        { label: "Live Quantity Rows", value: quantityRows.length, tone: "brand" },
-        { label: "Last Check", value: checkResult ? checkResult.sku : "-", tone: "default" },
-        { label: "Resolved Checks", value: resolvedChecks, tone: "success" },
+        { label: "Known SKUs", value: knownSkuCount, tone: "brand" },
+        { label: "Last Lookup", value: lookupResult ? lookupResult.sku : "-", tone: "default" },
+        {
+          label: "Current Stock",
+          value: lookupResult?.quantityRow?.currentQuantity ?? "-",
+          tone: "success",
+        },
       ]}
     >
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
         <OperationsPanel
-          title="Stock Check Input"
+          title="Item Lookup"
           icon={ScanLine}
-          description="Scan a SKU and compare the physical count against the live quantity ledger."
+          description="Scan or enter a SKU to open a Zoho-style inventory reference card."
           className="lg:col-span-4 flex flex-col overflow-hidden h-full"
           contentClassName="overflow-y-auto scrollbar-thin space-y-4"
         >
-          <form onSubmit={handleCheck} className="space-y-4">
+          <form onSubmit={handleLookup} className="space-y-4">
             <div className="space-y-1.5">
               <Text size="10px" fw={800} c="dimmed" mb={5}>
-                SKU IDENTIFICATION
+                SKU CODE
               </Text>
               <TextInput
                 ref={inputRef}
@@ -250,42 +263,15 @@ export const StockCheck = memo(function StockCheck() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed" mb={5}>
-                PHYSICAL COUNT
-              </Text>
-              <TextInput
-                size="sm"
-                radius="md"
-                type="number"
-                min={0}
-                placeholder="0"
-                value={physicalQty}
-                onChange={(e) =>
-                  setPhysicalQty(
-                    e.currentTarget.value
-                      ? Number(e.currentTarget.value)
-                      : "",
-                  )
-                }
-                required
-                styles={{
-                  input: {
-                    fontFamily: "var(--font-mono)",
-                    fontWeight: 700,
-                  },
-                }}
-              />
-            </div>
-
             <Group gap="xs" wrap="nowrap">
               <Button
                 type="submit"
                 size="sm"
                 className="flex-1"
                 disabled={isLoading}
+                loading={isSearching}
               >
-                Verify Count
+                Show Details
               </Button>
               <Button
                 type="button"
@@ -293,7 +279,7 @@ export const StockCheck = memo(function StockCheck() {
                 variant="subtle"
                 onClick={() => {
                   setScanInput("");
-                  setPhysicalQty("");
+                  setLookupResult(null);
                   focusScanner();
                 }}
               >
@@ -305,184 +291,371 @@ export const StockCheck = memo(function StockCheck() {
           <SimpleGrid cols={{ base: 2, lg: 2 }} spacing="sm">
             <Paper radius="lg" p="sm" withBorder bg="transparent">
               <Text size="10px" fw={800} c="dimmed">
-                LIVE ROWS
+                PRODUCT ROWS
               </Text>
               <Text mt={6} size="lg" fw={800} c="white">
-                {quantityRows.length}
+                {products.length}
               </Text>
             </Paper>
             <Paper radius="lg" p="sm" withBorder bg="transparent">
               <Text size="10px" fw={800} c="dimmed">
-                STATUS
+                LOCATION ROWS
               </Text>
-              <Text mt={6} size="sm" fw={700} c="white">
-                {checkResult
-                  ? hasVariance
-                    ? "Variance"
-                    : "Matched"
-                  : "Waiting"}
+              <Text mt={6} size="lg" fw={800} c="white">
+                {allottedLocations.length}
               </Text>
             </Paper>
           </SimpleGrid>
+
+          {lookupResult ? (
+            <Paper radius="lg" p="sm" withBorder bg="rgba(14, 165, 233, 0.06)">
+              <Text size="10px" fw={800} c="dimmed" mb={8}>
+                LINKED REFERENCES
+              </Text>
+              <Stack gap={7}>
+                <ReferenceLink
+                  icon={Package}
+                  label="Product Master"
+                  value={productTitle}
+                  href={masterHref("/mpd", lookupResult.sku)}
+                />
+                <ReferenceLink
+                  icon={FileText}
+                  label="PO Invoices"
+                  value={`${lookupResult.invoices.length} invoice rows`}
+                  href={masterHref("/inward", lookupResult.sku)}
+                />
+                <ReferenceLink
+                  icon={MapPin}
+                  label="Location Master"
+                  value={`${lookupResult.locations.length} allotted locations`}
+                  href={masterHref("/locations", lookupResult.locations[0]?.locationCode || lookupResult.sku)}
+                />
+              </Stack>
+            </Paper>
+          ) : (
+            <Paper radius="lg" p="sm" withBorder bg="rgba(14, 165, 233, 0.06)">
+              <Group gap="sm" wrap="nowrap">
+                <Boxes size={17} color="var(--mantine-color-cyan-4)" />
+                <Text size="xs" c="dimmed">
+                  This page is read-only. It shows connected product, invoice, and location records without changing stock.
+                </Text>
+              </Group>
+            </Paper>
+          )}
         </OperationsPanel>
 
         <OperationsPanel
-          title="Audit Result"
-          icon={Box}
-          description="Compact comparison view for the checked SKU and the live database quantity."
+          title="Inventory Details"
+          icon={Boxes}
+          description="Reference-linked product master, PO invoice rows, quantity, and location stock."
           className="lg:col-span-8 flex flex-col overflow-hidden h-full"
           contentClassName="overflow-y-auto scrollbar-thin"
         >
-          {!checkResult ? (
+          {!lookupResult ? (
             <OperationsEmptyState
               icon={ClipboardCheck}
-              title="Ready For Verification"
-              description="Run a stock check to compare the physical count with the live quantity row."
+              title="Enter SKU To View Product Details"
+              description="Search a SKU code to see invoice details, price, quantity, and allotted stock locations."
             />
           ) : (
-            <div className="space-y-4">
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Box style={{ minWidth: 0 }}>
+            <Stack gap="sm">
+              <Paper
+                radius="lg"
+                p="md"
+                withBorder
+                bg="linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.72))"
+                style={{ borderColor: "rgba(34, 211, 238, 0.16)" }}
+              >
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <div className="min-w-0">
                   <Group gap="xs" wrap="nowrap">
                     <Badge size="sm" radius="md" variant="default" color="gray">
-                      {checkResult.sku}
+                      {lookupResult.sku}
                     </Badge>
-                    <Badge
-                      size="sm"
-                      radius="md"
-                      variant={hasVariance ? "danger" : "success"}
-                    >
-                      {hasVariance ? "Variance" : "Matched"}
+                    <Badge size="sm" radius="md" variant={lookupResult.quantityRow ? "success" : "warning"}>
+                      {lookupResult.quantityRow ? "Stock Available" : "No Stock Row"}
                     </Badge>
                   </Group>
-                  <Text mt={8} size="sm" fw={700} lineClamp={1}>
-                    {checkResult.title}
-                  </Text>
+                  <MasterLink
+                    href={masterHref("/mpd", lookupResult.sku)}
+                    size="lg"
+                    weight={900}
+                    className="mt-2"
+                  >
+                    {productTitle}
+                  </MasterLink>
                   <Text size="11px" c="dimmed">
-                    {checkResult.quantityRow
-                      ? `Last updated ${format(
-                          new Date(checkResult.quantityRow.updatedAt),
-                          "dd MMM yyyy HH:mm",
-                        )}`
-                      : "No quantity row exists yet"}
+                    {lookupResult.quantityRow
+                      ? `Stock updated ${format(new Date(lookupResult.quantityRow.updatedAt), "dd MMM yyyy HH:mm")}`
+                      : "No stock quantity row exists for this SKU"}
                   </Text>
-                </Box>
-              </Group>
+                  </div>
+                </Group>
+              </Paper>
 
-              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+              <SimpleGrid cols={{ base: 1, md: 4 }} spacing="sm">
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    SYSTEM QTY.
-                  </Text>
+                  <MetricLabel icon={Boxes} label="Current Stock" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">
-                    {checkResult.systemQty}
+                    {lookupResult.quantityRow?.currentQuantity ?? 0}
                   </Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    PHYSICAL QTY.
-                  </Text>
+                  <MetricLabel icon={FileText} label="PO Qty." />
                   <Text mt={6} size="xl" fw={800} ff="monospace">
-                    {checkResult.physicalQty}
+                    {lookupResult.totalPoQuantity}
                   </Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    VARIANCE
+                  <MetricLabel icon={MapPin} label="Allotted Stock" />
+                  <Text mt={6} size="xl" fw={800} ff="monospace">
+                    {lookupResult.totalLocationStock}
                   </Text>
-                  <Text
-                    mt={6}
-                    size="xl"
-                    fw={800}
-                    ff="monospace"
-                    c={varianceTone === "success" ? "green.3" : "red.3"}
-                  >
-                    {checkResult.difference > 0 ? "+" : ""}
-                    {checkResult.difference}
+                </Paper>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <MetricLabel icon={IndianRupee} label="PO Invoices" />
+                  <Text mt={6} size="xl" fw={800} ff="monospace">
+                    {lookupResult.invoices.length}
                   </Text>
                 </Paper>
               </SimpleGrid>
 
-              <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    DB ROW
-                  </Text>
-                  <Text mt={6} size="sm" fw={700}>
-                    {checkResult.quantityRow ? "Exists" : "Not Created"}
-                  </Text>
+                  <MetricLabel icon={Package} label="Product Master" />
+                  <SimpleGrid cols={2} spacing={6} mt="xs">
+                    <Info
+                      label="Name"
+                      value={
+                        <MasterLink href={masterHref("/mpd", lookupResult.sku)}>
+                          {lookupResult.product?.name || productTitle}
+                        </MasterLink>
+                      }
+                    />
+                    <Info
+                      label="SKU"
+                      value={
+                        <MasterLink href={masterHref("/mpd", lookupResult.sku)} mono>
+                          {lookupResult.product?.sku || lookupResult.sku}
+                        </MasterLink>
+                      }
+                    />
+                    <Info label="MRP" value={formatMoney(lookupResult.product?.mrp)} />
+                    <Info label="USSP" value={formatMoney(lookupResult.product?.ussp)} />
+                    <Info label="Net Qty." value={lookupResult.product?.netQuantity || "-"} />
+                    <Info label="Unit" value={lookupResult.product?.unitType || "-"} />
+                    <Info label="Country" value={lookupResult.product?.countryOfOrigin || "-"} />
+                    <Info label="Best Before" value={`${lookupResult.product?.bestBeforeMonths ?? "-"} months`} />
+                  </SimpleGrid>
                 </Paper>
+
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    OUTCOME
-                  </Text>
-                  <Text
-                    mt={6}
-                    size="sm"
-                    fw={700}
-                    c={varianceTone === "success" ? "green.3" : "red.3"}
-                  >
-                    {hasVariance ? "Needs review" : "Count aligned"}
-                  </Text>
-                </Paper>
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed">
-                    NEXT ACTION
-                  </Text>
-                  <Text mt={6} size="sm" fw={700}>
-                    {hasVariance ? "Reconcile DB" : "No action"}
-                  </Text>
+                  <MetricLabel icon={MapPin} label="Location Stock" />
+                  {lookupResult.locations.length === 0 ? (
+                    <EmptyInline message="No allotted location stock found for this SKU." />
+                  ) : (
+                    <Stack gap={6} mt="xs">
+                      {lookupResult.locations.map((entry) => (
+                        <Group
+                          key={entry.locationCode}
+                          justify="space-between"
+                          wrap="nowrap"
+                          className="rounded-md border border-slate-700/60 px-2 py-1.5"
+                        >
+                          <Group gap={6} wrap="nowrap">
+                            <MapPin size={13} color="var(--mantine-color-cyan-4)" />
+                            <MasterLink
+                              href={masterHref("/locations", entry.locationCode)}
+                              mono
+                            >
+                              {entry.locationCode}
+                            </MasterLink>
+                          </Group>
+                          <Text size="12px" fw={800} ff="monospace">
+                            {entry.quantity}
+                          </Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  )}
                 </Paper>
               </SimpleGrid>
 
-              {hasVariance ? (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  withBorder
-                  bg="rgba(239, 68, 68, 0.06)"
-                  style={{ borderColor: "rgba(239, 68, 68, 0.18)" }}
-                >
-                  <Group justify="space-between" align="center" gap="sm">
-                    <Box style={{ minWidth: 0 }}>
-                      <Text size="11px" fw={800} c="red.3">
-                        Reconcile Required
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        Update the live quantity row to {checkResult.physicalQty} units.
-                      </Text>
-                    </Box>
-                    <Button
-                      onClick={() => void handleReconcile()}
-                      size="sm"
-                      loading={isReconciling}
-                    >
-                      Reconcile
-                    </Button>
-                  </Group>
-                </Paper>
-              ) : (
-                <Paper
-                  radius="lg"
-                  p="sm"
-                  withBorder
-                  bg="rgba(16, 185, 129, 0.06)"
-                  style={{ borderColor: "rgba(16, 185, 129, 0.18)" }}
-                >
-                  <Group gap="sm" wrap="nowrap">
-                    <CheckCircle2 size={16} color="var(--mantine-color-green-4)" />
-                    <Text size="xs" c="dimmed">
-                      Physical count matches the live database quantity. No update is required.
-                    </Text>
-                  </Group>
-                </Paper>
-              )}
-            </div>
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={FileText} label="PO Invoice Details With Price" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">
+                    {lookupResult.invoices.length} rows
+                  </Badge>
+                </Group>
+                {lookupResult.invoices.length === 0 ? (
+                  <EmptyInline message="No PO invoice rows found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto">
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={760}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Invoice No.</Table.Th>
+                          <Table.Th>Date</Table.Th>
+                          <Table.Th>Party</Table.Th>
+                          <Table.Th>Product</Table.Th>
+                          <Table.Th>MRP</Table.Th>
+                          <Table.Th>Billed Qty.</Table.Th>
+                          <Table.Th>Remaining</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lookupResult.invoices.map((invoice) => (
+                          <Table.Tr key={invoice.id}>
+                            <Table.Td>
+                              <MasterLink
+                                href={masterHref("/inward", invoice.invoiceNumber)}
+                                mono
+                              >
+                                {invoice.invoiceNumber}
+                              </MasterLink>
+                            </Table.Td>
+                            <Table.Td>{format(new Date(invoice.invoiceDate), "dd MMM yyyy")}</Table.Td>
+                            <Table.Td>{invoice.partyName}</Table.Td>
+                            <Table.Td>
+                              <MasterLink href={masterHref("/mpd", invoice.skuCode)}>
+                                {invoice.productName}
+                              </MasterLink>
+                            </Table.Td>
+                            <Table.Td>{formatMoney(invoice.mrp)}</Table.Td>
+                            <Table.Td>{invoice.billedQty}</Table.Td>
+                            <Table.Td>{invoice.remainingAllocation}</Table.Td>
+                            <Table.Td>{invoice.locationAllotted ? "Allotted" : "Pending"}</Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+            </Stack>
           )}
         </OperationsPanel>
       </div>
     </OperationsPage>
   );
 });
+
+function Info({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <Text size="9px" fw={800} c="dimmed">
+        {label.toUpperCase()}
+      </Text>
+      <Text size="12px" fw={700} mt={2} truncate>
+        {value}
+      </Text>
+    </div>
+  );
+}
+
+function MetricLabel({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+}) {
+  return (
+    <Group gap={6} wrap="nowrap">
+      <Icon size={13} color="var(--mantine-color-cyan-4)" />
+      <Text size="10px" fw={800} c="dimmed">
+        {label.toUpperCase()}
+      </Text>
+    </Group>
+  );
+}
+
+function MasterLink({
+  children,
+  href,
+  mono = false,
+  size = "12px",
+  weight = 800,
+  className,
+}: {
+  children: React.ReactNode;
+  href: string;
+  mono?: boolean;
+  size?: string;
+  weight?: number;
+  className?: string;
+}) {
+  return (
+    <Text
+      component="a"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      size={size}
+      fw={weight}
+      ff={mono ? "monospace" : undefined}
+      className={className}
+      style={{
+        color: "var(--mantine-color-cyan-3)",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        maxWidth: "100%",
+        textDecoration: "none",
+      }}
+    >
+      <span className="truncate">{children}</span>
+      <ExternalLink size={12} />
+    </Text>
+  );
+}
+
+function ReferenceLink({
+  icon: Icon,
+  label,
+  value,
+  href,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  value: string;
+  href: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/10 bg-slate-950/30 px-2 py-2 no-underline transition hover:border-cyan-300/30 hover:bg-cyan-400/10"
+    >
+      <Group gap={7} wrap="nowrap" className="min-w-0">
+        <Icon size={14} color="var(--mantine-color-cyan-4)" />
+        <div className="min-w-0">
+          <Text size="9px" fw={800} c="dimmed">
+            {label.toUpperCase()}
+          </Text>
+          <Text size="11px" fw={800} c="cyan.3" truncate>
+            {value}
+          </Text>
+        </div>
+      </Group>
+      <ExternalLink size={13} color="var(--mantine-color-cyan-4)" />
+    </a>
+  );
+}
+
+function EmptyInline({ message }: { message: string }) {
+  return (
+    <Group gap="sm" mt="xs" wrap="nowrap" className="rounded-md border border-slate-700/60 px-2 py-2">
+      <AlertTriangle size={15} color="var(--mantine-color-yellow-4)" />
+      <Text size="xs" c="dimmed">
+        {message}
+      </Text>
+    </Group>
+  );
+}
 
 export default StockCheck;
