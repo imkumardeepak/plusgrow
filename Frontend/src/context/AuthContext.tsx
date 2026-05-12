@@ -143,7 +143,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     }
 
-    if (pageKey === 'profile' && action === 'view') return true;
+    if (
+      action === 'view' &&
+      (pageKey === 'dashboard' || pageKey === 'profile')
+    ) {
+      return true;
+    }
 
     const access = user.pageAccesses?.find(
       (item) => item.pageKey === pageKey,

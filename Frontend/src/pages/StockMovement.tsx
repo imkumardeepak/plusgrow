@@ -474,7 +474,7 @@ export const StockMovement = memo(function StockMovement() {
   return (
     <OperationsPage
       title="Stock Movements"
-      description="Post live quantity adjustments, review current on-hand stock, and keep a clean movement trail from the warehouse floor."
+      description="Post quantity adjustments, review on-hand stock, and keep a clean movement trail."
       icon={ArrowRightLeft}
       hideHeader
       metrics={[
@@ -483,136 +483,139 @@ export const StockMovement = memo(function StockMovement() {
         { label: "Movement Entries", value: movements.length, tone: "default" },
       ]}
     >
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
+      <div className="flex-1 flex flex-col gap-3 min-h-0">
         <OperationsPanel
-          title="Post Adjustment"
+          title="Filters"
           icon={Move}
-          className="lg:col-span-4 flex flex-col overflow-hidden h-full"
-          contentClassName="overflow-y-auto scrollbar-thin space-y-4"
+          description="Select product, location, and quantity delta to post a movement."
         >
           <form onSubmit={handleAdjust} className="space-y-4">
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed">
-                PRODUCT
-              </Text>
-              <Select
-                size="sm"
-                radius="md"
-                searchable
-                placeholder="Select SKU / Product"
-                data={productOptions}
-                value={
-                  adjustmentForm.productId > 0
-                    ? String(adjustmentForm.productId)
-                    : null
-                }
-                onChange={(value) =>
-                  setAdjustmentForm((current) => ({
-                    ...current,
-                    productId: value ? Number(value) : 0,
-                    locationCode: "",
-                  }))
-                }
-                nothingFoundMessage="No product found"
-              />
-            </div>
+            <SimpleGrid cols={{ base: 1, md: 2, xl: 5 }} spacing="md">
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  PRODUCT
+                </Text>
+                <Select
+                  size="sm"
+                  radius="md"
+                  searchable
+                  placeholder="Select SKU / Product"
+                  data={productOptions}
+                  value={
+                    adjustmentForm.productId > 0
+                      ? String(adjustmentForm.productId)
+                      : null
+                  }
+                  onChange={(value) =>
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      productId: value ? Number(value) : 0,
+                      locationCode: "",
+                    }))
+                  }
+                  nothingFoundMessage="No product found"
+                />
+              </Box>
 
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed">
-                LOCATION
-              </Text>
-              <Select
-                size="sm"
-                radius="md"
-                searchable
-                placeholder={
-                  adjustmentForm.productId > 0
-                    ? "Select allotted location"
-                    : "Select product first"
-                }
-                data={locationOptions}
-                value={adjustmentForm.locationCode || null}
-                onChange={(value) =>
-                  setAdjustmentForm((current) => ({
-                    ...current,
-                    locationCode: value || "",
-                  }))
-                }
-                disabled={adjustmentForm.productId <= 0 || locationOptions.length === 0}
-                nothingFoundMessage="No allotted location found"
-              />
-            </div>
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  LOCATION
+                </Text>
+                <Select
+                  size="sm"
+                  radius="md"
+                  searchable
+                  placeholder={
+                    adjustmentForm.productId > 0
+                      ? "Select allotted location"
+                      : "Select product first"
+                  }
+                  data={locationOptions}
+                  value={adjustmentForm.locationCode || null}
+                  onChange={(value) =>
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      locationCode: value || "",
+                    }))
+                  }
+                  disabled={
+                    adjustmentForm.productId <= 0 || locationOptions.length === 0
+                  }
+                  nothingFoundMessage="No allotted location found"
+                />
+              </Box>
 
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed">
-                QUANTITY DELTA
-              </Text>
-              <Input
-                type="number"
-                size="sm"
-                placeholder="Use + for increase, - for decrease"
-                value={
-                  adjustmentForm.quantityChange === 0
-                    ? ""
-                    : adjustmentForm.quantityChange
-                }
-                onChange={(event) =>
-                  setAdjustmentForm((current) => ({
-                    ...current,
-                    quantityChange: event.target.value
-                      ? Number(event.target.value)
-                      : 0,
-                  }))
-                }
-                leftElement={
-                  adjustmentForm.quantityChange > 0 ? (
-                    <ArrowUpRight size={14} />
-                  ) : adjustmentForm.quantityChange < 0 ? (
-                    <ArrowDownRight size={14} />
-                  ) : undefined
-                }
-                className="font-mono font-bold"
-                fullWidth
-              />
-            </div>
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  QUANTITY DELTA
+                </Text>
+                <Input
+                  type="number"
+                  size="sm"
+                  placeholder="Use + or -"
+                  value={
+                    adjustmentForm.quantityChange === 0
+                      ? ""
+                      : adjustmentForm.quantityChange
+                  }
+                  onChange={(event) => {
+                    const quantityValue = event.target.value;
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      quantityChange: quantityValue ? Number(quantityValue) : 0,
+                    }));
+                  }}
+                  leftElement={
+                    adjustmentForm.quantityChange > 0 ? (
+                      <ArrowUpRight size={14} />
+                    ) : adjustmentForm.quantityChange < 0 ? (
+                      <ArrowDownRight size={14} />
+                    ) : undefined
+                  }
+                  className="font-mono font-bold"
+                  fullWidth
+                />
+              </Box>
 
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed">
-                REASON
-              </Text>
-              <Select
-                size="sm"
-                radius="md"
-                data={adjustmentReasonOptions}
-                value={adjustmentForm.reason}
-                onChange={(value) =>
-                  setAdjustmentForm((current) => ({
-                    ...current,
-                    reason: value || current.reason,
-                  }))
-                }
-              />
-            </div>
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  REASON
+                </Text>
+                <Select
+                  size="sm"
+                  radius="md"
+                  data={adjustmentReasonOptions}
+                  value={adjustmentForm.reason}
+                  onChange={(value) =>
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      reason: value || current.reason,
+                    }))
+                  }
+                />
+              </Box>
 
-            <div className="space-y-1.5">
-              <Text size="10px" fw={800} c="dimmed">
-                NOTES
-              </Text>
-              <TextInput
-                size="sm"
-                radius="md"
-                placeholder="Optional remark for audit trail"
-                value={adjustmentForm.notes || ""}
-                onChange={(event) =>
-                  setAdjustmentForm((current) => ({
-                    ...current,
-                    notes: event.currentTarget.value,
-                  }))
-                }
-              />
-            </div>
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  NOTES
+                </Text>
+                <TextInput
+                  size="sm"
+                  radius="md"
+                  placeholder="Optional remark"
+                  value={adjustmentForm.notes || ""}
+                  onChange={(event) => {
+                    const notes = event.currentTarget.value;
+                    setAdjustmentForm((current) => ({
+                      ...current,
+                      notes,
+                    }));
+                  }}
+                />
+              </Box>
+            </SimpleGrid>
 
-            <SimpleGrid cols={2} spacing="sm">
+            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
               <Paper radius="lg" p="sm" withBorder bg="transparent">
                 <Text size="10px" fw={800} c="dimmed">
                   CURRENT QTY.
@@ -641,9 +644,6 @@ export const StockMovement = memo(function StockMovement() {
                   {projectedQuantity ?? "-"}
                 </Text>
               </Paper>
-            </SimpleGrid>
-
-            <SimpleGrid cols={2} spacing="sm">
               <Paper radius="lg" p="sm" withBorder bg="transparent">
                 <Text size="10px" fw={800} c="dimmed">
                   LOCATION QTY.
@@ -674,143 +674,130 @@ export const StockMovement = memo(function StockMovement() {
               </Paper>
             </SimpleGrid>
 
-            <Group gap="xs" wrap="nowrap">
-              <Button type="submit" size="sm" className="flex-1" loading={isSaving}>
-                Post Adjustment
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="subtle"
-                onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
+            <Group justify="space-between" align="center">
+              <Paper
+                radius="lg"
+                p="sm"
+                withBorder
+                bg="rgba(245, 158, 11, 0.06)"
+                style={{ borderColor: "rgba(245, 158, 11, 0.16)", flex: 1 }}
               >
-                Clear
-              </Button>
-            </Group>
-          </form>
-
-          <Paper
-            radius="lg"
-            p="sm"
-            withBorder
-            bg="rgba(245, 158, 11, 0.06)"
-            style={{ borderColor: "rgba(245, 158, 11, 0.16)" }}
-          >
-            <Group gap="sm" wrap="nowrap" align="flex-start">
-              <AlertCircle size={16} color="var(--mantine-color-yellow-4)" />
-              <Text size="xs" c="dimmed">
-                Manual adjustments update the live quantity row immediately and write a movement entry for audit.
-              </Text>
-            </Group>
-          </Paper>
-        </OperationsPanel>
-
-        <div className="lg:col-span-8 grid grid-cols-1 gap-3 min-h-0">
-          <OperationsPanel
-            title="Live Quantity Ledger"
-            icon={RefreshCw}
-            className="flex flex-col overflow-hidden"
-            contentClassName="overflow-y-auto scrollbar-thin p-0"
-            action={
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                  <AlertCircle size={16} color="var(--mantine-color-yellow-4)" />
+                  <Text size="xs" c="dimmed">
+                    Manual adjustments update live quantity immediately and create an audit entry.
+                  </Text>
+                </Group>
+              </Paper>
               <Group gap="xs" wrap="nowrap">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-neutral-500" />
-                  <Input
-                    type="text"
-                    placeholder="Filter SKU or product"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-7 h-7 w-52 text-[10px] rounded-md"
-                  />
-                </div>
                 <Button
-                  variant="outline"
+                  type="button"
                   size="sm"
-                  className="h-7 px-2.5 text-[10px]"
-                  onClick={() => void loadData()}
-                  loading={isLoading}
+                  variant="outline"
+                  onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
                 >
-                  Refresh
+                  Clear
+                </Button>
+                <Button type="submit" size="sm" loading={isSaving}>
+                  Post Adjustment
                 </Button>
               </Group>
-            }
-          >
-            <MantineDataTable
-              data={filteredLedgerRows}
-              columns={ledgerColumns}
-              rowKey={(row) => row.productId}
-              isLoading={isLoading}
-              pageSize={8}
-              itemLabel="products"
-              resetPageKey={searchTerm}
-              minWidth={760}
-              emptyIcon={RefreshCw}
-              emptyTitle="No stock rows"
-              emptyDescription="Products and quantity rows will appear here once inventory is available."
-            />
-          </OperationsPanel>
+            </Group>
+          </form>
+        </OperationsPanel>
 
-          <OperationsPanel
-            title="Movement History"
-            icon={History}
-            className="flex flex-col overflow-hidden"
-            contentClassName="overflow-y-auto scrollbar-thin p-0"
-            action={
-              <Box style={{ minWidth: 220 }}>
-                <Input
-                  type="text"
-                  placeholder="Search history"
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  leftElement={<Search size={12} />}
-                  className="h-7 text-[10px] rounded-md"
-                  fullWidth
-                />
-              </Box>
-            }
-          >
-            <SimpleGrid cols={3} spacing="sm" className="p-3 pb-0">
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  INCREASES
-                </Text>
-                <Text mt={6} size="lg" fw={800} c="green.3">
-                  {movementStats.increases}
-                </Text>
-              </Paper>
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  DECREASES
-                </Text>
-                <Text mt={6} size="lg" fw={800} c="red.3">
-                  {movementStats.decreases}
-                </Text>
-              </Paper>
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  ENTRIES
-                </Text>
-                <Text mt={6} size="lg" fw={800}>
-                  {movements.length}
-                </Text>
-              </Paper>
-            </SimpleGrid>
+        <OperationsPanel
+          title="Stock Ledger"
+          icon={RefreshCw}
+          description="Compact live quantity view by SKU with current stock and row status."
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Badge size="sm" radius="md" variant="default">
+                {filteredLedgerRows.length} Rows
+              </Badge>
+              <Badge size="sm" radius="md" variant="success">
+                {quantityRows.length} Live
+              </Badge>
+              <Badge size="sm" radius="md" variant="info">
+                {movementStats.totalOnHand} On Hand
+              </Badge>
+              <TextInput
+                size="xs"
+                radius="md"
+                w={240}
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                placeholder="Search SKU or product..."
+                leftSection={<Search size={14} />}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadData()}
+                loading={isLoading}
+              >
+                Refresh
+              </Button>
+            </Group>
+          }
+          contentClassName="p-0"
+        >
+          <MantineDataTable
+            data={filteredLedgerRows}
+            columns={ledgerColumns}
+            rowKey={(row) => row.productId}
+            isLoading={isLoading}
+            pageSize={10}
+            itemLabel="products"
+            resetPageKey={searchTerm}
+            emptyIcon={RefreshCw}
+            emptyTitle="No stock rows"
+            emptyDescription="Products and quantity rows will appear here once inventory is available."
+          />
+        </OperationsPanel>
 
-            <MantineDataTable
-              data={movements}
-              columns={movementColumns}
-              rowKey={(row) => row.id}
-              isLoading={isLoading}
-              pageSize={8}
-              itemLabel="movements"
-              resetPageKey={historySearch}
-              minWidth={920}
-              emptyIcon={History}
-              emptyTitle="No movement history"
-              emptyDescription="Stock adjustments will create audit entries here."
-            />
-          </OperationsPanel>
-        </div>
+        <OperationsPanel
+          title="Movement History"
+          icon={History}
+          description="Compact audit trail for stock increases and decreases."
+          action={
+            <Group gap="xs" wrap="nowrap">
+              <Badge size="sm" radius="md" variant="success">
+                {movementStats.increases} Increases
+              </Badge>
+              <Badge size="sm" radius="md" variant="danger">
+                {movementStats.decreases} Decreases
+              </Badge>
+              <Badge size="sm" radius="md" variant="default">
+                {movements.length} Entries
+              </Badge>
+              <TextInput
+                size="xs"
+                radius="md"
+                w={240}
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.currentTarget.value)}
+                placeholder="Search history..."
+                leftSection={<Search size={14} />}
+              />
+            </Group>
+          }
+          contentClassName="p-0"
+        >
+          <MantineDataTable
+            data={movements}
+            columns={movementColumns}
+            rowKey={(row) => row.id}
+            isLoading={isLoading}
+            pageSize={10}
+            itemLabel="movements"
+            resetPageKey={historySearch}
+            minWidth={920}
+            emptyIcon={History}
+            emptyTitle="No movement history"
+            emptyDescription="Stock adjustments will create audit entries here."
+          />
+        </OperationsPanel>
       </div>
     </OperationsPage>
   );

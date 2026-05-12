@@ -1,4 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
+import type { ApexOptions } from "apexcharts";
 import {
   Alert,
   Badge,
@@ -19,6 +20,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   IconAlertTriangle,
   IconArrowDownLeft,
@@ -27,7 +29,6 @@ import {
   IconBuildingWarehouse,
   IconChartBar,
   IconClock,
-  IconDatabase,
   IconMapPin,
   IconPackage,
   IconPrinter,
@@ -35,24 +36,16 @@ import {
   IconStack2,
   IconTruckDelivery,
 } from "@tabler/icons-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip as ChartTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import ReactApexChart from "react-apexcharts";
 import {
   dashboardApi,
   type DashboardDispatchQueue,
   type DashboardSummary,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
+import { useAuth } from "../context/AuthContext";
 
 interface MetricCard {
   title: string;
@@ -114,9 +107,11 @@ const orderPendingQuantity = (order: DashboardDispatchQueue) =>
   Math.max(order.pendingQuantity ?? 0, 0);
 
 export const Dashboard = memo(function Dashboard() {
+  const { user, hasPermission } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isSmallDevice = useMediaQuery("(max-width: 48em)");
 
   useEffect(() => {
     let isMounted = true;
@@ -189,6 +184,149 @@ export const Dashboard = memo(function Dashboard() {
     [summary],
   );
 
+  const totalMixQuantity = useMemo(
+    () => summary.quantityMix.reduce((sum, item) => sum + item.value, 0),
+    [summary.quantityMix],
+  );
+
+  const quantityMixSeries = useMemo(
+    () => summary.quantityMix.map((item) => item.value),
+    [summary.quantityMix],
+  );
+
+  const quantityMixLabels = useMemo(
+    () => summary.quantityMix.map((item) => item.name),
+    [summary.quantityMix],
+  );
+
+  const quantityMixChartOptions = useMemo<ApexOptions>(
+    () => ({
+      chart: {
+        type: "donut",
+        toolbar: { show: false },
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        background: "transparent",
+      },
+      colors: chartColors,
+      labels: quantityMixLabels,
+      legend: { show: false },
+      dataLabels: {
+        enabled: true,
+        style: {
+          fontSize: "11px",
+          fontWeight: 700,
+        },
+        formatter(value) {
+          return `${Math.round(value)}%`;
+        },
+      },
+      tooltip: {
+        theme: "dark",
+        y: {
+          formatter(value: number) {
+            return `${formatNumber(value)} units`;
+          },
+        },
+      },
+      stroke: {
+        width: 0,
+      },
+      plotOptions: {
+        pie: {
+          expandOnClick: false,
+          donut: {
+            size: "72%",
+            labels: {
+              show: true,
+              name: {
+                show: true,
+                color: "#94a3b8",
+                offsetY: 18,
+              },
+              value: {
+                show: true,
+                color: "#ffffff",
+                fontSize: "24px",
+                fontWeight: "700",
+                offsetY: -14,
+                formatter(value: string) {
+                  return formatNumber(Number(value));
+                },
+              },
+              total: {
+                show: true,
+                label: "Total Units",
+                color: "#94a3b8",
+                fontSize: "12px",
+                formatter() {
+                  return formatNumber(totalMixQuantity);
+                },
+              },
+            },
+          },
+        },
+      },
+      fill: {
+        type: "gradient",
+        gradient: {
+          shade: "dark",
+          type: "diagonal1",
+          shadeIntensity: 0.28,
+          opacityFrom: 0.98,
+          opacityTo: 0.88,
+          stops: [0, 100],
+        },
+      },
+      states: {
+        hover: {
+          filter: {
+            type: "lighten",
+            value: 0.12,
+          },
+        },
+      },
+    }),
+    [quantityMixLabels, totalMixQuantity],
+  );
+
+  const isPickingRole =
+    (user?.roleName ?? user?.role?.name ?? "").trim().toLowerCase() ===
+    "picking";
+
+  const mobileLauncherCards = useMemo(
+    () =>
+      [
+        {
+          key: "putaway",
+          title: "Put Away",
+          description: "Scan and confirm inward stock placement.",
+          icon: IconBuildingWarehouse,
+          color: "orange",
+          href: "/putaway",
+          visible: hasPermission("putaway", "view"),
+        },
+        {
+          key: "packing",
+          title: "Picking & Packing",
+          description: "Pick order items and complete packing flow.",
+          icon: IconPackage,
+          color: "teal",
+          href: "/packing",
+          visible: hasPermission("packing", "view"),
+        },
+        {
+          key: "stock-movement",
+          title: "Stock Movement",
+          description: "Post quantity increases and decreases by location.",
+          icon: IconChartBar,
+          color: "cyan",
+          href: "/stock-movement",
+          visible: hasPermission("stock-movement", "view"),
+        },
+      ].filter((item) => item.visible),
+    [hasPermission],
+  );
+
   if (isLoading) {
     return (
       <Stack gap="md">
@@ -211,6 +349,76 @@ export const Dashboard = memo(function Dashboard() {
     );
   }
 
+  if (isPickingRole && isSmallDevice) {
+    return (
+      <Stack gap="md">
+        <Paper
+          p="md"
+          withBorder
+          radius="md"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(10, 139, 191, 0.14), rgba(8, 14, 25, 0.82))",
+            borderColor: "rgba(34, 211, 238, 0.16)",
+          }}
+        >
+          <Group justify="space-between" align="flex-start" gap="md">
+            <Box>
+              <Text fw={900} size="lg" c="white">
+                Device Launcher
+              </Text>
+              <Text size="sm" c="dimmed" mt={4}>
+                Quick access for small-screen picking operations.
+              </Text>
+            </Box>
+            <Badge variant="light" color="cyan">
+              Picking Role
+            </Badge>
+          </Group>
+        </Paper>
+
+        <SimpleGrid cols={1} gap="md">
+          {mobileLauncherCards.map((card, index) => (
+            <motion.div
+              key={card.key}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
+            >
+              <Link to={card.href} className="no-underline">
+                <Card
+                  withBorder
+                  radius="md"
+                  p="lg"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
+                    borderColor: "rgba(148, 163, 184, 0.12)",
+                  }}
+                >
+                  <Group justify="space-between" align="flex-start" mb="md">
+                    <ThemeIcon color={card.color} variant="light" size={48} radius="md">
+                      <card.icon size={24} />
+                    </ThemeIcon>
+                    <Badge variant="light" color={card.color}>
+                      Open
+                    </Badge>
+                  </Group>
+                  <Text size="lg" fw={900} c="white">
+                    {card.title}
+                  </Text>
+                  <Text size="sm" c="dimmed" mt={6}>
+                    {card.description}
+                  </Text>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
+        </SimpleGrid>
+      </Stack>
+    );
+  }
+
   return (
     <Stack gap="md">
       {error ? (
@@ -223,50 +431,6 @@ export const Dashboard = memo(function Dashboard() {
           {error}
         </Alert>
       ) : null}
-
-      <Paper
-        p="md"
-        withBorder
-        radius="md"
-        style={{
-          background: "rgba(8, 14, 25, 0.72)",
-          borderColor: "rgba(148, 163, 184, 0.12)",
-          backdropFilter: "blur(16px)",
-        }}
-      >
-        <Group justify="space-between" align="center" gap="md">
-          <Group gap="md">
-            <ThemeIcon size={44} radius="md" color="cyan" variant="light">
-              <IconDatabase size={24} />
-            </ThemeIcon>
-            <Box>
-              <Group gap="xs">
-                <Text fw={800} c="white">
-                  Live WMS Database Dashboard
-                </Text>
-                <Badge color="green" variant="dot">
-                  Summary API
-                </Badge>
-              </Group>
-              <Text size="xs" c="dimmed">
-                Compact live totals from PostgreSQL-backed endpoints without
-                loading full transaction tables into the browser.
-              </Text>
-            </Box>
-          </Group>
-          <Group gap="xs">
-            <Badge variant="light" color="blue">
-              {formatNumber(summary.productCount)} products
-            </Badge>
-            <Badge variant="light" color="grape">
-              {formatNumber(summary.manufacturerCount)} manufacturers
-            </Badge>
-            <Badge variant="light" color="gray">
-              {formatNumber(summary.importerCount)} importers
-            </Badge>
-          </Group>
-        </Group>
-      </Paper>
 
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} gap="md">
         {metrics.map((metric, index) => (
@@ -368,49 +532,118 @@ export const Dashboard = memo(function Dashboard() {
                   <IconChartBar size={20} color="var(--mantine-color-cyan-4)" />
                   <Text fw={800}>Operational Quantity Mix</Text>
                 </Group>
-                <Badge variant="outline">Aggregate query</Badge>
+                <Badge variant="outline">Live Mix</Badge>
               </Group>
-              <Box h={300} style={{ minWidth: 0 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={summary.quantityMix}
-                    margin={{ top: 8, right: 8, left: -18, bottom: 0 }}
+              <Grid gutter="md" align="stretch">
+                <Grid.Col span={{ base: 12, md: 8 }}>
+                  <Box
+                    h={300}
+                    style={{
+                      minWidth: 0,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                    }}
                   >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="rgba(148, 163, 184, 0.14)"
+                    <ReactApexChart
+                      type="donut"
+                      options={quantityMixChartOptions}
+                      series={quantityMixSeries}
+                      height="100%"
                     />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--mantine-color-dark-1)", fontSize: 11 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--mantine-color-dark-1)", fontSize: 11 }}
-                    />
-                    <ChartTooltip
-                      contentStyle={{
-                        backgroundColor: "rgba(15, 23, 38, 0.98)",
-                        border: "1px solid rgba(148, 163, 184, 0.2)",
-                        borderRadius: 8,
-                      }}
-                      cursor={{ fill: "rgba(148, 163, 184, 0.08)" }}
-                    />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={42}>
-                      {summary.quantityMix.map((entry, index) => (
-                        <Cell
+                  </Box>
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <Stack gap="sm" h="100%" justify="center">
+                    {summary.quantityMix.map((entry, index) => {
+                      const share =
+                        totalMixQuantity > 0
+                          ? Math.round((entry.value / totalMixQuantity) * 100)
+                          : 0;
+
+                      return (
+                        <Paper
                           key={entry.name}
-                          fill={chartColors[index % chartColors.length]}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
+                          withBorder
+                          radius="md"
+                          p="sm"
+                          style={{
+                            background:
+                              "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
+                          }}
+                        >
+                          <Group justify="space-between" align="flex-start" mb={8}>
+                            <Group gap="xs" wrap="nowrap">
+                              <Box
+                                w={10}
+                                h={10}
+                                mt={4}
+                                style={{
+                                  borderRadius: 999,
+                                  background:
+                                    chartColors[index % chartColors.length],
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Text size="sm" fw={700} lineClamp={1}>
+                                {entry.name}
+                              </Text>
+                            </Group>
+                            <Badge variant="light" color="gray">
+                              {share}%
+                            </Badge>
+                          </Group>
+                          <Group justify="space-between" align="flex-end">
+                            <Text size="xl" fw={900} c="white">
+                              {formatNumber(entry.value)}
+                            </Text>
+                            <Text size="xs" c="dimmed" fw={700}>
+                              units
+                            </Text>
+                          </Group>
+                          <Text size="11px" c="dimmed" mt={4}>
+                            {share}% of operational quantity mix
+                          </Text>
+                          <Progress
+                            value={share}
+                            size="md"
+                            radius="xl"
+                            color={
+                              index % 4 === 0
+                                ? "cyan"
+                                : index % 4 === 1
+                                  ? "indigo"
+                                  : index % 4 === 2
+                                    ? "orange"
+                                    : "teal"
+                            }
+                            mt="sm"
+                          />
+                        </Paper>
+                      );
+                    })}
+                    <Paper
+                      withBorder
+                      radius="md"
+                      p="sm"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.72))",
+                        borderColor: "rgba(34, 211, 238, 0.16)",
+                      }}
+                    >
+                      <Text size="10px" fw={800} c="dimmed" tt="uppercase">
+                        Mix Summary
+                      </Text>
+                      <Text size="xl" fw={900} c="white" mt={4}>
+                        {formatNumber(totalMixQuantity)}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Total units across stock, allocated, put-away, and dispatch buckets.
+                      </Text>
+                    </Paper>
+                  </Stack>
+                </Grid.Col>
+              </Grid>
             </Card>
           </Stack>
         </Grid.Col>

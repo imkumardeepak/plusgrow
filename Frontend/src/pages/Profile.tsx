@@ -1,41 +1,80 @@
-import React, { useState, memo } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/atoms/Card';
-import { Button } from '../components/atoms/Button';
-import { Input } from '../components/atoms/Input';
-import { Badge } from '../components/atoms/Badge';
-import { User, Mail, Phone, Calendar, Shield, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { memo, useMemo, useState } from "react";
+import { format } from "date-fns";
+import {
+  Badge,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Lock,
+  Mail,
+  Phone,
+  Shield,
+  User,
+} from "lucide-react";
+
+import { Button } from "../components/atoms/Button";
+import {
+  OperationsPage,
+  OperationsPanel,
+} from "../components/organisms/Operations/OperationsShell";
+import { useAuth } from "../context/AuthContext";
 
 export const Profile = memo(function Profile() {
   const { user, changePassword } = useAuth();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const initials = useMemo(() => {
+    if (!user?.fullName) return "US";
+    return user.fullName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  }, [user?.fullName]);
+
+  const handlePasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault();
     setMessage(null);
 
     if (!passwordData.currentPassword) {
-      setMessage({ type: 'error', text: 'Current password is required' });
+      setMessage({ type: "error", text: "Current password is required" });
       return;
     }
+
     if (!passwordData.newPassword) {
-      setMessage({ type: 'error', text: 'New password is required' });
+      setMessage({ type: "error", text: "New password is required" });
       return;
     }
+
     if (passwordData.newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'New password must be at least 6 characters' });
+      setMessage({
+        type: "error",
+        text: "New password must be at least 6 characters",
+      });
       return;
     }
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setMessage({ type: 'error', text: 'Passwords do not match' });
+      setMessage({ type: "error", text: "Passwords do not match" });
       return;
     }
 
@@ -46,258 +85,332 @@ export const Profile = memo(function Profile() {
     });
 
     if (result.success) {
-      setMessage({ type: 'success', text: 'Password changed successfully!' });
-      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setMessage({ type: "success", text: "Password changed successfully" });
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
       setShowPasswordForm(false);
     } else {
-      setMessage({ type: 'error', text: result.message || 'Failed to change password' });
+      setMessage({
+        type: "error",
+        text: result.message || "Failed to change password",
+      });
     }
+
     setIsLoading(false);
   };
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full" />
-      </div>
+      <OperationsPage
+        title="My Profile"
+        description="Account details and password settings."
+        icon={User}
+        hideHeader
+      >
+        <Paper radius="lg" p="xl" withBorder bg="transparent">
+          <Text size="sm" c="dimmed">
+            Loading profile...
+          </Text>
+        </Paper>
+      </OperationsPage>
     );
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
-      {/* Header Bar */}
-      <Card variant="glass" className="p-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="page-icon-chip shrink-0">
-            <User className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-bold text-white leading-tight tracking-tight">My Profile</h1>
-            <p className="text-xs text-neutral-500 font-medium tracking-wide uppercase">Account Settings</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Main Content */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
-        {/* Profile Card */}
-        <div className="lg:col-span-4 space-y-4">
-          <Card variant="elevated" className="overflow-hidden">
-            <div className="bg-gradient-to-br from-brand-500 to-brand-600 p-6 text-white text-center">
-              <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-white">
-                {getInitials(user.fullName)}
-              </div>
-              <h2 className="text-xl font-bold">{user.fullName}</h2>
-              <p className="text-brand-100 mt-1">@{user.username}</p>
-              <Badge variant="default" className="mt-3 bg-white/20 text-white border-white/30">
-                <Shield className="w-3 h-3 mr-1" />
-                {user.roleName || 'User'}
-              </Badge>
-            </div>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-3 text-sm">
-                <Mail className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-200">{user.email || 'No email set'}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-200">{user.phone || 'No phone set'}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Calendar className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-200">
-                  Joined {format(new Date(user.createdAt), 'MMM dd, yyyy')}
-                </span>
-              </div>
-              {user.lastLoginAt && (
-                <div className="flex items-center gap-3 text-sm">
-                  <Shield className="w-4 h-4 text-neutral-400" />
-                  <span className="text-neutral-200">
-                    Last login: {format(new Date(user.lastLoginAt), 'MMM dd, yyyy HH:mm')}
-                  </span>
+    <OperationsPage
+      title="My Profile"
+      description="Review account details and update password from one compact workspace."
+      icon={User}
+      hideHeader
+      metrics={[
+        { label: "Role", value: user.roleName || "User", tone: "brand" },
+        {
+          label: "Status",
+          value: user.isActive ? "Active" : "Inactive",
+          tone: user.isActive ? "success" : "default",
+        },
+        {
+          label: "Last Login",
+          value: user.lastLoginAt
+            ? format(new Date(user.lastLoginAt), "dd MMM yyyy")
+            : "No data",
+          tone: "default",
+        },
+      ]}
+    >
+      <Stack gap="xs">
+        <SimpleGrid cols={{ base: 1, xl: 4 }} spacing="xs">
+          <OperationsPanel
+            title="Profile Summary"
+            icon={User}
+            description="Identity and status."
+            className="xl:col-span-1"
+          >
+            <Paper
+              radius="md"
+              p="sm"
+              withBorder
+              bg="linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(15, 23, 42, 0.72))"
+              style={{ borderColor: "rgba(34, 211, 238, 0.16)" }}
+            >
+              <Group gap="sm" wrap="nowrap" align="center">
+                <div className="w-12 h-12 rounded-full bg-cyan-500/15 border border-cyan-400/20 flex items-center justify-center text-white text-sm font-black shrink-0">
+                  {initials}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Account Status */}
-          <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-white/10">
-              <CardTitle size="sm">Account Status</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-neutral-200">Status</span>
-                <Badge variant={user.isActive ? 'success' : 'danger'}>
-                  {user.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-sm text-neutral-200">Role ID</span>
-                <span className="text-sm font-mono font-semibold text-white">{user.roleId || 'N/A'}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Settings */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Change Password */}
-          <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-white/10 bg-white/[0.02]">
-              <div className="flex items-center justify-between">
-                <CardTitle size="sm" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-neutral-400" />
-                  Change Password
-                </CardTitle>
-                {!showPasswordForm && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPasswordForm(true)}
+                <div className="min-w-0">
+                  <Text size="sm" fw={900} c="white" lineClamp={1}>
+                    {user.fullName}
+                  </Text>
+                  <Text size="xs" ff="monospace" c="cyan.3">
+                    @{user.username}
+                  </Text>
+                  <Badge
+                    mt={6}
+                    size="xs"
+                    radius="md"
+                    variant="light"
+                    color="cyan"
                   >
-                    Change
-                  </Button>
+                    {user.roleName || "User"}
+                  </Badge>
+                </div>
+              </Group>
+            </Paper>
+
+            <Stack gap={6} mt="xs">
+              <ProfileLine
+                icon={Mail}
+                label="Email"
+                value={user.email || "No email set"}
+              />
+              <ProfileLine
+                icon={Phone}
+                label="Phone"
+                value={user.phone || "No phone set"}
+              />
+              <ProfileLine
+                icon={Calendar}
+                label="Joined"
+                value={format(new Date(user.createdAt), "dd MMM yyyy")}
+              />
+              <ProfileLine
+                icon={Shield}
+                label="Last Login"
+                value={
+                  user.lastLoginAt
+                    ? format(new Date(user.lastLoginAt), "dd MMM yyyy HH:mm")
+                    : "No login recorded"
+                }
+              />
+            </Stack>
+          </OperationsPanel>
+
+          <OperationsPanel
+            title="Account Details"
+            icon={Shield}
+            description="Authenticated account fields."
+            className="xl:col-span-3"
+          >
+            <SimpleGrid cols={{ base: 1, md: 2, xl: 4 }} spacing="xs">
+              <InfoCard label="User ID" value={String(user.id)} mono />
+              <InfoCard label="Username" value={`@${user.username}`} mono />
+              <InfoCard label="Full Name" value={user.fullName} />
+              <InfoCard label="Role" value={user.roleName || "User"} />
+              <InfoCard label="Email" value={user.email || "Not set"} />
+              <InfoCard label="Phone" value={user.phone || "Not set"} />
+              <InfoCard
+                label="Created"
+                value={format(new Date(user.createdAt), "dd MMM yyyy HH:mm")}
+              />
+              <InfoCard
+                label="Status"
+                value={user.isActive ? "Active" : "Inactive"}
+              />
+            </SimpleGrid>
+          </OperationsPanel>
+        </SimpleGrid>
+
+        <OperationsPanel
+          title="Password Security"
+          icon={Lock}
+          description="Change your password without leaving the page."
+          action={
+            !showPasswordForm ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setShowPasswordForm(true);
+                  setMessage(null);
+                }}
+              >
+                Change Password
+              </Button>
+            ) : undefined
+          }
+        >
+          {message ? (
+            <Paper
+              radius="md"
+              p="xs"
+              withBorder
+              mb="xs"
+              bg="transparent"
+              style={{
+                borderColor:
+                  message.type === "success"
+                    ? "rgba(34, 197, 94, 0.25)"
+                    : "rgba(239, 68, 68, 0.25)",
+              }}
+            >
+              <Group gap="xs" wrap="nowrap">
+                {message.type === "success" ? (
+                  <CheckCircle2 size={16} color="var(--mantine-color-green-4)" />
+                ) : (
+                  <AlertCircle size={16} color="var(--mantine-color-red-4)" />
                 )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-4">
-              {message && (
-                <div className={`flex items-center gap-2 p-3 rounded-2xl mb-4 text-sm animate-in fade-in slide-in-from-top-2 ${
-                  message.type === 'success' 
-                    ? '-/ border border-success-400/20 text-success-200'
-                    : '-/ border border-danger-400/20 text-danger-200'
-                }`}>
-                  {message.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                  )}
-                  <span>{message.text}</span>
-                </div>
-              )}
+                <Text
+                  size="sm"
+                  c={message.type === "success" ? "green.3" : "red.3"}
+                >
+                  {message.text}
+                </Text>
+              </Group>
+            </Paper>
+          ) : null}
 
-              {showPasswordForm ? (
-                <form onSubmit={handlePasswordChange} className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="currentPassword" className="label-text font-medium inline-block mb-1 block">
-                      Current Password
-                    </label>
-                    <Input
-                      id="currentPassword"
-                      type="password"
-                      placeholder="Enter current password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="newPassword" className="label-text font-medium inline-block mb-1 block">
-                      New Password
-                    </label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      placeholder="Enter new password"
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData((prev) => ({ ...prev, newPassword: e.target.value }))}
-                      className="h-10"
-                    />
-                    <p className="text-xs text-neutral-500">Must be at least 6 characters</p>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="label-text font-medium inline-block mb-1 block">
-                      Confirm New Password
-                    </label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm new password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => setPasswordData((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                      className="h-10"
-                    />
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowPasswordForm(false);
-                        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                        setMessage(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Password'
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <p className="text-sm text-neutral-500">
-                  Keep your account secure by using a strong password that you don't use elsewhere.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Account Information */}
-          <Card variant="elevated">
-            <CardHeader className="py-3 px-4 border-b border-white/10 bg-white/[0.02]">
-              <CardTitle size="sm">Account Information</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">User ID</p>
-                  <p className="text-sm font-mono font-semibold text-white">{user.id}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Username</p>
-                  <p className="text-sm font-semibold text-white">@{user.username}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Full Name</p>
-                  <p className="text-sm font-semibold text-white">{user.fullName}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Email</p>
-                  <p className="text-sm font-semibold text-white">{user.email || 'Not set'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Phone</p>
-                  <p className="text-sm font-semibold text-white">{user.phone || 'Not set'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Role</p>
-                  <p className="text-sm font-semibold text-white">{user.roleName || 'User'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+          {showPasswordForm ? (
+            <form onSubmit={handlePasswordChange}>
+              <Stack gap="sm">
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+                  <TextInput
+                    label="Current Password"
+                    size="xs"
+                    type="password"
+                    value={passwordData.currentPassword}
+                    onChange={(event) => {
+                      const currentPassword = event.currentTarget.value;
+                      setPasswordData((current) => ({
+                        ...current,
+                        currentPassword,
+                      }));
+                    }}
+                    placeholder="Enter current password"
+                  />
+                  <TextInput
+                    label="New Password"
+                    size="xs"
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(event) => {
+                      const newPassword = event.currentTarget.value;
+                      setPasswordData((current) => ({
+                        ...current,
+                        newPassword,
+                      }));
+                    }}
+                    placeholder="Enter new password"
+                    description="Minimum 6 characters"
+                  />
+                  <TextInput
+                    label="Confirm Password"
+                    size="xs"
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(event) => {
+                      const confirmPassword = event.currentTarget.value;
+                      setPasswordData((current) => ({
+                        ...current,
+                        confirmPassword,
+                      }));
+                    }}
+                    placeholder="Confirm new password"
+                  />
+                </SimpleGrid>
+                <Group gap="xs" justify="flex-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => {
+                      setShowPasswordForm(false);
+                      setPasswordData({
+                        currentPassword: "",
+                        newPassword: "",
+                        confirmPassword: "",
+                      });
+                      setMessage(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" loading={isLoading}>
+                    Save Password
+                  </Button>
+                </Group>
+              </Stack>
+            </form>
+          ) : (
+            <Text size="sm" c="dimmed">
+              Keep your account secure with a strong password unique to this system.
+            </Text>
+          )}
+        </OperationsPanel>
+      </Stack>
+    </OperationsPage>
   );
 });
+
+function ProfileLine({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Group
+      gap="xs"
+      wrap="nowrap"
+      className="rounded-md border border-slate-700/60 px-2.5 py-2"
+    >
+      <Icon size={14} color="var(--mantine-color-cyan-4)" />
+      <div className="min-w-0">
+        <Text size="9px" fw={800} c="dimmed" tt="uppercase">
+          {label}
+        </Text>
+        <Text size="12px" fw={700} c="white" lineClamp={1}>
+          {value}
+        </Text>
+      </div>
+    </Group>
+  );
+}
+
+function InfoCard({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <Paper radius="md" p="xs" withBorder bg="transparent">
+      <Text size="10px" fw={800} c="dimmed">
+        {label.toUpperCase()}
+      </Text>
+      <Text mt={4} size="xs" fw={800} ff={mono ? "monospace" : undefined}>
+        {value}
+      </Text>
+    </Paper>
+  );
+}
 
 export default Profile;

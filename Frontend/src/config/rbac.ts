@@ -30,7 +30,6 @@ export type PagePermission = {
 };
 
 export const SYSTEM_PAGES = [
-  { key: "dashboard", label: "Dashboard", path: "/", group: "Overview", icon: ClipboardCheck },
   { key: "inward", label: "Purchase Invoices", path: "/inward", group: "Inward", icon: ArrowDownToLine },
   { key: "putaway", label: "Put Away", path: "/putaway", group: "Inward", icon: Warehouse },
   { key: "outward", label: "Sales Invoice", path: "/outward", group: "Outward", icon: ArrowUpFromLine },
