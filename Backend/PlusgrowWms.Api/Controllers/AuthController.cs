@@ -44,7 +44,7 @@ public class AuthController : BaseController
     /// Register a new user account
     /// </summary>
     [HttpPost("register")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Superadmin,Admin")]
     public async Task<ActionResult<ApiResponse<AuthResponseDto>>> Register([FromBody] CreateUserDto createUserDto)
     {
         if (string.IsNullOrWhiteSpace(createUserDto.Username) || string.IsNullOrWhiteSpace(createUserDto.Password))

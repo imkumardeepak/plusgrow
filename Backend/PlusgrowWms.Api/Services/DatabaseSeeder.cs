@@ -44,42 +44,35 @@ public class DatabaseSeeder : IDatabaseSeeder
 
     private async Task SeedRolesAsync()
     {
-        // Check if Superadmin role exists
-        var superadminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Superadmin");
-        if (superadminRole == null)
+        var defaultRoles = new Dictionary<string, string>
         {
-            superadminRole = new Role
-            {
-                Name = "Superadmin",
-                Description = "Full system access with all permissions",
-                IsActive = true,
-                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
-            };
-            _context.Roles.Add(superadminRole);
-            _logger.LogInformation("Created Superadmin role");
-        }
-        else
-        {
-            _logger.LogInformation("Superadmin role already exists with ID: {Id}", superadminRole.Id);
-        }
+            ["Superadmin"] = "Full system access with all permissions",
+            ["Admin"] = "Administrative access for user and operations management",
+            ["Manager"] = "Warehouse management access",
+            ["Warehouse Operator"] = "Operational warehouse access",
+            ["Viewer"] = "Read-only access",
+        };
 
-        // Check if Admin role exists
-        var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
-        if (adminRole == null)
+        foreach (var item in defaultRoles)
         {
-            adminRole = new Role
+            var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == item.Key);
+            if (role == null)
             {
-                Name = "Admin",
-                Description = "Administrator with limited system access",
-                IsActive = true,
-                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
-            };
-            _context.Roles.Add(adminRole);
-            _logger.LogInformation("Created Admin role");
-        }
-        else
-        {
-            _logger.LogInformation("Admin role already exists with ID: {Id}", adminRole.Id);
+                role = new Role
+                {
+                    Name = item.Key,
+                    Description = item.Value,
+                    IsActive = true,
+                    CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
+                };
+                _context.Roles.Add(role);
+                _logger.LogInformation("Created {RoleName} role", item.Key);
+            }
+
+            else
+            {
+                _logger.LogInformation("{RoleName} role already exists with ID: {Id}", item.Key, role.Id);
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -145,8 +138,9 @@ public class DatabaseSeeder : IDatabaseSeeder
         {
             "dashboard", "inward", "sticker", "receiving", "putaway",
             "outward", "packing", "dispatch", "importers", "manufacturers",
-            "commodities", "products", "stock-check", "stock-movement",
-            "warehouse-map", "profile"
+            "commodities", "bins", "locations", "mpd", "products",
+            "sticker-printer-config", "stock-check", "stock-movement",
+            "warehouse-map", "role-master", "user-master", "profile"
         };
 
         foreach (var page in pages)

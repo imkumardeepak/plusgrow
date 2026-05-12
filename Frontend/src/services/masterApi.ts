@@ -123,6 +123,57 @@ export interface ImportResult {
   errors?: string[];
 }
 
+export interface RolePageAccessRecord {
+  id: number;
+  roleId: number;
+  pageKey: string;
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}
+
+export interface RoleRecord {
+  id: number;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  userCount: number;
+}
+
+export interface CreateRoleDto {
+  id?: number;
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+}
+
+export interface UserRecord {
+  id: number;
+  username: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  roleId?: number | null;
+  roleName?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt?: string | null;
+  pageAccesses: RolePageAccessRecord[];
+}
+
+export interface CreateUserDto {
+  id?: number;
+  username: string;
+  password?: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  roleId?: number | null;
+  isActive?: boolean;
+}
+
 export interface MarkPoInvoicesPrintedResult {
   updatedCount: number;
 }
@@ -919,5 +970,68 @@ export const dashboardApi = {
     const response = await api.get<ApiResponse<DashboardSummary>>('/dashboard/summary');
     if (!response.data.success) throw new Error(response.data.message || 'Error loading dashboard summary');
     return response.data.data!;
+  },
+};
+
+export const rolesApi = {
+  getAll: async (): Promise<RoleRecord[]> => {
+    const response = await api.get<ApiResponse<RoleRecord[]>>('/roles');
+    return response.data.data || [];
+  },
+
+  getPageAccess: async (roleId: number): Promise<RolePageAccessRecord[]> => {
+    const response = await api.get<ApiResponse<RolePageAccessRecord[]>>(`/roles/${roleId}/page-access`);
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateRoleDto): Promise<RoleRecord> => {
+    const response = await api.post<ApiResponse<RoleRecord>>('/roles', data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error creating role');
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateRoleDto): Promise<RoleRecord> => {
+    const response = await api.put<ApiResponse<RoleRecord>>(`/roles/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating role');
+    return response.data.data!;
+  },
+
+  updatePageAccess: async (
+    roleId: number,
+    pageAccesses: Array<Omit<RolePageAccessRecord, 'id' | 'roleId'>>,
+  ): Promise<RolePageAccessRecord[]> => {
+    const response = await api.put<ApiResponse<RolePageAccessRecord[]>>(`/roles/${roleId}/page-access`, {
+      roleId,
+      pageAccesses,
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating permissions');
+    return response.data.data || [];
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/roles/${id}`);
+  },
+};
+
+export const usersApi = {
+  getAll: async (): Promise<UserRecord[]> => {
+    const response = await api.get<ApiResponse<UserRecord[]>>('/users');
+    return response.data.data || [];
+  },
+
+  create: async (data: CreateUserDto): Promise<UserRecord> => {
+    const response = await api.post<ApiResponse<UserRecord>>('/users', data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error creating user');
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreateUserDto): Promise<UserRecord> => {
+    const response = await api.put<ApiResponse<UserRecord>>(`/users/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating user');
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/users/${id}`);
   },
 };

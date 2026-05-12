@@ -79,19 +79,7 @@ public class AuthService : IAuthService
         );
         
         var token = GenerateJwtToken(user);
-        var userDto = new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            FullName = user.FullName,
-            Email = user.Email,
-            Phone = user.Phone,
-            RoleId = user.RoleId,
-            RoleName = user.Role?.Name,
-            IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
-            LastLoginAt = user.LastLoginAt
-        };
+        var userDto = MapUser(user);
         
         _logger.LogInformation("Login successful for user: {Username}", loginDto.Username);
         
@@ -185,19 +173,7 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByIdWithRoleAsync(userId);
         if (user == null) return null;
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Username = user.Username,
-            FullName = user.FullName,
-            Email = user.Email,
-            Phone = user.Phone,
-            RoleId = user.RoleId,
-            RoleName = user.Role?.Name,
-            IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
-            LastLoginAt = user.LastLoginAt
-        };
+        return MapUser(user);
     }
 
     public async Task<bool> ChangePasswordAsync(int userId, string newPassword)
@@ -212,7 +188,20 @@ public class AuthService : IAuthService
         if (user == null || !user.IsActive) return null;
 
         var token = GenerateJwtToken(user);
-        var userDto = new UserDto
+        var userDto = MapUser(user);
+
+        return new AuthResponseDto
+        {
+            Success = true,
+            Token = token,
+            User = userDto,
+            Message = "Token refreshed successfully"
+        };
+    }
+
+    private static UserDto MapUser(User user)
+    {
+        return new UserDto
         {
             Id = user.Id,
             Username = user.Username,
@@ -223,15 +212,19 @@ public class AuthService : IAuthService
             RoleName = user.Role?.Name,
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt,
-            LastLoginAt = user.LastLoginAt
-        };
-
-        return new AuthResponseDto
-        {
-            Success = true,
-            Token = token,
-            User = userDto,
-            Message = "Token refreshed successfully"
+            LastLoginAt = user.LastLoginAt,
+            PageAccesses = user.Role?.RolePageAccesses
+                .Select(access => new RolePageAccessDto
+                {
+                    Id = access.Id,
+                    RoleId = access.RoleId,
+                    PageKey = access.PageKey,
+                    CanView = access.CanView,
+                    CanCreate = access.CanCreate,
+                    CanEdit = access.CanEdit,
+                    CanDelete = access.CanDelete,
+                })
+                .ToList() ?? new List<RolePageAccessDto>()
         };
     }
 }

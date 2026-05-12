@@ -13,8 +13,10 @@ import {
   Move,
   Package,
   Printer,
+  ShieldCheck,
   Truck,
   User,
+  UserCog,
   Warehouse,
 } from "lucide-react";
 
@@ -175,6 +177,25 @@ export const navigationGroups: NavGroup[] = [
         label: "My Profile",
         icon: User,
         href: "/profile",
+      },
+    ],
+  },
+  {
+    id: "security",
+    label: "Security",
+    icon: ShieldCheck,
+    items: [
+      {
+        id: "role-master",
+        label: "Role Master",
+        icon: ShieldCheck,
+        href: "/role-master",
+      },
+      {
+        id: "user-master",
+        label: "User Master",
+        icon: UserCog,
+        href: "/user-master",
       },
     ],
   },

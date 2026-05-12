@@ -25,6 +25,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     {
         return await _dbSet
             .Include(u => u.Role)
+                .ThenInclude(r => r!.RolePageAccesses)
             .Where(u => u.IsActive)
             .ToListAsync();
     }
@@ -33,6 +34,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     {
         return await _dbSet
             .Include(u => u.Role)
+                .ThenInclude(r => r!.RolePageAccesses)
             .FirstOrDefaultAsync(u => u.Id == id);
     }
 
@@ -40,6 +42,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     {
         return await _dbSet
             .Include(u => u.Role)
+                .ThenInclude(r => r!.RolePageAccesses)
             .FirstOrDefaultAsync(u => u.Username == username);
     }
 

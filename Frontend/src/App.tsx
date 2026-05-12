@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { WmsProvider } from "./context/WmsContext";
 import { MantineProvider, createTheme } from "@mantine/core";
+import { Button, Group, Modal, Text } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
@@ -18,7 +19,6 @@ import { PageLoader } from "./components/molecules/PageLoader/PageLoader";
 
 // Lazy load pages for code splitting
 const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inward = lazy(() => import("./pages/Inward"));
 const PutAway = lazy(() => import("./pages/PutAway"));
@@ -38,6 +38,8 @@ const StockCheck = lazy(() => import("./pages/StockCheck"));
 const StockMovement = lazy(() => import("./pages/StockMovement"));
 const WarehouseMap = lazy(() => import("./pages/WarehouseMap"));
 const Profile = lazy(() => import("./pages/Profile"));
+const RoleMaster = lazy(() => import("./pages/RoleMaster"));
+const UserMaster = lazy(() => import("./pages/UserMaster"));
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -53,6 +55,46 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <>{children}</>;
 };
+
+const UnauthorizedModal = () => (
+  <Modal opened centered withCloseButton={false} onClose={() => undefined} title="Access denied">
+    <Text fw={800} size="lg">You are not authorized</Text>
+    <Text mt="xs" size="sm" c="dimmed">
+      Your role does not have permission to open this page.
+    </Text>
+    <Group justify="flex-end" mt="md">
+      <Button component="a" href="/" size="sm">
+        Go to dashboard
+      </Button>
+    </Group>
+  </Modal>
+);
+
+const PermissionRoute = ({
+  pageKey,
+  children,
+}: {
+  pageKey: string;
+  children: React.ReactNode;
+}) => {
+  const { hasPermission, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <PageLoader message="Checking permissions…" />;
+  }
+
+  if (!hasPermission(pageKey, "view")) {
+    return <UnauthorizedModal />;
+  }
+
+  return <>{children}</>;
+};
+
+const pageElement = (pageKey: string, children: React.ReactNode) => (
+  <PermissionRoute pageKey={pageKey}>
+    <Suspense fallback={<PageLoader />}>{children}</Suspense>
+  </PermissionRoute>
+);
 
 // Create Query Client
 const queryClient = new QueryClient({
@@ -111,13 +153,7 @@ export default function App() {
                 />
                 <Route
                   path="/register"
-                  element={
-                    <Suspense
-                      fallback={<PageLoader message="Loading Register…" />}
-                    >
-                      <Register />
-                    </Suspense>
-                  }
+                  element={<Navigate to="/user-master" replace />}
                 />
 
                 {/* Protected Routes */}
@@ -131,142 +167,80 @@ export default function App() {
                 >
                   <Route
                     index
-                    element={
-                      <Suspense
-                        fallback={<PageLoader message="Loading Dashboard…" />}
-                      >
-                        <Dashboard />
-                      </Suspense>
-                    }
+                    element={pageElement("dashboard", <Dashboard />)}
                   />
                   <Route
                     path="inward"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Inward />
-                      </Suspense>
-                    }
+                    element={pageElement("inward", <Inward />)}
                   />
                   <Route path="sticker" element={<Navigate to="/inward" replace />} />
                   <Route
                     path="putaway"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <PutAway />
-                      </Suspense>
-                    }
+                    element={pageElement("putaway", <PutAway />)}
                   />
                   <Route
                     path="outward"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Outward />
-                      </Suspense>
-                    }
+                    element={pageElement("outward", <Outward />)}
                   />
                   <Route
                     path="packing"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Packing />
-                      </Suspense>
-                    }
+                    element={pageElement("packing", <Packing />)}
                   />
                   <Route
                     path="dispatch"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Dispatch />
-                      </Suspense>
-                    }
+                    element={pageElement("dispatch", <Dispatch />)}
                   />
                   <Route
                     path="importers"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Importers />
-                      </Suspense>
-                    }
+                    element={pageElement("importers", <Importers />)}
                   />
                   <Route
                     path="manufacturers"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Manufacturers />
-                      </Suspense>
-                    }
+                    element={pageElement("manufacturers", <Manufacturers />)}
                   />
                   <Route
                     path="commodities"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Commodities />
-                      </Suspense>
-                    }
+                    element={pageElement("commodities", <Commodities />)}
                   />
                   <Route
                     path="bins"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Bins />
-                      </Suspense>
-                    }
+                    element={pageElement("bins", <Bins />)}
                   />
                   <Route
                     path="locations"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Locations />
-                      </Suspense>
-                    }
+                    element={pageElement("locations", <Locations />)}
                   />
                   <Route
                     path="mpd"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <MPD />
-                      </Suspense>
-                    }
+                    element={pageElement("mpd", <MPD />)}
                   />
                   <Route
                     path="sticker-printer-config"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <StickerPrinterConfigMaster />
-                      </Suspense>
-                    }
+                    element={pageElement("sticker-printer-config", <StickerPrinterConfigMaster />)}
                   />
                   <Route
                     path="stock-check"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <StockCheck />
-                      </Suspense>
-                    }
+                    element={pageElement("stock-check", <StockCheck />)}
                   />
                   <Route
                     path="stock-movement"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <StockMovement />
-                      </Suspense>
-                    }
+                    element={pageElement("stock-movement", <StockMovement />)}
                   />
                   <Route
                     path="warehouse-map"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <WarehouseMap />
-                      </Suspense>
-                    }
+                    element={pageElement("warehouse-map", <WarehouseMap />)}
+                  />
+                  <Route
+                    path="role-master"
+                    element={pageElement("role-master", <RoleMaster />)}
+                  />
+                  <Route
+                    path="user-master"
+                    element={pageElement("user-master", <UserMaster />)}
                   />
                   <Route
                     path="profile"
-                    element={
-                      <Suspense fallback={<PageLoader />}>
-                        <Profile />
-                      </Suspense>
-                    }
+                    element={pageElement("profile", <Profile />)}
                   />
                 </Route>
 

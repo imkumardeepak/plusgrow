@@ -12,6 +12,7 @@ public class UserDto
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }
+    public List<RolePageAccessDto> PageAccesses { get; set; } = new();
 }
 
 public class CreateUserDto

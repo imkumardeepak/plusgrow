@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { navigationGroups } from "../navigation";
+import { useAuth } from "../../../../context/AuthContext";
 
 export interface SidebarProps {
   onMobileClose?: () => void;
@@ -18,6 +19,7 @@ export interface SidebarProps {
 
 export function Sidebar({ onMobileClose }: SidebarProps) {
   const location = useLocation();
+  const { hasPermission } = useAuth();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const toggleGroup = (groupId: string) => {
@@ -80,7 +82,15 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         }}
       >
         <Stack gap={8} pb="lg">
-          {navigationGroups.map((group) => {
+          {navigationGroups
+            .map((group) => ({
+              ...group,
+              items: group.items.filter((item) =>
+                hasPermission(item.id, "view"),
+              ),
+            }))
+            .filter((group) => group.items.length > 0)
+            .map((group) => {
             const isExpanded = expandedGroups.has(group.id);
             const hasActiveItem = group.items.some(
               (item) => location.pathname === item.href,

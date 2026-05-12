@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -103,7 +104,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddSignalR();
 
 // Add controllers with Newtonsoft

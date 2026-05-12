@@ -2,16 +2,17 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../lib/api';
 import { toast } from '../lib/toast';
+import type { PermissionAction, PagePermission } from '../config/rbac';
 
 // Types matching the API response (snake_case)
 interface ApiUser {
   id: number;
   username: string;
   fullName?: string;
-  full_name: string;
+  full_name?: string;
   email: string | null;
   phone: string | null;
-  role_id: number | null;
+  role_id?: number | null;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -19,6 +20,9 @@ interface ApiUser {
     id: number;
     name: string;
   };
+  roleName?: string;
+  roleId?: number;
+  pageAccesses?: PagePermission[];
 }
 
 interface LoginDto {
@@ -35,6 +39,8 @@ interface AuthContextType {
   logout: () => void;
   changePassword: (data: any) => Promise<{ success: boolean; message?: string }>;
   refreshUser: () => Promise<void>;
+  hasPermission: (pageKey: string, action?: PermissionAction) => boolean;
+  canManageSecurity: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -114,8 +120,46 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const refreshUser = async () => {
-    // Refresh user data if needed
+    const response = await authService.refreshToken();
+    if (response?.success && response.data?.user) {
+      setUser(response.data.user as ApiUser);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
   };
+
+  const hasPermission = (
+    pageKey: string,
+    action: PermissionAction = 'view',
+  ) => {
+    if (!user) return false;
+
+    const roleName = user.roleName ?? user.role?.name ?? '';
+    if (roleName === 'Superadmin') return true;
+    if (
+      roleName === 'Admin' &&
+      action === 'view' &&
+      (pageKey === 'role-master' || pageKey === 'user-master')
+    ) {
+      return true;
+    }
+
+    if (pageKey === 'profile' && action === 'view') return true;
+
+    const access = user.pageAccesses?.find(
+      (item) => item.pageKey === pageKey,
+    );
+    if (!access) return false;
+
+    if (action === 'view') return access.canView;
+    if (action === 'create') return access.canCreate;
+    if (action === 'edit') return access.canEdit;
+    if (action === 'delete') return access.canDelete;
+    return false;
+  };
+
+  const resolvedRoleName = user?.roleName ?? user?.role?.name ?? '';
+  const canManageSecurity =
+    resolvedRoleName === 'Superadmin' || resolvedRoleName === 'Admin';
 
   return (
     <AuthContext.Provider
@@ -128,6 +172,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         logout,
         changePassword,
         refreshUser,
+        hasPermission,
+        canManageSecurity,
       }}
     >
       {children}
