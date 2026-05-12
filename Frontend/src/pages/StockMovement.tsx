@@ -35,8 +35,10 @@ import {
 import {
   CreateStockAdjustmentDto,
   Product,
+  ProductAllottedLocationRecord,
   ProductQuantityRecord,
   ProductStockMovementRecord,
+  productAllottedLocationsApi,
   productQuantitiesApi,
   productsApi,
 } from "../services/masterApi";
@@ -62,6 +64,7 @@ const adjustmentReasonOptions = [
 
 const emptyAdjustmentForm: CreateStockAdjustmentDto = {
   productId: 0,
+  locationCode: "",
   quantityChange: 0,
   reason: "Manual Reconciliation",
   notes: "",
@@ -69,6 +72,9 @@ const emptyAdjustmentForm: CreateStockAdjustmentDto = {
 
 export const StockMovement = memo(function StockMovement() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [allottedLocations, setAllottedLocations] = useState<
+    ProductAllottedLocationRecord[]
+  >([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
   const [movements, setMovements] = useState<ProductStockMovementRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,13 +87,16 @@ export const StockMovement = memo(function StockMovement() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, quantityData, movementData] = await Promise.all([
-        productsApi.getAll(),
-        productQuantitiesApi.getAll(),
-        productQuantitiesApi.getMovements(),
-      ]);
+      const [productsData, allottedData, quantityData, movementData] =
+        await Promise.all([
+          productsApi.getAll(),
+          productAllottedLocationsApi.getAll(),
+          productQuantitiesApi.getAll(),
+          productQuantitiesApi.getMovements(),
+        ]);
 
       setProducts(productsData);
+      setAllottedLocations(allottedData);
       setQuantityRows(quantityData);
       setMovements(movementData);
     } catch {
@@ -151,6 +160,22 @@ export const StockMovement = memo(function StockMovement() {
     [adjustmentForm.productId, ledgerRows],
   );
 
+  const selectedAllottedLocation = useMemo(
+    () =>
+      allottedLocations.find(
+        (row) => row.productId === adjustmentForm.productId,
+      ) ?? null,
+    [adjustmentForm.productId, allottedLocations],
+  );
+
+  const selectedLocationQuantity = useMemo(() => {
+    if (!adjustmentForm.locationCode || !selectedAllottedLocation) {
+      return 0;
+    }
+
+    return selectedAllottedLocation.locationJson[adjustmentForm.locationCode] ?? 0;
+  }, [adjustmentForm.locationCode, selectedAllottedLocation]);
+
   const projectedQuantity = useMemo(() => {
     if (!selectedLedgerRow) {
       return null;
@@ -158,6 +183,18 @@ export const StockMovement = memo(function StockMovement() {
 
     return selectedLedgerRow.currentQuantity + adjustmentForm.quantityChange;
   }, [adjustmentForm.quantityChange, selectedLedgerRow]);
+
+  const projectedLocationQuantity = useMemo(() => {
+    if (!adjustmentForm.locationCode) {
+      return null;
+    }
+
+    return selectedLocationQuantity + adjustmentForm.quantityChange;
+  }, [
+    adjustmentForm.locationCode,
+    adjustmentForm.quantityChange,
+    selectedLocationQuantity,
+  ]);
 
   const movementStats = useMemo(() => {
     const increases = movements.filter((row) => row.quantityChange > 0).length;
@@ -181,6 +218,24 @@ export const StockMovement = memo(function StockMovement() {
         label: `${row.skuCode} - ${row.productName}`,
       })),
     [ledgerRows],
+  );
+
+  const locationOptions = useMemo(
+    () => {
+      if (!selectedAllottedLocation) {
+        return [];
+      }
+
+      return Object.entries(selectedAllottedLocation.locationJson || {})
+        .sort(([firstLocation], [secondLocation]) =>
+          firstLocation.localeCompare(secondLocation),
+        )
+        .map(([locationCode, quantity]) => ({
+          value: locationCode,
+          label: `${locationCode} - Qty ${quantity}`,
+        }));
+    },
+    [selectedAllottedLocation],
   );
 
   const ledgerColumns: DataTableColumn<StockLedgerRow>[] = [
@@ -356,6 +411,11 @@ export const StockMovement = memo(function StockMovement() {
       return;
     }
 
+    if (!adjustmentForm.locationCode.trim()) {
+      toast.error("Select location first");
+      return;
+    }
+
     if (!adjustmentForm.reason.trim()) {
       toast.error("Reason is required");
       return;
@@ -366,10 +426,21 @@ export const StockMovement = memo(function StockMovement() {
       return;
     }
 
+    if (
+      projectedLocationQuantity !== null &&
+      projectedLocationQuantity < 0
+    ) {
+      toast.error(
+        `This adjustment would reduce ${adjustmentForm.locationCode} below zero`,
+      );
+      return;
+    }
+
     try {
       setIsSaving(true);
       const result = await productQuantitiesApi.adjust({
         productId: adjustmentForm.productId,
+        locationCode: adjustmentForm.locationCode,
         quantityChange: adjustmentForm.quantityChange,
         reason: adjustmentForm.reason,
         notes: adjustmentForm.notes?.trim() || null,
@@ -439,9 +510,36 @@ export const StockMovement = memo(function StockMovement() {
                   setAdjustmentForm((current) => ({
                     ...current,
                     productId: value ? Number(value) : 0,
+                    locationCode: "",
                   }))
                 }
                 nothingFoundMessage="No product found"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Text size="10px" fw={800} c="dimmed">
+                LOCATION
+              </Text>
+              <Select
+                size="sm"
+                radius="md"
+                searchable
+                placeholder={
+                  adjustmentForm.productId > 0
+                    ? "Select allotted location"
+                    : "Select product first"
+                }
+                data={locationOptions}
+                value={adjustmentForm.locationCode || null}
+                onChange={(value) =>
+                  setAdjustmentForm((current) => ({
+                    ...current,
+                    locationCode: value || "",
+                  }))
+                }
+                disabled={adjustmentForm.productId <= 0 || locationOptions.length === 0}
+                nothingFoundMessage="No allotted location found"
               />
             </div>
 
@@ -541,6 +639,37 @@ export const StockMovement = memo(function StockMovement() {
                   }
                 >
                   {projectedQuantity ?? "-"}
+                </Text>
+              </Paper>
+            </SimpleGrid>
+
+            <SimpleGrid cols={2} spacing="sm">
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  LOCATION QTY.
+                </Text>
+                <Text mt={6} size="lg" fw={800} ff="monospace">
+                  {adjustmentForm.locationCode ? selectedLocationQuantity : "-"}
+                </Text>
+              </Paper>
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Text size="10px" fw={800} c="dimmed">
+                  LOCATION AFTER
+                </Text>
+                <Text
+                  mt={6}
+                  size="lg"
+                  fw={800}
+                  ff="monospace"
+                  c={
+                    projectedLocationQuantity == null
+                      ? "white"
+                      : projectedLocationQuantity < 0
+                        ? "red.3"
+                        : "green.3"
+                  }
+                >
+                  {projectedLocationQuantity ?? "-"}
                 </Text>
               </Paper>
             </SimpleGrid>

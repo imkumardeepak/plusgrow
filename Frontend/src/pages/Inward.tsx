@@ -26,8 +26,6 @@ import {
   ArrowDownToLine,
   CheckCircle2,
   Download,
-  Edit2,
-  Eye,
   FileSpreadsheet,
   FileText,
   Loader2,
@@ -36,7 +34,6 @@ import {
   RefreshCw,
   Search,
   Tag,
-  Trash2,
   Upload,
 } from "lucide-react";
 import { toast } from "../lib/toast";
@@ -451,36 +448,12 @@ export const Inward = memo(function Inward() {
               onClick={() => setSelectedPrintRow(row)}
               aria-label="Print sticker"
             >
-              <Eye size={15} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Edit invoice">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="blue"
-              onClick={() => openEditInvoice(row)}
-              aria-label="Edit invoice"
-            >
-              <Edit2 size={14} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Delete invoice">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="red"
-              onClick={() => setDeleteTarget({ kind: "invoice", row })}
-              aria-label="Delete invoice"
-            >
-              <Trash2 size={14} />
+              <Printer size={15} />
             </ActionIcon>
           </Tooltip>
         </Group>
       ),
-      width: 130,
+      width: 80,
     },
   ];
 

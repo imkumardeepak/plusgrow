@@ -117,12 +117,23 @@ public class ProductQuantitiesController : BaseController
         if (dto.QuantityChange == 0)
             return BadRequest<StockAdjustmentResultDto>("Quantity change cannot be zero");
 
+        if (string.IsNullOrWhiteSpace(dto.LocationCode))
+            return BadRequest<StockAdjustmentResultDto>("Location is required");
+
         if (string.IsNullOrWhiteSpace(dto.Reason))
             return BadRequest<StockAdjustmentResultDto>("Reason is required");
 
         var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
         if (product == null)
             return NotFound<StockAdjustmentResultDto>("Selected product does not exist");
+
+        var locationCode = dto.LocationCode.Trim();
+        var location = await _context.Locations
+            .FirstOrDefaultAsync(x => x.LocationCode.ToLower() == locationCode.ToLower());
+        if (location == null)
+            return NotFound<StockAdjustmentResultDto>("Selected location does not exist");
+
+        locationCode = location.LocationCode;
 
         var quantityRow = await _context.ProductQuantities
             .Include(x => x.Product)
@@ -133,6 +144,40 @@ public class ProductQuantitiesController : BaseController
 
         if (quantityAfter < 0)
             return BadRequest<StockAdjustmentResultDto>($"Cannot reduce stock below zero. Current quantity is {quantityBefore}");
+
+        var allocationRow = await _context.ProductAllottedLocations
+            .FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
+        if (allocationRow == null)
+        {
+            allocationRow = new ProductAllottedLocation
+            {
+                ProductId = dto.ProductId,
+                LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            };
+            _context.ProductAllottedLocations.Add(allocationRow);
+        }
+        else if (allocationRow.LocationJson == null)
+        {
+            allocationRow.LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        allocationRow.LocationJson.TryGetValue(locationCode, out var locationQuantityBefore);
+        var locationQuantityAfter = locationQuantityBefore + dto.QuantityChange;
+        if (locationQuantityAfter < 0)
+            return BadRequest<StockAdjustmentResultDto>($"Cannot reduce {locationCode} below zero. Current location quantity is {locationQuantityBefore}");
+
+        if (locationQuantityAfter == 0)
+        {
+            allocationRow.LocationJson.Remove(locationCode);
+        }
+        else
+        {
+            allocationRow.LocationJson[locationCode] = locationQuantityAfter;
+        }
+
+        allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
 
         if (quantityRow == null)
         {
@@ -164,7 +209,7 @@ public class ProductQuantitiesController : BaseController
             QuantityAfter = quantityAfter,
             Reason = dto.Reason.Trim(),
             MovementType = dto.QuantityChange > 0 ? "increase" : "decrease",
-            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
+            Notes = BuildAdjustmentNotes(locationCode, locationQuantityBefore, locationQuantityAfter, dto.Notes),
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,
             CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
@@ -201,12 +246,24 @@ public class ProductQuantitiesController : BaseController
                 ["quantityBefore"] = response.Movement.QuantityBefore,
                 ["quantityAfter"] = response.Movement.QuantityAfter,
                 ["quantityChange"] = response.Movement.QuantityChange,
+                ["locationCode"] = locationCode,
+                ["locationQuantityBefore"] = locationQuantityBefore,
+                ["locationQuantityAfter"] = locationQuantityAfter,
                 ["reason"] = response.Movement.Reason,
                 ["performedByName"] = response.Movement.PerformedByName,
             },
         });
 
         return Success(response, "Stock adjusted successfully");
+    }
+
+    private static string BuildAdjustmentNotes(string locationCode, int locationQuantityBefore, int locationQuantityAfter, string? notes)
+    {
+        var locationNote = $"Location {locationCode}: {locationQuantityBefore} -> {locationQuantityAfter}";
+        if (string.IsNullOrWhiteSpace(notes))
+            return locationNote;
+
+        return $"{locationNote}. {notes.Trim()}";
     }
 
     [HttpDelete("{id}")]

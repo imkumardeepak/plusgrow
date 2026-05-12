@@ -20,6 +20,7 @@ public class ProductStockMovementDto
 public class CreateStockAdjustmentDto
 {
     public int ProductId { get; set; }
+    public string LocationCode { get; set; } = string.Empty;
     public int QuantityChange { get; set; }
     public string Reason { get; set; } = string.Empty;
     public string? Notes { get; set; }

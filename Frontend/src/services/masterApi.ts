@@ -193,6 +193,7 @@ export interface ProductStockMovementRecord {
 
 export interface CreateStockAdjustmentDto {
   productId: number;
+  locationCode: string;
   quantityChange: number;
   reason: string;
   notes?: string | null;

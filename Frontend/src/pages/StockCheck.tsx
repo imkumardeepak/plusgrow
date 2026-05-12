@@ -157,7 +157,15 @@ export const StockCheck = memo(function StockCheck() {
         search: sku,
         pageSize: 100,
       });
-      const invoices = invoiceRows.filter((row) => normalizeSku(row.skuCode) === sku);
+      const invoices = invoiceRows
+        .filter((row) => normalizeSku(row.skuCode) === sku)
+        .sort((first, second) => {
+          const dateDiff =
+            new Date(second.invoiceDate).getTime() -
+            new Date(first.invoiceDate).getTime();
+
+          return dateDiff || second.id - first.id;
+        });
       const locations = Object.entries(getLocationJson(allottedLocation))
         .map(([locationCode, quantity]) => ({
           locationCode,
@@ -414,9 +422,9 @@ export const StockCheck = memo(function StockCheck() {
                   </Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={IndianRupee} label="PO Invoices" />
+                  <MetricLabel icon={IndianRupee} label="Latest Invoice Price" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">
-                    {lookupResult.invoices.length}
+                    {formatMoney(lookupResult.invoices[0]?.mrp)}
                   </Text>
                 </Paper>
               </SimpleGrid>
@@ -500,10 +508,8 @@ export const StockCheck = memo(function StockCheck() {
                           <Table.Th>Date</Table.Th>
                           <Table.Th>Party</Table.Th>
                           <Table.Th>Product</Table.Th>
-                          <Table.Th>MRP</Table.Th>
+                          <Table.Th>Invoice Price</Table.Th>
                           <Table.Th>Billed Qty.</Table.Th>
-                          <Table.Th>Remaining</Table.Th>
-                          <Table.Th>Status</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
@@ -526,8 +532,6 @@ export const StockCheck = memo(function StockCheck() {
                             </Table.Td>
                             <Table.Td>{formatMoney(invoice.mrp)}</Table.Td>
                             <Table.Td>{invoice.billedQty}</Table.Td>
-                            <Table.Td>{invoice.remainingAllocation}</Table.Td>
-                            <Table.Td>{invoice.locationAllotted ? "Allotted" : "Pending"}</Table.Td>
                           </Table.Tr>
                         ))}
                       </Table.Tbody>
