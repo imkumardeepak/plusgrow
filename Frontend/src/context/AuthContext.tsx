@@ -107,7 +107,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const changePassword = async (data: any): Promise<{ success: boolean; message?: string }> => {
     try {
-      const response = await authService.changePassword(data.currentPassword, data.newPassword);
+      const response = await authService.changePassword(data.userId,data.currentPassword, data.newPassword);
       if (response?.success) {
         toast.success('Password changed successfully');
         return { success: true };
