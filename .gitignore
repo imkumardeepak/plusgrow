@@ -92,6 +92,9 @@ credentials/
 docs/
 Frontend/docs/
 Backend/docs/
+.claude/
+.claude-flow/
+.swarm
 
 # Azure
 .azure/
