@@ -166,7 +166,8 @@ export const PutAway = () => {
     if (e.key === "Enter" && productScanCode.trim()) {
       e.preventDefault();
 
-      const scan = productScanCode.trim();
+      // Split scanned data by '#' and use the first part (index 0)
+      const scan = productScanCode.trim().split("#")[0].trim();
 
       // First check in put-away tasks
       const task = allTasks.find(
