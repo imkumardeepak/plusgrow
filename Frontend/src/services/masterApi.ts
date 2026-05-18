@@ -205,6 +205,7 @@ export interface PoInvoice {
 
 export interface CreatePoInvoiceDto {
   id?: number;
+  invoiceNumber: string;
   invoiceDate: string;
   partyName: string;
   productId: number;

@@ -89,9 +89,12 @@ public class PoInvoicesController : BaseController
         if (!await _context.Products.AnyAsync(x => x.Id == dto.ProductId))
             return BadRequest<PoInvoiceDto>("Selected product does not exist");
 
+        if (string.IsNullOrWhiteSpace(dto.InvoiceNumber))
+            return BadRequest<PoInvoiceDto>("Invoice number is required");
+
         var entity = new PoInvoice
         {
-            InvoiceNumber = await GenerateInvoiceNumberAsync(),
+            InvoiceNumber = dto.InvoiceNumber.Trim(),
             InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate),
             PartyName = dto.PartyName.Trim(),
             ProductId = dto.ProductId,
@@ -139,6 +142,10 @@ public class PoInvoicesController : BaseController
         if (!await _context.Products.AnyAsync(x => x.Id == dto.ProductId))
             return BadRequest<PoInvoiceDto>("Selected product does not exist");
 
+        if (string.IsNullOrWhiteSpace(dto.InvoiceNumber))
+            return BadRequest<PoInvoiceDto>("Invoice number is required");
+
+        entity.InvoiceNumber = dto.InvoiceNumber.Trim();
         entity.InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate);
         entity.PartyName = dto.PartyName.Trim();
         entity.ProductId = dto.ProductId;
@@ -208,12 +215,13 @@ public class PoInvoicesController : BaseController
 
             var requiredHeaders = new[]
             {
-                "invoicedate",
+                "invoiceno",
+                "invdate",
                 "partyname",
-                "skucode",
-                "productname",
-                "billedqty",
+                "partno",
                 "mrp",
+                "itemname",
+                "billedqty",
             };
 
             var missingHeaders = requiredHeaders.Where(header => !headerMap.ContainsKey(header)).ToList();
@@ -224,14 +232,21 @@ public class PoInvoicesController : BaseController
             {
                 try
                 {
-                    var invoiceDateCell = row.Cell(headerMap["invoicedate"]);
+                    var invoiceNumber = row.Cell(headerMap["invoiceno"]).GetString().Trim();
+                    var invoiceDateCell = row.Cell(headerMap["invdate"]);
                     var partyName = row.Cell(headerMap["partyname"]).GetString().Trim();
-                    var skuCode = row.Cell(headerMap["skucode"]).GetString().Trim();
-                    var productName = row.Cell(headerMap["productname"]).GetString().Trim();
+                    var partNo = row.Cell(headerMap["partno"]).GetString().Trim();
+                    var itemName = row.Cell(headerMap["itemname"]).GetString().Trim();
                     var billedQtyText = row.Cell(headerMap["billedqty"]).GetString().Trim();
 
-                    if (string.IsNullOrWhiteSpace(partyName) && string.IsNullOrWhiteSpace(skuCode) && string.IsNullOrWhiteSpace(productName))
+                    if (string.IsNullOrWhiteSpace(invoiceNumber) && string.IsNullOrWhiteSpace(partyName) && string.IsNullOrWhiteSpace(partNo) && string.IsNullOrWhiteSpace(itemName))
                         continue;
+
+                    if (string.IsNullOrWhiteSpace(invoiceNumber))
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Invoice No. is required.");
+                        continue;
+                    }
 
                     if (string.IsNullOrWhiteSpace(partyName))
                     {
@@ -253,25 +268,25 @@ public class PoInvoicesController : BaseController
                     }
 
                     Product? product = null;
-                    if (!string.IsNullOrWhiteSpace(skuCode))
+                    if (!string.IsNullOrWhiteSpace(partNo))
                     {
-                        product = await _context.Products.FirstOrDefaultAsync(x => x.Sku == skuCode);
+                        product = await _context.Products.FirstOrDefaultAsync(x => x.Sku == partNo);
                     }
 
-                    if (product == null && !string.IsNullOrWhiteSpace(productName))
+                    if (product == null && !string.IsNullOrWhiteSpace(itemName))
                     {
-                        product = await _context.Products.FirstOrDefaultAsync(x => x.Name == productName);
+                        product = await _context.Products.FirstOrDefaultAsync(x => x.Name == itemName);
                     }
 
                     if (product == null)
                     {
-                        result.Errors.Add($"Row {row.RowNumber()}: Product not found for SKU '{skuCode}' / Product '{productName}'.");
+                        result.Errors.Add($"Row {row.RowNumber()}: Product not found for Part No. '{partNo}' / Item '{itemName}'.");
                         continue;
                     }
 
                     var entity = new PoInvoice
                     {
-                        InvoiceNumber = await GenerateInvoiceNumberAsync(),
+                        InvoiceNumber = invoiceNumber,
                         InvoiceDate = NormalizeInvoiceDate(invoiceDate.Value),
                         PartyName = partyName,
                         ProductId = product.Id,
