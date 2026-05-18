@@ -128,6 +128,33 @@ export const Locations = memo(function Locations() {
       return;
     }
 
+    // Check if any bin in formData is already assigned to another location
+    if (formData.bins && formData.bins.length > 0) {
+      const duplicateBins: string[] = [];
+
+      for (const binCode of formData.bins) {
+        const binUpper = binCode.toUpperCase();
+        const assignedLocation = locations.find(
+          (loc) =>
+            loc.id !== formData.id && // Exclude current location when editing
+            loc.bins?.some((b) => b.toUpperCase() === binUpper),
+        );
+
+        if (assignedLocation) {
+          duplicateBins.push(
+            `${binCode} (already in ${assignedLocation.locationCode})`,
+          );
+        }
+      }
+
+      if (duplicateBins.length > 0) {
+        toast.error(
+          `Cannot assign bins: ${duplicateBins.join(", ")}. Each bin can only belong to one location.`,
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       if (isEditing) {
@@ -297,7 +324,7 @@ export const Locations = memo(function Locations() {
         return;
       }
 
-      // Check if bin is already assigned to another location
+      // Check if bin is already assigned to another location - BLOCK assignment
       const assignedLocation = locations.find(
         (loc) =>
           loc.id !== binMapLocation?.id &&
@@ -305,23 +332,14 @@ export const Locations = memo(function Locations() {
       );
 
       if (assignedLocation) {
-        // Add to already mapped bins list instead of blocking
-        setAlreadyMappedBins((prev) => {
-          // Avoid duplicates
-          if (prev.some((item) => item.binCode === binCode)) {
-            return prev;
-          }
-          return [
-            ...prev,
-            { binCode, locationCode: assignedLocation.locationCode },
-          ];
-        });
-        toast.warning(
-          `Bin "${binCode}" is already mapped to "${assignedLocation.locationCode}". It will be unmapped from there.`,
+        toast.error(
+          `Bin "${binCode}" is already assigned to location "${assignedLocation.locationCode}". Cannot assign to multiple locations.`,
         );
+        setCurrentBinInput("");
+        return;
       }
 
-      // Add to scanned bins (will unmap from other location on save)
+      // Add to scanned bins
       setScannedBins((prev) => [...prev, binCode]);
       setCurrentBinInput("");
       toast.success(`Bin "${binCode}" added`);
