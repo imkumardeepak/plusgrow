@@ -42,7 +42,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:5179/api";
+const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:81/api";
 const hubUrl = apiBaseUrl.replace(/\/api\/?$/, "") + "/hubs/notifications";
 
 function showRealtimeToast(notification: IncomingRealtimeNotification) {
@@ -131,13 +131,16 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
 
     connection.on(
       "ReceiveNotification",
-      (notification: IncomingRealtimeNotification & Record<string, unknown>) => {
+      (
+        notification: IncomingRealtimeNotification & Record<string, unknown>,
+      ) => {
         const title =
           notification.title ?? (notification.Title as string | undefined);
         const message =
           notification.message ?? (notification.Message as string | undefined);
         const severity =
-          notification.severity ?? (notification.Severity as string | undefined);
+          notification.severity ??
+          (notification.Severity as string | undefined);
         const createdAt =
           notification.createdAt ??
           (notification.CreatedAt as string | undefined);
@@ -148,7 +151,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
         const receivedNotification: RealtimeNotification = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           type:
-            notification.type ?? (notification.Type as string | undefined) ?? "",
+            notification.type ??
+            (notification.Type as string | undefined) ??
+            "",
           title: title || "Notification",
           message: message || "New activity received.",
           severity: severity || "info",
@@ -174,9 +179,11 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
         setConnectionStatus("error");
         toast.error("Live notifications not connected", {
           description:
-            error instanceof Error ? error.message : "SignalR connection failed.",
+            error instanceof Error
+              ? error.message
+              : "SignalR connection failed.",
         });
-      console.warn("Realtime notification connection failed", error);
+        console.warn("Realtime notification connection failed", error);
       });
 
     return () => {
@@ -219,7 +226,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error("useNotifications must be used within NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationProvider",
+    );
   }
   return context;
 };
