@@ -46,6 +46,7 @@ public class ProductService : IProductService
 
         existing.Name = product.Name;
         existing.Sku = product.Sku;
+        existing.Alias = product.Alias;
         existing.CommodityId = product.CommodityId;
         existing.ManufacturerId = product.ManufacturerId;
         existing.CountryOfOrigin = product.CountryOfOrigin;

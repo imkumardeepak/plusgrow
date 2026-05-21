@@ -74,6 +74,7 @@ export const MPD = memo(function MPD() {
   const [formData, setFormData] = useState<CreateProductDto>({
     name: "",
     sku: "",
+    alias: "",
     commodityId: undefined,
     manufacturerId: undefined,
     countryOfOrigin: "India",
@@ -128,6 +129,7 @@ export const MPD = memo(function MPD() {
         id: isEditing?.id || 0,
         name: formData.name,
         sku: formData.sku,
+        alias: formData.alias || null,
         commodityId: formData.commodityId || null,
         manufacturerId: formData.manufacturerId || null,
         countryOfOrigin: formData.countryOfOrigin || null,
@@ -160,6 +162,7 @@ export const MPD = memo(function MPD() {
     setFormData({
       name: "",
       sku: "",
+      alias: "",
       commodityId: undefined,
       manufacturerId: undefined,
       countryOfOrigin: "India",
@@ -178,6 +181,7 @@ export const MPD = memo(function MPD() {
     setFormData({
       name: product.name,
       sku: product.sku || "",
+      alias: product.alias || "",
       commodityId: product.commodityId,
       manufacturerId: product.manufacturerId,
       countryOfOrigin: product.countryOfOrigin || "India",
@@ -292,6 +296,7 @@ export const MPD = memo(function MPD() {
         !query ||
         item.name.toLowerCase().includes(query) ||
         (item.sku || "").toLowerCase().includes(query) ||
+        (item.alias || "").toLowerCase().includes(query) ||
         (item.manufacturer?.name || "").toLowerCase().includes(query) ||
         (item.commodity?.name || "").toLowerCase().includes(query);
 
@@ -317,6 +322,18 @@ export const MPD = memo(function MPD() {
         </Text>
       ),
       width: 120,
+    },
+    {
+      key: "alias",
+      header: "Alias",
+      sortable: true,
+      sortAccessor: (row) => row.alias,
+      render: (row) => (
+        <Text size="11px" c="dimmed" lineClamp={1} maw={120}>
+          {row.alias || "N/A"}
+        </Text>
+      ),
+      width: 130,
     },
     {
       key: "name",
@@ -474,7 +491,7 @@ export const MPD = memo(function MPD() {
                 label="Search"
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
-                placeholder="Search SKU, product, manufacturer..."
+                placeholder="Search SKU, alias, product, manufacturer..."
                 leftSection={<Search size={14} />}
               />
 
@@ -613,6 +630,17 @@ export const MPD = memo(function MPD() {
                     }
                     leftElement={<Tag size={16} />}
                     required
+                  />
+                  <Input
+                    label="Alias"
+                    placeholder="Alternative name or code"
+                    value={formData.alias}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        alias: event.target.value,
+                      }))
+                    }
                   />
                   <Input
                     label="Country of Origin"
