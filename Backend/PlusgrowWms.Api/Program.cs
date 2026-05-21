@@ -126,12 +126,26 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.SetIsOriginAllowed(origin =>
-            Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
-            (uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "::1" || uri.IsLoopback))
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+
+        // If wildcard is present, allow all origins
+        if (allowedOrigins.Contains("*"))
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithExposedHeaders("*");
+        }
+        else
+        {
+            // Use specific origins from configuration
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials()
+                  .SetPreflightMaxAge(TimeSpan.FromHours(1))
+                  .WithExposedHeaders("*");
+        }
     });
 });
 
@@ -150,14 +164,17 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 
-app.UseHttpsRedirection();
+// Enable CORS before other middleware
 app.UseCors("AllowFrontend");
+
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications");
+// Handle OPTIONS requests for all routes
+app.MapControllers().RequireCors("AllowFrontend");
+app.MapHub<NotificationHub>("/hubs/notifications").RequireCors("AllowFrontend");
 
 using (var scope = app.Services.CreateScope())
 {

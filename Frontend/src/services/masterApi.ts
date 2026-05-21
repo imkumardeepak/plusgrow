@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import api from './authApi';
 
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5179/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:81/api';
 
 // Types
 export interface Manufacturer {
@@ -32,6 +32,7 @@ export interface Product {
   id: number;
   name: string;
   sku?: string;
+  alias?: string;
   commodityId?: number;
   commodity?: Commodity;
   manufacturerId?: number;
@@ -69,6 +70,7 @@ export interface CreateImporterDto {
 export interface CreateProductDto {
   name: string;
   sku?: string;
+  alias?: string;
   commodityId?: number;
   manufacturerId?: number;
   countryOfOrigin?: string;
@@ -205,6 +207,7 @@ export interface PoInvoice {
 
 export interface CreatePoInvoiceDto {
   id?: number;
+  invoiceNumber: string;
   invoiceDate: string;
   partyName: string;
   productId: number;
@@ -651,6 +654,7 @@ export const productsApi = {
       {
         'Product Name': '',
         'SKU': '',
+        'Alias': '',
         'Manufacturer Name': '',
         'Commodity Name': '',
         'Country of Origin': 'India',
@@ -665,6 +669,7 @@ export const productsApi = {
     ws['!cols'] = [
       { wch: 35 },  // Product Name
       { wch: 20 },  // SKU
+      { wch: 20 },  // Alias
       { wch: 25 },  // Manufacturer Name
       { wch: 20 },  // Commodity Name
       { wch: 18 },  // Country of Origin

@@ -20,6 +20,11 @@ public class Product
     [Column("sku")]
     public string? Sku { get; set; }
 
+    [MaxLength(100)]
+    [Column("alias")]
+    [JsonPropertyName("Alias")]
+    public string? Alias { get; set; }
+
     [Column("commodity_id")]
     public int? CommodityId { get; set; }
 

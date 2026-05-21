@@ -215,7 +215,8 @@ export const Packing = memo(function Packing() {
       return;
     }
 
-    const normalizedScan = scanCode.trim();
+    // Split scanned data by '#' and use the first part (index 0)
+    const normalizedScan = scanCode.trim().split("#")[0].trim();
     if (!normalizedScan) {
       toast.error("Scan SKU code");
       return;

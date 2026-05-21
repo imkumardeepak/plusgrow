@@ -85,6 +85,7 @@ const defaultFromDate = format(
 );
 
 const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
+  invoiceNumber: "",
   invoiceDate: new Date().toISOString().slice(0, 10),
   partyName: "",
   productId: 0,
@@ -145,14 +146,19 @@ export const Inward = memo(function Inward() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, manufacturerData, importerData, templateData, configData] =
-        await Promise.all([
-          productsApi.search(""),
-          manufacturersApi.getPaged({ page: 1, pageSize: 25 }),
-          importersApi.getPaged({ page: 1, pageSize: 25 }),
-          stickersApi.getTemplates(),
-          stickerPrinterConfigsApi.getAll(),
-        ]);
+      const [
+        productsData,
+        manufacturerData,
+        importerData,
+        templateData,
+        configData,
+      ] = await Promise.all([
+        productsApi.search(""),
+        manufacturersApi.getPaged({ page: 1, pageSize: 25 }),
+        importersApi.getPaged({ page: 1, pageSize: 25 }),
+        stickersApi.getTemplates(),
+        stickerPrinterConfigsApi.getAll(),
+      ]);
 
       setProducts(productsData);
       setManufacturers(manufacturerData.data);
@@ -608,6 +614,7 @@ export const Inward = memo(function Inward() {
   const openEditInvoice = (row: PoInvoice) => {
     setEditingInvoice(row);
     setInvoiceForm({
+      invoiceNumber: row.invoiceNumber,
       invoiceDate: row.invoiceDate.slice(0, 10),
       partyName: row.partyName,
       productId: row.productId,
@@ -618,6 +625,11 @@ export const Inward = memo(function Inward() {
 
   const handleInvoiceSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (!invoiceForm.invoiceNumber.trim()) {
+      toast.error("Invoice number is required");
+      return;
+    }
 
     if (!invoiceForm.productId || !invoiceForm.partyName.trim()) {
       toast.error("Party name and product are required");
@@ -916,6 +928,17 @@ export const Inward = memo(function Inward() {
                 </Text>
                 <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                   <Input
+                    label="Invoice Number"
+                    value={invoiceForm.invoiceNumber}
+                    onChange={(e) =>
+                      setInvoiceForm((prev) => ({
+                        ...prev,
+                        invoiceNumber: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter invoice number"
+                  />
+                  <Input
                     label="Invoice Date"
                     type="date"
                     value={invoiceForm.invoiceDate}
@@ -1192,7 +1215,9 @@ export const Inward = memo(function Inward() {
                   mt="sm"
                   placeholder="Optional note for sticker"
                   value={stickerNote}
-                  onChange={(event) => setStickerNote(event.currentTarget.value)}
+                  onChange={(event) =>
+                    setStickerNote(event.currentTarget.value)
+                  }
                 />
               </Paper>
 

@@ -179,6 +179,7 @@ public class ProductsController : BaseController
                     {
                         Name = productName,
                         Sku = sku,
+                        Alias = row.Cell("Alias").GetString()?.Trim(),
                         ManufacturerId = manufacturerId,
                         CommodityId = commodityId,
                         CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",
