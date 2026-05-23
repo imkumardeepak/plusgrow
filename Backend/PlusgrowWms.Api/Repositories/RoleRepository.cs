@@ -3,7 +3,6 @@ using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Models;
 
 namespace PlusgrowWms.Api.Repositories;
-
 public interface IRoleRepository
 {
     Task<IEnumerable<Role>> GetAllWithDetailsAsync();

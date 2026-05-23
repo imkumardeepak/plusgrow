@@ -13,7 +13,6 @@ public class DashboardController : BaseController
     {
         _dashboardService = dashboardService;
     }
-
     [HttpGet("summary")]
     public async Task<ActionResult<ApiResponse<DashboardSummaryDto>>> GetSummary()
     {
