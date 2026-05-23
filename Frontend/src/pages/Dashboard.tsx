@@ -306,9 +306,18 @@ export const Dashboard = memo(function Dashboard() {
           visible: hasPermission("putaway", "view"),
         },
         {
+          key: "picking",
+          title: "Picking",
+          description: "Pick order items from warehouse locations.",
+          icon: IconPackage,
+          color: "teal",
+          href: "/picking",
+          visible: hasPermission("picking", "view"),
+        },
+        {
           key: "packing",
-          title: "Picking & Packing",
-          description: "Pick order items and complete packing flow.",
+          title: "Packing",
+          description: "Pack picked items into cartons.",
           icon: IconPackage,
           color: "teal",
           href: "/packing",
@@ -397,7 +406,12 @@ export const Dashboard = memo(function Dashboard() {
                   }}
                 >
                   <Group justify="space-between" align="flex-start" mb="md">
-                    <ThemeIcon color={card.color} variant="light" size={48} radius="md">
+                    <ThemeIcon
+                      color={card.color}
+                      variant="light"
+                      size={48}
+                      radius="md"
+                    >
                       <card.icon size={24} />
                     </ThemeIcon>
                     <Badge variant="light" color={card.color}>
@@ -500,7 +514,26 @@ export const Dashboard = memo(function Dashboard() {
                         Put Away
                       </Text>
                       <Text size="sm" fw={800}>
-                        {formatNumber(summary.pendingPutAwayQuantity)} units open
+                        {formatNumber(summary.pendingPutAwayQuantity)} units
+                        open
+                      </Text>
+                    </Box>
+                  </Group>
+                </Card>
+              </Link>
+
+              <Link to="/picking" className="no-underline">
+                <Card withBorder radius="md" p="md">
+                  <Group gap="sm">
+                    <ThemeIcon color="teal" variant="light" size={40}>
+                      <IconTruckDelivery size={22} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="xs" c="dimmed" fw={800} tt="uppercase">
+                        Picking
+                      </Text>
+                      <Text size="sm" fw={800}>
+                        {formatNumber(summary.openOutwardOrderCount)} active
                       </Text>
                     </Box>
                   </Group>
@@ -510,15 +543,15 @@ export const Dashboard = memo(function Dashboard() {
               <Link to="/packing" className="no-underline">
                 <Card withBorder radius="md" p="md">
                   <Group gap="sm">
-                    <ThemeIcon color="teal" variant="light" size={40}>
-                      <IconTruckDelivery size={22} />
+                    <ThemeIcon color="blue" variant="light" size={40}>
+                      <IconPackage size={22} />
                     </ThemeIcon>
                     <Box>
                       <Text size="xs" c="dimmed" fw={800} tt="uppercase">
-                        Pick Pack
+                        Packing
                       </Text>
                       <Text size="sm" fw={800}>
-                        {formatNumber(summary.openOutwardOrderCount)} active
+                        {formatNumber(summary.pendingDispatchQuantity)} pending
                       </Text>
                     </Box>
                   </Group>
@@ -571,7 +604,11 @@ export const Dashboard = memo(function Dashboard() {
                               "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)",
                           }}
                         >
-                          <Group justify="space-between" align="flex-start" mb={8}>
+                          <Group
+                            justify="space-between"
+                            align="flex-start"
+                            mb={8}
+                          >
                             <Group gap="xs" wrap="nowrap">
                               <Box
                                 w={10}
@@ -638,7 +675,8 @@ export const Dashboard = memo(function Dashboard() {
                         {formatNumber(totalMixQuantity)}
                       </Text>
                       <Text size="sm" c="dimmed">
-                        Total units across stock, allocated, put-away, and dispatch buckets.
+                        Total units across stock, allocated, put-away, and
+                        dispatch buckets.
                       </Text>
                     </Paper>
                   </Stack>
@@ -714,7 +752,10 @@ export const Dashboard = memo(function Dashboard() {
                   {summary.locationUtilizationPercent}%
                 </Text>
               </Group>
-              <Progress value={summary.locationUtilizationPercent} color="indigo" />
+              <Progress
+                value={summary.locationUtilizationPercent}
+                color="indigo"
+              />
 
               <Group justify="space-between">
                 <Text size="sm" fw={700}>
@@ -776,7 +817,9 @@ export const Dashboard = memo(function Dashboard() {
                         </Text>
                       </Table.Td>
                       <Table.Td ta="right">
-                        <Text fw={800}>{formatNumber(item.currentQuantity)}</Text>
+                        <Text fw={800}>
+                          {formatNumber(item.currentQuantity)}
+                        </Text>
                       </Table.Td>
                     </Table.Tr>
                   ))}

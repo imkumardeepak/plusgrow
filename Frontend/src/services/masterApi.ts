@@ -335,6 +335,16 @@ export interface DispatchOutwardOrderDto {
   cartonId?: string | null;
 }
 
+export interface PackingCarton {
+  id: number;
+  outwardOrderId: number;
+  cartonNumber: string;
+  quantity: number;
+  status: "Open" | "Ready" | "Dispatched";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ListQuery {
   search?: string;
   sortBy?: string;
@@ -967,6 +977,35 @@ export const outwardOrdersApi = {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
+  },
+};
+
+export const packingCartonsApi = {
+  getByOrder: async (orderId: number): Promise<PackingCarton[]> => {
+    const response = await api.get<ApiResponse<PackingCarton[]>>(`/packingcartons/by-order/${orderId}`);
+    return response.data.data || [];
+  },
+
+  create: async (orderId: number): Promise<PackingCarton> => {
+    const response = await api.post<ApiResponse<PackingCarton>>('/packingcartons', { outwardOrderId: orderId });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  packItem: async (cartonId: number, skuCode: string): Promise<PackingCarton> => {
+    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/${cartonId}/pack`, { skuCode });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  markReady: async (cartonId: number): Promise<PackingCarton> => {
+    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/${cartonId}/ready`);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (cartonId: number): Promise<void> => {
+    await api.delete(`/packingcartons/${cartonId}`);
   },
 };
 

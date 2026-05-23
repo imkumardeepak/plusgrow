@@ -23,6 +23,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inward = lazy(() => import("./pages/Inward"));
 const PutAway = lazy(() => import("./pages/PutAway"));
 const Outward = lazy(() => import("./pages/Outward"));
+const Picking = lazy(() => import("./pages/Picking"));
 const Packing = lazy(() => import("./pages/Packing"));
 const Dispatch = lazy(() => import("./pages/Dispatch"));
 const Importers = lazy(() => import("./pages/Importers"));
@@ -57,8 +58,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const UnauthorizedModal = () => (
-  <Modal opened centered withCloseButton={false} onClose={() => undefined} title="Access denied">
-    <Text fw={800} size="lg">You are not authorized</Text>
+  <Modal
+    opened
+    centered
+    withCloseButton={false}
+    onClose={() => undefined}
+    title="Access denied"
+  >
+    <Text fw={800} size="lg">
+      You are not authorized
+    </Text>
     <Text mt="xs" size="sm" c="dimmed">
       Your role does not have permission to open this page.
     </Text>
@@ -140,112 +149,119 @@ export default function App() {
             <NotificationProvider>
               <WmsProvider>
                 <Routes>
-                {/* Public Routes */}
-                <Route
-                  path="/login"
-                  element={
-                    <Suspense
-                      fallback={<PageLoader message="Loading Login…" />}
-                    >
-                      <Login />
-                    </Suspense>
-                  }
-                />
-                <Route
-                  path="/register"
-                  element={<Navigate to="/user-master" replace />}
-                />
+                  {/* Public Routes */}
+                  <Route
+                    path="/login"
+                    element={
+                      <Suspense
+                        fallback={<PageLoader message="Loading Login…" />}
+                      >
+                        <Login />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/register"
+                    element={<Navigate to="/user-master" replace />}
+                  />
 
-                {/* Protected Routes */}
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout />
-                    </ProtectedRoute>
-                  }
-                >
+                  {/* Protected Routes */}
                   <Route
-                    index
-                    element={pageElement("dashboard", <Dashboard />)}
-                  />
-                  <Route
-                    path="inward"
-                    element={pageElement("inward", <Inward />)}
-                  />
-                  <Route path="sticker" element={<Navigate to="/inward" replace />} />
-                  <Route
-                    path="putaway"
-                    element={pageElement("putaway", <PutAway />)}
-                  />
-                  <Route
-                    path="outward"
-                    element={pageElement("outward", <Outward />)}
-                  />
-                  <Route
-                    path="packing"
-                    element={pageElement("packing", <Packing />)}
-                  />
-                  <Route
-                    path="dispatch"
-                    element={pageElement("dispatch", <Dispatch />)}
-                  />
-                  <Route
-                    path="importers"
-                    element={pageElement("importers", <Importers />)}
-                  />
-                  <Route
-                    path="manufacturers"
-                    element={pageElement("manufacturers", <Manufacturers />)}
-                  />
-                  <Route
-                    path="commodities"
-                    element={pageElement("commodities", <Commodities />)}
-                  />
-                  <Route
-                    path="bins"
-                    element={pageElement("bins", <Bins />)}
-                  />
-                  <Route
-                    path="locations"
-                    element={pageElement("locations", <Locations />)}
-                  />
-                  <Route
-                    path="mpd"
-                    element={pageElement("mpd", <MPD />)}
-                  />
-                  <Route
-                    path="sticker-printer-config"
-                    element={pageElement("sticker-printer-config", <StickerPrinterConfigMaster />)}
-                  />
-                  <Route
-                    path="stock-check"
-                    element={pageElement("stock-check", <StockCheck />)}
-                  />
-                  <Route
-                    path="stock-movement"
-                    element={pageElement("stock-movement", <StockMovement />)}
-                  />
-                  <Route
-                    path="warehouse-map"
-                    element={pageElement("warehouse-map", <WarehouseMap />)}
-                  />
-                  <Route
-                    path="role-master"
-                    element={pageElement("role-master", <RoleMaster />)}
-                  />
-                  <Route
-                    path="user-master"
-                    element={pageElement("user-master", <UserMaster />)}
-                  />
-                  <Route
-                    path="profile"
-                    element={pageElement("profile", <Profile />)}
-                  />
-                </Route>
+                    path="/"
+                    element={
+                      <ProtectedRoute>
+                        <DashboardLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route
+                      index
+                      element={pageElement("dashboard", <Dashboard />)}
+                    />
+                    <Route
+                      path="inward"
+                      element={pageElement("inward", <Inward />)}
+                    />
+                    <Route
+                      path="sticker"
+                      element={<Navigate to="/inward" replace />}
+                    />
+                    <Route
+                      path="putaway"
+                      element={pageElement("putaway", <PutAway />)}
+                    />
+                    <Route
+                      path="outward"
+                      element={pageElement("outward", <Outward />)}
+                    />
+                    <Route
+                      path="picking"
+                      element={pageElement("picking", <Picking />)}
+                    />
+                    <Route
+                      path="packing"
+                      element={pageElement("packing", <Packing />)}
+                    />
+                    <Route
+                      path="dispatch"
+                      element={pageElement("dispatch", <Dispatch />)}
+                    />
+                    <Route
+                      path="importers"
+                      element={pageElement("importers", <Importers />)}
+                    />
+                    <Route
+                      path="manufacturers"
+                      element={pageElement("manufacturers", <Manufacturers />)}
+                    />
+                    <Route
+                      path="commodities"
+                      element={pageElement("commodities", <Commodities />)}
+                    />
+                    <Route
+                      path="bins"
+                      element={pageElement("bins", <Bins />)}
+                    />
+                    <Route
+                      path="locations"
+                      element={pageElement("locations", <Locations />)}
+                    />
+                    <Route path="mpd" element={pageElement("mpd", <MPD />)} />
+                    <Route
+                      path="sticker-printer-config"
+                      element={pageElement(
+                        "sticker-printer-config",
+                        <StickerPrinterConfigMaster />,
+                      )}
+                    />
+                    <Route
+                      path="stock-check"
+                      element={pageElement("stock-check", <StockCheck />)}
+                    />
+                    <Route
+                      path="stock-movement"
+                      element={pageElement("stock-movement", <StockMovement />)}
+                    />
+                    <Route
+                      path="warehouse-map"
+                      element={pageElement("warehouse-map", <WarehouseMap />)}
+                    />
+                    <Route
+                      path="role-master"
+                      element={pageElement("role-master", <RoleMaster />)}
+                    />
+                    <Route
+                      path="user-master"
+                      element={pageElement("user-master", <UserMaster />)}
+                    />
+                    <Route
+                      path="profile"
+                      element={pageElement("profile", <Profile />)}
+                    />
+                  </Route>
 
-                {/* Catch all - redirect to login */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                  {/* Catch all - redirect to login */}
+                  <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
               </WmsProvider>
             </NotificationProvider>

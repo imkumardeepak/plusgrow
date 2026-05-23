@@ -33,6 +33,7 @@ import {
   Map,
   MapPin,
   Package,
+  ScanLine,
   User,
   LogOut,
   Settings,
@@ -80,7 +81,8 @@ const navGroups: NavGroup[] = [
     label: "Outward Operations",
     items: [
       { to: "/outward", icon: ArrowUpFromLine, label: "Sales Orders" },
-      { to: "/packing", icon: Package, label: "Picking & Packing" },
+      { to: "/picking", icon: ScanLine, label: "Picking" },
+      { to: "/packing", icon: Package, label: "Packing" },
       { to: "/dispatch", icon: Truck, label: "Dispatch" },
     ],
   },
@@ -192,14 +194,12 @@ export const Layout = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const sidebarCollapsed = !desktopOpened;
-  const authUser = user as
-    | {
-        fullName?: string;
-        full_name?: string;
-        roleName?: string;
-        role?: { name?: string | null } | null;
-      }
-    | null;
+  const authUser = user as {
+    fullName?: string;
+    full_name?: string;
+    roleName?: string;
+    role?: { name?: string | null } | null;
+  } | null;
 
   const resolvedUserName = authUser?.fullName ?? authUser?.full_name ?? "User";
   const resolvedUserRole = authUser?.roleName ?? authUser?.role?.name ?? "User";
@@ -344,13 +344,7 @@ export const Layout = () => {
               className="pl-2 sm:pl-4"
               style={{ borderLeft: "1px solid rgba(255,255,255,0.08)" }}
             >
-              <Indicator
-                inline
-                disabled
-                color="red"
-                size={8}
-                offset={6}
-              >
+              <Indicator inline disabled color="red" size={8} offset={6}>
                 <ActionIcon
                   variant="subtle"
                   radius="xl"

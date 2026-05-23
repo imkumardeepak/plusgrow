@@ -13,6 +13,7 @@ import {
   Move,
   Package,
   Printer,
+  ScanLine,
   ShieldCheck,
   Truck,
   User,
@@ -129,8 +130,14 @@ export const navigationGroups: NavGroup[] = [
         href: "/outward",
       },
       {
+        id: "picking",
+        label: "Picking",
+        icon: ScanLine,
+        href: "/picking",
+      },
+      {
         id: "packing",
-        label: "Picking & Packing",
+        label: "Packing",
         icon: Package,
         href: "/packing",
       },

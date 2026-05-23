@@ -1,11 +1,18 @@
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { format } from "date-fns";
 import {
   ActionIcon,
   Badge,
   Box,
+  Center,
+  Divider,
   Group,
+  Image,
+  Loader,
+  NumberInput,
   Paper,
+  Radio,
   Select,
   SegmentedControl,
   SimpleGrid,
@@ -25,6 +32,7 @@ import {
   Loader2,
   Package,
   Plus,
+  Printer,
   RefreshCw,
   Tag,
   Trash2,
@@ -47,11 +55,18 @@ import {
   productsApi,
   manufacturersApi,
   commoditiesApi,
+  importersApi,
   Product,
   Manufacturer,
   Commodity,
+  Importer,
   CreateProductDto,
 } from "../services/masterApi";
+import { stickersApi, StickerTemplate } from "../services/stickersApi";
+import {
+  stickerPrinterConfigsApi,
+  StickerPrinterConfig,
+} from "../services/stickerPrinterConfigsApi";
 
 type ProductFilterMode = "all" | "mapped" | "unpriced";
 
@@ -86,6 +101,29 @@ export const MPD = memo(function MPD() {
     bestBeforeMonths: 12,
   });
 
+  // Sticker print state
+  const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
+    [],
+  );
+  const [templates, setTemplates] = useState<StickerTemplate[]>([]);
+  const [importers, setImporters] = useState<Importer[]>([]);
+  const [selectedPrintProduct, setSelectedPrintProduct] =
+    useState<Product | null>(null);
+  const [stickerSize, setStickerSize] = useState("50x50");
+  const [stickerType, setStickerType] = useState<"Combined" | "Separate">(
+    "Combined",
+  );
+  const [printManufacturerId, setPrintManufacturerId] = useState<string | null>(
+    null,
+  );
+  const [printImporterId, setPrintImporterId] = useState<string | null>(null);
+  const [importDate, setImportDate] = useState<Date>(new Date());
+  const [stickerNote, setStickerNote] = useState("");
+  const [printQuantity, setPrintQuantity] = useState<number | "">(1);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -93,15 +131,27 @@ export const MPD = memo(function MPD() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [productsData, manufacturersData, commoditiesData] =
-        await Promise.all([
-          productsApi.getAll(),
-          manufacturersApi.getAll(),
-          commoditiesApi.getAll(),
-        ]);
+      const [
+        productsData,
+        manufacturersData,
+        commoditiesData,
+        templateData,
+        configData,
+        importerData,
+      ] = await Promise.all([
+        productsApi.getAll(),
+        manufacturersApi.getAll(),
+        commoditiesApi.getAll(),
+        stickersApi.getTemplates(),
+        stickerPrinterConfigsApi.getAll(),
+        importersApi.getAll(),
+      ]);
       setProducts(productsData);
       setManufacturers(manufacturersData);
       setCommodities(commoditiesData);
+      setTemplates(templateData);
+      setPrinterConfigs(configData);
+      setImporters(importerData);
     } catch {
       toast.error("Failed to load data");
     } finally {
@@ -219,6 +269,125 @@ export const MPD = memo(function MPD() {
     }
   };
 
+  // Sticker print handlers
+  const handleOpenPrintModal = (product: Product) => {
+    setSelectedPrintProduct(product);
+    setStickerSize("50x50");
+    setStickerType("Combined");
+    setPrintManufacturerId(
+      product.manufacturerId ? String(product.manufacturerId) : null,
+    );
+    setPrintImporterId(null);
+    setImportDate(new Date());
+    setStickerNote("");
+    setPrintQuantity(1);
+    setPreviewUrl(null);
+  };
+
+  const handleClosePrintModal = () => {
+    setSelectedPrintProduct(null);
+    setPreviewUrl(null);
+  };
+
+  const getPrinterAddress = () => {
+    const config = printerConfigs.find(
+      (c) => c.stickerSize === stickerSize && c.isActive,
+    );
+    if (!config?.printerIp?.trim()) return null;
+    return `${config.printerIp.trim()}:${config.printerPort}`;
+  };
+
+  const buildStickerPayload = useCallback(
+    (product: Product, quantity: number) => ({
+      productId: product.id,
+      manufacturerId: printManufacturerId
+        ? Number(printManufacturerId)
+        : undefined,
+      importerId:
+        stickerType === "Separate" && printImporterId
+          ? Number(printImporterId)
+          : undefined,
+      size: stickerSize,
+      type: stickerType,
+      monthYear: format(importDate, "MMM/yyyy").toUpperCase(),
+      batchNumber: "N/A",
+      note: stickerNote.trim(),
+      quantity,
+    }),
+    [
+      printManufacturerId,
+      printImporterId,
+      stickerSize,
+      stickerType,
+      importDate,
+      stickerNote,
+    ],
+  );
+
+  const refreshPreview = useCallback(async () => {
+    if (!selectedPrintProduct) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    try {
+      const nextPreview = await stickersApi.getPreview(
+        buildStickerPayload(selectedPrintProduct, Number(printQuantity) || 1),
+      );
+      setPreviewUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return nextPreview;
+      });
+    } catch {
+      setPreviewUrl(null);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }, [buildStickerPayload, selectedPrintProduct, printQuantity]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refreshPreview();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [refreshPreview]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const handlePrint = async () => {
+    if (!selectedPrintProduct) return;
+
+    const printerAddress = getPrinterAddress();
+    if (!printerAddress) {
+      toast.error("Active printer profile not found for selected sticker size");
+      return;
+    }
+
+    const quantity = Number(printQuantity) || 1;
+    setIsPrinting(true);
+    try {
+      await stickersApi.print({
+        printerIp: printerAddress,
+        items: [
+          {
+            config: buildStickerPayload(selectedPrintProduct, quantity),
+            quantity,
+          },
+        ],
+      });
+      toast.success(`${quantity} stickers sent to printer`);
+    } catch (error: any) {
+      toast.error(error.message || "Sticker print job failed");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const handleDownloadTemplate = () => {
     productsApi.downloadTemplate();
     toast.success("Template downloaded successfully");
@@ -278,6 +447,32 @@ export const MPD = memo(function MPD() {
     value: String(item.id),
     label: item.name,
   }));
+
+  const importerOptions = useMemo(
+    () =>
+      importers.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+      })),
+    [importers],
+  );
+
+  const printerConfig = useMemo(
+    () =>
+      printerConfigs.find(
+        (config) => config.stickerSize === stickerSize && config.isActive,
+      ) ?? null,
+    [printerConfigs, stickerSize],
+  );
+
+  const activeTemplate = useMemo(
+    () =>
+      templates.find(
+        (template) =>
+          template.size === stickerSize && template.type === stickerType,
+      ) ?? null,
+    [stickerSize, stickerType, templates],
+  );
 
   const mappedProducts = products.filter(
     (item) => item.manufacturerId || item.commodityId,
@@ -422,6 +617,17 @@ export const MPD = memo(function MPD() {
       align: "right",
       render: (row) => (
         <Group gap="xs" justify="flex-end" wrap="nowrap">
+          <Tooltip label="Print sticker">
+            <ActionIcon
+              size="sm"
+              radius="md"
+              variant="light"
+              color="cyan"
+              onClick={() => handleOpenPrintModal(row)}
+            >
+              <Printer size={15} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label="Edit product">
             <ActionIcon
               size="sm"
@@ -446,7 +652,7 @@ export const MPD = memo(function MPD() {
           </Tooltip>
         </Group>
       ),
-      width: 110,
+      width: 140,
     },
   ];
 
@@ -905,6 +1111,263 @@ export const MPD = memo(function MPD() {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(selectedPrintProduct)}
+        onClose={handleClosePrintModal}
+        title="Print Sticker"
+        size="xl"
+      >
+        {selectedPrintProduct ? (
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <Stack gap="sm">
+              <Paper radius="md" p="sm" withBorder>
+                <Text size="xs" fw={800} mb="xs">
+                  Sticker Options
+                </Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                  <Box>
+                    <Text size="10px" fw={800} c="dimmed" mb={5}>
+                      SIZE
+                    </Text>
+                    <SegmentedControl
+                      fullWidth
+                      size="xs"
+                      radius="md"
+                      value={stickerSize}
+                      onChange={setStickerSize}
+                      data={[
+                        { value: "50x50", label: "50x50" },
+                        { value: "60x60", label: "60x60" },
+                        { value: "75x75", label: "75x75" },
+                      ]}
+                    />
+                  </Box>
+                  <Box>
+                    <Text size="10px" fw={800} c="dimmed" mb={5}>
+                      LABEL MODE
+                    </Text>
+                    <Radio.Group
+                      value={stickerType}
+                      onChange={(value) =>
+                        setStickerType(value as "Combined" | "Separate")
+                      }
+                    >
+                      <Stack gap={6}>
+                        <Radio
+                          value="Combined"
+                          label="Imported & Marketed By"
+                          size="xs"
+                        />
+                        <Radio
+                          value="Separate"
+                          label="Marketed / Imported"
+                          size="xs"
+                        />
+                      </Stack>
+                    </Radio.Group>
+                  </Box>
+                  <Select
+                    label="Manufacturer"
+                    size="xs"
+                    radius="md"
+                    placeholder="Default"
+                    value={printManufacturerId}
+                    onChange={setPrintManufacturerId}
+                    searchable
+                    clearable
+                    data={manufacturerOptions}
+                  />
+                  {stickerType === "Separate" ? (
+                    <Select
+                      label="Importer"
+                      size="xs"
+                      radius="md"
+                      placeholder="Select importer"
+                      value={printImporterId}
+                      onChange={setPrintImporterId}
+                      searchable
+                      clearable
+                      data={importerOptions}
+                    />
+                  ) : (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed">
+                        TEMPLATE
+                      </Text>
+                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
+                        {activeTemplate?.name || "Template missing"}
+                      </Text>
+                    </Box>
+                  )}
+                </SimpleGrid>
+                <TextInput
+                  label="Import Date"
+                  size="xs"
+                  radius="md"
+                  mt="sm"
+                  type="date"
+                  value={format(importDate, "yyyy-MM-dd")}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setImportDate(value ? new Date(value) : new Date());
+                  }}
+                />
+                <TextInput
+                  label="Note"
+                  size="xs"
+                  radius="md"
+                  mt="xs"
+                  placeholder="Optional note for sticker"
+                  value={stickerNote}
+                  onChange={(event) =>
+                    setStickerNote(event.currentTarget.value)
+                  }
+                />
+              </Paper>
+
+              <Paper radius="md" p="sm" withBorder>
+                <Text size="xs" fw={800} mb="xs">
+                  Product Info
+                </Text>
+                <Group justify="space-between" align="flex-start">
+                  <Box>
+                    <Text size="xs" c="dimmed">
+                      SKU
+                    </Text>
+                    <Text size="sm" fw={800} ff="monospace" c="cyan.3">
+                      {selectedPrintProduct.sku || "N/A"}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt="xs">
+                      Product
+                    </Text>
+                    <Text size="sm" fw={700}>
+                      {selectedPrintProduct.name}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt="xs">
+                      Origin
+                    </Text>
+                    <Text size="xs">
+                      {selectedPrintProduct.countryOfOrigin || "N/A"} •{" "}
+                      {selectedPrintProduct.unitType || "UNIT"}
+                    </Text>
+                  </Box>
+                </Group>
+                <Divider my="sm" />
+                <Text size="xs" c="dimmed">
+                  Import Date
+                </Text>
+                <Text size="xs" fw={700}>
+                  {format(importDate, "MMM/yyyy").toUpperCase()}
+                </Text>
+              </Paper>
+
+              <Paper radius="md" p="sm" withBorder>
+                <SimpleGrid cols={3} spacing="xs">
+                  <Box>
+                    <Text size="10px" fw={800} c="dimmed">
+                      SIZE
+                    </Text>
+                    <Text size="xs" fw={800}>
+                      {stickerSize}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text size="10px" fw={800} c="dimmed">
+                      MODE
+                    </Text>
+                    <Text size="xs" fw={800}>
+                      {stickerType === "Combined"
+                        ? "Imported & Marketed By"
+                        : "Marketed / Imported"}
+                    </Text>
+                  </Box>
+                  <Box>
+                    <Text size="10px" fw={800} c="dimmed">
+                      PRINTER
+                    </Text>
+                    <Text size="xs" fw={800}>
+                      {printerConfig
+                        ? `${printerConfig.printerIp}:${printerConfig.printerPort}`
+                        : "Not configured"}
+                    </Text>
+                  </Box>
+                </SimpleGrid>
+              </Paper>
+            </Stack>
+
+            <Stack gap="sm">
+              <Paper radius="md" p="sm" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" fw={800}>
+                    Preview
+                  </Text>
+                  <Badge size="xs" variant="light" color="cyan">
+                    {activeTemplate?.fileName || "Template missing"}
+                  </Badge>
+                </Group>
+                {isPreviewLoading ? (
+                  <Center h={300}>
+                    <Loader size="sm" />
+                  </Center>
+                ) : previewUrl ? (
+                  <Center h={300}>
+                    <Image
+                      src={previewUrl}
+                      alt="Sticker preview"
+                      fit="contain"
+                      mah={280}
+                      radius="sm"
+                      style={{ background: "white", padding: 12 }}
+                    />
+                  </Center>
+                ) : (
+                  <Paper
+                    withBorder
+                    radius="md"
+                    p="xl"
+                    style={{ textAlign: "center" }}
+                  >
+                    <Tag size={48} style={{ marginBottom: 12 }} />
+                    <Text fw={700} size="lg" mb="xs">
+                      No preview
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                      Preview not available for this configuration.
+                    </Text>
+                  </Paper>
+                )}
+              </Paper>
+
+              <Paper radius="md" p="sm" withBorder>
+                <Text size="xs" fw={800} mb="xs">
+                  Print Quantity
+                </Text>
+                <NumberInput
+                  size="xs"
+                  label="Quantity"
+                  min={1}
+                  max={999}
+                  value={printQuantity}
+                  onChange={(value) =>
+                    setPrintQuantity(typeof value === "number" ? value : "")
+                  }
+                />
+                <Group mt="sm" grow>
+                  <Button
+                    size="xs"
+                    leftIcon={<Printer size={14} />}
+                    onClick={() => void handlePrint()}
+                    loading={isPrinting}
+                  >
+                    Print
+                  </Button>
+                </Group>
+              </Paper>
+            </Stack>
+          </SimpleGrid>
+        ) : null}
       </Modal>
 
       <ConfirmDialog

@@ -6,13 +6,17 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { Box, Group, Paper, Stack, Text, Tooltip } from "@mantine/core";
 import {
-  ArrowRight,
+  Archive,
+  Box as BoxIcon,
+  CheckCircle2,
   ClipboardList,
-  MapPin,
   Package,
+  Plus,
   ScanLine,
+  Trash2,
+  XCircle,
 } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
@@ -25,8 +29,8 @@ import {
 import {
   OutwardOrder,
   outwardOrdersApi,
-  productAllottedLocationsApi,
-  ProductAllottedLocationRecord,
+  PackingCarton,
+  packingCartonsApi,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 
@@ -34,188 +38,135 @@ type ScanTone = "idle" | "success" | "error";
 
 export const Packing = memo(function Packing() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
-  const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
-    [],
-  );
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [scanCode, setScanCode] = useState("");
-  const [locationScanCode, setLocationScanCode] = useState("");
   const [lastScanCode, setLastScanCode] = useState("");
-  const [lastLocationCode, setLastLocationCode] = useState("");
   const [lastScanMessage, setLastScanMessage] = useState(
-    "Scan location first.",
+    "Select order to start packing.",
   );
   const [scanTone, setScanTone] = useState<ScanTone>("idle");
-  const [isLocationLocked, setIsLocationLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isPicking, setIsPicking] = useState(false);
-  const navigate = useNavigate();
+  const [isPacking, setIsPacking] = useState(false);
+  const [cartons, setCartons] = useState<PackingCarton[]>([]);
+  const [activeCartonId, setActiveCartonId] = useState<number | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
-  const locationInputRef = useRef<HTMLInputElement | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [ordersData, locationsData] = await Promise.all([
-        outwardOrdersApi.getAll(),
-        productAllottedLocationsApi.getAll(),
-      ]);
+      const ordersData = await outwardOrdersApi.getAll({ status: "packed" });
       setOrders(ordersData);
-      setLocations(locationsData);
     } catch {
-      toast.error("Failed to load packing data");
+      toast.error("Failed to load orders");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  const loadCartons = useCallback(async (orderId: number) => {
+    try {
+      const data = await packingCartonsApi.getByOrder(orderId);
+      setCartons(data);
+      // Auto-select first open carton if none active
+      const openCarton = data.find((c) => c.status === "Open");
+      if (openCarton) {
+        setActiveCartonId(openCarton.id);
+      } else {
+        setActiveCartonId(null);
+      }
+    } catch {
+      setCartons([]);
+      setActiveCartonId(null);
+    }
+  }, []);
 
-  const openOrders = useMemo(() => {
-    const query = searchQuery.toLowerCase();
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
+
+  const filteredOrders = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return orders;
     return orders.filter(
       (order) =>
-        (order.status === "Open" ||
-          order.status === "Picking" ||
-          order.status === "Packed") &&
-        (order.orderNumber.toLowerCase().includes(query) ||
-          order.customerName.toLowerCase().includes(query) ||
-          order.skuCode.toLowerCase().includes(query)),
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.customerName.toLowerCase().includes(query) ||
+        order.skuCode.toLowerCase().includes(query),
     );
   }, [orders, searchQuery]);
 
   useEffect(() => {
-    if (!selectedOrderId && openOrders.length > 0) {
-      setSelectedOrderId(openOrders[0].id);
+    if (selectedOrderId) {
+      void loadCartons(selectedOrderId);
+    } else {
+      setCartons([]);
+      setActiveCartonId(null);
     }
+  }, [selectedOrderId, loadCartons]);
 
+  useEffect(() => {
+    if (!selectedOrderId && filteredOrders.length > 0) {
+      setSelectedOrderId(filteredOrders[0].id);
+    }
     if (
       selectedOrderId &&
-      !openOrders.some((row) => row.id === selectedOrderId)
+      !filteredOrders.some((row) => row.id === selectedOrderId)
     ) {
-      setSelectedOrderId(openOrders[0]?.id ?? null);
+      setSelectedOrderId(filteredOrders[0]?.id ?? null);
     }
-  }, [openOrders, selectedOrderId]);
+  }, [filteredOrders, selectedOrderId]);
 
   const activeOrder =
-    openOrders.find((row) => row.id === selectedOrderId) ?? null;
-  const locationRow = activeOrder
-    ? (locations.find((row) => row.productId === activeOrder.productId) ?? null)
-    : null;
+    filteredOrders.find((row) => row.id === selectedOrderId) ?? null;
 
-  const locationSummary = useMemo(() => {
-    if (!locationRow) return "Not mapped";
-    const entries = Object.entries(locationRow.locationJson || {});
-    if (entries.length === 0) return "Not mapped";
-    return entries
-      .slice(0, 2)
-      .map(([code]) => code)
-      .join(", ");
-  }, [locationRow]);
+  const packedInCartons = useMemo(
+    () => cartons.reduce((sum, c) => sum + c.quantity, 0),
+    [cartons],
+  );
 
-  const readyOrders = openOrders.filter(
-    (row) => row.status === "Packed",
-  ).length;
-  const pickedOrders = openOrders.filter(
-    (row) => row.pendingQuantity === 0,
-  ).length;
-  const progress =
-    openOrders.length > 0
-      ? Math.round((pickedOrders / openOrders.length) * 100)
-      : 0;
-  const isFullyPicked = activeOrder ? activeOrder.pendingQuantity === 0 : false;
+  const remainingToPack = activeOrder
+    ? Math.max(activeOrder.quantity - packedInCartons, 0)
+    : 0;
+
+  const isFullyPacked = remainingToPack === 0;
 
   useEffect(() => {
     if (!activeOrder) return;
-    setLastScanMessage("Scan location first.");
+    setLastScanMessage("Scan SKU to pack into active carton.");
     setScanTone("idle");
     setScanCode("");
-    setLocationScanCode("");
-    setIsLocationLocked(false);
-    window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  }, [activeOrder?.id]);
-
-  const handlePick = useCallback(
-    async (order: OutwardOrder, scannedSku: string) => {
-      const normalizedLocation = locationScanCode.trim();
-
-      try {
-        setIsPicking(true);
-        const updated = await outwardOrdersApi.pick(order.id, {
-          quantity: 1,
-          skuCode: scannedSku,
-          locationCode: normalizedLocation,
-        });
-        setOrders((current) =>
-          current.map((row) => (row.id === updated.id ? updated : row)),
-        );
-        setSelectedOrderId(updated.id);
-        setLastScanCode(scannedSku);
-        setLastLocationCode(normalizedLocation);
-        setScanTone("success");
-        const remaining = updated.pendingQuantity;
-        setLastScanMessage(
-          remaining === 0
-            ? `${updated.orderNumber} packed.`
-            : `${remaining} left to pick.`,
-        );
-        toast.success(
-          remaining === 0
-            ? `${updated.orderNumber} packed`
-            : `Picked 1 for ${updated.orderNumber}`,
-        );
-        if (remaining > 0) {
-          setScanCode("");
-          window.setTimeout(() => scanInputRef.current?.focus(), 0);
-        }
-      } catch (error: any) {
-        setScanTone("error");
-        setLastScanCode(scannedSku);
-        setLastScanMessage(error.message || "Pick failed.");
-        toast.error(error.message || "Pick failed");
-      } finally {
-        setIsPicking(false);
-      }
-    },
-    [locationScanCode],
-  );
-
-  const handleLocationSubmit = () => {
-    const normalizedLocation = locationScanCode.trim();
-    if (!normalizedLocation) {
-      toast.error("Scan location code");
-      return;
-    }
-    setLastLocationCode(normalizedLocation);
-    setIsLocationLocked(true);
-    setLastScanMessage("Location set. Now scan SKU.");
-    setScanCode("");
     window.setTimeout(() => scanInputRef.current?.focus(), 0);
+  }, [activeOrder?.id, activeCartonId]);
+
+  const handleCreateCarton = async () => {
+    if (!activeOrder) return;
+    try {
+      const carton = await packingCartonsApi.create(activeOrder.id);
+      setCartons((current) => [...current, carton]);
+      setActiveCartonId(carton.id);
+      toast.success(`Carton ${carton.cartonNumber} created`);
+      window.setTimeout(() => scanInputRef.current?.focus(), 0);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create carton");
+    }
   };
 
-  const handleChangeLocation = () => {
-    setIsLocationLocked(false);
-    setLocationScanCode("");
-    setLastScanMessage("Scan new location.");
-    window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  };
-
-  const handleScanSubmit = async () => {
+  const handlePackScan = async () => {
     if (!activeOrder) {
       toast.error("Select order first");
       return;
     }
-
-    if (!isLocationLocked) {
-      toast.error("Scan location first");
-      window.setTimeout(() => locationInputRef.current?.focus(), 0);
+    if (!activeCartonId) {
+      toast.error("Create or select a carton first");
+      return;
+    }
+    if (isFullyPacked) {
+      toast.error("Order is fully packed");
+      setScanCode("");
       return;
     }
 
-    // Split scanned data by '#' and use the first part (index 0)
     const normalizedScan = scanCode.trim().split("#")[0].trim();
     if (!normalizedScan) {
       toast.error("Scan SKU code");
@@ -223,48 +174,90 @@ export const Packing = memo(function Packing() {
     }
 
     setLastScanCode(normalizedScan);
+    setIsPacking(true);
 
-    if (isFullyPicked) {
-      setScanTone("error");
-      setLastScanMessage("Order fully picked.");
-      setScanCode("");
-      return;
-    }
-
-    if (normalizedScan.toLowerCase() !== activeOrder.skuCode.toLowerCase()) {
-      setScanTone("error");
-      setLastScanMessage(`SKU mismatch. Expected: ${activeOrder.skuCode}`);
-      toast.error("SKU mismatch");
+    try {
+      const updatedCarton = await packingCartonsApi.packItem(
+        activeCartonId,
+        normalizedScan,
+      );
+      setCartons((current) =>
+        current.map((c) => (c.id === updatedCarton.id ? updatedCarton : c)),
+      );
+      setScanTone("success");
+      setLastScanMessage(
+        `Packed 1 into ${updatedCarton.cartonNumber} (${updatedCarton.quantity} items)`,
+      );
+      toast.success(`Packed into ${updatedCarton.cartonNumber}`);
       setScanCode("");
       window.setTimeout(() => scanInputRef.current?.focus(), 0);
-      return;
+    } catch (error: any) {
+      setScanTone("error");
+      setLastScanMessage(error.message || "Pack failed.");
+      toast.error(error.message || "Pack failed");
+      setScanCode("");
+      window.setTimeout(() => scanInputRef.current?.focus(), 0);
+    } finally {
+      setIsPacking(false);
     }
-
-    await handlePick(activeOrder, normalizedScan);
   };
+
+  const handleMarkReady = async (carton: PackingCarton) => {
+    try {
+      const updated = await packingCartonsApi.markReady(carton.id);
+      setCartons((current) =>
+        current.map((c) => (c.id === updated.id ? updated : c)),
+      );
+      // If the ready carton was active, clear active selection
+      if (activeCartonId === carton.id) {
+        const nextOpen = cartons.find(
+          (c) => c.id !== carton.id && c.status === "Open",
+        );
+        setActiveCartonId(nextOpen?.id ?? null);
+      }
+      toast.success(`${carton.cartonNumber} marked as ready`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to mark ready");
+    }
+  };
+
+  const handleDeleteCarton = async (carton: PackingCarton) => {
+    try {
+      await packingCartonsApi.delete(carton.id);
+      setCartons((current) => current.filter((c) => c.id !== carton.id));
+      if (activeCartonId === carton.id) {
+        const remainingOpen = cartons.find(
+          (c) => c.id !== carton.id && c.status === "Open",
+        );
+        setActiveCartonId(remainingOpen?.id ?? null);
+      }
+      toast.success(`${carton.cartonNumber} deleted`);
+    } catch {
+      toast.error("Failed to delete carton");
+    }
+  };
+
+  const readyCartons = cartons.filter((c) => c.status === "Ready").length;
 
   return (
     <OperationsPage
       title="Packing"
-      description="Pick orders by scanning SKU and location."
-      icon={Package}
+      description="Pack picked items into cartons. Scan SKU to add items, create cartons, and mark them ready."
+      icon={Archive}
       hideHeader
     >
       <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
         <OperationsPanel
-          title="Orders"
+          title="Orders Ready to Pack"
           icon={ClipboardList}
-          description="Select order to pick."
+          description="Select a picked order to pack into cartons."
           action={
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                {openOrders.length} Active
+                {filteredOrders.length} Orders
               </span>
               <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                {readyOrders} Ready
-              </span>
-              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                {progress}% Done
+                {readyCartons} Ready Cartons
               </span>
             </div>
           }
@@ -276,11 +269,18 @@ export const Packing = memo(function Packing() {
             className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
           />
 
-          {openOrders.length > 0 ? (
+          {filteredOrders.length > 0 ? (
             <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
-              {openOrders.map((order) => {
-                const done = order.pendingQuantity === 0;
+              {filteredOrders.map((order) => {
                 const active = order.id === selectedOrderId;
+                const orderCartons = cartons.filter(
+                  (c) => c.outwardOrderId === order.id,
+                );
+                const packed = orderCartons.reduce(
+                  (sum, c) => sum + c.quantity,
+                  0,
+                );
+                const done = packed >= order.quantity;
 
                 return (
                   <button
@@ -306,7 +306,7 @@ export const Packing = memo(function Packing() {
                         shape="pill"
                         className="border-none"
                       >
-                        {done ? "Ready" : order.status}
+                        {done ? "Done" : "Packing"}
                       </Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
@@ -320,10 +320,10 @@ export const Packing = memo(function Packing() {
                       </div>
                       <div>
                         <p className="uppercase tracking-[0.18em] text-neutral-500">
-                          Picked
+                          Packed
                         </p>
                         <p className="mt-1 font-bold text-white">
-                          {order.pickedQuantity} / {order.quantity}
+                          {packed} / {order.quantity}
                         </p>
                       </div>
                     </div>
@@ -335,194 +335,271 @@ export const Packing = memo(function Packing() {
             <OperationsEmptyState
               icon={ClipboardList}
               title="No orders"
-              description="No open orders waiting for picking."
+              description="No picked orders ready for packing."
             />
           )}
         </OperationsPanel>
 
         <OperationsPanel
-          title="Scan to Pick"
-          icon={ScanLine}
-          description="Scan SKU then location."
+          title="Carton Packing"
+          icon={BoxIcon}
+          description="Create cartons and scan items into them."
         >
           {activeOrder ? (
-            <div className="space-y-3">
-              {/* Compact Order Header */}
-              <div className="rounded-xl border border-brand-500/20 bg-brand-500/10 p-3">
-                <div className="flex items-center justify-between">
+            <Stack gap="md">
+              {/* Order Header */}
+              <Paper radius="md" p="sm" withBorder>
+                <Group justify="space-between" align="flex-start">
                   <div>
-                    <p className="text-xs font-semibold text-white">
+                    <Text size="xs" fw={700}>
                       {activeOrder.orderNumber}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-neutral-400">
+                    </Text>
+                    <Text size="11px" c="dimmed">
                       {activeOrder.customerName}
-                    </p>
+                    </Text>
                   </div>
                   <Badge
-                    variant={isFullyPicked ? "success" : "warning"}
+                    variant={isFullyPacked ? "success" : "warning"}
                     shape="pill"
                     className="border-none"
                   >
-                    {isFullyPicked ? "Packed" : activeOrder.status}
+                    {isFullyPacked ? "Fully Packed" : "Packing"}
                   </Badge>
-                </div>
-              </div>
-
-              {/* Compact Info Grid */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                    Product
-                  </p>
-                  <p className="mt-0.5 text-xs font-semibold text-white line-clamp-1">
-                    {activeOrder.productName}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                    SKU
-                  </p>
-                  <p className="mt-0.5 font-mono text-xs font-semibold text-brand-300">
+                </Group>
+                <Group gap="xs" mt="xs">
+                  <Text size="11px" c="dimmed">
+                    SKU:
+                  </Text>
+                  <Text size="11px" ff="monospace" c="cyan.3">
                     {activeOrder.skuCode}
-                  </p>
+                  </Text>
+                </Group>
+              </Paper>
+
+              {/* Progress */}
+              <Paper radius="md" p="sm" withBorder>
+                <Group justify="space-between">
+                  <Text size="xs" fw={700}>
+                    Packing Progress
+                  </Text>
+                  <Text size="xs" fw={800}>
+                    {packedInCartons} / {activeOrder.quantity}
+                  </Text>
+                </Group>
+                <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                  <div
+                    className="h-2 rounded-full bg-brand-500 transition-all"
+                    style={{
+                      width: `${Math.min((packedInCartons / activeOrder.quantity) * 100, 100)}%`,
+                    }}
+                  />
                 </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                    Location
-                  </p>
-                  <p className="mt-0.5 text-xs font-semibold text-white">
-                    {locationSummary}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                  <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                    Progress
-                  </p>
-                  <p className="mt-0.5 text-xs font-bold text-white">
-                    {activeOrder.pickedQuantity} / {activeOrder.quantity}
-                  </p>
-                </div>
-              </div>
+                <Text size="11px" c="dimmed" mt={4}>
+                  {remainingToPack} remaining · {cartons.length} cartons ·{" "}
+                  {readyCartons} ready
+                </Text>
+              </Paper>
+
+              {/* Carton List */}
+              <Paper radius="md" p="sm" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text size="xs" fw={700}>
+                    Cartons
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    leftIcon={<Plus size={14} />}
+                    onClick={handleCreateCarton}
+                  >
+                    New Carton
+                  </Button>
+                </Group>
+
+                {cartons.length === 0 ? (
+                  <Text size="sm" c="dimmed" ta="center" py="md">
+                    No cartons yet. Create one to start packing.
+                  </Text>
+                ) : (
+                  <Stack gap="xs">
+                    {cartons.map((carton) => {
+                      const isActive = carton.id === activeCartonId;
+                      const isReady = carton.status === "Ready";
+                      return (
+                        <Paper
+                          key={carton.id}
+                          radius="md"
+                          p="xs"
+                          withBorder
+                          bg={
+                            isActive ? "rgba(30,192,243,0.08)" : "transparent"
+                          }
+                          style={{
+                            borderColor: isActive
+                              ? "rgba(30,192,243,0.3)"
+                              : isReady
+                                ? "rgba(34,197,94,0.3)"
+                                : "rgba(255,255,255,0.12)",
+                            cursor: isReady ? "default" : "pointer",
+                          }}
+                          onClick={() => {
+                            if (!isReady) setActiveCartonId(carton.id);
+                          }}
+                        >
+                          <Group justify="space-between" wrap="nowrap">
+                            <Group gap="sm" wrap="nowrap">
+                              <BoxIcon
+                                size={16}
+                                color={
+                                  isReady
+                                    ? "var(--mantine-color-green-4)"
+                                    : isActive
+                                      ? "var(--mantine-color-cyan-4)"
+                                      : "var(--mantine-color-gray-4)"
+                                }
+                              />
+                              <div>
+                                <Text size="xs" fw={700}>
+                                  {carton.cartonNumber}
+                                </Text>
+                                <Text size="11px" c="dimmed">
+                                  {carton.quantity} items
+                                </Text>
+                              </div>
+                            </Group>
+                            <Group gap="xs" wrap="nowrap">
+                              {isReady ? (
+                                <Badge
+                                  variant="success"
+                                  shape="pill"
+                                  size="sm"
+                                  className="border-none"
+                                >
+                                  Ready
+                                </Badge>
+                              ) : (
+                                <>
+                                  {isActive && (
+                                    <Text size="10px" c="cyan.3" fw={700}>
+                                      ACTIVE
+                                    </Text>
+                                  )}
+                                  <Button
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void handleMarkReady(carton);
+                                    }}
+                                    disabled={carton.quantity <= 0}
+                                    leftIcon={<CheckCircle2 size={12} />}
+                                  >
+                                    Ready
+                                  </Button>
+                                </>
+                              )}
+                              <Tooltip label="Delete carton">
+                                <Button
+                                  size="xs"
+                                  variant="ghost"
+                                  className="h-7 w-7 px-0 text-red-400 hover:text-red-300"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleDeleteCarton(carton);
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              </Tooltip>
+                            </Group>
+                          </Group>
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
+                )}
+              </Paper>
 
               {/* Scan Section */}
-              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <Paper
+                radius="md"
+                p="sm"
+                withBorder
+                style={{
+                  borderColor:
+                    scanTone === "success"
+                      ? "rgba(34,197,94,0.3)"
+                      : scanTone === "error"
+                        ? "rgba(239,68,68,0.3)"
+                        : "rgba(255,255,255,0.12)",
+                }}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <ScanLine className="h-3.5 w-3.5 text-brand-400" />
-                  <p className="text-xs font-semibold text-white">Scan</p>
-                </div>
-                <div className="space-y-2">
-                  {/* Location Input */}
-                  <div className="flex gap-2">
-                    <input
-                      ref={locationInputRef}
-                      value={locationScanCode}
-                      onChange={(e) => setLocationScanCode(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !isLocationLocked) {
-                          e.preventDefault();
-                          handleLocationSubmit();
-                        }
-                      }}
-                      placeholder="Scan location first"
-                      disabled={isLocationLocked}
-                      className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                    />
-                    {isLocationLocked ? (
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={handleChangeLocation}
-                        className="h-9"
-                      >
-                        Change
-                      </Button>
-                    ) : (
-                      <Button
-                        size="xs"
-                        onClick={handleLocationSubmit}
-                        className="h-9"
-                      >
-                        Set
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* SKU Input */}
-                  <div className="flex gap-2">
-                    <input
-                      ref={scanInputRef}
-                      value={scanCode}
-                      onChange={(e) => setScanCode(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          void handleScanSubmit();
-                        }
-                      }}
-                      placeholder={
-                        isLocationLocked
-                          ? `Scan ${activeOrder.skuCode}`
-                          : "Set location first"
-                      }
-                      disabled={!isLocationLocked || isFullyPicked}
-                      className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                    />
-                    <Button
-                      onClick={() => void handleScanSubmit()}
-                      loading={isPicking}
-                      disabled={!isLocationLocked || isFullyPicked}
-                      size="xs"
-                      leftIcon={<Package className="h-3.5 w-3.5" />}
-                      className="h-9"
-                    >
-                      Pick
-                    </Button>
-                  </div>
-
-                  {/* Dispatch Button */}
-                  {isFullyPicked && (
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      onClick={() => navigate("/dispatch")}
-                      rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                      className="h-9 w-full"
-                    >
-                      Move to Dispatch
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Status Message */}
-              <div
-                className={`rounded-xl border p-3 ${
-                  scanTone === "success"
-                    ? "border-green-500/20 bg-green-500/10"
-                    : scanTone === "error"
-                      ? "border-red-500/20 bg-red-500/10"
-                      : "border-white/10 bg-white/[0.03]"
-                }`}
-              >
-                <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                  Status
-                </p>
-                <p className="mt-1 text-xs font-semibold text-white">
-                  {lastScanMessage}
-                </p>
-                {lastScanCode && (
-                  <p className="mt-0.5 text-[11px] text-neutral-400">
-                    SKU: {lastScanCode}
-                    {lastLocationCode ? ` · Loc: ${lastLocationCode}` : ""}
+                  <p className="text-xs font-semibold text-white">
+                    {activeCartonId
+                      ? `Scan into ${cartons.find((c) => c.id === activeCartonId)?.cartonNumber || "carton"}`
+                      : "Select a carton to scan"}
                   </p>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    ref={scanInputRef}
+                    value={scanCode}
+                    onChange={(e) => setScanCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handlePackScan();
+                      }
+                    }}
+                    placeholder={
+                      activeCartonId
+                        ? isFullyPacked
+                          ? "Order fully packed"
+                          : `Scan ${activeOrder.skuCode}`
+                        : "Select a carton first"
+                    }
+                    disabled={!activeCartonId || isFullyPacked}
+                    className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                  />
+                  <Button
+                    onClick={() => void handlePackScan()}
+                    loading={isPacking}
+                    disabled={!activeCartonId || isFullyPacked}
+                    size="xs"
+                    leftIcon={<Package className="h-3.5 w-3.5" />}
+                    className="h-9"
+                  >
+                    Pack
+                  </Button>
+                </div>
+
+                {/* Status Message */}
+                {lastScanMessage && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {scanTone === "success" ? (
+                      <CheckCircle2 size={14} className="text-green-400" />
+                    ) : scanTone === "error" ? (
+                      <XCircle size={14} className="text-red-400" />
+                    ) : null}
+                    <Text size="11px" c="dimmed">
+                      {lastScanMessage}
+                    </Text>
+                  </div>
                 )}
-              </div>
-            </div>
+                {lastScanCode && (
+                  <Text size="11px" c="dimmed" mt={2}>
+                    Last scan: {lastScanCode}
+                  </Text>
+                )}
+              </Paper>
+            </Stack>
           ) : (
             <OperationsEmptyState
-              icon={Package}
-              title="No order"
-              description="Select order from left to start."
+              icon={BoxIcon}
+              title="No order selected"
+              description="Select a picked order from the left to start packing into cartons."
             />
           )}
         </OperationsPanel>

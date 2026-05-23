@@ -55,6 +55,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<ProductStockMovement> ProductStockMovements => Set<ProductStockMovement>();
     public DbSet<ProductAllottedLocation> ProductAllottedLocations => Set<ProductAllottedLocation>();
     public DbSet<StickerPrinterConfig> StickerPrinterConfigs => Set<StickerPrinterConfig>();
+    public DbSet<PackingCarton> PackingCartons => Set<PackingCarton>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -218,6 +219,19 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<StickerPrinterConfig>()
             .HasIndex(c => c.StickerSize)
             .IsUnique();
+
+        modelBuilder.Entity<PackingCarton>()
+            .HasIndex(c => c.OutwardOrderId);
+
+        modelBuilder.Entity<PackingCarton>()
+            .HasIndex(c => c.CartonNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<PackingCarton>()
+            .HasOne(c => c.OutwardOrder)
+            .WithMany()
+            .HasForeignKey(c => c.OutwardOrderId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     private void NormalizeDateTimeKinds()

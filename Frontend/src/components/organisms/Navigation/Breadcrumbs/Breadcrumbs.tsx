@@ -1,6 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Anchor, Breadcrumbs as MantineBreadcrumbs, Group, Text, ThemeIcon } from "@mantine/core";
+import {
+  Anchor,
+  Breadcrumbs as MantineBreadcrumbs,
+  Group,
+  Text,
+  ThemeIcon,
+} from "@mantine/core";
 import { Home } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 
@@ -26,7 +32,8 @@ const routeLabels: Record<string, string> = {
   "/inward": "Purchase Invoices",
   "/putaway": "Put Away",
   "/outward": "Sales Orders",
-  "/packing": "Picking & Packing",
+  "/picking": "Picking",
+  "/packing": "Packing",
   "/dispatch": "Dispatch",
   "/mpd": "Products",
   "/mcd": "Customers",
@@ -52,7 +59,12 @@ export function Breadcrumbs({
         return [{ label: "Dashboard" }];
       }
 
-      return [{ label: routeLabels[path] || path.slice(1).replace(/-/g, " "), href: path }];
+      return [
+        {
+          label: routeLabels[path] || path.slice(1).replace(/-/g, " "),
+          href: path,
+        },
+      ];
     })();
 
   const crumbs = [
