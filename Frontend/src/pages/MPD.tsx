@@ -1117,7 +1117,7 @@ export const MPD = memo(function MPD() {
         isOpen={Boolean(selectedPrintProduct)}
         onClose={handleClosePrintModal}
         title="Print Sticker"
-        size="xl"
+        size="xxl"
       >
         {selectedPrintProduct ? (
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">

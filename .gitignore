@@ -24,6 +24,8 @@ out/
 .cursor/
 .omx/
 graphify-out/
+Document/
+.cursor/
 
 # NuGet
 *.nupkg

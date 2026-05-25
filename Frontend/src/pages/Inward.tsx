@@ -1121,7 +1121,7 @@ export const Inward = memo(function Inward() {
         isOpen={Boolean(selectedPrintRow)}
         onClose={() => setSelectedPrintRow(null)}
         title="Sticker Print"
-        size="xl"
+        size="xxl"
       >
         {selectedPrintRow ? (
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">

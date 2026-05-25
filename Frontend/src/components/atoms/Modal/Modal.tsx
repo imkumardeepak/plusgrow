@@ -15,7 +15,7 @@ export interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | "full";
+  size?: "sm" | "md" | "lg" | "xl" | "xxl" | "full" | (string & {}) | number;
   showCloseButton?: boolean;
   className?: string;
   footer?: React.ReactNode;
@@ -35,11 +35,12 @@ export interface ConfirmDialogProps {
   icon?: React.ReactNode;
 }
 
-const modalSizeMap: Record<NonNullable<ModalProps["size"]>, string> = {
+const modalSizeMap: Record<string, string | number> = {
   sm: "sm",
   md: "md",
   lg: "lg",
   xl: "xl",
+  xxl: "1200px",
   full: "100%",
 };
 
@@ -89,7 +90,7 @@ export function Modal({
       onClose={onClose}
       centered
       fullScreen={size === "full"}
-      size={modalSizeMap[size]}
+      size={typeof size === "string" ? modalSizeMap[size] || size : size}
       withCloseButton={showCloseButton}
       title={
         <Group gap="sm">
