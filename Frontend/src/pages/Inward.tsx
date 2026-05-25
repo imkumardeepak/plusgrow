@@ -1142,6 +1142,7 @@ export const Inward = memo(function Inward() {
                       value={stickerSize}
                       onChange={setStickerSize}
                       data={[
+                        { value: "25x25", label: "25x25" },
                         { value: "50x50", label: "50x50" },
                         { value: "60x60", label: "60x60" },
                         { value: "75x75", label: "75x75" },
