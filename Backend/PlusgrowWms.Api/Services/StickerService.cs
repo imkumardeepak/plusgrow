@@ -102,6 +102,8 @@ public class StickerService : IStickerService
             { "<SKUCODE>", product.Sku ?? string.Empty },
             { "<ITEMDESC1>", SplitIntoLength(product.Name, 30, 0) },
             { "<ITEMDESC2>", SplitIntoLength(product.Name, 30, 1) },
+            { "<ITEMCODE1>", SplitIntoLength(product.Name, 20, 0) },
+            { "<ITEMCODE2>", SplitIntoLength(product.Name, 20, 1) },
             { "<NOTE1>", SplitIntoLength(request.Note, 30, 0) },
             { "<NOTE2>", SplitIntoLength(request.Note, 30, 1) },
             { "<ADDRESS1>", importerParts.Line1 },
@@ -127,6 +129,7 @@ public class StickerService : IStickerService
         string labelSize = "2x2";
         if (size == "60x60") labelSize = "2.4x2.4";
         if (size == "75x75") labelSize = "3x3";
+        if (size == "25x25") labelSize = "4x1";
 
         var url = $"http://api.labelary.com/v1/printers/12dpmm/labels/{labelSize}/0/";
 
@@ -150,7 +153,9 @@ public class StickerService : IStickerService
             new StickerTemplateDto { Name = "Imported & Marketed By 60 x 60", Size = "60x60", Type = "Combined", FileName = "IMPORTED_MARKTED-60x60.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 60 x 60", Size = "60x60", Type = "Separate", FileName = "MARKTEDBY-60x60.prn" },
             new StickerTemplateDto { Name = "Imported & Marketed By 75 x 75", Size = "75x75", Type = "Combined", FileName = "IMPORTED_MARKTED-75x75.prn" },
-            new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" }
+            new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" },
+            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Combined", FileName = "Product-25x25x4-300.prn" },
+            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-300.prn" }
         ];
     }
 
@@ -182,6 +187,11 @@ public class StickerService : IStickerService
 
     private static string GetTemplateFileName(string size, string type)
     {
+        if (size == "25x25")
+        {
+            return "Product-25x25x4-300.prn";
+        }
+
         var normalizedType = string.Equals(type, "Separate", StringComparison.OrdinalIgnoreCase)
             ? "Separate"
             : "Combined";

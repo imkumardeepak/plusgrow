@@ -41,6 +41,7 @@ import {
 } from "../services/stickerPrinterConfigsApi";
 
 const STICKER_SIZES = [
+  { value: "25x25", label: "25 x 25 MM" },
   { value: "50x50", label: "50 x 50 MM" },
   { value: "60x60", label: "60 x 60 MM" },
   { value: "75x75", label: "75 x 75 MM" },
