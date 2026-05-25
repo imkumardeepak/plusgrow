@@ -15,8 +15,16 @@ using PlusgrowWms.Api.Services;
 using PlusgrowWms.Api.Validators;
 using Swashbuckle.AspNetCore.Newtonsoft;
 
+var logsPath = Path.Combine(Directory.GetCurrentDirectory(), "logs");
+Directory.CreateDirectory(logsPath);
+
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
+    .WriteTo.File(
+        Path.Combine(logsPath, "plusgrow-wms-.txt"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 var builder = WebApplication.CreateBuilder(args);
