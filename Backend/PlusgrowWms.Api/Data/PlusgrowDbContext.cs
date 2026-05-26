@@ -19,24 +19,28 @@ public class PlusgrowDbContext : DbContext
     public override int SaveChanges()
     {
         NormalizeDateTimeKinds();
+        NormalizeStringsToUppercase();
         return base.SaveChanges();
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         NormalizeDateTimeKinds();
+        NormalizeStringsToUppercase();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         NormalizeDateTimeKinds();
+        NormalizeStringsToUppercase();
         return base.SaveChangesAsync(cancellationToken);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         NormalizeDateTimeKinds();
+        NormalizeStringsToUppercase();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
@@ -262,5 +266,32 @@ public class PlusgrowDbContext : DbContext
     private static DateTime NormalizeToTimestampWithoutTimeZone(DateTime value)
     {
         return DateTime.SpecifyKind(value, DateTimeKind.Unspecified);
+    }
+
+    private void NormalizeStringsToUppercase()
+    {
+        var masterDataTypes = new[]
+        {
+            typeof(Manufacturer),
+            typeof(Importer),
+            typeof(Commodity),
+            typeof(Location),
+            typeof(Bin),
+            typeof(Product)
+        };
+
+        foreach (var entry in ChangeTracker.Entries().Where(ShouldNormalizeEntry))
+        {
+            if (masterDataTypes.Contains(entry.Entity.GetType()))
+            {
+                foreach (var property in entry.Properties)
+                {
+                    if (property.Metadata.ClrType == typeof(string) && property.CurrentValue is string stringValue)
+                    {
+                        property.CurrentValue = stringValue.ToUpperInvariant();
+                    }
+                }
+            }
+        }
     }
 }

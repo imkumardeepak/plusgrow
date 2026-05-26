@@ -42,6 +42,8 @@ export interface Product {
   netQuantity?: string;
   unitType?: string;
   ussp?: number;
+  weight?: number;
+  productType?: string;
   mrp?: number;
   bestBeforeMonths: number;
   createdAt: string;
@@ -78,6 +80,8 @@ export interface CreateProductDto {
   netQuantity?: string;
   unitType?: string;
   ussp?: number;
+  weight?: number;
+  productType?: string;
   mrp?: number;
   bestBeforeMonths?: number;
   id?: number;
@@ -669,10 +673,14 @@ export const productsApi = {
         'Manufacturer Name': '',
         'Commodity Name': '',
         'Country of Origin': 'India',
-        'MRP': '',
-        'MRP/Unit': '1L or 500g',
         'Unit Type': 'UNIT',
+        'MRP': '',
+        'USSP': '',
+        'Net Qnty': '',
+        'Factor': '1L or 500g',
         'Best Before (Months)': '12',
+        'Weight': '',
+        'Product Type': 'Self',
         'Stock Qnty': '',
       }
     ];
@@ -684,10 +692,14 @@ export const productsApi = {
       { wch: 25 },  // Manufacturer Name
       { wch: 20 },  // Commodity Name
       { wch: 18 },  // Country of Origin
-      { wch: 12 },  // MRP
-      { wch: 15 },  // MRP/Unit
       { wch: 12 },  // Unit Type
+      { wch: 12 },  // MRP
+      { wch: 12 },  // USSP
+      { wch: 12 },  // Net Qnty
+      { wch: 15 },  // Factor
       { wch: 20 },  // Best Before (Months)
+      { wch: 12 },  // Weight
+      { wch: 15 },  // Product Type
       { wch: 12 },  // Stock Qnty
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');

@@ -162,6 +162,13 @@ public class ProductsController : BaseController
                     decimal.TryParse(row.Cell("USSP").GetString(), out decimal ussp);
                     decimal.TryParse(row.Cell("Net Qnty").GetString(), out decimal netQuantity);
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
+                    decimal.TryParse(row.Cell("Weight").GetString(), out decimal weight);
+
+                    // Parse Product Type
+                    var productType = row.Cell("Product Type").GetString()?.Trim();
+                    if (string.IsNullOrEmpty(productType)) {
+                        productType = "Self"; // Default to Self
+                    }
 
                     // Auto-calculate USSP if MRP and Factor provided
                     var factorStr = row.Cell("Factor").GetString()?.Trim();
@@ -189,6 +196,8 @@ public class ProductsController : BaseController
                         Mrp = mrp,
                         Ussp = ussp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
+                        Weight = weight > 0 ? weight : null,
+                        ProductType = productType
                     };
 
                     _context.Products.Add(product);

@@ -97,6 +97,8 @@ export const MPD = memo(function MPD() {
     netQuantity: "",
     unitType: "UNIT",
     ussp: 0,
+    weight: 0,
+    productType: "Self",
     mrp: 0,
     bestBeforeMonths: 12,
   });
@@ -187,6 +189,8 @@ export const MPD = memo(function MPD() {
         netQuantity: formData.netQuantity || null,
         unitType: formData.unitType || null,
         ussp: ussp,
+        weight: formData.weight || 0,
+        productType: formData.productType || null,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 12,
       };
@@ -220,6 +224,8 @@ export const MPD = memo(function MPD() {
       netQuantity: "",
       unitType: "UNIT",
       ussp: 0,
+      weight: 0,
+      productType: "Self",
       mrp: 0,
       bestBeforeMonths: 12,
     });
@@ -239,6 +245,8 @@ export const MPD = memo(function MPD() {
       netQuantity: product.netQuantity || "",
       unitType: product.unitType || "UNIT",
       ussp: product.ussp || 0,
+      weight: product.weight || 0,
+      productType: product.productType || "Self",
       mrp: product.mrp || 0,
       bestBeforeMonths: product.bestBeforeMonths || 12,
     });
@@ -512,7 +520,15 @@ export const MPD = memo(function MPD() {
       sortable: true,
       sortAccessor: (row) => row.sku,
       render: (row) => (
-        <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+        <Text 
+          size="11px" 
+          ff="monospace" 
+          c="blue.4" 
+          fw={700} 
+          lineClamp={1}
+          style={{ cursor: "pointer", textDecoration: "underline" }}
+          onClick={() => openEditModal(row)}
+        >
           {row.sku || "N/A"}
         </Text>
       ),
@@ -574,6 +590,31 @@ export const MPD = memo(function MPD() {
       width: 150,
     },
     {
+      key: "productType",
+      header: "Type",
+      sortable: true,
+      sortAccessor: (row) => row.productType,
+      render: (row) => (
+        <Badge size="xs" variant="light" color={row.productType === "Self" ? "blue" : "orange"}>
+          {row.productType || "N/A"}
+        </Badge>
+      ),
+      width: 100,
+    },
+    {
+      key: "weight",
+      header: "Weight",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.weight,
+      render: (row) => (
+        <Text size="xs" fw={700}>
+          {Number(row.weight || 0).toFixed(2)}
+        </Text>
+      ),
+      width: 90,
+    },
+    {
       key: "mrp",
       header: "MRP",
       align: "right",
@@ -609,50 +650,7 @@ export const MPD = memo(function MPD() {
           {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo
         </Text>
       ),
-      width: 150,
-    },
-    {
-      key: "actions",
-      header: "Action",
-      align: "right",
-      render: (row) => (
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Tooltip label="Print sticker">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="cyan"
-              onClick={() => handleOpenPrintModal(row)}
-            >
-              <Printer size={15} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Edit product">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="blue"
-              onClick={() => openEditModal(row)}
-            >
-              <Edit2 size={15} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Delete product">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="red"
-              onClick={() => setDeleteTarget(row)}
-            >
-              <Trash2 size={15} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      ),
-      width: 140,
+      width: 110,
     },
   ];
 
@@ -802,6 +800,34 @@ export const MPD = memo(function MPD() {
         onClose={closeModal}
         title={isEditing ? "Edit Product" : "New Product"}
         size="xl"
+        headerActions={
+          isEditing ? (
+            <>
+              <Tooltip label="Print sticker">
+                <ActionIcon
+                  size="md"
+                  radius="md"
+                  variant="light"
+                  color="cyan"
+                  onClick={() => handleOpenPrintModal(isEditing)}
+                >
+                  <Printer size={18} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Delete product">
+                <ActionIcon
+                  size="md"
+                  radius="md"
+                  variant="light"
+                  color="red"
+                  onClick={() => setDeleteTarget(isEditing)}
+                >
+                  <Trash2 size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          ) : null
+        }
       >
         <form onSubmit={handleSubmit}>
           <Stack gap="md">
@@ -918,6 +944,33 @@ export const MPD = memo(function MPD() {
                       },
                     }}
                   />
+                  <Select
+                    label="Product Type"
+                    placeholder="Self or ThirdParty"
+                    data={[
+                      { value: "Self", label: "Self" },
+                      { value: "ThirdParty", label: "ThirdParty" },
+                    ]}
+                    value={formData.productType || null}
+                    onChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        productType: value || undefined,
+                      }))
+                    }
+                    clearable
+                    styles={{
+                      input: {
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        borderColor: "rgba(255,255,255,0.12)",
+                      },
+                      dropdown: {
+                        background:
+                          "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                        borderColor: "rgba(148, 163, 184, 0.16)",
+                      },
+                    }}
+                  />
                 </Group>
               </Stack>
             </Paper>
@@ -988,6 +1041,19 @@ export const MPD = memo(function MPD() {
                       setFormData((prev) => ({
                         ...prev,
                         unitType: event.target.value,
+                      }))
+                    }
+                  />
+                  <Input
+                    label="Weight"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={String(formData.weight ?? 0)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        weight: Number(event.target.value),
                       }))
                     }
                   />
@@ -1117,7 +1183,7 @@ export const MPD = memo(function MPD() {
         isOpen={Boolean(selectedPrintProduct)}
         onClose={handleClosePrintModal}
         title="Print Sticker"
-        size="xxl"
+        size="lg"
       >
         {selectedPrintProduct ? (
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">

@@ -19,6 +19,7 @@ export interface ModalProps {
   showCloseButton?: boolean;
   className?: string;
   footer?: React.ReactNode;
+  headerActions?: React.ReactNode;
   variant?: "default" | "danger" | "success" | "warning";
 }
 
@@ -80,6 +81,7 @@ export function Modal({
   showCloseButton = true,
   className,
   footer,
+  headerActions,
   variant = "default",
 }: ModalProps) {
   const badge = getThemeIcon(variant);
@@ -93,23 +95,30 @@ export function Modal({
       size={typeof size === "string" ? modalSizeMap[size] || size : size}
       withCloseButton={showCloseButton}
       title={
-        <Group gap="sm">
-          {variant !== "default" ? (
-            <ThemeIcon
-              variant="light"
-              color={badge.color}
-              radius="xl"
-              size={36}
-            >
-              {badge.icon}
-            </ThemeIcon>
+        <Group justify="space-between" w="100%" wrap="nowrap" style={{ flex: 1 }}>
+          <Group gap="sm">
+            {variant !== "default" ? (
+              <ThemeIcon
+                variant="light"
+                color={badge.color}
+                radius="xl"
+                size={36}
+              >
+                {badge.icon}
+              </ThemeIcon>
+            ) : null}
+            <Stack gap={2}>
+              <Text fw={700}>{title}</Text>
+              <Text size="xs" c="dimmed">
+                Fill in details below
+              </Text>
+            </Stack>
+          </Group>
+          {headerActions ? (
+            <Group gap="xs" align="center" wrap="nowrap" mr="sm">
+              {headerActions}
+            </Group>
           ) : null}
-          <Stack gap={2}>
-            <Text fw={700}>{title}</Text>
-            <Text size="xs" c="dimmed">
-              Fill in details below
-            </Text>
-          </Stack>
         </Group>
       }
       overlayProps={{
@@ -118,6 +127,9 @@ export function Modal({
       }}
       className={className}
       styles={{
+        title: {
+          flex: 1,
+        },
         content: {
           background:
             "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",

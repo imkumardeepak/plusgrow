@@ -59,6 +59,15 @@ public class Product
     [JsonPropertyName("Ussp")]
     public decimal? Ussp { get; set; }
 
+    [Column("weight")]
+    [JsonPropertyName("Weight")]
+    public decimal? Weight { get; set; }
+
+    [MaxLength(50)]
+    [Column("product_type")]
+    [JsonPropertyName("ProductType")]
+    public string? ProductType { get; set; }
+
     [Column("mrp")]
     [JsonPropertyName("Mrp")]
     public decimal? Mrp { get; set; }

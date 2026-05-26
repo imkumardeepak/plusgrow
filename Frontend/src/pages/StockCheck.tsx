@@ -36,6 +36,8 @@ import {
   ProductQuantityRecord,
   productsApi,
 } from "../services/masterApi";
+import { ProductFormModal } from "../components/organisms/ProductFormModal";
+import { StickerPrintModal } from "../components/organisms/StickerPrintModal";
 
 type LocationStock = {
   locationCode: string;
@@ -84,6 +86,9 @@ export const StockCheck = memo(function StockCheck() {
   const [isSearching, setIsSearching] = useState(false);
   const [scanInput, setScanInput] = useState("");
   const [lookupResult, setLookupResult] = useState<ProductLookupResult | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -128,6 +133,11 @@ export const StockCheck = memo(function StockCheck() {
 
   const focusScanner = () => {
     setTimeout(() => inputRef.current?.focus(), 10);
+  };
+
+  const handlePrint = (product: Product) => {
+    setSelectedPrintProduct(product);
+    setIsPrintModalOpen(true);
   };
 
   const handleLookup = async (event: React.FormEvent) => {
@@ -325,7 +335,8 @@ export const StockCheck = memo(function StockCheck() {
                   icon={Package}
                   label="Product Master"
                   value={productTitle}
-                  href={masterHref("/mpd", lookupResult.sku)}
+                  onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
+                  isButton
                 />
                 <ReferenceLink
                   icon={FileText}
@@ -337,7 +348,7 @@ export const StockCheck = memo(function StockCheck() {
                   icon={MapPin}
                   label="Location Master"
                   value={`${lookupResult.locations.length} allotted locations`}
-                  href={masterHref("/locations", lookupResult.locations[0]?.locationCode || lookupResult.sku)}
+                  href={masterHref("/warehouse-map", lookupResult.locations[0]?.locationCode || lookupResult.sku)}
                 />
               </Stack>
             </Paper>
@@ -386,7 +397,7 @@ export const StockCheck = memo(function StockCheck() {
                     </Badge>
                   </Group>
                   <MasterLink
-                    href={masterHref("/mpd", lookupResult.sku)}
+                    onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
                     size="lg"
                     weight={900}
                     className="mt-2"
@@ -436,7 +447,7 @@ export const StockCheck = memo(function StockCheck() {
                     <Info
                       label="Name"
                       value={
-                        <MasterLink href={masterHref("/mpd", lookupResult.sku)}>
+                        <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)}>
                           {lookupResult.product?.name || productTitle}
                         </MasterLink>
                       }
@@ -444,7 +455,7 @@ export const StockCheck = memo(function StockCheck() {
                     <Info
                       label="SKU"
                       value={
-                        <MasterLink href={masterHref("/mpd", lookupResult.sku)} mono>
+                        <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)} mono>
                           {lookupResult.product?.sku || lookupResult.sku}
                         </MasterLink>
                       }
@@ -474,7 +485,7 @@ export const StockCheck = memo(function StockCheck() {
                           <Group gap={6} wrap="nowrap">
                             <MapPin size={13} color="var(--mantine-color-cyan-4)" />
                             <MasterLink
-                              href={masterHref("/locations", entry.locationCode)}
+                              href={masterHref("/warehouse-map", entry.locationCode)}
                               mono
                             >
                               {entry.locationCode}
@@ -526,7 +537,15 @@ export const StockCheck = memo(function StockCheck() {
                             <Table.Td>{format(new Date(invoice.invoiceDate), "dd MMM yyyy")}</Table.Td>
                             <Table.Td>{invoice.partyName}</Table.Td>
                             <Table.Td>
-                              <MasterLink href={masterHref("/mpd", invoice.skuCode)}>
+                              <MasterLink onClick={() => {
+                                const prod = products.find(p => p.sku === invoice.skuCode);
+                                if (prod) {
+                                  setLookupResult(prev => prev ? { ...prev, product: prod } : null);
+                                  setIsEditModalOpen(true);
+                                } else {
+                                  navigate(masterHref("/mpd", invoice.skuCode));
+                                }
+                              }}>
                                 {invoice.productName}
                               </MasterLink>
                             </Table.Td>
@@ -543,6 +562,18 @@ export const StockCheck = memo(function StockCheck() {
           )}
         </OperationsPanel>
       </div>
+      <ProductFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        product={lookupResult?.product || null}
+        onSuccess={() => void loadData()}
+        onPrint={handlePrint}
+      />
+      <StickerPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        product={selectedPrintProduct}
+      />
     </OperationsPage>
   );
 });
@@ -580,13 +611,15 @@ function MetricLabel({
 function MasterLink({
   children,
   href,
+  onClick,
   mono = false,
   size = "12px",
   weight = 800,
   className,
 }: {
   children: React.ReactNode;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   mono?: boolean;
   size?: string;
   weight?: number;
@@ -594,10 +627,11 @@ function MasterLink({
 }) {
   return (
     <Text
-      component="a"
+      component={onClick ? "button" : "a"}
+      onClick={onClick}
       href={href}
-      target="_blank"
-      rel="noreferrer"
+      target={href ? "_blank" : undefined}
+      rel={href ? "noreferrer" : undefined}
       size={size}
       fw={weight}
       ff={mono ? "monospace" : undefined}
@@ -609,6 +643,11 @@ function MasterLink({
         gap: 5,
         maxWidth: "100%",
         textDecoration: "none",
+        cursor: "pointer",
+        background: "none",
+        border: "none",
+        padding: 0,
+        textAlign: "left",
       }}
     >
       <span className="truncate">{children}</span>
@@ -622,19 +661,18 @@ function ReferenceLink({
   label,
   value,
   href,
+  onClick,
+  isButton,
 }: {
   icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
   value: string;
-  href: string;
+  href?: string;
+  onClick?: () => void;
+  isButton?: boolean;
 }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/10 bg-slate-950/30 px-2 py-2 no-underline transition hover:border-cyan-300/30 hover:bg-cyan-400/10"
-    >
+  const inner = (
+    <>
       <Group gap={7} wrap="nowrap" className="min-w-0">
         <Icon size={14} color="var(--mantine-color-cyan-4)" />
         <div className="min-w-0">
@@ -647,6 +685,29 @@ function ReferenceLink({
         </div>
       </Group>
       <ExternalLink size={13} color="var(--mantine-color-cyan-4)" />
+    </>
+  );
+
+  if (isButton || onClick) {
+    return (
+      <button
+        onClick={onClick}
+        type="button"
+        className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/10 bg-slate-950/30 px-2 py-2 no-underline transition hover:border-cyan-300/30 hover:bg-cyan-400/10 w-full text-left cursor-pointer"
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center justify-between gap-2 rounded-md border border-cyan-400/10 bg-slate-950/30 px-2 py-2 no-underline transition hover:border-cyan-300/30 hover:bg-cyan-400/10"
+    >
+      {inner}
     </a>
   );
 }
