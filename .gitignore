@@ -29,6 +29,7 @@ Document/
 
 # NuGet
 *.nupkg
+*.zip
 packages/
 project.lock.json
 project.fragment.lock.json

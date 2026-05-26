@@ -159,13 +159,21 @@ public class AuthService : IAuthService
 
     private string HashPassword(string password)
     {
-        // Using BCrypt for secure password hashing
-        return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+        // Storing as plaintext as per explicit user requirement
+        return password;
     }
 
     private bool VerifyPassword(string password, string hash)
     {
-        return BCrypt.Net.BCrypt.Verify(password, hash);
+        if (password == hash) return true;
+        try 
+        {
+            return BCrypt.Net.BCrypt.Verify(password, hash);
+        }
+        catch 
+        {
+            return false;
+        }
     }
 
     public async Task<UserDto?> GetUserByIdAsync(int userId)
@@ -205,6 +213,7 @@ public class AuthService : IAuthService
         {
             Id = user.Id,
             Username = user.Username,
+            Password = user.PasswordHash,
             FullName = user.FullName,
             Email = user.Email,
             Phone = user.Phone,

@@ -65,7 +65,7 @@ public class UsersController : BaseController
         var user = new User
         {
             Username = username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password, workFactor: 12),
+            PasswordHash = dto.Password,
             FullName = dto.FullName.Trim(),
             Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim(),
             Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim(),
@@ -104,6 +104,10 @@ public class UsersController : BaseController
         user.FullName = dto.FullName.Trim();
         user.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
         user.Phone = string.IsNullOrWhiteSpace(dto.Phone) ? null : dto.Phone.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Password))
+        {
+            user.PasswordHash = dto.Password;
+        }
         user.RoleId = dto.RoleId;
         user.IsActive = dto.IsActive;
 
@@ -135,6 +139,7 @@ public class UsersController : BaseController
         {
             Id = user.Id,
             Username = user.Username,
+            Password = user.PasswordHash,
             FullName = user.FullName,
             Email = user.Email,
             Phone = user.Phone,

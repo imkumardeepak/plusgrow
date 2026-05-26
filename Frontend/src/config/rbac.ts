@@ -42,14 +42,14 @@ export const SYSTEM_PAGES = [
   { key: "commodities", label: "Commodities", path: "/commodities", group: "Master Data", icon: Layers },
   { key: "bins", label: "Bin Master", path: "/bins", group: "Master Data", icon: Box },
   { key: "locations", label: "Location Master", path: "/locations", group: "Master Data", icon: MapPin },
-  { key: "mpd", label: "Products", path: "/mpd", group: "Master Data", icon: Box },
+  { key: "mpd", label: "Products", path: "/mpd", group: "Inventory", icon: Box },
   { key: "sticker-printer-config", label: "Printer Config", path: "/sticker-printer-config", group: "Master Data", icon: Printer },
   { key: "stock-check", label: "Stock Check", path: "/stock-check", group: "Inventory", icon: ClipboardCheck },
   { key: "stock-movement", label: "Stock Movement", path: "/stock-movement", group: "Inventory", icon: Move },
   { key: "warehouse-map", label: "Warehouse Map", path: "/warehouse-map", group: "Inventory", icon: Map },
   { key: "role-master", label: "Role Master", path: "/role-master", group: "Security", icon: ShieldCheck },
   { key: "user-master", label: "User Master", path: "/user-master", group: "Security", icon: UserCog },
-  { key: "profile", label: "My Profile", path: "/profile", group: "Account", icon: UserCog },
+  { key: "profile", label: "My Profile", path: "/profile", group: "Security", icon: UserCog },
 ] as const;
 
 export const PAGE_KEY_BY_PATH = SYSTEM_PAGES.reduce<Record<string, string>>(

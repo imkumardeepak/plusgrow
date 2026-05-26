@@ -11,6 +11,7 @@ import {
   Stack,
   Text,
   TextInput,
+  PasswordInput,
   Tooltip,
 } from "@mantine/core";
 import { Edit2, Plus, RefreshCw, Search, Trash2, UserCog } from "lucide-react";
@@ -134,6 +135,7 @@ export const UserMaster = memo(function UserMaster() {
       phone: user.phone || "",
       roleId: user.roleId || null,
       isActive: user.isActive,
+      password: "",
     });
     setUserModalOpen(true);
   };
@@ -161,7 +163,7 @@ export const UserMaster = memo(function UserMaster() {
         await usersApi.update(editingUser.id, {
           ...formData,
           username: editingUser.username,
-          password: undefined,
+          password: formData.password || undefined,
         });
         toast.success("User updated");
       } else {
@@ -220,6 +222,17 @@ export const UserMaster = memo(function UserMaster() {
         </div>
       ),
       width: 240,
+    },
+    {
+      key: "password",
+      header: "Password",
+      sortable: false,
+      render: (row) => (
+        <Text size="11px" ff="monospace" fw={600}>
+          {row.password || "********"}
+        </Text>
+      ),
+      width: 120,
     },
     {
       key: "role",
@@ -445,17 +458,16 @@ export const UserMaster = memo(function UserMaster() {
                       setFormData((current) => ({ ...current, username }));
                     }}
                   />
-                  {!editingUser ? (
-                    <TextInput
-                      label="Password"
-                      type="password"
-                      value={formData.password || ""}
-                      onChange={(event) => {
-                        const password = event.currentTarget.value;
-                        setFormData((current) => ({ ...current, password }));
-                      }}
-                    />
-                  ) : (
+                  <TextInput
+                    label={editingUser ? "New Password" : "Password"}
+                    description={editingUser ? "Leave blank to keep existing password" : ""}
+                    value={formData.password || ""}
+                    onChange={(event) => {
+                      const password = event.currentTarget.value;
+                      setFormData((current) => ({ ...current, password }));
+                    }}
+                  />
+                  {editingUser ? (
                     <Select
                       label="Status"
                       data={[
@@ -470,7 +482,7 @@ export const UserMaster = memo(function UserMaster() {
                         }))
                       }
                     />
-                  )}
+                  ) : null}
                   <TextInput
                     label="Full Name"
                     value={formData.fullName}

@@ -67,7 +67,6 @@ const navGroups: NavGroup[] = [
       { to: "/commodities", icon: Layers, label: "Commodities" },
       { to: "/bins", icon: Box, label: "Bin Master" },
       { to: "/locations", icon: MapPin, label: "Location Master" },
-      { to: "/mpd", icon: Package, label: "Products" },
     ],
   },
   {
@@ -89,13 +88,14 @@ const navGroups: NavGroup[] = [
   {
     label: "Inventory",
     items: [
+      { to: "/mpd", icon: Package, label: "Products" },
       { to: "/stock-check", icon: ClipboardCheck, label: "Stock Check" },
       { to: "/stock-movement", icon: Move, label: "Stock Movement" },
       { to: "/warehouse-map", icon: Map, label: "Warehouse Map" },
     ],
   },
   {
-    label: "Account",
+    label: "Security",
     items: [{ to: "/profile", icon: User, label: "My Profile" }],
   },
 ];

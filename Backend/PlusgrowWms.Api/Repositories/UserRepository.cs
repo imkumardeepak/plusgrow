@@ -43,7 +43,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         return await _dbSet
             .Include(u => u.Role)
                 .ThenInclude(r => r!.RolePageAccesses)
-            .FirstOrDefaultAsync(u => u.Username == username);
+            .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
     }
 
     public async Task<User> CreateAsync(User user)

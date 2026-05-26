@@ -86,12 +86,6 @@ export const navigationGroups: NavGroup[] = [
         href: "/locations",
       },
       {
-        id: "mpd",
-        label: "Products",
-        icon: BoxIcon,
-        href: "/mpd",
-      },
-      {
         id: "sticker-printer-config",
         label: "Printer Config",
         icon: Printer,
@@ -155,6 +149,12 @@ export const navigationGroups: NavGroup[] = [
     icon: ClipboardCheck,
     items: [
       {
+        id: "mpd",
+        label: "Products",
+        icon: BoxIcon,
+        href: "/mpd",
+      },
+      {
         id: "stock-check",
         label: "Stock Check",
         icon: ClipboardCheck,
@@ -175,9 +175,9 @@ export const navigationGroups: NavGroup[] = [
     ],
   },
   {
-    id: "account",
-    label: "Account",
-    icon: User,
+    id: "security",
+    label: "Security",
+    icon: ShieldCheck,
     items: [
       {
         id: "profile",
@@ -185,13 +185,6 @@ export const navigationGroups: NavGroup[] = [
         icon: User,
         href: "/profile",
       },
-    ],
-  },
-  {
-    id: "security",
-    label: "Security",
-    icon: ShieldCheck,
-    items: [
       {
         id: "role-master",
         label: "Role Master",

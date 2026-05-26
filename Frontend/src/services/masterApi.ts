@@ -160,6 +160,7 @@ export interface UserRecord {
   roleId?: number | null;
   roleName?: string | null;
   isActive: boolean;
+  password?: string;
   createdAt: string;
   lastLoginAt?: string | null;
   pageAccesses: RolePageAccessRecord[];
