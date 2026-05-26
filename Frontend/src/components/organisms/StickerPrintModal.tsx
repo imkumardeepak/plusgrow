@@ -69,11 +69,11 @@ export function StickerPrintModal({
   useEffect(() => {
     if (isOpen) {
       if (!initialManufacturers) {
-        manufacturersApi.getAll().then(setManufacturers).catch(() => {});
+        manufacturersApi.getAll().then(setManufacturers).catch(() => { });
       }
-      stickersApi.getTemplates().then(setTemplates).catch(() => {});
-      stickerPrinterConfigsApi.getAll().then(setPrinterConfigs).catch(() => {});
-      importersApi.getAll().then(setImporters).catch(() => {});
+      stickersApi.getTemplates().then(setTemplates).catch(() => { });
+      stickerPrinterConfigsApi.getAll().then(setPrinterConfigs).catch(() => { });
+      importersApi.getAll().then(setImporters).catch(() => { });
     }
   }, [isOpen, initialManufacturers]);
 
@@ -188,7 +188,7 @@ export function StickerPrintModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Print Product Stickers"
-      size="lg"
+      size="xxl"
     >
       {product ? (
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">

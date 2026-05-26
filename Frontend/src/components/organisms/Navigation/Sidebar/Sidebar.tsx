@@ -131,23 +131,19 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                   <Group gap={7} wrap="nowrap">
                     <group.icon
                       size={11}
-                      color={
-                        hasActiveItem
-                          ? "var(--mantine-color-cyan-4)"
-                          : "var(--mantine-color-dimmed)"
-                      }
+                      color="var(--mantine-color-white)"
                     />
                     <Text
                       size="10px"
                       tt="uppercase"
                       fw={700}
-                      c={hasActiveItem ? "cyan.4" : "dimmed"}
+                      c="white"
                       style={{ letterSpacing: "0.14em", lineHeight: 1.1 }}
                     >
                       {group.label}
                     </Text>
                   </Group>
-                  <ActionIcon size={24} variant="transparent" color="dimmed">
+                  <ActionIcon size={24} variant="transparent" color="white">
                     {isExpanded ? (
                       <ChevronDown size={13} />
                     ) : (
@@ -180,22 +176,27 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                             minHeight: 34,
                             paddingInline: 10,
                             borderRadius: 10,
-                            color:
-                              location.pathname === item.href
-                                ? "var(--mantine-color-cyan-0)"
-                                : "var(--mantine-color-gray-3)",
+                            color: "var(--mantine-color-white)",
                             background:
                               location.pathname === item.href
-                                ? "linear-gradient(90deg, rgba(23,185,236,0.22) 0%, rgba(10,139,191,0.18) 100%)"
+                                ? "linear-gradient(90deg, rgba(23,185,236,0.35) 0%, rgba(10,139,191,0.25) 100%)"
                                 : "transparent",
                             border:
                               location.pathname === item.href
-                                ? "1px solid rgba(30, 192, 243, 0.24)"
+                                ? "1px solid rgba(30, 192, 243, 0.4)"
                                 : "1px solid transparent",
+                            transform: location.pathname === item.href ? "translateX(4px)" : "none",
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              background: location.pathname === item.href 
+                                ? "linear-gradient(90deg, rgba(23,185,236,0.45) 0%, rgba(10,139,191,0.35) 100%)"
+                                : "rgba(255, 255, 255, 0.05)",
+                              color: "var(--mantine-color-white)"
+                            }
                           },
                           label: {
-                            fontWeight: 600,
-                            fontSize: "12px",
+                            fontWeight: location.pathname === item.href ? 700 : 600,
+                            fontSize: "13px",
                             lineHeight: 1.2,
                           },
                           description: {

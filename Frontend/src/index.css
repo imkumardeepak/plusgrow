@@ -100,6 +100,17 @@
   :root {
     color-scheme: dark;
   }
+  
+  :root, [data-mantine-color-scheme="dark"] {
+    /* Force all base text to be pure white */
+    --mantine-color-text: #ffffff !important;
+    /* Force dimmed text to be very light (85% white) instead of gray */
+    --mantine-color-dimmed: rgba(255, 255, 255, 0.85) !important;
+    /* Boost visibility of grays commonly used for text */
+    --mantine-color-gray-4: rgba(255, 255, 255, 0.9) !important;
+    --mantine-color-gray-5: rgba(255, 255, 255, 0.8) !important;
+    --mantine-color-gray-6: rgba(255, 255, 255, 0.7) !important;
+  }
 
   html {
     @apply bg-neutral-950;
