@@ -73,10 +73,11 @@ export function AuthShell({
         }}
       />
 
-      <Container size={1360} px={{ base: "md", md: "xl" }} py={{ base: "md", md: "xl" }}>
+      <Container size={1360} px={{ base: "md", md: "xl" }} py={{ base: "sm", md: "xl" }}>
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing={{ base: "lg", md: "xl" }}>
           <Paper
             radius="xl"
+            visibleFrom="lg"
             p={{ base: "lg", md: "xl" }}
             withBorder
             style={{
@@ -190,7 +191,7 @@ export function AuthShell({
 
           <Paper
             radius="xl"
-            p={{ base: "lg", md: "xl" }}
+            p={{ base: "md", sm: "lg", md: "xl" }}
             withBorder
             style={{
               background:
@@ -203,15 +204,15 @@ export function AuthShell({
               justifyContent: "center",
             }}
           >
-            <Stack gap="lg" maw={520} mx="auto" w="100%">
-              <Stack gap={6}>
-                <Badge variant="light" color="gray" radius="xl" w="fit-content">
+            <Stack gap={{ base: "md", sm: "lg" }} maw={520} mx="auto" w="100%">
+              <Stack gap={4}>
+                <Badge variant="light" color="gray" radius="xl" w="fit-content" visibleFrom="sm">
                   {badge}
                 </Badge>
-                <Title order={2} c="white" fw={850} style={{ letterSpacing: "-0.04em" }}>
+                <Title order={2} c="white" fw={850} className="text-xl sm:text-2xl lg:text-[28px]" style={{ letterSpacing: "-0.04em" }}>
                   {title}
                 </Title>
-                <Text size="sm" c="dimmed" style={{ lineHeight: 1.65 }}>
+                <Text size="sm" c="dimmed" style={{ lineHeight: 1.65 }} visibleFrom="sm">
                   {description}
                 </Text>
               </Stack>

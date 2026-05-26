@@ -3,15 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Alert,
   Anchor,
-  Badge,
   Button,
   Group,
   PasswordInput,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
-  ThemeIcon,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
@@ -19,20 +16,15 @@ import {
   IconAlertCircle,
   IconArrowRight,
   IconBuildingWarehouse,
-  IconCrown,
   IconDeviceDesktopAnalytics,
   IconLock,
   IconShieldCheck,
   IconUser,
 } from "@tabler/icons-react";
 import { useAuth } from "../context/AuthContext";
-import { SUPERADMIN_CONFIG } from "../config/superadmin";
 import { AuthShell } from "../components/organisms/Auth/AuthShell";
 
-const DEMO_CREDENTIALS = {
-  username: "admin",
-  password: "admin123",
-} as const;
+
 
 export function Login() {
   const [isLoading, setIsLoading] = useState(false);
@@ -77,18 +69,7 @@ export function Login() {
     setIsLoading(false);
   };
 
-  const handleQuickLogin = async (credentials: typeof DEMO_CREDENTIALS) => {
-    form.setValues(credentials);
-    setError("");
-    setIsLoading(true);
-    const result = await login(credentials);
-    if (result.success) {
-      navigate("/");
-    } else {
-      setError(result.message || "Quick login failed");
-    }
-    setIsLoading(false);
-  };
+
 
   return (
     <AuthShell
@@ -136,7 +117,7 @@ export function Login() {
       }
     >
       <form onSubmit={form.onSubmit(handleLogin)}>
-        <Stack gap="md">
+        <Stack gap={{ base: "xs", sm: "md" }}>
           {error ? (
             <Alert
               icon={<IconAlertCircle size={16} />}
@@ -152,15 +133,15 @@ export function Login() {
             label="Username"
             placeholder="operator_id"
             leftSection={<IconUser size={18} stroke={1.5} />}
-            size="lg"
+            size={{ base: "md", sm: "lg" }}
             radius="lg"
             styles={{
               input: {
-                minHeight: 50,
+                minHeight: 44,
                 backgroundColor: "rgba(255,255,255,0.03)",
                 borderColor: "rgba(255,255,255,0.1)",
               },
-              label: { marginBottom: 8, fontWeight: 600 },
+              label: { marginBottom: 4, fontWeight: 600 },
             }}
             {...form.getInputProps("username")}
           />
@@ -169,22 +150,22 @@ export function Login() {
             label="Password"
             placeholder="••••••••"
             leftSection={<IconLock size={18} stroke={1.5} />}
-            size="lg"
+            size={{ base: "md", sm: "lg" }}
             radius="lg"
             styles={{
               input: {
-                minHeight: 50,
+                minHeight: 44,
                 backgroundColor: "rgba(255,255,255,0.03)",
                 borderColor: "rgba(255,255,255,0.1)",
               },
-              label: { marginBottom: 8, fontWeight: 600 },
+              label: { marginBottom: 4, fontWeight: 600 },
             }}
             {...form.getInputProps("password")}
           />
 
           <Button
             type="submit"
-            size="lg"
+            size="md"
             radius="xl"
             fullWidth
             loading={isLoading}
@@ -193,7 +174,7 @@ export function Login() {
             rightSection={<IconArrowRight size={18} />}
             styles={{
               root: {
-                minHeight: 52,
+                minHeight: 44,
                 boxShadow: "0 8px 20px rgba(17, 167, 223, 0.3)",
               },
             }}
@@ -203,58 +184,7 @@ export function Login() {
         </Stack>
       </form>
 
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="nowrap">
-          <Text size="sm" fw={700} c="white">
-            Quick access
-          </Text>
-          <Badge variant="light" color="gray" radius="xl">
-            Demo
-          </Badge>
-        </Group>
 
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-          <Button
-            variant="outline"
-            color="orange"
-            radius="xl"
-            leftSection={<IconCrown size={18} />}
-            onClick={() =>
-              handleQuickLogin({
-                username: SUPERADMIN_CONFIG.username,
-                password: SUPERADMIN_CONFIG.password,
-              })
-            }
-            disabled={isLoading}
-            styles={{
-              root: {
-                minHeight: 46,
-                backgroundColor: "rgba(255, 146, 43, 0.05)",
-                borderColor: "rgba(255, 146, 43, 0.2)",
-              },
-            }}
-          >
-            Superadmin
-          </Button>
-
-          <Button
-            variant="outline"
-            color="gray"
-            radius="xl"
-            onClick={() => form.setValues(DEMO_CREDENTIALS)}
-            disabled={isLoading}
-            styles={{
-              root: {
-                minHeight: 46,
-                backgroundColor: "rgba(255,255,255,0.03)",
-                borderColor: "rgba(255,255,255,0.1)",
-              },
-            }}
-          >
-            Fill Demo User
-          </Button>
-        </SimpleGrid>
-      </Stack>
     </AuthShell>
   );
 }

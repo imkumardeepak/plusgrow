@@ -6,7 +6,6 @@ import {
   Badge,
   Box,
   Center,
-  Checkbox,
   Divider,
   FileInput,
   Group,
@@ -106,7 +105,6 @@ export const MPD = memo(function MPD() {
     bestBeforeMonths: 12,
   });
 
-  const [selectedSkus, setSelectedSkus] = useState<string[]>([]);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [updateFields, setUpdateFields] = useState<string[]>([]);
   const [updateFile, setUpdateFile] = useState<File | null>(null);
@@ -163,7 +161,6 @@ export const MPD = memo(function MPD() {
       setTemplates(templateData);
       setPrinterConfigs(configData);
       setImporters(importerData);
-      setSelectedSkus([]); // Reset selection when data reloads
     } catch (error: any) {
       toast.error(error.message || "Failed to load data");
     } finally {
@@ -171,26 +168,31 @@ export const MPD = memo(function MPD() {
     }
   };
 
-  const toggleSkuSelection = useCallback((sku: string | undefined) => {
-    if (!sku) return;
-    setSelectedSkus(prev => 
-      prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]
-    );
-  }, []);
-
-  const toggleAllSelection = useCallback((skus: string[]) => {
-    setSelectedSkus(prev => 
-      prev.length === skus.length ? [] : [...skus]
-    );
-  }, []);
-
   const handleDownloadUpdateTemplate = () => {
-    if (selectedSkus.length === 0 || updateFields.length === 0) {
-      toast.error("Please select products and fields to update");
+    if (updateFields.length === 0) {
+      toast.error("Please select fields to update");
       return;
     }
-    const selectedProductsData = products.filter(p => p.sku && selectedSkus.includes(p.sku));
-    productsApi.downloadUpdateTemplate(selectedProductsData, updateFields);
+    // Update all filtered products to match current view
+    const productsToUpdate = products.filter((p) => {
+      const query = search.toLowerCase().trim();
+      const matchesSearch =
+        !query ||
+        p.name.toLowerCase().includes(query) ||
+        (p.sku || "").toLowerCase().includes(query) ||
+        (p.alias || "").toLowerCase().includes(query) ||
+        (p.manufacturer?.name || "").toLowerCase().includes(query) ||
+        (p.commodity?.name || "").toLowerCase().includes(query);
+
+      const matchesFilter =
+        filterMode === "all" ||
+        (filterMode === "mapped" && (p.manufacturerId || p.commodityId)) ||
+        (filterMode === "unpriced" && Number(p.mrp || 0) <= 0);
+
+      return matchesSearch && matchesFilter;
+    });
+
+    productsApi.downloadUpdateTemplate(productsToUpdate, updateFields);
     toast.success("Template downloaded successfully");
   };
 
@@ -210,7 +212,6 @@ export const MPD = memo(function MPD() {
       setIsUpdateModalOpen(false);
       setUpdateFile(null);
       setUpdateFields([]);
-      setSelectedSkus([]);
       loadData();
     } catch (error: any) {
       toast.error(error.message || "Failed to update from Excel");
@@ -573,29 +574,6 @@ export const MPD = memo(function MPD() {
 
   const columns: DataTableColumn<Product>[] = [
     {
-      key: "select",
-      header: (
-        <Checkbox
-          size="xs"
-          checked={selectedSkus.length > 0 && selectedSkus.length === filteredProducts.length}
-          indeterminate={selectedSkus.length > 0 && selectedSkus.length < filteredProducts.length}
-          onChange={() => toggleAllSelection(filteredProducts.map(p => p.sku || "").filter(Boolean))}
-          aria-label="Select all rows"
-        />
-      ),
-      render: (row) => (
-        <Checkbox
-          size="xs"
-          checked={row.sku ? selectedSkus.includes(row.sku) : false}
-          onChange={() => toggleSkuSelection(row.sku)}
-          aria-label={`Select ${row.sku}`}
-        />
-      ),
-      width: 40,
-      align: "center",
-      sortable: false,
-    },
-    {
       key: "sku",
       header: "SKU",
       sortable: true,
@@ -816,16 +794,14 @@ export const MPD = memo(function MPD() {
             icon={Package}
             action={
               <Group gap="xs" wrap="nowrap">
-                {selectedSkus.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsUpdateModalOpen(true)}
-                    leftIcon={<Edit2 size={16} />}
-                  >
-                    Update {selectedSkus.length} via Excel
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsUpdateModalOpen(true)}
+                  leftIcon={<Edit2 size={16} />}
+                >
+                  Bulk Update via Excel
+                </Button>
                 <Badge size="sm" radius="md" variant="light" color="gray">
                   {products.length} products
                 </Badge>
@@ -899,7 +875,7 @@ export const MPD = memo(function MPD() {
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Updating {selectedSkus.length} selected products. Select the fields you want to change, download the pre-filled template, edit it, and upload the updated file.
+            Updating {filteredProducts.length} filtered products. Select the fields you want to change, download the pre-filled template, edit it, and upload the updated file.
           </Text>
 
           <MultiSelect
