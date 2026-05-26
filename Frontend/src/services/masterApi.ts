@@ -650,7 +650,7 @@ export const productsApi = {
   delete: async (id: number): Promise<void> => {
     await api.delete(`/products/${id}`);
   },
-  
+
   uploadExcel: async (file: File): Promise<ProductUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -661,6 +661,59 @@ export const productsApi = {
       },
     });
     return response.data.data!;
+  },
+
+  updateFromExcel: async (file: File): Promise<ProductUploadResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await api.post<ApiResponse<ProductUploadResult>>('/products/update-excel', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating from file');
+    return response.data.data!;
+  },
+
+  downloadUpdateTemplate: (products: Product[], selectedFields: string[]): void => {
+    const wb = XLSX.utils.book_new();
+    
+    // Build rows with SKU as the first column and the selected fields
+    const templateData = products.map(product => {
+      const row: any = { 'SKU': product.sku };
+      
+      selectedFields.forEach(field => {
+        switch(field) {
+          case 'MRP': row['MRP'] = product.mrp ?? ''; break;
+          case 'Weight': row['Weight'] = product.weight ?? ''; break;
+          case 'Alias': row['Alias'] = product.alias ?? ''; break;
+          case 'Product Name': row['Product Name'] = product.name ?? ''; break;
+          case 'Manufacturer Name': row['Manufacturer Name'] = product.manufacturer?.name ?? ''; break;
+          case 'Commodity Name': row['Commodity Name'] = product.commodity?.name ?? ''; break;
+          case 'Country of Origin': row['Country of Origin'] = product.countryOfOrigin ?? ''; break;
+          case 'Unit Type': row['Unit Type'] = product.unitType ?? ''; break;
+          case 'USSP': row['USSP'] = product.ussp ?? ''; break;
+          case 'Net Qnty': row['Net Qnty'] = product.netQuantity ?? ''; break;
+          case 'Factor': row['Factor'] = product.factor ?? ''; break;
+          case 'Best Before (Months)': row['Best Before (Months)'] = product.bestBeforeMonths ?? ''; break;
+          case 'Product Type': row['Product Type'] = product.productType ?? ''; break;
+        }
+      });
+      
+      return row;
+    });
+    
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    
+    // Auto-size columns based on header length or a default
+    ws['!cols'] = [
+      { wch: 20 }, // SKU
+      ...selectedFields.map(() => ({ wch: 15 })) // Default width for others
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Update Template');
+    XLSX.writeFile(wb, 'Product_Update_Template.xlsx');
   },
   
   downloadTemplate: (): void => {

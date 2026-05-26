@@ -6,10 +6,13 @@ import {
   Badge,
   Box,
   Center,
+  Checkbox,
   Divider,
+  FileInput,
   Group,
   Image,
   Loader,
+  MultiSelect,
   NumberInput,
   Paper,
   Radio,
@@ -103,6 +106,12 @@ export const MPD = memo(function MPD() {
     bestBeforeMonths: 12,
   });
 
+  const [selectedSkus, setSelectedSkus] = useState<string[]>([]);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateFields, setUpdateFields] = useState<string[]>([]);
+  const [updateFile, setUpdateFile] = useState<File | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // Sticker print state
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
     [],
@@ -154,10 +163,59 @@ export const MPD = memo(function MPD() {
       setTemplates(templateData);
       setPrinterConfigs(configData);
       setImporters(importerData);
-    } catch {
-      toast.error("Failed to load data");
+      setSelectedSkus([]); // Reset selection when data reloads
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load data");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const toggleSkuSelection = useCallback((sku: string | undefined) => {
+    if (!sku) return;
+    setSelectedSkus(prev => 
+      prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]
+    );
+  }, []);
+
+  const toggleAllSelection = useCallback((skus: string[]) => {
+    setSelectedSkus(prev => 
+      prev.length === skus.length ? [] : [...skus]
+    );
+  }, []);
+
+  const handleDownloadUpdateTemplate = () => {
+    if (selectedSkus.length === 0 || updateFields.length === 0) {
+      toast.error("Please select products and fields to update");
+      return;
+    }
+    const selectedProductsData = products.filter(p => p.sku && selectedSkus.includes(p.sku));
+    productsApi.downloadUpdateTemplate(selectedProductsData, updateFields);
+    toast.success("Template downloaded successfully");
+  };
+
+  const handleUpdateFromExcel = async () => {
+    if (!updateFile) {
+      toast.error("Please select a file to upload");
+      return;
+    }
+
+    try {
+      setIsUpdating(true);
+      const result = await productsApi.updateFromExcel(updateFile);
+      toast.success(`Successfully updated ${result.importedCount} products`);
+      if (result.errors && result.errors.length > 0) {
+        result.errors.forEach((err) => toast.error(err));
+      }
+      setIsUpdateModalOpen(false);
+      setUpdateFile(null);
+      setUpdateFields([]);
+      setSelectedSkus([]);
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update from Excel");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -515,6 +573,29 @@ export const MPD = memo(function MPD() {
 
   const columns: DataTableColumn<Product>[] = [
     {
+      key: "select",
+      header: (
+        <Checkbox
+          size="xs"
+          checked={selectedSkus.length > 0 && selectedSkus.length === filteredProducts.length}
+          indeterminate={selectedSkus.length > 0 && selectedSkus.length < filteredProducts.length}
+          onChange={() => toggleAllSelection(filteredProducts.map(p => p.sku || "").filter(Boolean))}
+          aria-label="Select all rows"
+        />
+      ),
+      render: (row) => (
+        <Checkbox
+          size="xs"
+          checked={row.sku ? selectedSkus.includes(row.sku) : false}
+          onChange={() => toggleSkuSelection(row.sku)}
+          aria-label={`Select ${row.sku}`}
+        />
+      ),
+      width: 40,
+      align: "center",
+      sortable: false,
+    },
+    {
       key: "sku",
       header: "SKU",
       sortable: true,
@@ -735,6 +816,16 @@ export const MPD = memo(function MPD() {
             icon={Package}
             action={
               <Group gap="xs" wrap="nowrap">
+                {selectedSkus.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsUpdateModalOpen(true)}
+                    leftIcon={<Edit2 size={16} />}
+                  >
+                    Update {selectedSkus.length} via Excel
+                  </Button>
+                )}
                 <Badge size="sm" radius="md" variant="light" color="gray">
                   {products.length} products
                 </Badge>
@@ -794,6 +885,81 @@ export const MPD = memo(function MPD() {
           </OperationsPanel>
         </Stack>
       </OperationsPage>
+
+      {/* Update via Excel Modal */}
+      <Modal
+        isOpen={isUpdateModalOpen}
+        onClose={() => {
+          setIsUpdateModalOpen(false);
+          setUpdateFields([]);
+          setUpdateFile(null);
+        }}
+        title="Update Products via Excel"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Updating {selectedSkus.length} selected products. Select the fields you want to change, download the pre-filled template, edit it, and upload the updated file.
+          </Text>
+
+          <MultiSelect
+            label="Fields to Update"
+            description="Select one or more columns you want to modify."
+            placeholder="Select fields"
+            data={[
+              "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
+              "Commodity Name", "Country of Origin", "Unit Type", "USSP",
+              "Net Qnty", "Factor", "Best Before (Months)", "Product Type"
+            ]}
+            value={updateFields}
+            onChange={setUpdateFields}
+            searchable
+            clearable
+          />
+
+          <Group grow>
+            <Button
+              variant="outline"
+              onClick={handleDownloadUpdateTemplate}
+              leftIcon={<Download size={16} />}
+              disabled={updateFields.length === 0}
+            >
+              Download Pre-filled Template
+            </Button>
+          </Group>
+
+          <Divider my="sm" label="Then upload your changes" labelPosition="center" />
+
+          <FileInput
+            label="Updated Excel File"
+            placeholder="Click to select file"
+            accept=".xlsx,.xls"
+            value={updateFile}
+            onChange={setUpdateFile}
+            icon={<FileSpreadsheet size={16} />}
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsUpdateModalOpen(false);
+                setUpdateFields([]);
+                setUpdateFile(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateFromExcel}
+              loading={isUpdating}
+              disabled={!updateFile}
+            >
+              Update Products
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         isOpen={isModalOpen}
