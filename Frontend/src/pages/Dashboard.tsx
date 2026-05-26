@@ -8,6 +8,7 @@ import {
   Center,
   Grid,
   Group,
+  Loader,
   Paper,
   Progress,
   RingProgress,
@@ -17,7 +18,9 @@ import {
   Stack,
   Table,
   Text,
+  TextInput,
   ThemeIcon,
+  Title,
   Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
@@ -112,6 +115,8 @@ export const Dashboard = memo(function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isSmallDevice = useMediaQuery("(max-width: 48em)");
+
+
 
   useEffect(() => {
     let isMounted = true;
@@ -297,6 +302,17 @@ export const Dashboard = memo(function Dashboard() {
     () =>
       [
         {
+          key: "bin-movement",
+          title: "Bin Movement",
+          description: "Scan location and relocate bins.",
+          icon: IconMapPin,
+          color: "indigo",
+          href: "/bin-movement",
+          visible:
+            hasPermission("locations", "view") ||
+            hasPermission("bins", "view"),
+        },
+        {
           key: "putaway",
           title: "Put Away",
           description: "Scan and confirm inward stock placement.",
@@ -361,32 +377,7 @@ export const Dashboard = memo(function Dashboard() {
   if (isPickingRole && isSmallDevice) {
     return (
       <Stack gap="md">
-        <Paper
-          p="md"
-          withBorder
-          radius="md"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(10, 139, 191, 0.14), rgba(8, 14, 25, 0.82))",
-            borderColor: "rgba(34, 211, 238, 0.16)",
-          }}
-        >
-          <Group justify="space-between" align="flex-start" gap="md">
-            <Box>
-              <Text fw={900} size="lg" c="white">
-                Device Launcher
-              </Text>
-              <Text size="sm" c="dimmed" mt={4}>
-                Quick access for small-screen picking operations.
-              </Text>
-            </Box>
-            <Badge variant="light" color="cyan">
-              Picking Role
-            </Badge>
-          </Group>
-        </Paper>
-
-        <SimpleGrid cols={1} gap="md">
+        <SimpleGrid cols={2} gap="sm">
           {mobileLauncherCards.map((card, index) => (
             <motion.div
               key={card.key}
@@ -398,30 +389,31 @@ export const Dashboard = memo(function Dashboard() {
                 <Card
                   withBorder
                   radius="md"
-                  p="lg"
+                  p="sm"
                   style={{
                     background:
                       "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
                     borderColor: "rgba(148, 163, 184, 0.12)",
+                    height: "100%",
                   }}
                 >
-                  <Group justify="space-between" align="flex-start" mb="md">
+                  <Group justify="space-between" align="center" mb="xs">
                     <ThemeIcon
                       color={card.color}
                       variant="light"
-                      size={48}
+                      size={32}
                       radius="md"
                     >
-                      <card.icon size={24} />
+                      <card.icon size={16} />
                     </ThemeIcon>
-                    <Badge variant="light" color={card.color}>
+                    <Badge variant="light" color={card.color} size="xs">
                       Open
                     </Badge>
                   </Group>
-                  <Text size="lg" fw={900} c="white">
+                  <Text size="sm" fw={800} c="white">
                     {card.title}
                   </Text>
-                  <Text size="sm" c="dimmed" mt={6}>
+                  <Text size="10px" c="dimmed" mt={4} lineClamp={1}>
                     {card.description}
                   </Text>
                 </Card>

@@ -31,6 +31,7 @@ const Manufacturers = lazy(() => import("./pages/Manufacturers"));
 const Commodities = lazy(() => import("./pages/Commodities"));
 const Bins = lazy(() => import("./pages/Bins"));
 const Locations = lazy(() => import("./pages/Locations"));
+const BinMovement = lazy(() => import("./pages/BinMovement"));
 const MPD = lazy(() => import("./pages/MPD"));
 const StickerPrinterConfigMaster = lazy(
   () => import("./pages/StickerPrinterConfigMaster"),
@@ -83,7 +84,7 @@ const PermissionRoute = ({
   pageKey,
   children,
 }: {
-  pageKey: string;
+  pageKey: string | string[];
   children: React.ReactNode;
 }) => {
   const { hasPermission, isLoading } = useAuth();
@@ -92,14 +93,17 @@ const PermissionRoute = ({
     return <PageLoader message="Checking permissions…" />;
   }
 
-  if (!hasPermission(pageKey, "view")) {
+  const keys = Array.isArray(pageKey) ? pageKey : [pageKey];
+  const hasAccess = keys.some((key) => hasPermission(key, "view"));
+
+  if (!hasAccess) {
     return <UnauthorizedModal />;
   }
 
   return <>{children}</>;
 };
 
-const pageElement = (pageKey: string, children: React.ReactNode) => (
+const pageElement = (pageKey: string | string[], children: React.ReactNode) => (
   <PermissionRoute pageKey={pageKey}>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </PermissionRoute>
@@ -225,6 +229,10 @@ export default function App() {
                     <Route
                       path="locations"
                       element={pageElement("locations", <Locations />)}
+                    />
+                    <Route
+                      path="bin-movement"
+                      element={pageElement(["locations", "bins"], <BinMovement />)}
                     />
                     <Route path="mpd" element={pageElement("mpd", <MPD />)} />
                     <Route

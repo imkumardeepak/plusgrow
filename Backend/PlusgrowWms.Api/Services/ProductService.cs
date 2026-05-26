@@ -56,6 +56,8 @@ public class ProductService : IProductService
         existing.Ussp = product.Ussp;
         existing.Mrp = product.Mrp;
         existing.BestBeforeMonths = product.BestBeforeMonths;
+        existing.Weight = product.Weight;
+        existing.ProductType = product.ProductType;
 
         await _repository.SaveChangesAsync();
         return (await _repository.GetByIdWithDetailsAsync(id), null);

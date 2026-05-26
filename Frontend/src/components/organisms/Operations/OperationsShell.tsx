@@ -203,6 +203,7 @@ interface OperationsPanelProps {
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
+  hideHeader?: boolean;
 }
 
 export function OperationsPanel({
@@ -213,6 +214,7 @@ export function OperationsPanel({
   children,
   className,
   contentClassName,
+  hideHeader = false,
 }: OperationsPanelProps) {
   return (
     <Card
@@ -231,44 +233,46 @@ export function OperationsPanel({
         flexDirection: "column",
       }}
     >
-      <Box
-        px="md"
-        py="sm"
-        style={{
-          borderBottom: "1px solid rgba(255, 255, 255, 0.07)",
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)",
-        }}
-      >
-        <Group justify="space-between" align="center" gap="sm">
-          <Group gap="sm" wrap="nowrap">
-            <ThemeIcon
-              color="cyan"
-              variant="light"
-              radius="lg"
-              size="lg"
-              style={{
-                background: "rgba(30, 192, 243, 0.12)",
-                color: "var(--color-brand-200)",
-                border: "1px solid rgba(30, 192, 243, 0.18)",
-              }}
-            >
-              <Icon size={18} />
-            </ThemeIcon>
-            <Box style={{ minWidth: 0 }}>
-              <Text fw={700} size="sm" style={{ lineHeight: 1.2 }}>
-                {title}
-              </Text>
-              {description ? (
-                <Text size="11px" c="dimmed" mt={2} style={{ lineHeight: 1.4 }}>
-                  {description}
+      {!hideHeader && (
+        <Box
+          px="md"
+          py="sm"
+          style={{
+            borderBottom: "1px solid rgba(255, 255, 255, 0.07)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)",
+          }}
+        >
+          <Group justify="space-between" align="center" gap="sm">
+            <Group gap="sm" wrap="nowrap">
+              <ThemeIcon
+                color="cyan"
+                variant="light"
+                radius="lg"
+                size="lg"
+                style={{
+                  background: "rgba(30, 192, 243, 0.12)",
+                  color: "var(--color-brand-200)",
+                  border: "1px solid rgba(30, 192, 243, 0.18)",
+                }}
+              >
+                <Icon size={18} />
+              </ThemeIcon>
+              <Box style={{ minWidth: 0 }}>
+                <Text fw={700} size="sm" style={{ lineHeight: 1.2 }}>
+                  {title}
                 </Text>
-              ) : null}
-            </Box>
+                {description ? (
+                  <Text size="11px" c="dimmed" mt={2} style={{ lineHeight: 1.4 }}>
+                    {description}
+                  </Text>
+                ) : null}
+              </Box>
+            </Group>
+            {action ? <Box>{action}</Box> : null}
           </Group>
-          {action ? <Box>{action}</Box> : null}
-        </Group>
-      </Box>
+        </Box>
+      )}
       <Box
         p="md"
         flex={1}

@@ -579,11 +579,11 @@ export const MPD = memo(function MPD() {
       sortable: true,
       sortAccessor: (row) => row.sku,
       render: (row) => (
-        <Text 
-          size="11px" 
-          ff="monospace" 
-          c="blue.4" 
-          fw={700} 
+        <Text
+          size="11px"
+          ff="monospace"
+          c="blue.4"
+          fw={700}
           lineClamp={1}
           style={{ cursor: "pointer", textDecoration: "underline" }}
           onClick={() => openEditModal(row)}
@@ -941,7 +941,7 @@ export const MPD = memo(function MPD() {
         isOpen={isModalOpen}
         onClose={closeModal}
         title={isEditing ? "Edit Product" : "New Product"}
-        size="xl"
+        size="xxl"
         headerActions={
           isEditing ? (
             <>

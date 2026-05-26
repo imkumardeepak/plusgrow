@@ -10,6 +10,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import {
   Box as BoxIcon,
   CheckCircle2,
@@ -22,6 +23,7 @@ import {
   Search,
   Trash2,
   Upload,
+  ScanBarcode,
 } from "lucide-react";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
@@ -38,6 +40,7 @@ import { toast } from "../lib/toast";
 import { binsApi, Bin, CreateBinDto } from "../services/masterApi";
 
 export const Bins = memo(function Bins() {
+  const navigate = useNavigate();
   const [bins, setBins] = useState<Bin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -305,6 +308,14 @@ export const Bins = memo(function Bins() {
                   onClick={() => setIsUploadModalOpen(true)}
                 >
                   Import Excel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<ScanBarcode size={14} />}
+                  onClick={() => navigate("/bin-movement")}
+                >
+                  Bin Movement
                 </Button>
                 <Button
                   size="sm"
