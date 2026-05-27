@@ -18,7 +18,9 @@ import {
   SimpleGrid,
   Text,
   TextInput,
+  SegmentedControl,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import confetti from "canvas-confetti";
 
 import { Button } from "../components/atoms/Button";
@@ -71,6 +73,10 @@ const emptyAdjustmentForm: CreateStockAdjustmentDto = {
 };
 
 export const StockMovement = memo(function StockMovement() {
+  const isMobile = useMediaQuery("(max-width: 48em)");
+  const [activeTab, setActiveTab] = useState<"adjust" | "ledger" | "history">(
+    "adjust",
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [allottedLocations, setAllottedLocations] = useState<
     ProductAllottedLocationRecord[]
@@ -483,321 +489,414 @@ export const StockMovement = memo(function StockMovement() {
         { label: "Movement Entries", value: movements.length, tone: "default" },
       ]}
     >
+      {isMobile && (
+        <div className="mb-2">
+          <SegmentedControl
+            fullWidth
+            value={activeTab}
+            onChange={(value) => setActiveTab(value as any)}
+            data={[
+              { label: "Adjust Stock", value: "adjust" },
+              { label: "Stock Ledger", value: "ledger" },
+              { label: "History", value: "history" },
+            ]}
+            color="cyan"
+            radius="md"
+          />
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col gap-3 min-h-0">
-        <OperationsPanel
-          title="Filters"
-          icon={Move}
-          description="Select product, location, and quantity delta to post a movement."
-        >
-          <form onSubmit={handleAdjust} className="space-y-4">
-            <SimpleGrid cols={{ base: 1, md: 2, xl: 5 }} spacing="md">
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={5}>
-                  PRODUCT
-                </Text>
-                <Select
-                  size="sm"
-                  radius="md"
-                  searchable
-                  placeholder="Select SKU / Product"
-                  data={productOptions}
-                  value={
-                    adjustmentForm.productId > 0
-                      ? String(adjustmentForm.productId)
-                      : null
-                  }
-                  onChange={(value) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      productId: value ? Number(value) : 0,
-                      locationCode: "",
-                    }))
-                  }
-                  nothingFoundMessage="No product found"
-                />
-              </Box>
-
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={5}>
-                  LOCATION
-                </Text>
-                <Select
-                  size="sm"
-                  radius="md"
-                  searchable
-                  placeholder={
-                    adjustmentForm.productId > 0
-                      ? "Select allotted location"
-                      : "Select product first"
-                  }
-                  data={locationOptions}
-                  value={adjustmentForm.locationCode || null}
-                  onChange={(value) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      locationCode: value || "",
-                    }))
-                  }
-                  disabled={
-                    adjustmentForm.productId <= 0 || locationOptions.length === 0
-                  }
-                  nothingFoundMessage="No allotted location found"
-                />
-              </Box>
-
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={5}>
-                  QUANTITY DELTA
-                </Text>
-                <Input
-                  type="number"
-                  size="sm"
-                  placeholder="Use + or -"
-                  value={
-                    adjustmentForm.quantityChange === 0
-                      ? ""
-                      : adjustmentForm.quantityChange
-                  }
-                  onChange={(event) => {
-                    const quantityValue = event.target.value;
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      quantityChange: quantityValue ? Number(quantityValue) : 0,
-                    }));
-                  }}
-                  leftElement={
-                    adjustmentForm.quantityChange > 0 ? (
-                      <ArrowUpRight size={14} />
-                    ) : adjustmentForm.quantityChange < 0 ? (
-                      <ArrowDownRight size={14} />
-                    ) : undefined
-                  }
-                  className="font-mono font-bold"
-                  fullWidth
-                />
-              </Box>
-
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={5}>
-                  REASON
-                </Text>
-                <Select
-                  size="sm"
-                  radius="md"
-                  data={adjustmentReasonOptions}
-                  value={adjustmentForm.reason}
-                  onChange={(value) =>
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      reason: value || current.reason,
-                    }))
-                  }
-                />
-              </Box>
-
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={5}>
-                  NOTES
-                </Text>
-                <TextInput
-                  size="sm"
-                  radius="md"
-                  placeholder="Optional remark"
-                  value={adjustmentForm.notes || ""}
-                  onChange={(event) => {
-                    const notes = event.currentTarget.value;
-                    setAdjustmentForm((current) => ({
-                      ...current,
-                      notes,
-                    }));
-                  }}
-                />
-              </Box>
-            </SimpleGrid>
-
-            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  CURRENT QTY.
-                </Text>
-                <Text mt={6} size="lg" fw={800} ff="monospace">
-                  {selectedLedgerRow?.currentQuantity ?? "-"}
-                </Text>
-              </Paper>
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  PROJECTED QTY.
-                </Text>
-                <Text
-                  mt={6}
-                  size="lg"
-                  fw={800}
-                  ff="monospace"
-                  c={
-                    projectedQuantity == null
-                      ? "white"
-                      : projectedQuantity < 0
-                        ? "red.3"
-                        : "green.3"
-                  }
-                >
-                  {projectedQuantity ?? "-"}
-                </Text>
-              </Paper>
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  LOCATION QTY.
-                </Text>
-                <Text mt={6} size="lg" fw={800} ff="monospace">
-                  {adjustmentForm.locationCode ? selectedLocationQuantity : "-"}
-                </Text>
-              </Paper>
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Text size="10px" fw={800} c="dimmed">
-                  LOCATION AFTER
-                </Text>
-                <Text
-                  mt={6}
-                  size="lg"
-                  fw={800}
-                  ff="monospace"
-                  c={
-                    projectedLocationQuantity == null
-                      ? "white"
-                      : projectedLocationQuantity < 0
-                        ? "red.3"
-                        : "green.3"
-                  }
-                >
-                  {projectedLocationQuantity ?? "-"}
-                </Text>
-              </Paper>
-            </SimpleGrid>
-
-            <Group justify="space-between" align="center">
-              <Paper
-                radius="lg"
-                p="sm"
-                withBorder
-                bg="rgba(245, 158, 11, 0.06)"
-                style={{ borderColor: "rgba(245, 158, 11, 0.16)", flex: 1 }}
-              >
-                <Group gap="sm" wrap="nowrap" align="flex-start">
-                  <AlertCircle size={16} color="var(--mantine-color-yellow-4)" />
-                  <Text size="xs" c="dimmed">
-                    Manual adjustments update live quantity immediately and create an audit entry.
+        {(!isMobile || activeTab === "adjust") && (
+          <OperationsPanel
+            title="Filters"
+            icon={Move}
+            description="Select product, location, and quantity delta to post a movement."
+            hideHeader={isMobile}
+          >
+            <form onSubmit={handleAdjust} className="space-y-4">
+              <SimpleGrid cols={{ base: 1, md: 2, xl: 5 }} spacing="md">
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed" mb={5}>
+                    PRODUCT
                   </Text>
-                </Group>
-              </Paper>
-              <Group gap="xs" wrap="nowrap">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
+                  <Select
+                    size="sm"
+                    radius="md"
+                    searchable
+                    placeholder="Select SKU / Product"
+                    data={productOptions}
+                    value={
+                      adjustmentForm.productId > 0
+                        ? String(adjustmentForm.productId)
+                        : null
+                    }
+                    onChange={(value) =>
+                      setAdjustmentForm((current) => ({
+                        ...current,
+                        productId: value ? Number(value) : 0,
+                        locationCode: "",
+                      }))
+                    }
+                    nothingFoundMessage="No product found"
+                  />
+                </Box>
+
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed" mb={5}>
+                    LOCATION
+                  </Text>
+                  <Select
+                    size="sm"
+                    radius="md"
+                    searchable
+                    placeholder={
+                      adjustmentForm.productId > 0
+                        ? "Select allotted location"
+                        : "Select product first"
+                    }
+                    data={locationOptions}
+                    value={adjustmentForm.locationCode || null}
+                    onChange={(value) =>
+                      setAdjustmentForm((current) => ({
+                        ...current,
+                        locationCode: value || "",
+                      }))
+                    }
+                    disabled={
+                      adjustmentForm.productId <= 0 || locationOptions.length === 0
+                    }
+                    nothingFoundMessage="No allotted location found"
+                  />
+                </Box>
+
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed" mb={5}>
+                    QUANTITY DELTA
+                  </Text>
+                  <Input
+                    type="number"
+                    size="sm"
+                    placeholder="Use + or -"
+                    value={
+                      adjustmentForm.quantityChange === 0
+                        ? ""
+                        : adjustmentForm.quantityChange
+                    }
+                    onChange={(event) => {
+                      const quantityValue = event.target.value;
+                      setAdjustmentForm((current) => ({
+                        ...current,
+                        quantityChange: quantityValue ? Number(quantityValue) : 0,
+                      }));
+                    }}
+                    leftElement={
+                      adjustmentForm.quantityChange > 0 ? (
+                        <ArrowUpRight size={14} />
+                      ) : adjustmentForm.quantityChange < 0 ? (
+                        <ArrowDownRight size={14} />
+                      ) : undefined
+                    }
+                    className="font-mono font-bold"
+                    fullWidth
+                  />
+                </Box>
+
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed" mb={5}>
+                    REASON
+                  </Text>
+                  <Select
+                    size="sm"
+                    radius="md"
+                    data={adjustmentReasonOptions}
+                    value={adjustmentForm.reason}
+                    onChange={(value) =>
+                      setAdjustmentForm((current) => ({
+                        ...current,
+                        reason: value || current.reason,
+                      }))
+                    }
+                  />
+                </Box>
+
+                <Box>
+                  <Text size="10px" fw={800} c="dimmed" mb={5}>
+                    NOTES
+                  </Text>
+                  <TextInput
+                    size="sm"
+                    radius="md"
+                    placeholder="Optional remark"
+                    value={adjustmentForm.notes || ""}
+                    onChange={(event) => {
+                      const notes = event.currentTarget.value;
+                      setAdjustmentForm((current) => ({
+                        ...current,
+                        notes,
+                      }));
+                    }}
+                  />
+                </Box>
+              </SimpleGrid>
+
+              <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <Text size="10px" fw={800} c="dimmed">
+                    CURRENT QTY.
+                  </Text>
+                  <Text mt={6} size="lg" fw={800} ff="monospace">
+                    {selectedLedgerRow?.currentQuantity ?? "-"}
+                  </Text>
+                </Paper>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <Text size="10px" fw={800} c="dimmed">
+                    PROJECTED QTY.
+                  </Text>
+                  <Text
+                    mt={6}
+                    size="lg"
+                    fw={800}
+                    ff="monospace"
+                    c={
+                      projectedQuantity == null
+                        ? "white"
+                        : projectedQuantity < 0
+                          ? "red.3"
+                          : "green.3"
+                    }
+                  >
+                    {projectedQuantity ?? "-"}
+                  </Text>
+                </Paper>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <Text size="10px" fw={800} c="dimmed">
+                    LOCATION QTY.
+                  </Text>
+                  <Text mt={6} size="lg" fw={800} ff="monospace">
+                    {adjustmentForm.locationCode ? selectedLocationQuantity : "-"}
+                  </Text>
+                </Paper>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <Text size="10px" fw={800} c="dimmed">
+                    LOCATION AFTER
+                  </Text>
+                  <Text
+                    mt={6}
+                    size="lg"
+                    fw={800}
+                    ff="monospace"
+                    c={
+                      projectedLocationQuantity == null
+                        ? "white"
+                        : projectedLocationQuantity < 0
+                          ? "red.3"
+                          : "green.3"
+                    }
+                  >
+                    {projectedLocationQuantity ?? "-"}
+                  </Text>
+                </Paper>
+              </SimpleGrid>
+
+              <div className={isMobile ? "space-y-3" : "flex items-center justify-between gap-4"}>
+                <Paper
+                  radius="lg"
+                  p="sm"
+                  withBorder
+                  bg="rgba(245, 158, 11, 0.06)"
+                  style={{ borderColor: "rgba(245, 158, 11, 0.16)", flex: 1 }}
                 >
-                  Clear
-                </Button>
-                <Button type="submit" size="sm" loading={isSaving}>
-                  Post Adjustment
+                  <Group gap="sm" wrap="nowrap" align="flex-start">
+                    <AlertCircle size={16} color="var(--mantine-color-yellow-4)" />
+                    <Text size="xs" c="dimmed">
+                      Manual adjustments update live quantity immediately and create an audit entry.
+                    </Text>
+                  </Group>
+                </Paper>
+                <div className={`flex gap-2 ${isMobile ? "justify-stretch" : "justify-end"}`}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
+                    className={isMobile ? "flex-1" : ""}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    loading={isSaving}
+                    className={isMobile ? "flex-1" : ""}
+                  >
+                    Post Adjustment
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </OperationsPanel>
+        )}
+
+        {(!isMobile || activeTab === "ledger") && (
+          <OperationsPanel
+            title="Stock Ledger"
+            icon={RefreshCw}
+            description="Compact live quantity view by SKU with current stock and row status."
+            hideHeader={isMobile}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="default">
+                  {filteredLedgerRows.length} Rows
+                </Badge>
+                <Badge size="sm" radius="md" variant="success">
+                  {quantityRows.length} Live
+                </Badge>
+                <Badge size="sm" radius="md" variant="info">
+                  {movementStats.totalOnHand} On Hand
+                </Badge>
+                <TextInput
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                  placeholder="Search SKU or product..."
+                  leftSection={<Search size={14} />}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadData()}
+                  loading={isLoading}
+                >
+                  Refresh
                 </Button>
               </Group>
-            </Group>
-          </form>
-        </OperationsPanel>
+            }
+            contentClassName="p-0"
+          >
+            {isMobile && (
+              <div className="p-3 border-b border-white/5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge size="sm" radius="md" variant="default">
+                    {filteredLedgerRows.length} Rows
+                  </Badge>
+                  <Badge size="sm" radius="md" variant="success">
+                    {quantityRows.length} Live
+                  </Badge>
+                  <Badge size="sm" radius="md" variant="info">
+                    {movementStats.totalOnHand} On Hand
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  <TextInput
+                    size="xs"
+                    radius="md"
+                    className="flex-1"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.currentTarget.value)}
+                    placeholder="Search SKU or product..."
+                    leftSection={<Search size={14} />}
+                  />
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => void loadData()}
+                    loading={isLoading}
+                    className="h-8"
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            )}
 
-        <OperationsPanel
-          title="Stock Ledger"
-          icon={RefreshCw}
-          description="Compact live quantity view by SKU with current stock and row status."
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Badge size="sm" radius="md" variant="default">
-                {filteredLedgerRows.length} Rows
-              </Badge>
-              <Badge size="sm" radius="md" variant="success">
-                {quantityRows.length} Live
-              </Badge>
-              <Badge size="sm" radius="md" variant="info">
-                {movementStats.totalOnHand} On Hand
-              </Badge>
-              <TextInput
-                size="xs"
-                radius="md"
-                w={240}
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.currentTarget.value)}
-                placeholder="Search SKU or product..."
-                leftSection={<Search size={14} />}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-                loading={isLoading}
-              >
-                Refresh
-              </Button>
-            </Group>
-          }
-          contentClassName="p-0"
-        >
-          <MantineDataTable
-            data={filteredLedgerRows}
-            columns={ledgerColumns}
-            rowKey={(row) => row.productId}
-            isLoading={isLoading}
-            pageSize={10}
-            itemLabel="products"
-            resetPageKey={searchTerm}
-            emptyIcon={RefreshCw}
-            emptyTitle="No stock rows"
-            emptyDescription="Products and quantity rows will appear here once inventory is available."
-          />
-        </OperationsPanel>
+            <MantineDataTable
+              data={filteredLedgerRows}
+              columns={ledgerColumns}
+              rowKey={(row) => row.productId}
+              isLoading={isLoading}
+              pageSize={10}
+              itemLabel="products"
+              resetPageKey={searchTerm}
+              emptyIcon={RefreshCw}
+              emptyTitle="No stock rows"
+              emptyDescription="Products and quantity rows will appear here once inventory is available."
+            />
+          </OperationsPanel>
+        )}
 
-        <OperationsPanel
-          title="Movement History"
-          icon={History}
-          description="Compact audit trail for stock increases and decreases."
-          action={
-            <Group gap="xs" wrap="nowrap">
-              <Badge size="sm" radius="md" variant="success">
-                {movementStats.increases} Increases
-              </Badge>
-              <Badge size="sm" radius="md" variant="danger">
-                {movementStats.decreases} Decreases
-              </Badge>
-              <Badge size="sm" radius="md" variant="default">
-                {movements.length} Entries
-              </Badge>
-              <TextInput
-                size="xs"
-                radius="md"
-                w={240}
-                value={historySearch}
-                onChange={(event) => setHistorySearch(event.currentTarget.value)}
-                placeholder="Search history..."
-                leftSection={<Search size={14} />}
-              />
-            </Group>
-          }
-          contentClassName="p-0"
-        >
-          <MantineDataTable
-            data={movements}
-            columns={movementColumns}
-            rowKey={(row) => row.id}
-            isLoading={isLoading}
-            pageSize={10}
-            itemLabel="movements"
-            resetPageKey={historySearch}
-            minWidth={920}
-            emptyIcon={History}
-            emptyTitle="No movement history"
-            emptyDescription="Stock adjustments will create audit entries here."
-          />
-        </OperationsPanel>
+        {(!isMobile || activeTab === "history") && (
+          <OperationsPanel
+            title="Movement History"
+            icon={History}
+            description="Compact audit trail for stock increases and decreases."
+            hideHeader={isMobile}
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Badge size="sm" radius="md" variant="success">
+                  {movementStats.increases} Increases
+                </Badge>
+                <Badge size="sm" radius="md" variant="danger">
+                  {movementStats.decreases} Decreases
+                </Badge>
+                <Badge size="sm" radius="md" variant="default">
+                  {movements.length} Entries
+                </Badge>
+                <TextInput
+                  size="xs"
+                  radius="md"
+                  w={240}
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.currentTarget.value)}
+                  placeholder="Search history..."
+                  leftSection={<Search size={14} />}
+                />
+              </Group>
+            }
+            contentClassName="p-0"
+          >
+            {isMobile && (
+              <div className="p-3 border-b border-white/5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge size="sm" radius="md" variant="success">
+                    {movementStats.increases} Increases
+                  </Badge>
+                  <Badge size="sm" radius="md" variant="danger">
+                    {movementStats.decreases} Decreases
+                  </Badge>
+                  <Badge size="sm" radius="md" variant="default">
+                    {movements.length} Entries
+                  </Badge>
+                </div>
+                <TextInput
+                  size="xs"
+                  radius="md"
+                  fullWidth
+                  value={historySearch}
+                  onChange={(event) => setHistorySearch(event.currentTarget.value)}
+                  placeholder="Search history..."
+                  leftSection={<Search size={14} />}
+                />
+              </div>
+            )}
+
+            <MantineDataTable
+              data={movements}
+              columns={movementColumns}
+              rowKey={(row) => row.id}
+              isLoading={isLoading}
+              pageSize={10}
+              itemLabel="movements"
+              resetPageKey={historySearch}
+              minWidth={isMobile ? 700 : 920}
+              emptyIcon={History}
+              emptyTitle="No movement history"
+              emptyDescription="Stock adjustments will create audit entries here."
+            />
+          </OperationsPanel>
+        )}
       </div>
     </OperationsPage>
   );

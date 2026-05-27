@@ -7,8 +7,10 @@ import React, {
   useState,
 } from "react";
 import { Box, Group, Paper, Stack, Text, Tooltip } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   Archive,
+  ArrowLeft,
   Box as BoxIcon,
   CheckCircle2,
   ClipboardList,
@@ -37,6 +39,7 @@ import { toast } from "../lib/toast";
 type ScanTone = "idle" | "success" | "error";
 
 export const Packing = memo(function Packing() {
+  const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,16 +109,16 @@ export const Packing = memo(function Packing() {
   }, [selectedOrderId, loadCartons]);
 
   useEffect(() => {
-    if (!selectedOrderId && filteredOrders.length > 0) {
+    if (!isMobile && !selectedOrderId && filteredOrders.length > 0) {
       setSelectedOrderId(filteredOrders[0].id);
     }
     if (
       selectedOrderId &&
       !filteredOrders.some((row) => row.id === selectedOrderId)
     ) {
-      setSelectedOrderId(filteredOrders[0]?.id ?? null);
+      setSelectedOrderId(!isMobile ? (filteredOrders[0]?.id ?? null) : null);
     }
-  }, [filteredOrders, selectedOrderId]);
+  }, [filteredOrders, selectedOrderId, isMobile]);
 
   const activeOrder =
     filteredOrders.find((row) => row.id === selectedOrderId) ?? null;
@@ -246,363 +249,392 @@ export const Packing = memo(function Packing() {
       icon={Archive}
       hideHeader
     >
-      <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
-        <OperationsPanel
-          title="Orders Ready to Pack"
-          icon={ClipboardList}
-          description="Select a picked order to pack into cartons."
-          action={
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                {filteredOrders.length} Orders
-              </span>
-              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                {readyCartons} Ready Cartons
-              </span>
-            </div>
-          }
-        >
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search order, customer, SKU..."
-            className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-          />
+      <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
+        {(!isMobile || !activeOrder) && (
+          <OperationsPanel
+            title="Orders Ready to Pack"
+            icon={ClipboardList}
+            description="Select a picked order to pack into cartons."
+            hideHeader={isMobile}
+            action={
+              <div className="flex items-center gap-2">
+                <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                  {filteredOrders.length} Orders
+                </span>
+                <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                  {readyCartons} Ready Cartons
+                </span>
+              </div>
+            }
+          >
+            {isMobile && (
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                  {filteredOrders.length} Orders
+                </span>
+                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                  {readyCartons} Ready Cartons
+                </span>
+              </div>
+            )}
 
-          {filteredOrders.length > 0 ? (
-            <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
-              {filteredOrders.map((order) => {
-                const active = order.id === selectedOrderId;
-                const orderCartons = cartons.filter(
-                  (c) => c.outwardOrderId === order.id,
-                );
-                const packed = orderCartons.reduce(
-                  (sum, c) => sum + c.quantity,
-                  0,
-                );
-                const done = packed >= order.quantity;
-
-                return (
-                  <button
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
-                      active
-                        ? "border-brand-500/40 bg-brand-500/10"
-                        : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {order.orderNumber}
-                        </p>
-                        <p className="mt-1 text-xs text-neutral-400">
-                          {order.customerName}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={done ? "success" : "warning"}
-                        shape="pill"
-                        className="border-none"
-                      >
-                        {done ? "Done" : "Packing"}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <p className="uppercase tracking-[0.18em] text-neutral-500">
-                          SKU
-                        </p>
-                        <p className="mt-1 font-mono text-brand-300">
-                          {order.skuCode}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="uppercase tracking-[0.18em] text-neutral-500">
-                          Packed
-                        </p>
-                        <p className="mt-1 font-bold text-white">
-                          {packed} / {order.quantity}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <OperationsEmptyState
-              icon={ClipboardList}
-              title="No orders"
-              description="No picked orders ready for packing."
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search order, customer, SKU..."
+              className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
-          )}
-        </OperationsPanel>
 
-        <OperationsPanel
-          title="Carton Packing"
-          icon={BoxIcon}
-          description="Create cartons and scan items into them."
-        >
-          {activeOrder ? (
-            <Stack gap="md">
-              {/* Order Header */}
-              <Paper radius="md" p="sm" withBorder>
-                <Group justify="space-between" align="flex-start">
-                  <div>
-                    <Text size="xs" fw={700}>
-                      {activeOrder.orderNumber}
-                    </Text>
-                    <Text size="11px" c="dimmed">
-                      {activeOrder.customerName}
-                    </Text>
-                  </div>
-                  <Badge
-                    variant={isFullyPacked ? "success" : "warning"}
-                    shape="pill"
-                    className="border-none"
-                  >
-                    {isFullyPacked ? "Fully Packed" : "Packing"}
-                  </Badge>
-                </Group>
-                <Group gap="xs" mt="xs">
-                  <Text size="11px" c="dimmed">
-                    SKU:
-                  </Text>
-                  <Text size="11px" ff="monospace" c="cyan.3">
-                    {activeOrder.skuCode}
-                  </Text>
-                </Group>
-              </Paper>
+            {filteredOrders.length > 0 ? (
+              <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
+                {filteredOrders.map((order) => {
+                  const active = order.id === selectedOrderId;
+                  const orderCartons = cartons.filter(
+                    (c) => c.outwardOrderId === order.id,
+                  );
+                  const packed = orderCartons.reduce(
+                    (sum, c) => sum + c.quantity,
+                    0,
+                  );
+                  const done = packed >= order.quantity;
 
-              {/* Progress */}
-              <Paper radius="md" p="sm" withBorder>
-                <Group justify="space-between">
-                  <Text size="xs" fw={700}>
-                    Packing Progress
-                  </Text>
-                  <Text size="xs" fw={800}>
-                    {packedInCartons} / {activeOrder.quantity}
-                  </Text>
-                </Group>
-                <div className="mt-2 h-2 w-full rounded-full bg-white/10">
-                  <div
-                    className="h-2 rounded-full bg-brand-500 transition-all"
-                    style={{
-                      width: `${Math.min((packedInCartons / activeOrder.quantity) * 100, 100)}%`,
-                    }}
-                  />
-                </div>
-                <Text size="11px" c="dimmed" mt={4}>
-                  {remainingToPack} remaining · {cartons.length} cartons ·{" "}
-                  {readyCartons} ready
-                </Text>
-              </Paper>
-
-              {/* Carton List */}
-              <Paper radius="md" p="sm" withBorder>
-                <Group justify="space-between" mb="xs">
-                  <Text size="xs" fw={700}>
-                    Cartons
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    leftIcon={<Plus size={14} />}
-                    onClick={handleCreateCarton}
-                  >
-                    New Carton
-                  </Button>
-                </Group>
-
-                {cartons.length === 0 ? (
-                  <Text size="sm" c="dimmed" ta="center" py="md">
-                    No cartons yet. Create one to start packing.
-                  </Text>
-                ) : (
-                  <Stack gap="xs">
-                    {cartons.map((carton) => {
-                      const isActive = carton.id === activeCartonId;
-                      const isReady = carton.status === "Ready";
-                      return (
-                        <Paper
-                          key={carton.id}
-                          radius="md"
-                          p="xs"
-                          withBorder
-                          bg={
-                            isActive ? "rgba(30,192,243,0.08)" : "transparent"
-                          }
-                          style={{
-                            borderColor: isActive
-                              ? "rgba(30,192,243,0.3)"
-                              : isReady
-                                ? "rgba(34,197,94,0.3)"
-                                : "rgba(255,255,255,0.12)",
-                            cursor: isReady ? "default" : "pointer",
-                          }}
-                          onClick={() => {
-                            if (!isReady) setActiveCartonId(carton.id);
-                          }}
+                  return (
+                    <button
+                      key={order.id}
+                      onClick={() => setSelectedOrderId(order.id)}
+                      className={`w-full rounded-xl border p-3 text-left transition ${
+                        active
+                          ? "border-brand-500/40 bg-brand-500/10"
+                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {order.orderNumber}
+                          </p>
+                          <p className="mt-1 text-xs text-neutral-400">
+                            {order.customerName}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={done ? "success" : "warning"}
+                          shape="pill"
+                          className="border-none"
                         >
-                          <Group justify="space-between" wrap="nowrap">
-                            <Group gap="sm" wrap="nowrap">
-                              <BoxIcon
-                                size={16}
-                                color={
-                                  isReady
-                                    ? "var(--mantine-color-green-4)"
-                                    : isActive
-                                      ? "var(--mantine-color-cyan-4)"
-                                      : "var(--mantine-color-gray-4)"
-                                }
-                              />
-                              <div>
-                                <Text size="xs" fw={700}>
-                                  {carton.cartonNumber}
-                                </Text>
-                                <Text size="11px" c="dimmed">
-                                  {carton.quantity} items
-                                </Text>
-                              </div>
-                            </Group>
-                            <Group gap="xs" wrap="nowrap">
-                              {isReady ? (
-                                <Badge
-                                  variant="success"
-                                  shape="pill"
-                                  size="sm"
-                                  className="border-none"
-                                >
-                                  Ready
-                                </Badge>
-                              ) : (
-                                <>
-                                  {isActive && (
-                                    <Text size="10px" c="cyan.3" fw={700}>
-                                      ACTIVE
-                                    </Text>
-                                  )}
-                                  <Button
-                                    size="xs"
-                                    variant="outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handleMarkReady(carton);
-                                    }}
-                                    disabled={carton.quantity <= 0}
-                                    leftIcon={<CheckCircle2 size={12} />}
+                          {done ? "Done" : "Packing"}
+                        </Badge>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="uppercase tracking-[0.18em] text-neutral-500">
+                            SKU
+                          </p>
+                          <p className="mt-1 font-mono text-brand-300">
+                            {order.skuCode}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="uppercase tracking-[0.18em] text-neutral-500">
+                            Packed
+                          </p>
+                          <p className="mt-1 font-bold text-white">
+                            {packed} / {order.quantity}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <OperationsEmptyState
+                icon={ClipboardList}
+                title="No orders"
+                description="No picked orders ready for packing."
+              />
+            )}
+          </OperationsPanel>
+        )}
+
+        {(!isMobile || activeOrder) && (
+          <OperationsPanel
+            title="Carton Packing"
+            icon={BoxIcon}
+            description="Create cartons and scan items into them."
+            hideHeader={isMobile}
+          >
+            {activeOrder ? (
+              <Stack gap="md">
+                {isMobile && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => setSelectedOrderId(null)}
+                    leftIcon={<ArrowLeft size={14} />}
+                    className="mb-1 w-full"
+                  >
+                    Back to Orders
+                  </Button>
+                )}
+
+                {/* Order Header */}
+                <Paper radius="md" p="sm" withBorder>
+                  <Group justify="space-between" align="flex-start">
+                    <div>
+                      <Text size="xs" fw={700}>
+                        {activeOrder.orderNumber}
+                      </Text>
+                      <Text size="11px" c="dimmed">
+                        {activeOrder.customerName}
+                      </Text>
+                    </div>
+                    <Badge
+                      variant={isFullyPacked ? "success" : "warning"}
+                      shape="pill"
+                      className="border-none"
+                    >
+                      {isFullyPacked ? "Fully Packed" : "Packing"}
+                    </Badge>
+                  </Group>
+                  <Group gap="xs" mt="xs">
+                    <Text size="11px" c="dimmed">
+                      SKU:
+                    </Text>
+                    <Text size="11px" ff="monospace" c="cyan.3">
+                      {activeOrder.skuCode}
+                    </Text>
+                  </Group>
+                </Paper>
+
+                {/* Progress */}
+                <Paper radius="md" p="sm" withBorder>
+                  <Group justify="space-between">
+                    <Text size="xs" fw={700}>
+                      Packing Progress
+                    </Text>
+                    <Text size="xs" fw={800}>
+                      {packedInCartons} / {activeOrder.quantity}
+                    </Text>
+                  </Group>
+                  <div className="mt-2 h-2 w-full rounded-full bg-white/10">
+                    <div
+                      className="h-2 rounded-full bg-brand-500 transition-all"
+                      style={{
+                        width: `${Math.min((packedInCartons / activeOrder.quantity) * 100, 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <Text size="11px" c="dimmed" mt={4}>
+                    {remainingToPack} remaining · {cartons.length} cartons ·{" "}
+                    {readyCartons} ready
+                  </Text>
+                </Paper>
+
+                {/* Carton List */}
+                <Paper radius="md" p="sm" withBorder>
+                  <Group justify="space-between" mb="xs">
+                    <Text size="xs" fw={700}>
+                      Cartons
+                    </Text>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      leftIcon={<Plus size={14} />}
+                      onClick={handleCreateCarton}
+                    >
+                      New Carton
+                    </Button>
+                  </Group>
+
+                  {cartons.length === 0 ? (
+                    <Text size="sm" c="dimmed" ta="center" py="md">
+                      No cartons yet. Create one to start packing.
+                    </Text>
+                  ) : (
+                    <Stack gap="xs">
+                      {cartons.map((carton) => {
+                        const isActive = carton.id === activeCartonId;
+                        const isReady = carton.status === "Ready";
+                        return (
+                          <Paper
+                            key={carton.id}
+                            radius="md"
+                            p="xs"
+                            withBorder
+                            bg={
+                              isActive ? "rgba(30,192,243,0.08)" : "transparent"
+                            }
+                            style={{
+                              borderColor: isActive
+                                ? "rgba(30,192,243,0.3)"
+                                : isReady
+                                  ? "rgba(34,197,94,0.3)"
+                                  : "rgba(255,255,255,0.12)",
+                              cursor: isReady ? "default" : "pointer",
+                            }}
+                            onClick={() => {
+                              if (!isReady) setActiveCartonId(carton.id);
+                            }}
+                          >
+                            <Group justify="space-between" wrap="nowrap">
+                              <Group gap="sm" wrap="nowrap">
+                                <BoxIcon
+                                  size={16}
+                                  color={
+                                    isReady
+                                      ? "var(--mantine-color-green-4)"
+                                      : isActive
+                                        ? "var(--mantine-color-cyan-4)"
+                                        : "var(--mantine-color-gray-4)"
+                                  }
+                                />
+                                <div>
+                                  <Text size="xs" fw={700}>
+                                    {carton.cartonNumber}
+                                  </Text>
+                                  <Text size="11px" c="dimmed">
+                                    {carton.quantity} items
+                                  </Text>
+                                </div>
+                              </Group>
+                              <Group gap="xs" wrap="nowrap">
+                                {isReady ? (
+                                  <Badge
+                                    variant="success"
+                                    shape="pill"
+                                    size="sm"
+                                    className="border-none"
                                   >
                                     Ready
+                                  </Badge>
+                                ) : (
+                                  <>
+                                    {isActive && (
+                                      <Text size="10px" c="cyan.3" fw={700}>
+                                        ACTIVE
+                                      </Text>
+                                    )}
+                                    <Button
+                                      size="xs"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        void handleMarkReady(carton);
+                                      }}
+                                      disabled={carton.quantity <= 0}
+                                      leftIcon={<CheckCircle2 size={12} />}
+                                    >
+                                      Ready
+                                    </Button>
+                                  </>
+                                )}
+                                <Tooltip label="Delete carton">
+                                  <Button
+                                    size="xs"
+                                    variant="ghost"
+                                    className="h-7 w-7 px-0 text-red-400 hover:text-red-300"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void handleDeleteCarton(carton);
+                                    }}
+                                  >
+                                    <Trash2 size={14} />
                                   </Button>
-                                </>
-                              )}
-                              <Tooltip label="Delete carton">
-                                <Button
-                                  size="xs"
-                                  variant="ghost"
-                                  className="h-7 w-7 px-0 text-red-400 hover:text-red-300"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void handleDeleteCarton(carton);
-                                  }}
-                                >
-                                  <Trash2 size={14} />
-                                </Button>
-                              </Tooltip>
+                                </Tooltip>
+                              </Group>
                             </Group>
-                          </Group>
-                        </Paper>
-                      );
-                    })}
-                  </Stack>
-                )}
-              </Paper>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                </Paper>
 
-              {/* Scan Section */}
-              <Paper
-                radius="md"
-                p="sm"
-                withBorder
-                style={{
-                  borderColor:
-                    scanTone === "success"
-                      ? "rgba(34,197,94,0.3)"
-                      : scanTone === "error"
-                        ? "rgba(239,68,68,0.3)"
-                        : "rgba(255,255,255,0.12)",
-                }}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <ScanLine className="h-3.5 w-3.5 text-brand-400" />
-                  <p className="text-xs font-semibold text-white">
-                    {activeCartonId
-                      ? `Scan into ${cartons.find((c) => c.id === activeCartonId)?.cartonNumber || "carton"}`
-                      : "Select a carton to scan"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    ref={scanInputRef}
-                    value={scanCode}
-                    onChange={(e) => setScanCode(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void handlePackScan();
-                      }
-                    }}
-                    placeholder={
-                      activeCartonId
-                        ? isFullyPacked
-                          ? "Order fully packed"
-                          : `Scan ${activeOrder.skuCode}`
-                        : "Select a carton first"
-                    }
-                    disabled={!activeCartonId || isFullyPacked}
-                    className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                  />
-                  <Button
-                    onClick={() => void handlePackScan()}
-                    loading={isPacking}
-                    disabled={!activeCartonId || isFullyPacked}
-                    size="xs"
-                    leftIcon={<Package className="h-3.5 w-3.5" />}
-                    className="h-9"
-                  >
-                    Pack
-                  </Button>
-                </div>
-
-                {/* Status Message */}
-                {lastScanMessage && (
-                  <div className="mt-2 flex items-center gap-2">
-                    {scanTone === "success" ? (
-                      <CheckCircle2 size={14} className="text-green-400" />
-                    ) : scanTone === "error" ? (
-                      <XCircle size={14} className="text-red-400" />
-                    ) : null}
-                    <Text size="11px" c="dimmed">
-                      {lastScanMessage}
-                    </Text>
+                {/* Scan Section */}
+                <Paper
+                  radius="md"
+                  p="sm"
+                  withBorder
+                  style={{
+                    borderColor:
+                      scanTone === "success"
+                        ? "rgba(34,197,94,0.3)"
+                        : scanTone === "error"
+                          ? "rgba(239,68,68,0.3)"
+                          : "rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <ScanLine className="h-3.5 w-3.5 text-brand-400" />
+                    <p className="text-xs font-semibold text-white">
+                      {activeCartonId
+                        ? `Scan into ${cartons.find((c) => c.id === activeCartonId)?.cartonNumber || "carton"}`
+                        : "Select a carton to scan"}
+                    </p>
                   </div>
-                )}
-                {lastScanCode && (
-                  <Text size="11px" c="dimmed" mt={2}>
-                    Last scan: {lastScanCode}
-                  </Text>
-                )}
-              </Paper>
-            </Stack>
-          ) : (
-            <OperationsEmptyState
-              icon={BoxIcon}
-              title="No order selected"
-              description="Select a picked order from the left to start packing into cartons."
-            />
-          )}
-        </OperationsPanel>
+                  <div className="flex gap-2">
+                    <input
+                      ref={scanInputRef}
+                      value={scanCode}
+                      onChange={(e) => setScanCode(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handlePackScan();
+                        }
+                      }}
+                      placeholder={
+                        activeCartonId
+                          ? isFullyPacked
+                            ? "Order fully packed"
+                            : `Scan ${activeOrder.skuCode}`
+                          : "Select a carton first"
+                      }
+                      disabled={!activeCartonId || isFullyPacked}
+                      className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                    />
+                    <Button
+                      onClick={() => void handlePackScan()}
+                      loading={isPacking}
+                      disabled={!activeCartonId || isFullyPacked}
+                      size="xs"
+                      leftIcon={<Package className="h-3.5 w-3.5" />}
+                      className="h-9"
+                    >
+                      Pack
+                    </Button>
+                  </div>
+
+                  {/* Status Message */}
+                  {lastScanMessage && (
+                    <div className="mt-2 flex items-center gap-2">
+                      {scanTone === "success" ? (
+                        <CheckCircle2 size={14} className="text-green-400" />
+                      ) : scanTone === "error" ? (
+                        <XCircle size={14} className="text-red-400" />
+                      ) : null}
+                      <Text size="11px" c="dimmed">
+                        {lastScanMessage}
+                      </Text>
+                    </div>
+                  )}
+                  {lastScanCode && (
+                    <Text size="11px" c="dimmed" mt={2}>
+                      Last scan: {lastScanCode}
+                    </Text>
+                  )}
+                </Paper>
+              </Stack>
+            ) : (
+              <OperationsEmptyState
+                icon={BoxIcon}
+                title="No order selected"
+                description="Select a picked order from the left to start packing into cartons."
+              />
+            )}
+          </OperationsPanel>
+        )}
       </div>
     </OperationsPage>
   );

@@ -12,6 +12,7 @@ import {
   ScrollArea,
   Stack,
   Text,
+  UnstyledButton,
 } from "@mantine/core";
 import {
   Bell,
@@ -234,9 +235,20 @@ export function Header({
 
           <Menu shadow="lg" width={220} radius="lg" position="bottom-end">
             <Menu.Target>
-              <Button variant="subtle" color="gray" radius="md" px={6} h={36}>
+              <UnstyledButton
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: 40,
+                  padding: "4px 8px",
+                  borderRadius: "var(--mantine-radius-md)",
+                  cursor: "pointer",
+                  transition: "background-color 0.15s ease",
+                }}
+                className="hover:bg-white/5 active:bg-white/10"
+              >
                 <Group gap={8} wrap="nowrap">
-                  <Avatar radius="xl" color="cyan" size={28}>
+                  <Avatar radius="xl" color="cyan" size={30}>
                     {userInitials}
                   </Avatar>
                   <Stack gap={0} visibleFrom="sm" align="flex-start">
@@ -248,7 +260,7 @@ export function Header({
                     </Text>
                   </Stack>
                 </Group>
-              </Button>
+              </UnstyledButton>
             </Menu.Target>
 
             <Menu.Dropdown>
