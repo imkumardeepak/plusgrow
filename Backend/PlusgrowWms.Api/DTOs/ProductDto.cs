@@ -14,7 +14,7 @@ public class ProductDto
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Weight { get; set; }
-    public string? ProductType { get; set; }
+    public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; }
     public int? ManufacturerId { get; set; }
@@ -34,7 +34,7 @@ public class CreateProductDto
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Weight { get; set; }
-    public string? ProductType { get; set; }
+    public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; } = 120;
     public int? ManufacturerId { get; set; }
@@ -53,7 +53,7 @@ public class UpdateProductDto
     public string? UnitType { get; set; }
     public decimal? Ussp { get; set; }
     public decimal? Weight { get; set; }
-    public string? ProductType { get; set; }
+    public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; }
     public int? ManufacturerId { get; set; }

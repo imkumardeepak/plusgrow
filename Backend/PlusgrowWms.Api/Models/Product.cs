@@ -69,9 +69,9 @@ public class Product
     public decimal? Weight { get; set; }
 
     [MaxLength(50)]
-    [Column("product_type")]
-    [JsonPropertyName("ProductType")]
-    public string? ProductType { get; set; }
+    [Column("ownership")]
+    [JsonPropertyName("Ownership")]
+    public string? Ownership { get; set; }
 
     [Column("mrp")]
     [JsonPropertyName("Mrp")]

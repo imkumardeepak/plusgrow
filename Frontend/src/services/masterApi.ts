@@ -43,7 +43,7 @@ export interface Product {
   unitType?: string;
   ussp?: number;
   weight?: number;
-  productType?: string;
+  ownership?: string;
   mrp?: number;
   bestBeforeMonths: number;
   createdAt: string;
@@ -81,7 +81,7 @@ export interface CreateProductDto {
   unitType?: string;
   ussp?: number;
   weight?: number;
-  productType?: string;
+  ownership?: string;
   mrp?: number;
   bestBeforeMonths?: number;
   id?: number;
@@ -697,7 +697,7 @@ export const productsApi = {
           case 'Net Qnty': row['Net Qnty'] = product.netQuantity ?? ''; break;
           case 'Factor': row['Factor'] = product.factor ?? ''; break;
           case 'Best Before (Months)': row['Best Before (Months)'] = product.bestBeforeMonths ?? ''; break;
-          case 'Product Type': row['Product Type'] = product.productType ?? ''; break;
+          case 'Ownership': row['Ownership'] = product.ownership ?? ''; break;
         }
       });
       
@@ -733,7 +733,7 @@ export const productsApi = {
         'Factor': '1L or 500g',
         'Best Before (Months)': '12',
         'Weight': '',
-        'Product Type': 'Self',
+        'Ownership': 'Self',
         'Stock Qnty': '',
       }
     ];
@@ -752,7 +752,7 @@ export const productsApi = {
       { wch: 15 },  // Factor
       { wch: 20 },  // Best Before (Months)
       { wch: 12 },  // Weight
-      { wch: 15 },  // Product Type
+      { wch: 15 },  // Ownership
       { wch: 12 },  // Stock Qnty
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');

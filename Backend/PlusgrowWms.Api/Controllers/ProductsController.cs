@@ -164,11 +164,11 @@ public class ProductsController : BaseController
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
                     decimal.TryParse(row.Cell("Weight").GetString(), out decimal weight);
 
-                    // Parse Product Type
-                    var productType = row.Cell("Product Type").GetString()?.Trim();
-                    if (string.IsNullOrEmpty(productType))
+                    // Parse Ownership
+                    var ownership = row.Cell("Ownership").GetString()?.Trim();
+                    if (string.IsNullOrEmpty(ownership))
                     {
-                        productType = "Self"; // Default to Self
+                        ownership = "Self"; // Default to Self
                     }
 
                     // Auto-calculate USSP if MRP and Factor provided
@@ -198,7 +198,7 @@ public class ProductsController : BaseController
                         Ussp = ussp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
                         Weight = weight > 0 ? weight : null,
-                        ProductType = productType
+                        Ownership = ownership
                     };
 
                     _context.Products.Add(product);
@@ -315,8 +315,8 @@ public class ProductsController : BaseController
                     if (headers.ContainsKey("Unit Type"))
                         product.UnitType = row.Cell(headers["Unit Type"]).GetString()?.Trim();
 
-                    if (headers.ContainsKey("Product Type"))
-                        product.ProductType = row.Cell(headers["Product Type"]).GetString()?.Trim();
+                    if (headers.ContainsKey("Ownership"))
+                        product.Ownership = row.Cell(headers["Ownership"]).GetString()?.Trim();
 
                     if (headers.ContainsKey("Factor"))
                         product.Factor = row.Cell(headers["Factor"]).GetString()?.Trim();

@@ -51,7 +51,7 @@ export function ProductFormModal({
     unitType: "UNIT",
     ussp: 0,
     weight: 0,
-    productType: "Self",
+    ownership: "Self",
     mrp: 0,
     bestBeforeMonths: 12,
   });
@@ -71,7 +71,7 @@ export function ProductFormModal({
           unitType: product.unitType || "UNIT",
           ussp: product.ussp || 0,
           weight: product.weight || 0,
-          productType: product.productType || "Self",
+          ownership: product.ownership || "Self",
           mrp: product.mrp || 0,
           bestBeforeMonths: product.bestBeforeMonths || 12,
         });
@@ -88,7 +88,7 @@ export function ProductFormModal({
           unitType: "UNIT",
           ussp: 0,
           weight: 0,
-          productType: "Self",
+          ownership: "Self",
           mrp: 0,
           bestBeforeMonths: 12,
         });
@@ -139,7 +139,7 @@ export function ProductFormModal({
         unitType: formData.unitType || null,
         ussp: ussp,
         weight: formData.weight || 0,
-        productType: formData.productType || null,
+        ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 12,
       };
@@ -316,17 +316,17 @@ export function ProductFormModal({
                   }}
                 />
                 <Select
-                  label="Product Type"
+                  label="Ownership"
                   placeholder="Self or ThirdParty"
                   data={[
                     { value: "Self", label: "Self" },
                     { value: "ThirdParty", label: "ThirdParty" },
                   ]}
-                  value={formData.productType || null}
+                  value={formData.ownership || null}
                   onChange={(value) =>
                     setFormData((prev) => ({
                       ...prev,
-                      productType: value || undefined,
+                      ownership: value || undefined,
                     }))
                   }
                   clearable

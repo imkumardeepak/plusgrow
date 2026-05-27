@@ -100,7 +100,7 @@ export const MPD = memo(function MPD() {
     unitType: "UNIT",
     ussp: 0,
     weight: 0,
-    productType: "Self",
+    ownership: "Self",
     mrp: 0,
     bestBeforeMonths: 12,
   });
@@ -249,7 +249,7 @@ export const MPD = memo(function MPD() {
         unitType: formData.unitType || null,
         ussp: ussp,
         weight: formData.weight || 0,
-        productType: formData.productType || null,
+        ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 12,
       };
@@ -284,7 +284,7 @@ export const MPD = memo(function MPD() {
       unitType: "UNIT",
       ussp: 0,
       weight: 0,
-      productType: "Self",
+      ownership: "Self",
       mrp: 0,
       bestBeforeMonths: 12,
     });
@@ -305,7 +305,7 @@ export const MPD = memo(function MPD() {
       unitType: product.unitType || "UNIT",
       ussp: product.ussp || 0,
       weight: product.weight || 0,
-      productType: product.productType || "Self",
+      ownership: product.ownership || "Self",
       mrp: product.mrp || 0,
       bestBeforeMonths: product.bestBeforeMonths || 12,
     });
@@ -649,13 +649,13 @@ export const MPD = memo(function MPD() {
       width: 150,
     },
     {
-      key: "productType",
-      header: "Type",
+      key: "ownership",
+      header: "Ownership",
       sortable: true,
-      sortAccessor: (row) => row.productType,
+      sortAccessor: (row) => row.ownership,
       render: (row) => (
-        <Badge size="xs" variant="light" color={row.productType === "Self" ? "blue" : "orange"}>
-          {row.productType || "N/A"}
+        <Badge size="xs" variant="light" color={row.ownership === "Self" ? "blue" : "orange"}>
+          {row.ownership || "N/A"}
         </Badge>
       ),
       width: 100,
@@ -885,7 +885,7 @@ export const MPD = memo(function MPD() {
             data={[
               "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
               "Commodity Name", "Country of Origin", "Unit Type", "USSP",
-              "Net Qnty", "Factor", "Best Before (Months)", "Product Type"
+              "Net Qnty", "Factor", "Best Before (Months)", "Ownership"
             ]}
             value={updateFields}
             onChange={setUpdateFields}
@@ -1087,17 +1087,17 @@ export const MPD = memo(function MPD() {
                     }}
                   />
                   <Select
-                    label="Product Type"
+                    label="Ownership"
                     placeholder="Self or ThirdParty"
                     data={[
                       { value: "Self", label: "Self" },
                       { value: "ThirdParty", label: "ThirdParty" },
                     ]}
-                    value={formData.productType || null}
+                    value={formData.ownership || null}
                     onChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        productType: value || undefined,
+                        ownership: value || undefined,
                       }))
                     }
                     clearable
