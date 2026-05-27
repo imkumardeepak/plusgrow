@@ -13,6 +13,7 @@ public interface IUserRepository
     Task UpdateAsync(User user);
     Task UpdateLastLoginAsync(User user, DateTime lastLoginAt);
     Task<bool> ChangePasswordAsync(int userId, string newPasswordHash);
+    Task DeleteAsync(int id);
 }
 
 public class UserRepository : GenericRepository<User>, IUserRepository

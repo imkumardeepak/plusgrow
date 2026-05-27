@@ -28,6 +28,7 @@ export const PAGE_KEYS = {
   DISPATCH: 'dispatch',
   IMPORTERS: 'importers',
   MANUFACTURERS: 'manufacturers',
+  PARTIES: 'parties',
   COMMODITIES: 'commodities',
   PRODUCTS: 'products',
   STOCK_CHECK: 'stock-check',

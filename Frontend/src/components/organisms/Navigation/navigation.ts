@@ -19,6 +19,7 @@ import {
   User,
   UserCog,
   Warehouse,
+  Handshake,
 } from "lucide-react";
 
 export interface NavItem {
@@ -66,6 +67,12 @@ export const navigationGroups: NavGroup[] = [
         label: "Manufacturers",
         icon: Factory,
         href: "/manufacturers",
+      },
+      {
+        id: "parties",
+        label: "Parties",
+        icon: Handshake,
+        href: "/parties",
       },
       {
         id: "commodities",

@@ -14,6 +14,16 @@ export interface Manufacturer {
   created_at: string;
 }
 
+export interface Party {
+  id: number;
+  name: string;
+  address?: string;
+  country?: string;
+  phone?: string;
+  email: string;
+  created_at: string;
+}
+
 export interface Commodity {
   id: number;
   name: string;
@@ -54,6 +64,15 @@ export interface CreateManufacturerDto {
   name: string;
   country?: string;
   address?: string;
+}
+
+export interface CreatePartyDto {
+  id?: number;
+  name: string;
+  address?: string;
+  country?: string;
+  phone?: string;
+  email: string;
 }
 
 export interface CreateCommodityDto {
@@ -512,6 +531,43 @@ export const manufacturersApi = {
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Manufacturer Template');
     XLSX.writeFile(wb, 'Manufacturer_Template.xlsx');
+  },
+};
+
+// Parties API - no /api prefix
+export const partiesApi = {
+  getAll: async (): Promise<Party[]> => {
+    const result = await partiesApi.getPaged({ page: 1, pageSize: 200 });
+    return result.data;
+  },
+
+  getPaged: async (query: ListQuery = {}): Promise<PagedResult<Party>> => {
+    const response = await api.get<ApiResponse<Party[]>>('/parties', { params: query });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(query.page, query.pageSize),
+    };
+  },
+
+  getById: async (id: number): Promise<Party | null> => {
+    const response = await api.get<ApiResponse<Party>>(`/parties/${id}`);
+    return response.data.data || null;
+  },
+
+  create: async (data: CreatePartyDto): Promise<Party> => {
+    const response = await api.post<ApiResponse<Party>>('/parties', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  update: async (id: number, data: CreatePartyDto): Promise<Party> => {
+    const response = await api.put<ApiResponse<Party>>(`/parties/${id}`, { ...data, id });
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/parties/${id}`);
   },
 };
 

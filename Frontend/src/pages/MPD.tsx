@@ -58,10 +58,12 @@ import {
   manufacturersApi,
   commoditiesApi,
   importersApi,
+  partiesApi,
   Product,
   Manufacturer,
   Commodity,
   Importer,
+  Party,
   CreateProductDto,
 } from "../services/masterApi";
 import { stickersApi, StickerTemplate } from "../services/stickersApi";
@@ -77,6 +79,7 @@ export const MPD = memo(function MPD() {
   const [products, setProducts] = useState<Product[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [commodities, setCommodities] = useState<Commodity[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState<Product | null>(null);
@@ -147,6 +150,7 @@ export const MPD = memo(function MPD() {
         templateData,
         configData,
         importerData,
+        partiesData,
       ] = await Promise.all([
         productsApi.getAll(),
         manufacturersApi.getAll(),
@@ -154,6 +158,7 @@ export const MPD = memo(function MPD() {
         stickersApi.getTemplates(),
         stickerPrinterConfigsApi.getAll(),
         importersApi.getAll(),
+        partiesApi.getAll(),
       ]);
       setProducts(productsData);
       setManufacturers(manufacturersData);
@@ -161,6 +166,7 @@ export const MPD = memo(function MPD() {
       setTemplates(templateData);
       setPrinterConfigs(configData);
       setImporters(importerData);
+      setParties(partiesData);
     } catch (error: any) {
       toast.error(error.message || "Failed to load data");
     } finally {
@@ -524,6 +530,17 @@ export const MPD = memo(function MPD() {
     [importers],
   );
 
+  const ownershipOptions = useMemo(
+    () => [
+      { value: "Self", label: "Self" },
+      ...parties.map((item) => ({
+        value: item.name,
+        label: item.name,
+      })),
+    ],
+    [parties],
+  );
+
   const printerConfig = useMemo(
     () =>
       printerConfigs.find(
@@ -654,7 +671,7 @@ export const MPD = memo(function MPD() {
       sortable: true,
       sortAccessor: (row) => row.ownership,
       render: (row) => (
-        <Badge size="xs" variant="light" color={row.ownership === "Self" ? "blue" : "orange"}>
+        <Badge size="xs" variant="light" color={row.ownership?.toUpperCase() === "SELF" ? "blue" : "orange"}>
           {row.ownership || "N/A"}
         </Badge>
       ),
@@ -1088,11 +1105,8 @@ export const MPD = memo(function MPD() {
                   />
                   <Select
                     label="Ownership"
-                    placeholder="Self or ThirdParty"
-                    data={[
-                      { value: "Self", label: "Self" },
-                      { value: "ThirdParty", label: "ThirdParty" },
-                    ]}
+                    placeholder="Self or Party"
+                    data={ownershipOptions}
                     value={formData.ownership || null}
                     onChange={(value) =>
                       setFormData((prev) => ({

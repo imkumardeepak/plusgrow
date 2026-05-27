@@ -16,6 +16,7 @@ import {
   Truck,
   UserCog,
   Warehouse,
+  Handshake,
 } from "lucide-react";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete";
@@ -39,6 +40,7 @@ export const SYSTEM_PAGES = [
   { key: "dispatch", label: "Dispatch", path: "/dispatch", group: "Outward", icon: Truck },
   { key: "importers", label: "Importers", path: "/importers", group: "Master Data", icon: Building },
   { key: "manufacturers", label: "Manufacturers", path: "/manufacturers", group: "Master Data", icon: Factory },
+  { key: "parties", label: "Parties", path: "/parties", group: "Master Data", icon: Handshake },
   { key: "commodities", label: "Commodities", path: "/commodities", group: "Master Data", icon: Layers },
   { key: "bins", label: "Bin Master", path: "/bins", group: "Master Data", icon: Box },
   { key: "locations", label: "Location Master", path: "/locations", group: "Master Data", icon: MapPin },

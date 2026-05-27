@@ -46,6 +46,7 @@ public class PlusgrowDbContext : DbContext
 
     public DbSet<Importer> Importers => Set<Importer>();
     public DbSet<Manufacturer> Manufacturers => Set<Manufacturer>();
+    public DbSet<Party> Parties => Set<Party>();
     public DbSet<Commodity> Commodities => Set<Commodity>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<OutwardOrder> OutwardOrders => Set<OutwardOrder>();
@@ -274,6 +275,7 @@ public class PlusgrowDbContext : DbContext
         {
             typeof(Manufacturer),
             typeof(Importer),
+            typeof(Party),
             typeof(Commodity),
             typeof(Location),
             typeof(Bin),
@@ -288,7 +290,15 @@ public class PlusgrowDbContext : DbContext
                 {
                     if (property.Metadata.ClrType == typeof(string) && property.CurrentValue is string stringValue)
                     {
-                        property.CurrentValue = stringValue.ToUpperInvariant();
+                        // Keep NetQuantity and UnitType in lowercase for Products
+                        if (entry.Entity is Product && (property.Metadata.Name == "NetQuantity" || property.Metadata.Name == "UnitType"))
+                        {
+                            property.CurrentValue = stringValue.ToLowerInvariant();
+                        }
+                        else
+                        {
+                            property.CurrentValue = stringValue.ToUpperInvariant();
+                        }
                     }
                 }
             }

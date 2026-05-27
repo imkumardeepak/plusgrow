@@ -28,6 +28,7 @@ const Packing = lazy(() => import("./pages/Packing"));
 const Dispatch = lazy(() => import("./pages/Dispatch"));
 const Importers = lazy(() => import("./pages/Importers"));
 const Manufacturers = lazy(() => import("./pages/Manufacturers"));
+const Parties = lazy(() => import("./pages/Parties"));
 const Commodities = lazy(() => import("./pages/Commodities"));
 const Bins = lazy(() => import("./pages/Bins"));
 const Locations = lazy(() => import("./pages/Locations"));
@@ -217,6 +218,10 @@ export default function App() {
                     <Route
                       path="manufacturers"
                       element={pageElement("manufacturers", <Manufacturers />)}
+                    />
+                    <Route
+                      path="parties"
+                      element={pageElement("parties", <Parties />)}
                     />
                     <Route
                       path="commodities"

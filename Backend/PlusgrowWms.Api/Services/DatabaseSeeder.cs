@@ -51,6 +51,7 @@ public class DatabaseSeeder : IDatabaseSeeder
             ["Manager"] = "Warehouse management access",
             ["Warehouse Operator"] = "Operational warehouse access",
             ["Viewer"] = "Read-only access",
+            ["Party"] = "Party access role",
         };
 
         foreach (var item in defaultRoles)
@@ -137,7 +138,7 @@ public class DatabaseSeeder : IDatabaseSeeder
         var pages = new[]
         {
             "dashboard", "inward", "sticker", "receiving", "putaway",
-            "outward", "packing", "dispatch", "importers", "manufacturers",
+            "outward", "packing", "dispatch", "importers", "manufacturers", "parties",
             "commodities", "bins", "locations", "mpd", "products",
             "sticker-printer-config", "stock-check", "stock-movement",
             "warehouse-map", "role-master", "user-master", "profile"
