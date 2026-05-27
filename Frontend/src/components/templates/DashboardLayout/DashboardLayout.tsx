@@ -111,6 +111,7 @@ export function DashboardLayout({
             <Stack gap="md">
               {showBreadcrumbs ? (
                 <Paper
+                  visibleFrom="md"
                   radius="xl"
                   px={{ base: "sm", md: "md" }}
                   py="xs"

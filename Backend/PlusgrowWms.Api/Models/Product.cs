@@ -43,7 +43,12 @@ public class Product
 
     [Column("net_quantity")]
     [JsonPropertyName("NetQuantity")]
-    public string? NetQuantity { get; set; }
+    public string? NetQuantity
+    {
+        get => _netQuantity;
+        set => _netQuantity = value?.Trim().ToLowerInvariant();
+    }
+    private string? _netQuantity;
 
     [MaxLength(20)]
     [Column("unit_type")]
@@ -51,7 +56,7 @@ public class Product
     public string? UnitType
     {
         get => _unitType;
-        set => _unitType = value?.Trim() ?? string.Empty;
+        set => _unitType = value?.Trim().ToLowerInvariant() ?? "pcs";
     }
     private string? _unitType;
 

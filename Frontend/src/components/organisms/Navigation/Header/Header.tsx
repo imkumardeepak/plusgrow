@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ActionIcon,
   Avatar,
@@ -70,6 +71,7 @@ export function Header({
   onLogout,
   onProfileClick,
 }: HeaderProps) {
+  const navigate = useNavigate();
   return (
     <Paper
       radius={0}
@@ -94,7 +96,13 @@ export function Header({
             size="sm"
           />
 
-          <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
+          <Group
+            gap={8}
+            wrap="nowrap"
+            style={{ minWidth: 0, cursor: "pointer" }}
+            onClick={() => navigate("/")}
+            className="hover:opacity-85 active:scale-[0.98] transition-all duration-200"
+          >
             <Logo style={{ maxHeight: 30, objectFit: "contain" }} />
             <Text
               size="sm"

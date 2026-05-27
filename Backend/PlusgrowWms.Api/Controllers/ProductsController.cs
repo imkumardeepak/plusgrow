@@ -159,14 +159,15 @@ public class ProductsController : BaseController
 
                     // Parse numeric values
                     decimal.TryParse(row.Cell("MRP").GetString(), out decimal mrp);
-                    decimal.TryParse(row.Cell("USSP").GetString(), out decimal ussp);
-                    decimal.TryParse(row.Cell("Net Qnty").GetString(), out decimal netQuantity);
+                    decimal ussp = 0;
+                    var netQntyStr = row.Cell("Net Qnty").GetString()?.Trim();
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
                     decimal.TryParse(row.Cell("Weight").GetString(), out decimal weight);
 
                     // Parse Product Type
                     var productType = row.Cell("Product Type").GetString()?.Trim();
-                    if (string.IsNullOrEmpty(productType)) {
+                    if (string.IsNullOrEmpty(productType))
+                    {
                         productType = "Self"; // Default to Self
                     }
 
@@ -191,8 +192,8 @@ public class ProductsController : BaseController
                         CommodityId = commodityId,
                         CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",
                         Factor = factorStr,
-                        NetQuantity = netQuantity > 0 ? netQuantity.ToString() : null,
-                        UnitType = row.Cell("Unit Type").GetString()?.Trim() ?? "UNIT",
+                        NetQuantity = string.IsNullOrEmpty(netQntyStr) ? null : netQntyStr,
+                        UnitType = (row.Cell("Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),
                         Mrp = mrp,
                         Ussp = ussp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
@@ -247,180 +248,179 @@ public class ProductsController : BaseController
     }
 
     [HttpPost("update-excel")]
-        public async Task<ActionResult<ApiResponse<ProductUploadResult>>> UpdateExcel(IFormFile file)
+    public async Task<ActionResult<ApiResponse<ProductUploadResult>>> UpdateExcel(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest<ProductUploadResult>("Please upload a valid Excel file");
+
+        if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) &&
+            !file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
+            return BadRequest<ProductUploadResult>("Only Excel files (.xlsx, .xls) are allowed");
+
+        var result = new ProductUploadResult { Errors = new List<string>() };
+
+        try
         {
-            if (file == null || file.Length == 0)
-                return BadRequest<ProductUploadResult>("Please upload a valid Excel file");
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+            stream.Position = 0;
 
-            if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) &&
-                !file.FileName.EndsWith(".xls", StringComparison.OrdinalIgnoreCase))
-                return BadRequest<ProductUploadResult>("Only Excel files (.xlsx, .xls) are allowed");
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1); // First sheet
 
-            var result = new ProductUploadResult { Errors = new List<string>() };
+            var headerRow = worksheet.Row(1);
+            var headers = headerRow.CellsUsed().ToDictionary(
+                c => c.GetString().Trim(),
+                c => c.Address.ColumnNumber,
+                StringComparer.OrdinalIgnoreCase
+            );
 
-            try
+            if (!headers.ContainsKey("SKU"))
             {
-                using var stream = new MemoryStream();
-                await file.CopyToAsync(stream);
-                stream.Position = 0;
-
-                using var workbook = new XLWorkbook(stream);
-                var worksheet = workbook.Worksheet(1); // First sheet
-
-                var headerRow = worksheet.Row(1);
-                var headers = headerRow.CellsUsed().ToDictionary(
-                    c => c.GetString().Trim(), 
-                    c => c.Address.ColumnNumber, 
-                    StringComparer.OrdinalIgnoreCase
-                );
-
-                if (!headers.ContainsKey("SKU"))
-                {
-                    return BadRequest<ProductUploadResult>("The uploaded template must contain a 'SKU' column.");
-                }
-
-                var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
-                
-                var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
-                var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (var row in rows)
-                {
-                    try
-                    {
-                        var sku = row.Cell(headers["SKU"]).GetString()?.Trim();
-                        if (string.IsNullOrEmpty(sku)) continue;
-
-                        var product = await _context.Products.FirstOrDefaultAsync(p => p.Sku == sku);
-                        if (product == null)
-                        {
-                            result.Errors.Add($"Row {row.RowNumber()}: SKU {sku} not found.");
-                            continue;
-                        }
-
-                        // Update dynamically based on headers
-                        if (headers.ContainsKey("Product Name"))
-                        {
-                            var val = row.Cell(headers["Product Name"]).GetString()?.Trim();
-                            if (!string.IsNullOrEmpty(val)) product.Name = val;
-                        }
-                        
-                        if (headers.ContainsKey("Alias"))
-                            product.Alias = row.Cell(headers["Alias"]).GetString()?.Trim();
-
-                        if (headers.ContainsKey("Country of Origin"))
-                            product.CountryOfOrigin = row.Cell(headers["Country of Origin"]).GetString()?.Trim();
-
-                        if (headers.ContainsKey("Unit Type"))
-                            product.UnitType = row.Cell(headers["Unit Type"]).GetString()?.Trim();
-
-                        if (headers.ContainsKey("Product Type"))
-                            product.ProductType = row.Cell(headers["Product Type"]).GetString()?.Trim();
-
-                        if (headers.ContainsKey("Factor"))
-                            product.Factor = row.Cell(headers["Factor"]).GetString()?.Trim();
-
-                        if (headers.ContainsKey("Net Qnty"))
-                        {
-                            var val = row.Cell(headers["Net Qnty"]).GetString()?.Trim();
-                            if (string.IsNullOrEmpty(val)) {
-                                product.NetQuantity = null;
-                            } else if (decimal.TryParse(val, out decimal netQuantity)) {
-                                product.NetQuantity = netQuantity > 0 ? netQuantity.ToString() : null;
-                            }
-                        }
-
-                        if (headers.ContainsKey("Best Before (Months)"))
-                        {
-                            if (int.TryParse(row.Cell(headers["Best Before (Months)"]).GetString(), out int bestBefore))
-                                product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 12;
-                        }
-
-                        if (headers.ContainsKey("MRP"))
-                        {
-                            if (decimal.TryParse(row.Cell(headers["MRP"]).GetString(), out decimal mrp))
-                                product.Mrp = mrp;
-                        }
-
-                        if (headers.ContainsKey("USSP"))
-                        {
-                            if (decimal.TryParse(row.Cell(headers["USSP"]).GetString(), out decimal ussp))
-                                product.Ussp = ussp;
-                        }
-
-                        if (headers.ContainsKey("Weight"))
-                        {
-                            var val = row.Cell(headers["Weight"]).GetString()?.Trim();
-                            if (string.IsNullOrEmpty(val)) {
-                                product.Weight = null;
-                            } else if (decimal.TryParse(val, out decimal weight)) {
-                                product.Weight = weight > 0 ? weight : null;
-                            }
-                        }
-
-                        if (headers.ContainsKey("Manufacturer Name"))
-                        {
-                            var manufacturerName = row.Cell(headers["Manufacturer Name"]).GetString()?.Trim();
-                            if (!string.IsNullOrEmpty(manufacturerName))
-                            {
-                                if (!createdManufacturers.TryGetValue(manufacturerName, out var manufacturer))
-                                {
-                                    manufacturer = await _context.Manufacturers
-                                        .FirstOrDefaultAsync(m => m.Name.ToLower() == manufacturerName.ToLower());
-                                    if (manufacturer == null)
-                                    {
-                                        manufacturer = new Manufacturer { Name = manufacturerName };
-                                        _context.Manufacturers.Add(manufacturer);
-                                        await _context.SaveChangesAsync();
-                                    }
-                                    createdManufacturers[manufacturerName] = manufacturer;
-                                }
-                                product.ManufacturerId = createdManufacturers[manufacturerName].Id;
-                            }
-                        }
-
-                        if (headers.ContainsKey("Commodity Name"))
-                        {
-                            var commodityName = row.Cell(headers["Commodity Name"]).GetString()?.Trim();
-                            if (!string.IsNullOrEmpty(commodityName))
-                            {
-                                if (!createdCommodities.TryGetValue(commodityName, out var commodity))
-                                {
-                                    commodity = await _context.Commodities
-                                        .FirstOrDefaultAsync(c => c.Name.ToLower() == commodityName.ToLower());
-                                    if (commodity == null)
-                                    {
-                                        commodity = new Commodity { Name = commodityName.ToUpper() };
-                                        _context.Commodities.Add(commodity);
-                                        await _context.SaveChangesAsync();
-                                    }
-                                    createdCommodities[commodityName] = commodity;
-                                }
-                                product.CommodityId = createdCommodities[commodityName].Id;
-                            }
-                        }
-
-                        result.ImportedCount++;
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                result.Success = true;
-
-                _logger.LogInformation("Excel update completed. Updated {Count} products", result.ImportedCount);
-
-                return Success(result, $"Successfully updated {result.ImportedCount} products");
+                return BadRequest<ProductUploadResult>("The uploaded template must contain a 'SKU' column.");
             }
-            catch (Exception ex)
+
+            var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
+
+            var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
+            var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var row in rows)
             {
-                _logger.LogError(ex, "Error updating from Excel file");
-                return Error<ProductUploadResult>($"Error processing file: {ex.Message}");
+                try
+                {
+                    var sku = row.Cell(headers["SKU"]).GetString()?.Trim();
+                    if (string.IsNullOrEmpty(sku)) continue;
+
+                    var product = await _context.Products.FirstOrDefaultAsync(p => p.Sku == sku);
+                    if (product == null)
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: SKU {sku} not found.");
+                        continue;
+                    }
+
+                    // Update dynamically based on headers
+                    if (headers.ContainsKey("Product Name"))
+                    {
+                        var val = row.Cell(headers["Product Name"]).GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(val)) product.Name = val;
+                    }
+
+                    if (headers.ContainsKey("Alias"))
+                        product.Alias = row.Cell(headers["Alias"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Country of Origin"))
+                        product.CountryOfOrigin = row.Cell(headers["Country of Origin"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Unit Type"))
+                        product.UnitType = row.Cell(headers["Unit Type"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Product Type"))
+                        product.ProductType = row.Cell(headers["Product Type"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Factor"))
+                        product.Factor = row.Cell(headers["Factor"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Net Qnty"))
+                    {
+                        var val = row.Cell(headers["Net Qnty"]).GetString()?.Trim();
+                        product.NetQuantity = string.IsNullOrEmpty(val) ? null : val;
+                    }
+
+                    if (headers.ContainsKey("Best Before (Months)"))
+                    {
+                        if (int.TryParse(row.Cell(headers["Best Before (Months)"]).GetString(), out int bestBefore))
+                            product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 12;
+                    }
+
+                    if (headers.ContainsKey("MRP"))
+                    {
+                        if (decimal.TryParse(row.Cell(headers["MRP"]).GetString(), out decimal mrp))
+                            product.Mrp = mrp;
+                    }
+
+                    if (headers.ContainsKey("USSP"))
+                    {
+                        if (decimal.TryParse(row.Cell(headers["USSP"]).GetString(), out decimal ussp))
+                            product.Ussp = ussp;
+                    }
+
+                    if (headers.ContainsKey("Weight"))
+                    {
+                        var val = row.Cell(headers["Weight"]).GetString()?.Trim();
+                        if (string.IsNullOrEmpty(val))
+                        {
+                            product.Weight = null;
+                        }
+                        else if (decimal.TryParse(val, out decimal weight))
+                        {
+                            product.Weight = weight > 0 ? weight : null;
+                        }
+                    }
+
+                    if (headers.ContainsKey("Manufacturer Name"))
+                    {
+                        var manufacturerName = row.Cell(headers["Manufacturer Name"]).GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(manufacturerName))
+                        {
+                            if (!createdManufacturers.TryGetValue(manufacturerName, out var manufacturer))
+                            {
+                                manufacturer = await _context.Manufacturers
+                                    .FirstOrDefaultAsync(m => m.Name.ToLower() == manufacturerName.ToLower());
+                                if (manufacturer == null)
+                                {
+                                    manufacturer = new Manufacturer { Name = manufacturerName };
+                                    _context.Manufacturers.Add(manufacturer);
+                                    await _context.SaveChangesAsync();
+                                }
+                                createdManufacturers[manufacturerName] = manufacturer;
+                            }
+                            product.ManufacturerId = createdManufacturers[manufacturerName].Id;
+                        }
+                    }
+
+                    if (headers.ContainsKey("Commodity Name"))
+                    {
+                        var commodityName = row.Cell(headers["Commodity Name"]).GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(commodityName))
+                        {
+                            if (!createdCommodities.TryGetValue(commodityName, out var commodity))
+                            {
+                                commodity = await _context.Commodities
+                                    .FirstOrDefaultAsync(c => c.Name.ToLower() == commodityName.ToLower());
+                                if (commodity == null)
+                                {
+                                    commodity = new Commodity { Name = commodityName.ToUpper() };
+                                    _context.Commodities.Add(commodity);
+                                    await _context.SaveChangesAsync();
+                                }
+                                createdCommodities[commodityName] = commodity;
+                            }
+                            product.CommodityId = createdCommodities[commodityName].Id;
+                        }
+                    }
+
+                    result.ImportedCount++;
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
+                }
             }
+
+            await _context.SaveChangesAsync();
+            result.Success = true;
+
+            _logger.LogInformation("Excel update completed. Updated {Count} products", result.ImportedCount);
+
+            return Success(result, $"Successfully updated {result.ImportedCount} products");
         }
-
-        private bool ProductExists(int id) => _context.Products.Any(e => e.Id == id);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating from Excel file");
+            return Error<ProductUploadResult>($"Error processing file: {ex.Message}");
+        }
     }
+
+    private bool ProductExists(int id) => _context.Products.Any(e => e.Id == id);
+}
