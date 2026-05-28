@@ -170,6 +170,7 @@ export const PutAway = () => {
 
       // Split scanned data by '#' and use the first part (index 0)
       const scan = productScanCode.trim().split("#")[0].trim();
+      setProductScanCode(scan);
 
       // First check in put-away tasks
       const task = allTasks.find(

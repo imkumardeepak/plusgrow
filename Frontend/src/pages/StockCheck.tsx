@@ -143,8 +143,11 @@ export const StockCheck = memo(function StockCheck() {
   const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const sku = normalizeSku(scanInput);
-    if (!sku) return;
+    const rawInput = scanInput.trim();
+    if (!rawInput) return;
+
+    const sku = normalizeSku(rawInput.split("#")[0]);
+    setScanInput(sku);
 
     const product =
       products.find((item) => normalizeSku(item.sku) === sku) ?? null;

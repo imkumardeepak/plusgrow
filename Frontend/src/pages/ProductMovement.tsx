@@ -33,7 +33,9 @@ import {
 import {
   productsApi,
   productAllottedLocationsApi,
+  locationsApi,
   type ProductLookupResult,
+  type Location,
 } from "../services/masterApi";
 
 export const ProductMovement = memo(function ProductMovement() {
@@ -51,18 +53,33 @@ export const ProductMovement = memo(function ProductMovement() {
   const [reason, setReason] = useState<string | null>("Relocation");
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   const skuInputRef = useRef<HTMLInputElement>(null);
   const destInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     skuInputRef.current?.focus();
+    
+    // Fetch locations directory for validation
+    const loadLocations = async () => {
+      try {
+        const data = await locationsApi.getAll();
+        setLocations(data);
+      } catch (err) {
+        console.error("Failed to load locations master", err);
+      }
+    };
+    loadLocations();
   }, []);
 
   const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
-    const sku = skuInput.trim().toUpperCase();
-    if (!sku) return;
+    const rawInput = skuInput.trim();
+    if (!rawInput) return;
+
+    const sku = rawInput.split("#")[0].trim().toUpperCase();
+    setSkuInput(sku);
 
     setIsSearching(true);
     try {
@@ -88,6 +105,31 @@ export const ProductMovement = memo(function ProductMovement() {
       setProductData(null);
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleDestLocScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && destLocInput.trim()) {
+      e.preventDefault();
+      const code = destLocInput.trim().toUpperCase();
+
+      // Find standard location code matching input or matching bin contents
+      const matched = locations.find(
+        (loc) =>
+          loc.locationCode.toUpperCase() === code ||
+          loc.bins?.some((bin) => bin.toUpperCase() === code)
+      );
+
+      if (matched) {
+        setDestLocInput(matched.locationCode);
+        toast.success(`Destination identified: ${matched.locationCode}`);
+        setTimeout(() => {
+          const qtyInput = document.getElementById("move-qty-input");
+          qtyInput?.focus();
+        }, 50);
+      } else {
+        toast.error(`Location or Bin "${code}" not found in Location Master`);
+      }
     }
   };
 
@@ -300,10 +342,12 @@ export const ProductMovement = memo(function ProductMovement() {
                   {/* Destination Location */}
                   <TextInput
                     ref={destInputRef}
+                    id="dest-loc-input"
                     label="DESTINATION LOCATION (TO)"
                     placeholder="Scan / type destination code"
                     value={destLocInput}
                     onChange={(e) => setDestLocInput(e.target.value)}
+                    onKeyDown={handleDestLocScan}
                     required
                     styles={{
                       input: {
@@ -316,6 +360,7 @@ export const ProductMovement = memo(function ProductMovement() {
 
                   {/* Quantity */}
                   <NumberInput
+                    id="move-qty-input"
                     label="QUANTITY TO MOVE"
                     placeholder="Enter quantity"
                     min={1}

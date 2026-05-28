@@ -34,8 +34,11 @@ export const ProductQuery = memo(function ProductQuery() {
 
   const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
-    const sku = scanInput.trim().toUpperCase();
-    if (!sku) return;
+    const rawInput = scanInput.trim();
+    if (!rawInput) return;
+
+    const sku = rawInput.split("#")[0].trim().toUpperCase();
+    setScanInput(sku);
 
     setIsSearching(true);
     try {
