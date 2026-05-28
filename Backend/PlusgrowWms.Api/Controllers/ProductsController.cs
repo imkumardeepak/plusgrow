@@ -414,5 +414,54 @@ public class ProductsController : BaseController
         }
     }
 
+    [HttpGet("lookup")]
+    public async Task<ActionResult<ApiResponse<ProductLookupDto>>> LookupProduct([FromQuery] string sku)
+    {
+        if (string.IsNullOrWhiteSpace(sku))
+            return BadRequest<ProductLookupDto>("SKU is required");
+
+        var normalizedSku = sku.Trim().ToUpper();
+
+        // Find the product by SKU or Alias
+        var product = await _context.Products
+            .Include(p => p.Commodity)
+            .Include(p => p.Manufacturer)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Sku == normalizedSku || p.Alias == normalizedSku);
+
+        if (product == null)
+            return NotFound<ProductLookupDto>("Product not found for the given SKU/Alias");
+
+        // Get current stock quantity
+        var quantity = await _context.ProductQuantities
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pq => pq.ProductId == product.Id);
+
+        // Get allotted locations
+        var allottedLocation = await _context.ProductAllottedLocations
+            .AsNoTracking()
+            .FirstOrDefaultAsync(al => al.ProductId == product.Id);
+
+        var locations = new List<LocationStockDto>();
+        if (allottedLocation != null && allottedLocation.LocationJson != null)
+        {
+            locations = allottedLocation.LocationJson
+                .Select(kvp => new LocationStockDto { LocationCode = kvp.Key, Quantity = kvp.Value })
+                .Where(l => l.Quantity > 0)
+                .OrderBy(l => l.LocationCode)
+                .ToList();
+        }
+
+        var result = new ProductLookupDto
+        {
+            Sku = product.Sku ?? string.Empty,
+            Product = product,
+            CurrentStock = quantity?.CurrentQuantity ?? 0,
+            Locations = locations
+        };
+
+        return Success(result);
+    }
+
     private bool ProductExists(int id) => _context.Products.Any(e => e.Id == id);
 }

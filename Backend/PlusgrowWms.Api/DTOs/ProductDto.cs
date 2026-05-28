@@ -1,3 +1,5 @@
+using PlusgrowWms.Api.Models;
+
 namespace PlusgrowWms.Api.DTOs;
 
 public class ProductDto
@@ -57,4 +59,18 @@ public class UpdateProductDto
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; }
     public int? ManufacturerId { get; set; }
+}
+
+public class ProductLookupDto
+{
+    public string Sku { get; set; } = string.Empty;
+    public Product? Product { get; set; }
+    public int CurrentStock { get; set; }
+    public List<LocationStockDto> Locations { get; set; } = new();
+}
+
+public class LocationStockDto
+{
+    public string LocationCode { get; set; } = string.Empty;
+    public int Quantity { get; set; }
 }

@@ -59,6 +59,13 @@ export interface Product {
   createdAt: string;
 }
 
+export interface ProductLookupResult {
+  sku: string;
+  product: Product;
+  currentStock: number;
+  locations: Array<{ locationCode: string; quantity: number }>;
+}
+
 export interface CreateManufacturerDto {
   id?: number;
   name: string;
@@ -691,6 +698,14 @@ export const productsApi = {
       params: { q: query.trim() || undefined },
     });
     return response.data.data || [];
+  },
+
+  lookup: async (sku: string): Promise<ProductLookupResult> => {
+    const response = await api.get<ApiResponse<ProductLookupResult>>('/products/lookup', {
+      params: { sku: sku.trim() },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Product lookup failed');
+    return response.data.data!;
   },
 
   create: async (data: CreateProductDto): Promise<Product> => {
