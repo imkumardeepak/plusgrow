@@ -159,7 +159,6 @@ public class ProductsController : BaseController
 
                     // Parse numeric values
                     decimal.TryParse(row.Cell("MRP").GetString(), out decimal mrp);
-                    decimal ussp = 0;
                     var netQntyStr = row.Cell("Net Qnty").GetString()?.Trim();
                     int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
                     decimal.TryParse(row.Cell("Weight").GetString(), out decimal weight);
@@ -171,17 +170,7 @@ public class ProductsController : BaseController
                         ownership = "Self"; // Default to Self
                     }
 
-                    // Auto-calculate USSP if MRP and Factor provided
                     var factorStr = row.Cell("Factor").GetString()?.Trim();
-                    if (mrp > 0 && !string.IsNullOrEmpty(factorStr))
-                    {
-                        // Extract numeric value from Factor (e.g., "1L" -> 1, "500g" -> 500)
-                        var numericPart = new string(factorStr.Where(char.IsDigit).ToArray());
-                        if (decimal.TryParse(numericPart, out decimal factorValue) && factorValue > 0)
-                        {
-                            ussp = mrp / factorValue;
-                        }
-                    }
 
                     var product = new Product
                     {
@@ -195,11 +184,12 @@ public class ProductsController : BaseController
                         NetQuantity = string.IsNullOrEmpty(netQntyStr) ? null : netQntyStr,
                         UnitType = (row.Cell("Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),
                         Mrp = mrp,
-                        Ussp = ussp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
                         Weight = weight > 0 ? weight : null,
                         Ownership = ownership
                     };
+
+                    product.CalculateUssp();
 
                     _context.Products.Add(product);
                     await _context.SaveChangesAsync();
@@ -357,6 +347,8 @@ public class ProductsController : BaseController
                             product.Weight = weight > 0 ? weight : null;
                         }
                     }
+
+                    product.CalculateUssp();
 
                     if (headers.ContainsKey("Manufacturer Name"))
                     {

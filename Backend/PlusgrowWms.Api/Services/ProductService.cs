@@ -30,6 +30,7 @@ public class ProductService : IProductService
 
     public async Task<Product> CreateAsync(Product product)
     {
+        product.CalculateUssp();
         await _repository.AddAsync(product);
         await _repository.SaveChangesAsync();
         return (await _repository.GetByIdWithDetailsAsync(product.Id))!;
@@ -53,11 +54,12 @@ public class ProductService : IProductService
         existing.Factor = product.Factor;
         existing.NetQuantity = product.NetQuantity;
         existing.UnitType = product.UnitType;
-        existing.Ussp = product.Ussp;
         existing.Mrp = product.Mrp;
         existing.BestBeforeMonths = product.BestBeforeMonths;
         existing.Weight = product.Weight;
         existing.Ownership = product.Ownership;
+
+        existing.CalculateUssp();
 
         await _repository.SaveChangesAsync();
         return (await _repository.GetByIdWithDetailsAsync(id), null);

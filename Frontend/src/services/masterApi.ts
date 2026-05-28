@@ -784,7 +784,6 @@ export const productsApi = {
         'Country of Origin': 'India',
         'Unit Type': 'UNIT',
         'MRP': '',
-        'USSP': '',
         'Net Qnty': '',
         'Factor': '1L or 500g',
         'Best Before (Months)': '12',
@@ -803,7 +802,6 @@ export const productsApi = {
       { wch: 18 },  // Country of Origin
       { wch: 12 },  // Unit Type
       { wch: 12 },  // MRP
-      { wch: 12 },  // USSP
       { wch: 12 },  // Net Qnty
       { wch: 15 },  // Factor
       { wch: 20 },  // Best Before (Months)

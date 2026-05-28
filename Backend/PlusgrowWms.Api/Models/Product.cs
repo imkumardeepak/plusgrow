@@ -89,4 +89,18 @@ public class Product
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+    public void CalculateUssp()
+    {
+        if (Mrp.HasValue && Mrp.Value > 0 && !string.IsNullOrEmpty(Factor))
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(Factor, @"\d+(\.\d+)?");
+            if (match.Success && decimal.TryParse(match.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal factorValue) && factorValue > 0)
+            {
+                Ussp = Mrp.Value / factorValue;
+                return;
+            }
+        }
+        Ussp = 0;
+    }
 }

@@ -25,7 +25,6 @@ const templateData = [
     "MRP Quantity": "",
     "Unit Type": "UNIT",
     MRP: "",
-    USSP: "",
     "Best Before (Months)": "12",
     Factor: "1",
     "Stock Qnty": "",
@@ -46,7 +45,6 @@ ws["!cols"] = [
   { wch: 15 }, // MRP Quantity
   { wch: 12 }, // Unit Type
   { wch: 12 }, // MRP
-  { wch: 12 }, // USSP
   { wch: 20 }, // Best Before (Months)
   { wch: 10 }, // Factor
   { wch: 12 }, // Stock Qnty
@@ -98,11 +96,6 @@ const instructionsData = [
     Field: "MRP",
     Description: "Maximum Retail Price in INR",
     Example: "4999.00",
-  },
-  {
-    Field: "USSP",
-    Description: "Unit Standard Selling Price in INR",
-    Example: "3999.00",
   },
   {
     Field: "Best Before (Months)",

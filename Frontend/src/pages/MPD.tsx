@@ -901,7 +901,7 @@ export const MPD = memo(function MPD() {
             placeholder="Select fields"
             data={[
               "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
-              "Commodity Name", "Country of Origin", "Unit Type", "USSP",
+              "Commodity Name", "Country of Origin", "Unit Type",
               "Net Qnty", "Factor", "Best Before (Months)", "Ownership"
             ]}
             value={updateFields}
