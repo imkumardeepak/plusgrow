@@ -31,3 +31,14 @@ public class StockAdjustmentResultDto
     public ProductQuantityDto Quantity { get; set; } = new();
     public ProductStockMovementDto Movement { get; set; } = new();
 }
+
+public class MoveProductStockDto
+{
+    public int ProductId { get; set; }
+    public string SourceLocationCode { get; set; } = string.Empty;
+    public string DestinationLocationCode { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public string? Reason { get; set; }
+    public string? Notes { get; set; }
+}
+

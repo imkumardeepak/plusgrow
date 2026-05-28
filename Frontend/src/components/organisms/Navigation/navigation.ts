@@ -168,6 +168,18 @@ export const navigationGroups: NavGroup[] = [
         href: "/stock-check",
       },
       {
+        id: "product-query",
+        label: "Product Query",
+        icon: ScanLine,
+        href: "/product-query",
+      },
+      {
+        id: "product-movement",
+        label: "Product Movement",
+        icon: Move,
+        href: "/product-movement",
+      },
+      {
         id: "stock-movement",
         label: "Stock Movement",
         icon: Move,

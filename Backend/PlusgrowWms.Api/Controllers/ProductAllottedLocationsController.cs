@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
@@ -221,6 +222,132 @@ public class ProductAllottedLocationsController : BaseController
         });
 
         return Success(response, "Put-away assignment saved successfully");
+    }
+
+    [HttpPost("move")]
+    public async Task<ActionResult<ApiResponse<ProductAllottedLocationDto>>> MoveStock([FromBody] MoveProductStockDto dto)
+    {
+        if (dto.ProductId <= 0)
+            return BadRequest<ProductAllottedLocationDto>("Product is required");
+
+        if (string.IsNullOrWhiteSpace(dto.SourceLocationCode))
+            return BadRequest<ProductAllottedLocationDto>("Source location is required");
+
+        if (string.IsNullOrWhiteSpace(dto.DestinationLocationCode))
+            return BadRequest<ProductAllottedLocationDto>("Destination location is required");
+
+        if (dto.Quantity <= 0)
+            return BadRequest<ProductAllottedLocationDto>("Quantity must be greater than zero");
+
+        var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
+        if (product == null)
+            return NotFound<ProductAllottedLocationDto>("Selected product does not exist");
+
+        var srcInput = dto.SourceLocationCode.Trim();
+        var destInput = dto.DestinationLocationCode.Trim();
+
+        var locationsList = await _context.Locations.ToListAsync();
+
+        var resolvedSource = locationsList.FirstOrDefault(x => x.LocationCode.Equals(srcInput, StringComparison.OrdinalIgnoreCase))
+            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(srcInput, StringComparison.OrdinalIgnoreCase)));
+
+        var resolvedDestination = locationsList.FirstOrDefault(x => x.LocationCode.Equals(destInput, StringComparison.OrdinalIgnoreCase))
+            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(destInput, StringComparison.OrdinalIgnoreCase)));
+
+        if (resolvedSource == null)
+            return NotFound<ProductAllottedLocationDto>("Source location or bin was not found");
+
+        if (resolvedDestination == null)
+            return NotFound<ProductAllottedLocationDto>("Destination location or bin was not found");
+
+        var sourceCode = resolvedSource.LocationCode;
+        var destinationCode = resolvedDestination.LocationCode;
+
+        if (sourceCode.Equals(destinationCode, StringComparison.OrdinalIgnoreCase))
+            return BadRequest<ProductAllottedLocationDto>("Source and destination locations cannot be the same");
+
+        var allocationRow = await _context.ProductAllottedLocations
+            .FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
+
+        if (allocationRow == null || allocationRow.LocationJson == null)
+            return BadRequest<ProductAllottedLocationDto>("No stock allocation found for this product");
+
+        var caseInsensitiveJson = new Dictionary<string, int>(allocationRow.LocationJson, StringComparer.OrdinalIgnoreCase);
+
+        if (!caseInsensitiveJson.TryGetValue(sourceCode, out var sourceQty) || sourceQty <= 0)
+            return BadRequest<ProductAllottedLocationDto>($"Product has no stock at source location {sourceCode}");
+
+        if (sourceQty < dto.Quantity)
+            return BadRequest<ProductAllottedLocationDto>($"Insufficient stock at source location {sourceCode}. Current stock is {sourceQty} units.");
+
+        // Relocate
+        caseInsensitiveJson[sourceCode] = sourceQty - dto.Quantity;
+        if (caseInsensitiveJson[sourceCode] == 0)
+        {
+            caseInsensitiveJson.Remove(sourceCode);
+        }
+
+        caseInsensitiveJson.TryGetValue(destinationCode, out var destQty);
+        caseInsensitiveJson[destinationCode] = destQty + dto.Quantity;
+
+        // Copy back to entity
+        allocationRow.LocationJson = new Dictionary<string, int>(caseInsensitiveJson);
+        allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
+
+        // Track stock movement
+        var quantityRow = await _context.ProductQuantities
+            .FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
+        var currentQty = quantityRow?.CurrentQuantity ?? 0;
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirst(ClaimTypes.GivenName)?.Value
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        var movement = new ProductStockMovement
+        {
+            ProductId = dto.ProductId,
+            QuantityChange = 0,
+            QuantityBefore = currentQty,
+            QuantityAfter = currentQty,
+            Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Relocation" : dto.Reason.Trim(),
+            MovementType = "move",
+            Notes = $"Moved {dto.Quantity} units from {sourceCode} to {destinationCode}." +
+                    (string.IsNullOrWhiteSpace(dto.Notes) ? "" : $" {dto.Notes.Trim()}"),
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        };
+
+        _context.ProductStockMovements.Add(movement);
+        await _context.SaveChangesAsync();
+
+        var updated = await _context.ProductAllottedLocations
+            .Include(x => x.Product)
+            .FirstAsync(x => x.Id == allocationRow.Id);
+
+        var response = MapLocation(updated);
+
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "product_location.moved",
+            Title = "Stock relocated",
+            Message = $"{dto.Quantity} units of {product.Name} moved from {sourceCode} to {destinationCode}.",
+            Severity = "info",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = product.Id,
+                ["productName"] = product.Name,
+                ["skuCode"] = product.Sku,
+                ["sourceLocationCode"] = sourceCode,
+                ["destinationLocationCode"] = destinationCode,
+                ["quantity"] = dto.Quantity,
+            },
+        });
+
+        return Success(response, $"Successfully relocated {dto.Quantity} units to {destinationCode}");
     }
 
     private static ProductAllottedLocationDto MapLocation(ProductAllottedLocation row)

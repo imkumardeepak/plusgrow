@@ -304,6 +304,15 @@ export interface CreateProductAllottedLocationDto {
   locationJson: Record<string, number>;
 }
 
+export interface MoveProductStockDto {
+  productId: number;
+  sourceLocationCode: string;
+  destinationLocationCode: string;
+  quantity: number;
+  reason?: string;
+  notes?: string;
+}
+
 export interface PutAwayScanAssignmentRequestDto {
   productScanCode: string;
   locationOrBinScanCode: string;
@@ -1071,6 +1080,12 @@ export const productAllottedLocationsApi = {
 
   assignScan: async (data: PutAwayScanAssignmentRequestDto): Promise<PutAwayScanAssignmentResult> => {
     const response = await api.post<ApiResponse<PutAwayScanAssignmentResult>>('/productallottedlocations/assign-scan', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  moveStock: async (data: MoveProductStockDto): Promise<ProductAllottedLocationRecord> => {
+    const response = await api.post<ApiResponse<ProductAllottedLocationRecord>>('/productallottedlocations/move', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

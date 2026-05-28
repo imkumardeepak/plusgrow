@@ -41,6 +41,7 @@ import {
   IconSearch,
   IconStack2,
   IconTruckDelivery,
+  IconArrowsLeftRight,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -119,49 +120,12 @@ const formatNumber = (value: number) => value.toLocaleString("en-IN");
 const orderPendingQuantity = (order: DashboardDispatchQueue) =>
   Math.max(order.pendingQuantity ?? 0, 0);
 
-const getLocationJson = (row: ProductAllottedLocationRecord | null) => {
-  if (!row) return {};
-  return (
-    row.locationJson ||
-    (row as unknown as { LocationJson?: Record<string, number> }).LocationJson ||
-    {}
-  );
-};
-
 export const Dashboard = memo(function Dashboard() {
   const { user, hasPermission } = useAuth();
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isSmallDevice = useMediaQuery("(max-width: 48em)");
-
-  // Mobile query tab states
-  const [activeTab, setActiveTab] = useState<"actions" | "query">("actions");
-  const [querySku, setQuerySku] = useState("");
-  const [isQueryDataLoading, setIsQueryDataLoading] = useState(false);
-  const [queryResult, setQueryResult] = useState<{
-    sku: string;
-    product: Product | null;
-    currentStock: number;
-    locations: Array<{ locationCode: string; quantity: number }>;
-  } | null>(null);
-
-  const handleQuerySearch = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const sku = querySku.trim().toUpperCase();
-    if (!sku) return;
-
-    setIsQueryDataLoading(true);
-    try {
-      const result = await productsApi.lookup(sku);
-      setQueryResult(result);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || "No product found matching this SKU");
-      setQueryResult(null);
-    } finally {
-      setIsQueryDataLoading(false);
-    }
-  };
 
 
 
@@ -395,6 +359,24 @@ export const Dashboard = memo(function Dashboard() {
           href: "/stock-movement",
           visible: hasPermission("stock-movement", "view"),
         },
+        {
+          key: "product-movement",
+          title: "Product Movement",
+          description: "Move product stock from one location to another.",
+          icon: IconArrowsLeftRight,
+          color: "teal",
+          href: "/product-movement",
+          visible: hasPermission("stock-movement", "view"),
+        },
+        {
+          key: "product-query",
+          title: "Product Query",
+          description: "Lookup product details, stock, and locations.",
+          icon: IconSearch,
+          color: "blue",
+          href: "/product-query",
+          visible: true, // Everyone has dashboard permission
+        },
       ].filter((item) => item.visible),
     [hasPermission],
   );
@@ -424,259 +406,50 @@ export const Dashboard = memo(function Dashboard() {
   if (isSmallDevice) {
     return (
       <Stack gap="md">
-        <Paper
-          p="xs"
-          radius="md"
-          withBorder
-          style={{
-            background: "rgba(10, 18, 32, 0.5)",
-            borderColor: "rgba(148, 163, 184, 0.08)",
-          }}
-        >
-          <SegmentedControl
-            fullWidth
-            size="xs"
-            radius="md"
-            value={activeTab}
-            onChange={(val) => setActiveTab(val as "actions" | "query")}
-            data={[
-              { value: "actions", label: "Operations" },
-              { value: "query", label: "Product Query" },
-            ]}
-          />
-        </Paper>
-
-        {activeTab === "actions" ? (
-          <SimpleGrid cols={2} gap="sm">
-            {mobileLauncherCards.map((card, index) => (
-              <motion.div
-                key={card.key}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.2 }}
-              >
-                <Link to={card.href} className="no-underline">
-                  <Card
-                    withBorder
-                    radius="md"
-                    p="sm"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
-                      borderColor: "rgba(148, 163, 184, 0.12)",
-                      height: "100%",
-                    }}
-                  >
-                    <Group justify="space-between" align="center" mb="xs">
-                      <ThemeIcon
-                        color={card.color}
-                        variant="light"
-                        size={32}
-                        radius="md"
-                      >
-                        <card.icon size={16} />
-                      </ThemeIcon>
-                      <Badge variant="light" color={card.color} size="xs">
-                        Open
-                      </Badge>
-                    </Group>
-                    <Text size="sm" fw={800} c="white">
-                      {card.title}
-                    </Text>
-                    <Text size="10px" c="dimmed" mt={4} lineClamp={1}>
-                      {card.description}
-                    </Text>
-                  </Card>
-                </Link>
-              </motion.div>
-            ))}
-            {mobileLauncherCards.length === 0 && (
-              <Box style={{ gridColumn: "span 2" }}>
-                <Paper p="lg" radius="md" withBorder style={{ textAlign: "center", background: "transparent" }}>
-                  <Text size="sm" c="dimmed">No operations permitted for your role.</Text>
-                </Paper>
-              </Box>
-            )}
-          </SimpleGrid>
-        ) : (
-          <Stack gap="sm">
-            <Card
-              withBorder
-              radius="md"
-              p="md"
-              style={{
-                background: "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
-                borderColor: "rgba(148, 163, 184, 0.12)",
-              }}
+        <SimpleGrid cols={2} gap="sm">
+          {mobileLauncherCards.map((card, index) => (
+            <motion.div
+              key={card.key}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
             >
-              <form onSubmit={handleQuerySearch}>
-                <Stack gap="xs">
-                  <Text size="xs" fw={800} c="dimmed">
-                    Scan or Enter SKU Code
-                  </Text>
-                  <Group gap="xs" wrap="nowrap">
-                    <TextInput
-                      style={{ flex: 1 }}
-                      placeholder="SKU Code..."
-                      value={querySku}
-                      onChange={(e) => setQuerySku(e.currentTarget.value)}
-                      radius="md"
-                      styles={{
-                        input: {
-                          textTransform: "uppercase",
-                          fontFamily: "monospace",
-                        },
-                      }}
-                      leftSection={isQueryDataLoading ? <Loader size={14} /> : <IconSearch size={14} />}
-                    />
-                    <Button
-                      type="submit"
-                      loading={isQueryDataLoading}
-                      disabled={isQueryDataLoading || !querySku.trim()}
-                      radius="md"
-                      size="sm"
-                    >
-                      Query
-                    </Button>
-                  </Group>
-                </Stack>
-              </form>
-            </Card>
-
-            {queryResult ? (
-              <Stack gap="sm">
+              <Link to={card.href} className="no-underline">
                 <Card
                   withBorder
                   radius="md"
-                  p="md"
+                  p="sm"
                   style={{
-                    background: "linear-gradient(180deg, rgba(24,37,60,0.96) 0%, rgba(13,22,38,0.98) 100%)",
-                    borderColor: "rgba(148, 163, 184, 0.16)",
-                  }}
-                >
-                  <Stack gap="xs">
-                    <Group justify="space-between" align="flex-start">
-                      <Box style={{ minWidth: 0 }}>
-                        <Text size="11px" fw={800} c="dimmed">
-                          SKU: {queryResult.sku}
-                        </Text>
-                        <Text size="sm" fw={800} c="white" mt={2} lineClamp={2}>
-                          {queryResult.product?.name || "Unknown Product"}
-                        </Text>
-                      </Box>
-                      <Badge variant="light" color={queryResult.currentStock ? "green" : "gray"}>
-                        {queryResult.currentStock} in stock
-                      </Badge>
-                    </Group>
-
-                    <Divider my={4} style={{ opacity: 0.1 }} />
-
-                    <SimpleGrid cols={2} spacing="xs">
-                      <div>
-                        <Text size="10px" fw={800} c="dimmed">MRP</Text>
-                        <Text size="xs" fw={700} c="white">
-                          {queryResult.product?.mrp ? `Rs ${queryResult.product.mrp.toFixed(2)}` : "N/A"}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="10px" fw={800} c="dimmed">USSP</Text>
-                        <Text size="xs" fw={700} c="cyan.3">
-                          {queryResult.product?.ussp ? `Rs ${queryResult.product.ussp.toFixed(2)}` : "N/A"}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="10px" fw={800} c="dimmed">FACTOR</Text>
-                        <Text size="xs" fw={700} c="white">
-                          {queryResult.product?.factor || "N/A"}
-                        </Text>
-                      </div>
-                      <div>
-                        <Text size="10px" fw={800} c="dimmed">UNIT / NET QNTY</Text>
-                        <Text size="xs" fw={700} c="white">
-                          {queryResult.product?.unitType || "N/A"} / {queryResult.product?.netQuantity || "N/A"}
-                        </Text>
-                      </div>
-                    </SimpleGrid>
-                  </Stack>
-                </Card>
-
-                <Card
-                  withBorder
-                  radius="md"
-                  p="md"
-                  style={{
-                    background: "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
+                    background:
+                      "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
                     borderColor: "rgba(148, 163, 184, 0.12)",
+                    height: "100%",
                   }}
                 >
-                  <Stack gap="xs">
-                    <Group gap="xs">
-                      <IconMapPin size={16} color="var(--mantine-color-cyan-4)" />
-                      <Text size="xs" fw={800} c="white">
-                        STOCK BY LOCATION
-                      </Text>
-                    </Group>
-
-                    {queryResult.locations.length === 0 ? (
-                      <Paper p="sm" withBorder radius="md" style={{ background: "transparent", textAlign: "center" }}>
-                        <Text size="xs" c="dimmed">
-                          No stock in any locations.
-                        </Text>
-                      </Paper>
-                    ) : (
-                      <Stack gap={6}>
-                        {queryResult.locations.map((loc) => (
-                          <Paper
-                            key={loc.locationCode}
-                            p="xs"
-                            radius="md"
-                            withBorder
-                            style={{
-                              background: "rgba(255,255,255,0.02)",
-                              borderColor: "rgba(148, 163, 184, 0.08)",
-                            }}
-                          >
-                            <Group justify="space-between" align="center">
-                              <Group gap="xs">
-                                <IconMapPin size={14} color="var(--mantine-color-cyan-4)" />
-                                <Text size="xs" fw={800} ff="monospace" c="cyan.3">
-                                  {loc.locationCode}
-                                </Text>
-                              </Group>
-                              <Badge size="sm" color="cyan" variant="filled">
-                                {loc.quantity} units
-                              </Badge>
-                            </Group>
-                          </Paper>
-                        ))}
-                      </Stack>
-                    )}
-                  </Stack>
+                  <Group justify="space-between" align="center" mb="xs">
+                    <ThemeIcon
+                      color={card.color}
+                      variant="light"
+                      size={32}
+                      radius="md"
+                    >
+                      <card.icon size={16} />
+                    </ThemeIcon>
+                    <Badge variant="light" color={card.color} size="xs">
+                      Open
+                    </Badge>
+                  </Group>
+                  <Text size="sm" fw={800} c="white">
+                    {card.title}
+                  </Text>
+                  <Text size="10px" c="dimmed" mt={4} lineClamp={1}>
+                    {card.description}
+                  </Text>
                 </Card>
-              </Stack>
-            ) : (
-              <Paper
-                p="xl"
-                radius="md"
-                withBorder
-                style={{
-                  background: "transparent",
-                  textAlign: "center",
-                  borderColor: "rgba(148, 163, 184, 0.08)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <IconBox size={32} color="var(--mantine-color-slate-6)" style={{ opacity: 0.5, marginBottom: "8px" }} />
-                <Text size="xs" ta="center" c="dimmed">
-                  Scan a barcode or enter a SKU to search.
-                </Text>
-              </Paper>
-            )}
-          </Stack>
-        )}
+              </Link>
+            </motion.div>
+          ))}
+        </SimpleGrid>
       </Stack>
     );
   }
@@ -732,7 +505,7 @@ export const Dashboard = memo(function Dashboard() {
       <Grid gutter="md">
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, sm: 3 }} gap="md">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 5 }} gap="md">
               <Link to="/inward" className="no-underline">
                 <Card withBorder radius="md" p="md">
                   <Group gap="sm">
@@ -800,6 +573,24 @@ export const Dashboard = memo(function Dashboard() {
                       </Text>
                       <Text size="sm" fw={800}>
                         {formatNumber(summary.pendingDispatchQuantity)} pending
+                      </Text>
+                    </Box>
+                  </Group>
+                </Card>
+              </Link>
+
+              <Link to="/product-query" className="no-underline">
+                <Card withBorder radius="md" p="md">
+                  <Group gap="sm">
+                    <ThemeIcon color="cyan" variant="light" size={40}>
+                      <IconSearch size={22} />
+                    </ThemeIcon>
+                    <Box>
+                      <Text size="xs" c="dimmed" fw={800} tt="uppercase">
+                        Product Query
+                      </Text>
+                      <Text size="sm" fw={800}>
+                        Query stock & locations
                       </Text>
                     </Box>
                   </Group>
