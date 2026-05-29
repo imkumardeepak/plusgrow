@@ -105,7 +105,7 @@ export const MPD = memo(function MPD() {
     weight: 0,
     ownership: "Self",
     mrp: 0,
-    bestBeforeMonths: 12,
+    bestBeforeMonths: 84,
   });
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -257,7 +257,7 @@ export const MPD = memo(function MPD() {
         weight: formData.weight || 0,
         ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
-        bestBeforeMonths: formData.bestBeforeMonths || 12,
+        bestBeforeMonths: formData.bestBeforeMonths || 84,
       };
 
       if (isEditing) {
@@ -292,7 +292,7 @@ export const MPD = memo(function MPD() {
       weight: 0,
       ownership: "Self",
       mrp: 0,
-      bestBeforeMonths: 12,
+      bestBeforeMonths: 84,
     });
     setIsEditing(null);
     setIsModalOpen(true);
@@ -313,7 +313,7 @@ export const MPD = memo(function MPD() {
       weight: product.weight || 0,
       ownership: product.ownership || "Self",
       mrp: product.mrp || 0,
-      bestBeforeMonths: product.bestBeforeMonths || 12,
+      bestBeforeMonths: product.bestBeforeMonths || 84,
     });
     setIsEditing(product);
     setIsModalOpen(true);
@@ -723,7 +723,7 @@ export const MPD = memo(function MPD() {
       sortAccessor: (row) => `${row.netQuantity}-${row.bestBeforeMonths}`,
       render: (row) => (
         <Text size="xs" lineClamp={1}>
-          {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 12} mo
+          {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 84} mo
         </Text>
       ),
       width: 110,
@@ -1217,7 +1217,7 @@ export const MPD = memo(function MPD() {
                     label="Best Before Months"
                     type="number"
                     min="0"
-                    value={String(formData.bestBeforeMonths ?? 12)}
+                    value={String(formData.bestBeforeMonths ?? 84)}
                     onChange={(event) =>
                       setFormData((prev) => ({
                         ...prev,

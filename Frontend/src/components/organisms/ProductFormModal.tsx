@@ -53,7 +53,7 @@ export function ProductFormModal({
     weight: 0,
     ownership: "Self",
     mrp: 0,
-    bestBeforeMonths: 12,
+    bestBeforeMonths: 84,
   });
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export function ProductFormModal({
           weight: product.weight || 0,
           ownership: product.ownership || "Self",
           mrp: product.mrp || 0,
-          bestBeforeMonths: product.bestBeforeMonths || 12,
+          bestBeforeMonths: product.bestBeforeMonths || 84,
         });
       } else {
         setFormData({
@@ -90,7 +90,7 @@ export function ProductFormModal({
           weight: 0,
           ownership: "Self",
           mrp: 0,
-          bestBeforeMonths: 12,
+          bestBeforeMonths: 84,
         });
       }
 
@@ -141,7 +141,7 @@ export function ProductFormModal({
         weight: formData.weight || 0,
         ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
-        bestBeforeMonths: formData.bestBeforeMonths || 12,
+        bestBeforeMonths: formData.bestBeforeMonths || 84,
       };
 
       if (product) {
@@ -432,7 +432,7 @@ export function ProductFormModal({
                   label="Best Before Months"
                   type="number"
                   min="0"
-                  value={String(formData.bestBeforeMonths ?? 12)}
+                  value={String(formData.bestBeforeMonths ?? 84)}
                   onChange={(event) =>
                     setFormData((prev) => ({
                       ...prev,

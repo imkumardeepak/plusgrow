@@ -184,7 +184,7 @@ public class ProductsController : BaseController
                         NetQuantity = string.IsNullOrEmpty(netQntyStr) ? null : netQntyStr,
                         UnitType = (row.Cell("Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),
                         Mrp = mrp,
-                        BestBeforeMonths = bestBefore > 0 ? bestBefore : 12,
+                        BestBeforeMonths = bestBefore > 0 ? bestBefore : 84,
                         Weight = weight > 0 ? weight : null,
                         Ownership = ownership
                     };
@@ -320,7 +320,7 @@ public class ProductsController : BaseController
                     if (headers.ContainsKey("Best Before (Months)"))
                     {
                         if (int.TryParse(row.Cell(headers["Best Before (Months)"]).GetString(), out int bestBefore))
-                            product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 12;
+                            product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 84;
                     }
 
                     if (headers.ContainsKey("MRP"))

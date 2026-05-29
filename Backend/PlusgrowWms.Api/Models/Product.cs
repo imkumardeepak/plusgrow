@@ -79,7 +79,7 @@ public class Product
 
     [Column("best_before_months")]
     [JsonPropertyName("BestBeforeMonths")]
-    public int BestBeforeMonths { get; set; } = 120;
+    public int BestBeforeMonths { get; set; } = 84;
 
     [Column("manufacturer_id")]
     public int? ManufacturerId { get; set; }

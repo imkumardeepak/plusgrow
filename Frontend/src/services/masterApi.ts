@@ -810,7 +810,7 @@ export const productsApi = {
         'MRP': '',
         'Net Qnty': '',
         'Factor': '1L or 500g',
-        'Best Before (Months)': '12',
+        'Best Before (Months)': '84',
         'Weight': '',
         'Ownership': 'Self',
         'Stock Qnty': '',
