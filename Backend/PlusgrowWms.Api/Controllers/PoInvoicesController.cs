@@ -280,8 +280,38 @@ public class PoInvoicesController : BaseController
 
                     if (product == null)
                     {
-                        result.Errors.Add($"Row {row.RowNumber()}: Product not found for Part No. '{partNo}' / Item '{itemName}'.");
-                        continue;
+                        if (string.IsNullOrWhiteSpace(itemName))
+                        {
+                            result.Errors.Add($"Row {row.RowNumber()}: Product name (Item Name) is required to create a new product.");
+                            continue;
+                        }
+
+                        if (!decimal.TryParse(row.Cell(headerMap["mrp"]).GetString(), out decimal mrpVal))
+                        {
+                            try
+                            {
+                                mrpVal = (decimal)row.Cell(headerMap["mrp"]).GetDouble();
+                            }
+                            catch
+                            {
+                                mrpVal = 0;
+                            }
+                        }
+
+                        product = new Product
+                        {
+                            Name = itemName,
+                            Sku = string.IsNullOrWhiteSpace(partNo) ? null : partNo,
+                            Mrp = mrpVal,
+                            BestBeforeMonths = 84,
+                            UnitType = "pcs",
+                            CountryOfOrigin = "India",
+                            Ownership = "Self"
+                        };
+                        product.CalculateUssp();
+
+                        _context.Products.Add(product);
+                        await _context.SaveChangesAsync();
                     }
 
                     var entity = new PoInvoice
