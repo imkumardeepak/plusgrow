@@ -128,10 +128,18 @@ export interface CreateProductDto {
   id?: number;
 }
 
+export interface SkippedRowInfo {
+  rowNumber: number;
+  sku?: string | null;
+  productName?: string | null;
+  reason: string;
+}
+
 export interface ProductUploadResult {
   success: boolean;
   importedCount: number;
   errors?: string[];
+  skippedRows?: SkippedRowInfo[];
 }
 
 export interface Bin {

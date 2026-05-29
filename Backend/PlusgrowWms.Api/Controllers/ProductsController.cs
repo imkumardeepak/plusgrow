@@ -97,92 +97,171 @@ public class ProductsController : BaseController
             stream.Position = 0;
 
             using var workbook = new XLWorkbook(stream);
-            var worksheet = workbook.Worksheet("Product Template");
+            var worksheet = workbook.Worksheets.FirstOrDefault(w =>
+                string.Equals(w.Name, "Product Template", StringComparison.OrdinalIgnoreCase))
+                ?? workbook.Worksheets.First();
 
-            if (worksheet == null)
-                worksheet = workbook.Worksheet(1); // Fallback to first sheet
+            var headerRow = worksheet.Row(1);
+            var headers = headerRow.CellsUsed().ToDictionary(
+                c => c.GetString().Trim(),
+                c => c.Address.ColumnNumber,
+                StringComparer.OrdinalIgnoreCase
+            );
 
-            var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
-            var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
-            var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
+            IXLCell GetCell(IXLRangeRow rangeRow, string name) =>
+                headers.TryGetValue(name, out var colNum)
+                    ? worksheet.Row(rangeRow.RowNumber()).Cell(colNum)
+                    : worksheet.Row(rangeRow.RowNumber()).Cell(100);
+
+            var rangeUsed = worksheet.RangeUsed();
+            if (rangeUsed == null)
+            {
+                result.Success = true;
+                return Success(result, "Imported 0 products (empty sheet)");
+            }
+            var rows = rangeUsed.RowsUsed().Skip(1).ToList();
+
+            // ─── 1. COLLECT all unique names from the sheet up front ───────────────
+            var allManufacturerNames = rows
+                .Select(r => GetCell(r, "Manufacturer Name").GetString()?.Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var allCommodityNames = rows
+                .Select(r => GetCell(r, "Commodity Name").GetString()?.Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var allSkus = rows
+                .Select(r => GetCell(r, "SKU").GetString()?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // ─── 2. BULK LOAD existing data in 3 queries total ─────────────────────
+            var existingManufacturers = await _context.Manufacturers
+                .Where(m => allManufacturerNames.Contains(m.Name))
+                .ToDictionaryAsync(m => m.Name, StringComparer.OrdinalIgnoreCase);
+
+            var existingCommodities = await _context.Commodities
+                .Where(c => allCommodityNames.Contains(c.Name))
+                .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
+
+            var existingSkus = await _context.Products
+                .Where(p => p.Sku != null && allSkus.Contains(p.Sku))
+                .Select(p => p.Sku!)
+                .ToHashSetAsync(StringComparer.OrdinalIgnoreCase);
+
+            // ─── 3. CREATE missing manufacturers & commodities in bulk ─────────────
+            var newManufacturers = allManufacturerNames
+                .Where(n => !existingManufacturers.ContainsKey(n!))
+                .Select(n => new Manufacturer { Name = n! })
+				.ToList();
+
+            if (newManufacturers.Any())
+            {
+                await _context.Manufacturers.AddRangeAsync(newManufacturers);
+                await _context.SaveChangesAsync(); // one save for all new manufacturers
+                foreach (var m in newManufacturers)
+                    existingManufacturers[m.Name!] = m;
+            }
+
+            var newCommodities = allCommodityNames
+                .Where(n => !existingCommodities.ContainsKey(n!))
+                .Select(n => new Commodity { Name = n!.ToUpper() })
+                .ToList();
+
+            if (newCommodities.Any())
+            {
+                await _context.Commodities.AddRangeAsync(newCommodities);
+                await _context.SaveChangesAsync(); // one save for all new commodities
+                foreach (var c in newCommodities)
+                    existingCommodities[c.Name!] = c;
+            }
+
+            // ─── 4. BUILD all Product objects in memory (no DB calls in loop) ──────
+            var newProducts = new List<Product>();
+            var rowProductMap = new List<(IXLRangeRow Row, Product Product)>();
+            var processedSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in rows)
             {
                 try
                 {
-                    var productName = row.Cell("Product Name").GetString()?.Trim();
-                    var sku = row.Cell("SKU").GetString()?.Trim();
+                    var productName = GetCell(row, "Product Name").GetString()?.Trim();
+                    var sku = GetCell(row, "SKU").GetString()?.Trim();
 
-                    // Skip empty rows
                     if (string.IsNullOrEmpty(productName))
+                    {
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productName,
+                            Reason = "Product Name is blank"
+                        });
                         continue;
+                    }
 
-                    // Parse manufacturer
-                    var manufacturerName = row.Cell("Manufacturer Name").GetString()?.Trim();
-                    int? manufacturerId = null;
-                    if (!string.IsNullOrEmpty(manufacturerName))
+                    if (string.IsNullOrEmpty(sku))
                     {
-                        if (!createdManufacturers.TryGetValue(manufacturerName, out var manufacturer))
+                        result.SkippedRows.Add(new SkippedRowInfo
                         {
-                            manufacturer = await _context.Manufacturers
-                                .FirstOrDefaultAsync(m => m.Name.ToLower() == manufacturerName.ToLower());
-                            if (manufacturer == null)
-                            {
-                                manufacturer = new Manufacturer { Name = manufacturerName };
-                                _context.Manufacturers.Add(manufacturer);
-                                await _context.SaveChangesAsync();
-                            }
-                            createdManufacturers[manufacturerName] = manufacturer;
-                        }
-                        manufacturerId = createdManufacturers[manufacturerName].Id;
+                            RowNumber = row.RowNumber(),
+                            Sku = null,
+                            ProductName = productName,
+                            Reason = "SKU code is blank"
+                        });
+                        continue;
                     }
 
-                    // Parse commodity
-                    var commodityName = row.Cell("Commodity Name").GetString()?.Trim();
-                    int? commodityId = null;
-                    if (!string.IsNullOrEmpty(commodityName))
+                    if (existingSkus.Contains(sku))
                     {
-                        if (!createdCommodities.TryGetValue(commodityName, out var commodity))
+                        result.SkippedRows.Add(new SkippedRowInfo
                         {
-                            commodity = await _context.Commodities
-                                .FirstOrDefaultAsync(c => c.Name.ToLower() == commodityName.ToLower());
-                            if (commodity == null)
-                            {
-                                commodity = new Commodity { Name = commodityName.ToUpper() };
-                                _context.Commodities.Add(commodity);
-                                await _context.SaveChangesAsync();
-                            }
-                            createdCommodities[commodityName] = commodity;
-                        }
-                        commodityId = createdCommodities[commodityName].Id;
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productName,
+                            Reason = "SKU already exists in database"
+                        });
+                        continue;
                     }
 
-                    // Parse numeric values
-                    decimal.TryParse(row.Cell("MRP").GetString(), out decimal mrp);
-                    var netQntyStr = row.Cell("Net Qnty").GetString()?.Trim();
-                    int.TryParse(row.Cell("Best Before (Months)").GetString(), out int bestBefore);
-                    decimal.TryParse(row.Cell("Weight").GetString(), out decimal weight);
-
-                    // Parse Ownership
-                    var ownership = row.Cell("Ownership").GetString()?.Trim();
-                    if (string.IsNullOrEmpty(ownership))
+                    if (processedSkus.Contains(sku))
                     {
-                        ownership = "Self"; // Default to Self
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productName,
+                            Reason = "Duplicate SKU in this file"
+                        });
+                        continue;
                     }
+                    processedSkus.Add(sku);
 
-                    var factorStr = row.Cell("Factor").GetString()?.Trim();
+                    existingManufacturers.TryGetValue(
+                        GetCell(row, "Manufacturer Name").GetString()?.Trim() ?? "", out var manufacturer);
+                    existingCommodities.TryGetValue(
+                        GetCell(row, "Commodity Name").GetString()?.Trim() ?? "", out var commodity);
+
+                    decimal.TryParse(GetCell(row, "MRP").GetString(), out decimal mrp);
+                    int.TryParse(GetCell(row, "Best Before (Months)").GetString(), out int bestBefore);
+                    decimal.TryParse(GetCell(row, "Weight").GetString(), out decimal weight);
+                    var netQntyStr = GetCell(row, "Net Qnty").GetString()?.Trim();
+                    var ownership = GetCell(row, "Ownership").GetString()?.Trim();
+                    if (string.IsNullOrEmpty(ownership)) ownership = "Self";
 
                     var product = new Product
                     {
                         Name = productName,
                         Sku = sku,
-                        Alias = row.Cell("Alias").GetString()?.Trim(),
-                        ManufacturerId = manufacturerId,
-                        CommodityId = commodityId,
-                        CountryOfOrigin = row.Cell("Country of Origin").GetString()?.Trim() ?? "India",
-                        Factor = factorStr,
+                        Alias = GetCell(row, "Alias").GetString()?.Trim(),
+                        ManufacturerId = manufacturer?.Id,
+                        CommodityId = commodity?.Id,
+                        CountryOfOrigin = GetCell(row, "Country of Origin").GetString()?.Trim() ?? "India",
+                        Factor = GetCell(row, "Factor").GetString()?.Trim(),
                         NetQuantity = string.IsNullOrEmpty(netQntyStr) ? null : netQntyStr,
-                        UnitType = (row.Cell("Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),
+                        UnitType = (GetCell(row, "Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),
                         Mrp = mrp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 84,
                         Weight = weight > 0 ? weight : null,
@@ -190,32 +269,8 @@ public class ProductsController : BaseController
                     };
 
                     product.CalculateUssp();
-
-                    _context.Products.Add(product);
-                    await _context.SaveChangesAsync();
-                    result.ImportedCount++;
-
-                    // Parse and upsert stock quantity
-                    var stockQntyStr = row.Cell("Stock Qnty").GetString()?.Trim();
-                    if (!string.IsNullOrEmpty(stockQntyStr) && int.TryParse(stockQntyStr, out int stockQnty) && stockQnty >= 0)
-                    {
-                        var existingQty = await _context.ProductQuantities
-                            .FirstOrDefaultAsync(pq => pq.ProductId == product.Id);
-                        if (existingQty != null)
-                        {
-                            existingQty.CurrentQuantity = stockQnty;
-                            existingQty.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-                        }
-                        else
-                        {
-                            _context.ProductQuantities.Add(new ProductQuantity
-                            {
-                                ProductId = product.Id,
-                                CurrentQuantity = stockQnty,
-                                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
-                            });
-                        }
-                    }
+                    newProducts.Add(product);
+                    rowProductMap.Add((row, product));
                 }
                 catch (Exception ex)
                 {
@@ -223,11 +278,52 @@ public class ProductsController : BaseController
                 }
             }
 
-            await _context.SaveChangesAsync();
+            // ─── 5. BULK INSERT all products in one shot ───────────────────────────
+            if (newProducts.Any())
+            {
+                await _context.Products.AddRangeAsync(newProducts);
+                await _context.SaveChangesAsync(); // single save for ALL products
+                result.ImportedCount = newProducts.Count;
+            }
+
+            // ─── 6. BULK UPSERT stock quantities ───────────────────────────────────
+            var productIds = newProducts.Select(p => p.Id).ToList();
+            var existingQtys = await _context.ProductQuantities
+                .Where(pq => productIds.Contains(pq.ProductId))
+                .ToDictionaryAsync(pq => pq.ProductId);
+
+            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            var newQtys = new List<ProductQuantity>();
+
+            foreach (var (row, product) in rowProductMap)
+            {
+                var stockQntyStr = GetCell(row, "Stock Qnty").GetString()?.Trim();
+                if (string.IsNullOrEmpty(stockQntyStr) ||
+                    !int.TryParse(stockQntyStr, out int stockQnty) || stockQnty < 0) continue;
+
+                if (existingQtys.TryGetValue(product.Id, out var existing))
+                {
+                    existing.CurrentQuantity = stockQnty;
+                    existing.UpdatedAt = now;
+                }
+                else
+                {
+                    newQtys.Add(new ProductQuantity
+                    {
+                        ProductId = product.Id,
+                        CurrentQuantity = stockQnty,
+                        UpdatedAt = now
+                    });
+                }
+            }
+
+            if (newQtys.Any())
+                await _context.ProductQuantities.AddRangeAsync(newQtys);
+
+            await _context.SaveChangesAsync(); // final single save
+
             result.Success = true;
-
             _logger.LogInformation("Excel upload completed. Imported {Count} products", result.ImportedCount);
-
             return Success(result, $"Successfully imported {result.ImportedCount} products");
         }
         catch (Exception ex)
@@ -270,7 +366,13 @@ public class ProductsController : BaseController
                 return BadRequest<ProductUploadResult>("The uploaded template must contain a 'SKU' column.");
             }
 
-            var rows = worksheet.RangeUsed().RowsUsed().Skip(1); // Skip header row
+            var rangeUsed = worksheet.RangeUsed();
+            if (rangeUsed == null)
+            {
+                result.Success = true;
+                return Success(result, "Updated 0 products (empty sheet)");
+            }
+            var rows = rangeUsed.RowsUsed().Skip(1); // Skip header row
 
             var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
             var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
@@ -280,12 +382,32 @@ public class ProductsController : BaseController
                 try
                 {
                     var sku = row.Cell(headers["SKU"]).GetString()?.Trim();
-                    if (string.IsNullOrEmpty(sku)) continue;
+                    var productNameForLog = headers.ContainsKey("Product Name")
+                        ? row.Cell(headers["Product Name"]).GetString()?.Trim()
+                        : null;
+
+                    if (string.IsNullOrEmpty(sku))
+                    {
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = null,
+                            ProductName = productNameForLog,
+                            Reason = "SKU code is blank"
+                        });
+                        continue;
+                    }
 
                     var product = await _context.Products.FirstOrDefaultAsync(p => p.Sku == sku);
                     if (product == null)
                     {
-                        result.Errors.Add($"Row {row.RowNumber()}: SKU {sku} not found.");
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productNameForLog,
+                            Reason = "SKU not found in database"
+                        });
                         continue;
                     }
 

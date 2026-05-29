@@ -15,16 +15,19 @@ import {
   NumberInput,
   Paper,
   Radio,
+  ScrollArea,
   Select,
   SegmentedControl,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   TextInput,
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
 import {
+  AlertTriangle,
   CheckCircle2,
   Download,
   Search,
@@ -65,6 +68,7 @@ import {
   Importer,
   Party,
   CreateProductDto,
+  ProductUploadResult,
   validateProductForSticker,
 } from "../services/masterApi";
 import { stickersApi, StickerTemplate } from "../services/stickersApi";
@@ -113,6 +117,9 @@ export const MPD = memo(function MPD() {
   const [updateFields, setUpdateFields] = useState<string[]>([]);
   const [updateFile, setUpdateFile] = useState<File | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Upload result / skipped rows modal state
+  const [uploadResultData, setUploadResultData] = useState<ProductUploadResult | null>(null);
 
   // Sticker print state
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
@@ -213,13 +220,17 @@ export const MPD = memo(function MPD() {
       setIsUpdating(true);
       const result = await productsApi.updateFromExcel(updateFile);
       toast.success(`Successfully updated ${result.importedCount} products`);
-      if (result.errors && result.errors.length > 0) {
-        result.errors.forEach((err) => toast.error(err));
-      }
       setIsUpdateModalOpen(false);
       setUpdateFile(null);
       setUpdateFields([]);
       loadData();
+
+      // Show skipped rows modal if there are skipped rows or errors
+      const hasSkipped = (result.skippedRows?.length ?? 0) > 0;
+      const hasErrors = (result.errors?.length ?? 0) > 0;
+      if (hasSkipped || hasErrors) {
+        setUploadResultData(result);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to update from Excel");
     } finally {
@@ -503,12 +514,16 @@ export const MPD = memo(function MPD() {
       const result = await productsApi.uploadExcel(uploadFile);
       if (result.success) {
         toast.success(`Successfully imported ${result.importedCount} products`);
-        if (result.errors?.length) {
-          toast.warning(`${result.errors.length} rows had errors`);
-        }
         await loadData();
         setIsUploadModalOpen(false);
         setUploadFile(null);
+
+        // Show skipped rows modal if there are skipped rows or errors
+        const hasSkipped = (result.skippedRows?.length ?? 0) > 0;
+        const hasErrors = (result.errors?.length ?? 0) > 0;
+        if (hasSkipped || hasErrors) {
+          setUploadResultData(result);
+        }
       } else {
         toast.error("Failed to import products");
       }
@@ -1608,6 +1623,146 @@ export const MPD = memo(function MPD() {
             </Stack>
           </SimpleGrid>
         ) : null}
+      </Modal>
+
+      {/* Upload Result / Skipped Rows Modal */}
+      <Modal
+        isOpen={!!uploadResultData}
+        onClose={() => setUploadResultData(null)}
+        title="Upload Report"
+        size="xl"
+      >
+        {uploadResultData && (
+          <Stack gap="md">
+            <Paper radius="lg" p="md" withBorder bg="transparent">
+              <Group gap="md" wrap="nowrap">
+                <ThemeIcon
+                  size={48}
+                  radius="lg"
+                  variant="light"
+                  color={uploadResultData.importedCount > 0 ? "green" : "orange"}
+                  style={{
+                    background: uploadResultData.importedCount > 0
+                      ? "rgba(64, 192, 87, 0.12)"
+                      : "rgba(255, 159, 64, 0.12)",
+                    border: uploadResultData.importedCount > 0
+                      ? "1px solid rgba(64, 192, 87, 0.18)"
+                      : "1px solid rgba(255, 159, 64, 0.18)",
+                  }}
+                >
+                  {uploadResultData.importedCount > 0 ? (
+                    <CheckCircle2 size={24} />
+                  ) : (
+                    <AlertTriangle size={24} />
+                  )}
+                </ThemeIcon>
+                <Stack gap={2}>
+                  <Text fw={700} size="lg">
+                    {uploadResultData.importedCount} products imported successfully
+                  </Text>
+                  <Text size="sm" c="dimmed">
+                    {(uploadResultData.skippedRows?.length ?? 0) > 0
+                      ? `${uploadResultData.skippedRows!.length} rows were skipped`
+                      : "All rows processed successfully"}
+                    {(uploadResultData.errors?.length ?? 0) > 0 &&
+                      ` • ${uploadResultData.errors!.length} rows had errors`}
+                  </Text>
+                </Stack>
+              </Group>
+            </Paper>
+
+            {(uploadResultData.skippedRows?.length ?? 0) > 0 && (
+              <Paper radius="lg" p="md" withBorder bg="transparent">
+                <Group gap="sm" mb="sm">
+                  <AlertTriangle size={16} color="var(--mantine-color-orange-4)" />
+                  <Text size="sm" fw={700} c="orange.4">
+                    Skipped Rows ({uploadResultData.skippedRows!.length})
+                  </Text>
+                </Group>
+                <ScrollArea.Autosize mah={350}>
+                  <Table
+                    striped
+                    highlightOnHover
+                    withTableBorder
+                    withColumnBorders
+                    fz="xs"
+                  >
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th w={70}>Row #</Table.Th>
+                        <Table.Th w={120}>SKU</Table.Th>
+                        <Table.Th>Product Name</Table.Th>
+                        <Table.Th>Reason</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {uploadResultData.skippedRows!.map((row, idx) => (
+                        <Table.Tr key={idx}>
+                          <Table.Td>
+                            <Badge size="xs" variant="light" color="gray">
+                              {row.rowNumber}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" ff="monospace" c="blue.4" fw={600}>
+                              {row.sku || "—"}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="xs" lineClamp={1}>
+                              {row.productName || "—"}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color={
+                                row.reason.includes("duplicate") || row.reason.includes("already exists")
+                                  ? "yellow"
+                                  : row.reason.includes("blank")
+                                    ? "red"
+                                    : "orange"
+                              }
+                            >
+                              {row.reason}
+                            </Badge>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </ScrollArea.Autosize>
+              </Paper>
+            )}
+
+            {(uploadResultData.errors?.length ?? 0) > 0 && (
+              <Paper radius="lg" p="md" withBorder bg="transparent">
+                <Group gap="sm" mb="sm">
+                  <AlertTriangle size={16} color="var(--mantine-color-red-4)" />
+                  <Text size="sm" fw={700} c="red.4">
+                    Errors ({uploadResultData.errors!.length})
+                  </Text>
+                </Group>
+                <ScrollArea.Autosize mah={200}>
+                  <Stack gap={4}>
+                    {uploadResultData.errors!.map((err, idx) => (
+                      <Text key={idx} size="xs" c="red.3">
+                        • {err}
+                      </Text>
+                    ))}
+                  </Stack>
+                </ScrollArea.Autosize>
+              </Paper>
+            )}
+
+            <Group justify="flex-end">
+              <Button onClick={() => setUploadResultData(null)}>
+                Close
+              </Button>
+            </Group>
+          </Stack>
+        )}
       </Modal>
 
       <ConfirmDialog
