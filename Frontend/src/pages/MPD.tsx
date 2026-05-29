@@ -65,6 +65,7 @@ import {
   Importer,
   Party,
   CreateProductDto,
+  validateProductForSticker,
 } from "../services/masterApi";
 import { stickersApi, StickerTemplate } from "../services/stickersApi";
 import {
@@ -403,6 +404,12 @@ export const MPD = memo(function MPD() {
       return;
     }
 
+    const validationErrors = validateProductForSticker(selectedPrintProduct);
+    if (validationErrors.length > 0) {
+      setPreviewUrl(null);
+      return;
+    }
+
     setIsPreviewLoading(true);
     try {
       const nextPreview = await stickersApi.getPreview(
@@ -434,6 +441,12 @@ export const MPD = memo(function MPD() {
 
   const handlePrint = async () => {
     if (!selectedPrintProduct) return;
+
+    const validationErrors = validateProductForSticker(selectedPrintProduct);
+    if (validationErrors.length > 0) {
+      toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
+      return;
+    }
 
     const printerAddress = getPrinterAddress();
     if (!printerAddress) {
@@ -1553,11 +1566,15 @@ export const MPD = memo(function MPD() {
                     style={{ textAlign: "center" }}
                   >
                     <Tag size={48} style={{ marginBottom: 12 }} />
-                    <Text fw={700} size="lg" mb="xs">
-                      No preview
+                    <Text fw={700} size="lg" mb="xs" c={selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0 ? "red.4" : undefined}>
+                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0 
+                        ? "Missing Product Data" 
+                        : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Preview not available for this configuration.
+                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0
+                        ? `Please fill missing product fields: ${validateProductForSticker(selectedPrintProduct).join(", ")}`
+                        : "Preview not available for this configuration."}
                     </Text>
                   </Paper>
                 )}

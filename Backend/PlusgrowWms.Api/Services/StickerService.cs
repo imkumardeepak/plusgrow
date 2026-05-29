@@ -42,6 +42,23 @@ public class StickerService : IStickerService
             throw new Exception("Product not found");
         }
 
+        var missingFields = new List<string>();
+        if (string.IsNullOrWhiteSpace(product.Name)) missingFields.Add("Product Name");
+        if (string.IsNullOrWhiteSpace(product.Sku)) missingFields.Add("SKU");
+        if (product.CommodityId == null || product.Commodity == null) missingFields.Add("Commodity");
+        if (product.ManufacturerId == null && !request.ManufacturerId.HasValue) missingFields.Add("Manufacturer");
+        if (string.IsNullOrWhiteSpace(product.CountryOfOrigin)) missingFields.Add("Country of Origin");
+        if (string.IsNullOrWhiteSpace(product.NetQuantity)) missingFields.Add("Net Quantity");
+        if (string.IsNullOrWhiteSpace(product.UnitType)) missingFields.Add("Unit Type");
+        if (product.Mrp == null || product.Mrp <= 0) missingFields.Add("MRP");
+        if (product.BestBeforeMonths <= 0) missingFields.Add("Best Before Months");
+        if (string.IsNullOrWhiteSpace(product.Factor)) missingFields.Add("Factor");
+
+        if (missingFields.Count > 0)
+        {
+            throw new Exception($"Cannot print sticker. Missing product fields: {string.Join(", ", missingFields)}");
+        }
+
         Importer? importer = null;
         if (request.ImporterId.HasValue)
         {

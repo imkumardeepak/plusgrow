@@ -59,6 +59,21 @@ export interface Product {
   createdAt: string;
 }
 
+export function validateProductForSticker(product: Product): string[] {
+  const errors: string[] = [];
+  if (!product.name?.trim()) errors.push("Product Name");
+  if (!product.sku?.trim()) errors.push("SKU");
+  if (!product.commodityId && !product.commodity?.name) errors.push("Commodity");
+  if (!product.manufacturerId && !product.manufacturer?.name) errors.push("Manufacturer");
+  if (!product.countryOfOrigin?.trim()) errors.push("Country of Origin");
+  if (!product.netQuantity?.trim()) errors.push("Net Quantity");
+  if (!product.unitType?.trim()) errors.push("Unit Type");
+  if (!product.mrp || product.mrp <= 0) errors.push("MRP");
+  if (!product.bestBeforeMonths || product.bestBeforeMonths <= 0) errors.push("Best Before Months");
+  if (!product.factor?.trim()) errors.push("Factor");
+  return errors;
+}
+
 export interface ProductLookupResult {
   sku: string;
   product: Product;

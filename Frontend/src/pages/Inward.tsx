@@ -61,6 +61,7 @@ import {
   manufacturersApi,
   poInvoicesApi,
   productsApi,
+  validateProductForSticker,
 } from "../services/masterApi";
 import { StickerTemplate, stickersApi } from "../services/stickersApi";
 import {
@@ -502,7 +503,13 @@ export const Inward = memo(function Inward() {
   );
 
   const refreshPreview = useCallback(async () => {
-    if (!selectedPrintRow) {
+    if (!selectedPrintRow || !selectedProduct) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const validationErrors = validateProductForSticker(selectedProduct);
+    if (validationErrors.length > 0) {
       setPreviewUrl(null);
       return;
     }
@@ -521,7 +528,7 @@ export const Inward = memo(function Inward() {
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [buildStickerPayload, selectedPrintRow]);
+  }, [buildStickerPayload, selectedPrintRow, selectedProduct]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -544,6 +551,16 @@ export const Inward = memo(function Inward() {
 
   const handlePrint = async (mode: "normal" | "reprint") => {
     if (!selectedPrintRow) return;
+    if (!selectedProduct) {
+      toast.error("Product details not loaded yet");
+      return;
+    }
+
+    const validationErrors = validateProductForSticker(selectedProduct);
+    if (validationErrors.length > 0) {
+      toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
+      return;
+    }
 
     const printerAddress = getPrinterAddress();
     if (!printerAddress) {
@@ -1330,11 +1347,15 @@ export const Inward = memo(function Inward() {
                     style={{ textAlign: "center" }}
                   >
                     <Tag size={48} style={{ marginBottom: 12 }} />
-                    <Text fw={700} size="lg" mb="xs">
-                      No preview
+                    <Text fw={700} size="lg" mb="xs" c={selectedProduct && validateProductForSticker(selectedProduct).length > 0 ? "red.4" : undefined}>
+                      {selectedProduct && validateProductForSticker(selectedProduct).length > 0 
+                        ? "Missing Product Data" 
+                        : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      Preview not available for this row.
+                      {selectedProduct && validateProductForSticker(selectedProduct).length > 0
+                        ? `Please fill missing product fields: ${validateProductForSticker(selectedProduct).join(", ")}`
+                        : "Preview not available for this row."}
                     </Text>
                   </Paper>
                 )}
