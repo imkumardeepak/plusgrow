@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 import {
   ActionIcon,
   Badge,
@@ -1673,11 +1674,39 @@ export const MPD = memo(function MPD() {
 
             {(uploadResultData.skippedRows?.length ?? 0) > 0 && (
               <Paper radius="lg" p="md" withBorder bg="transparent">
-                <Group gap="sm" mb="sm">
-                  <AlertTriangle size={16} color="var(--mantine-color-orange-4)" />
-                  <Text size="sm" fw={700} c="orange.4">
-                    Skipped Rows ({uploadResultData.skippedRows!.length})
-                  </Text>
+                <Group justify="space-between" mb="sm">
+                  <Group gap="sm">
+                    <AlertTriangle size={16} color="var(--mantine-color-orange-4)" />
+                    <Text size="sm" fw={700} c="orange.4">
+                      Skipped Rows ({uploadResultData.skippedRows!.length})
+                    </Text>
+                  </Group>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="orange"
+                    leftIcon={<Download size={14} />}
+                    onClick={() => {
+                      const wb = XLSX.utils.book_new();
+                      const data = uploadResultData.skippedRows!.map((r) => ({
+                        "Row #": r.rowNumber,
+                        "SKU": r.sku || "",
+                        "Product Name": r.productName || "",
+                        "Reason": r.reason,
+                      }));
+                      const ws = XLSX.utils.json_to_sheet(data);
+                      ws["!cols"] = [
+                        { wch: 8 },
+                        { wch: 20 },
+                        { wch: 40 },
+                        { wch: 30 },
+                      ];
+                      XLSX.utils.book_append_sheet(wb, ws, "Skipped Rows");
+                      XLSX.writeFile(wb, `Skipped_Rows_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`);
+                    }}
+                  >
+                    Download
+                  </Button>
                 </Group>
                 <ScrollArea.Autosize mah={350}>
                   <Table

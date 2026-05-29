@@ -137,13 +137,13 @@ public class ProductsController : BaseController
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            // ─── 2. BULK LOAD existing data in 3 queries total ─────────────────────
+            // ─── 2. BULK LOAD existing data ──────────────────────────────────────
+            // Load ALL manufacturers & commodities to avoid case-sensitivity mismatches
+            // with PostgreSQL's unique index (IX_commodities_name, etc.)
             var existingManufacturers = await _context.Manufacturers
-                .Where(m => allManufacturerNames.Contains(m.Name))
                 .ToDictionaryAsync(m => m.Name, StringComparer.OrdinalIgnoreCase);
 
             var existingCommodities = await _context.Commodities
-                .Where(c => allCommodityNames.Contains(c.Name))
                 .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
 
             var existingSkus = await _context.Products
@@ -160,7 +160,7 @@ public class ProductsController : BaseController
             if (newManufacturers.Any())
             {
                 await _context.Manufacturers.AddRangeAsync(newManufacturers);
-                await _context.SaveChangesAsync(); // one save for all new manufacturers
+                await _context.SaveChangesAsync();
                 foreach (var m in newManufacturers)
                     existingManufacturers[m.Name!] = m;
             }
@@ -173,7 +173,7 @@ public class ProductsController : BaseController
             if (newCommodities.Any())
             {
                 await _context.Commodities.AddRangeAsync(newCommodities);
-                await _context.SaveChangesAsync(); // one save for all new commodities
+                await _context.SaveChangesAsync();
                 foreach (var c in newCommodities)
                     existingCommodities[c.Name!] = c;
             }
