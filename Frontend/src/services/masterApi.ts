@@ -510,7 +510,7 @@ const emptyPagination = (page = 1, pageSize = 25): PaginationInfo => ({
 // Manufacturers API - no /api prefix
 export const manufacturersApi = {
   getAll: async (): Promise<Manufacturer[]> => {
-    const result = await manufacturersApi.getPaged({ page: 1, pageSize: 200 });
+    const result = await manufacturersApi.getPaged({ page: 1, pageSize: 1000000 });
     return result.data;
   },
 
@@ -576,7 +576,7 @@ export const manufacturersApi = {
 // Parties API - no /api prefix
 export const partiesApi = {
   getAll: async (): Promise<Party[]> => {
-    const result = await partiesApi.getPaged({ page: 1, pageSize: 200 });
+    const result = await partiesApi.getPaged({ page: 1, pageSize: 1000000 });
     return result.data;
   },
 
@@ -613,7 +613,7 @@ export const partiesApi = {
 // Commodities API - no /api prefix
 export const commoditiesApi = {
   getAll: async (): Promise<Commodity[]> => {
-    const result = await commoditiesApi.getPaged({ page: 1, pageSize: 200 });
+    const result = await commoditiesApi.getPaged({ page: 1, pageSize: 1000000 });
     return result.data;
   },
 
@@ -673,7 +673,7 @@ export const commoditiesApi = {
 // Importers API - no /api prefix
 export const importersApi = {
   getAll: async (): Promise<Importer[]> => {
-    const result = await importersApi.getPaged({ page: 1, pageSize: 200 });
+    const result = await importersApi.getPaged({ page: 1, pageSize: 1000000 });
     return result.data;
   },
 
@@ -708,7 +708,7 @@ export const importersApi = {
 // Products API - no /api prefix
 export const productsApi = {
   getAll: async (): Promise<Product[]> => {
-    const result = await productsApi.getPaged({ page: 1, pageSize: 200 });
+    const result = await productsApi.getPaged({ page: 1, pageSize: 1000000 });
     return result.data;
   },
 

@@ -17,7 +17,7 @@ public class ProductRepository : IProductRepository
     public async Task<PagedListResult<Product>> GetPagedAsync(ListQueryDto queryDto)
     {
         var page = Math.Max(queryDto.Page, 1);
-        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 1000000);
         var query = _context.Products
             .Include(p => p.Commodity)
             .Include(p => p.Manufacturer)

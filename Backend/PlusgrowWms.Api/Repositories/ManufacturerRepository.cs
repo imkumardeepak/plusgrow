@@ -17,7 +17,7 @@ public class ManufacturerRepository : IManufacturerRepository
     public async Task<PagedListResult<Manufacturer>> GetPagedAsync(ListQueryDto queryDto)
     {
         var page = Math.Max(queryDto.Page, 1);
-        var pageSize = Math.Clamp(queryDto.PageSize, 1, 200);
+        var pageSize = Math.Clamp(queryDto.PageSize, 1, 1000000);
         var query = _context.Manufacturers.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(queryDto.Search))
