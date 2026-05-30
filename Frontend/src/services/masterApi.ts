@@ -56,6 +56,7 @@ export interface Product {
   ownership?: string;
   mrp?: number;
   bestBeforeMonths: number;
+  note?: string | null;
   createdAt: string;
 }
 
@@ -125,6 +126,7 @@ export interface CreateProductDto {
   ownership?: string;
   mrp?: number;
   bestBeforeMonths?: number;
+  note?: string;
   id?: number;
 }
 
@@ -801,6 +803,7 @@ export const productsApi = {
           case 'Factor': row['Factor'] = product.factor ?? ''; break;
           case 'Best Before (Months)': row['Best Before (Months)'] = product.bestBeforeMonths ?? ''; break;
           case 'Ownership': row['Ownership'] = product.ownership ?? ''; break;
+          case 'Note': row['Note'] = product.note ?? ''; break;
         }
       });
       
@@ -837,6 +840,7 @@ export const productsApi = {
         'Weight': '',
         'Ownership': 'Self',
         'Stock Qnty': '',
+        'Note': '',
       }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
@@ -855,6 +859,7 @@ export const productsApi = {
       { wch: 12 },  // Weight
       { wch: 15 },  // Ownership
       { wch: 12 },  // Stock Qnty
+      { wch: 20 },  // Note
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
     XLSX.writeFile(wb, 'Product_Template.xlsx');

@@ -19,6 +19,7 @@ public class ProductDto
     public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; }
+    public string? Note { get; set; }
     public int? ManufacturerId { get; set; }
     public string? ManufacturerName { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -39,6 +40,7 @@ public class CreateProductDto
     public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; } = 120;
+    public string? Note { get; set; }
     public int? ManufacturerId { get; set; }
 }
 
@@ -58,6 +60,7 @@ public class UpdateProductDto
     public string? Ownership { get; set; }
     public decimal? Mrp { get; set; }
     public int BestBeforeMonths { get; set; }
+    public string? Note { get; set; }
     public int? ManufacturerId { get; set; }
 }
 

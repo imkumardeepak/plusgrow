@@ -265,7 +265,8 @@ public class ProductsController : BaseController
                         Mrp = mrp,
                         BestBeforeMonths = bestBefore > 0 ? bestBefore : 84,
                         Weight = weight > 0 ? weight : null,
-                        Ownership = ownership
+                        Ownership = ownership,
+                        Note = GetCell(row, "Note").GetString()?.Trim()
                     };
 
                     product.CalculateUssp();
@@ -432,6 +433,9 @@ public class ProductsController : BaseController
 
                     if (headers.ContainsKey("Factor"))
                         product.Factor = row.Cell(headers["Factor"]).GetString()?.Trim();
+
+                    if (headers.ContainsKey("Note"))
+                        product.Note = row.Cell(headers["Note"]).GetString()?.Trim();
 
                     if (headers.ContainsKey("Net Qnty"))
                     {

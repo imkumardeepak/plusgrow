@@ -58,6 +58,7 @@ public class ProductService : IProductService
         existing.BestBeforeMonths = product.BestBeforeMonths;
         existing.Weight = product.Weight;
         existing.Ownership = product.Ownership;
+        existing.Note = product.Note;
 
         existing.CalculateUssp();
 

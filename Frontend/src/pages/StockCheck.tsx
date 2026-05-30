@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Group, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, TextInput } from "@mantine/core";
+import { Divider, Group, Paper, ScrollArea, SimpleGrid, Stack, Table, Text, TextInput } from "@mantine/core";
 
 import { Button } from "../components/atoms/Button";
 import { Badge } from "../components/atoms/Badge";
@@ -470,6 +470,19 @@ export const StockCheck = memo(function StockCheck() {
                     <Info label="Country" value={lookupResult.product?.countryOfOrigin || "-"} />
                     <Info label="Best Before" value={`${lookupResult.product?.bestBeforeMonths ?? "-"} months`} />
                   </SimpleGrid>
+                  {lookupResult.product?.note && (
+                    <>
+                      <Divider my="xs" style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+                      <div className="min-w-0">
+                        <Text size="9px" fw={800} c="dimmed">
+                          PRODUCT NOTE
+                        </Text>
+                        <Text size="12px" fw={700} mt={2} style={{ whiteSpace: "pre-wrap" }}>
+                          {lookupResult.product.note}
+                        </Text>
+                      </div>
+                    </>
+                  )}
                 </Paper>
 
                 <Paper radius="lg" p="sm" withBorder bg="transparent">

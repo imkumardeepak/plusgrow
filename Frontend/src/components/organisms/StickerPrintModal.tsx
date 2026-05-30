@@ -60,7 +60,6 @@ export function StickerPrintModal({
   const [printManufacturerId, setPrintManufacturerId] = useState<string | null>(null);
   const [printImporterId, setPrintImporterId] = useState<string | null>(null);
   const [importDate, setImportDate] = useState<Date>(new Date());
-  const [stickerNote, setStickerNote] = useState("");
   const [printQuantity, setPrintQuantity] = useState<number | "">(1);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -113,10 +112,10 @@ export function StickerPrintModal({
       type: stickerType,
       monthYear: format(importDate, "MMM/yyyy").toUpperCase(),
       batchNumber: "N/A",
-      note: stickerNote.trim(),
+      note: prod.note?.trim() || "",
       quantity,
     }),
-    [printManufacturerId, printImporterId, stickerSize, stickerType, importDate, stickerNote],
+    [printManufacturerId, printImporterId, stickerSize, stickerType, importDate],
   );
 
   const refreshPreview = useCallback(async () => {
@@ -285,15 +284,6 @@ export function StickerPrintModal({
                   const value = event.currentTarget.value;
                   setImportDate(value ? new Date(value) : new Date());
                 }}
-              />
-              <TextInput
-                label="Note"
-                size="xs"
-                radius="md"
-                mt="xs"
-                placeholder="Optional note for sticker"
-                value={stickerNote}
-                onChange={(event) => setStickerNote(event.currentTarget.value)}
               />
             </Paper>
 

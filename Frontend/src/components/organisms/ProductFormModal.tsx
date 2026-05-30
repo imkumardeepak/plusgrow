@@ -54,6 +54,7 @@ export function ProductFormModal({
     ownership: "Self",
     mrp: 0,
     bestBeforeMonths: 84,
+    note: "",
   });
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export function ProductFormModal({
           ownership: product.ownership || "Self",
           mrp: product.mrp || 0,
           bestBeforeMonths: product.bestBeforeMonths || 84,
+          note: product.note || "",
         });
       } else {
         setFormData({
@@ -91,6 +93,7 @@ export function ProductFormModal({
           ownership: "Self",
           mrp: 0,
           bestBeforeMonths: 84,
+          note: "",
         });
       }
 
@@ -142,6 +145,7 @@ export function ProductFormModal({
         ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 84,
+        note: formData.note || null,
       };
 
       if (product) {
@@ -343,6 +347,17 @@ export function ProductFormModal({
                   }}
                 />
               </Group>
+              <Input
+                label="Product Note"
+                placeholder="Note to print on stickers (optional)"
+                value={formData.note || ""}
+                onChange={(event) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    note: event.target.value,
+                  }))
+                }
+              />
             </Stack>
           </Paper>
 

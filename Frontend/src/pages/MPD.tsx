@@ -112,6 +112,7 @@ export const MPD = memo(function MPD() {
     ownership: "Self",
     mrp: 0,
     bestBeforeMonths: 84,
+    note: "",
   });
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -139,7 +140,6 @@ export const MPD = memo(function MPD() {
   );
   const [printImporterId, setPrintImporterId] = useState<string | null>(null);
   const [importDate, setImportDate] = useState<Date>(new Date());
-  const [stickerNote, setStickerNote] = useState("");
   const [printQuantity, setPrintQuantity] = useState<number | "">(1);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
@@ -271,6 +271,7 @@ export const MPD = memo(function MPD() {
         ownership: formData.ownership || null,
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 84,
+        note: formData.note || null,
       };
 
       if (isEditing) {
@@ -306,6 +307,7 @@ export const MPD = memo(function MPD() {
       ownership: "Self",
       mrp: 0,
       bestBeforeMonths: 84,
+      note: "",
     });
     setIsEditing(null);
     setIsModalOpen(true);
@@ -327,6 +329,7 @@ export const MPD = memo(function MPD() {
       ownership: product.ownership || "Self",
       mrp: product.mrp || 0,
       bestBeforeMonths: product.bestBeforeMonths || 84,
+      note: product.note || "",
     });
     setIsEditing(product);
     setIsModalOpen(true);
@@ -365,7 +368,6 @@ export const MPD = memo(function MPD() {
     );
     setPrintImporterId(null);
     setImportDate(new Date());
-    setStickerNote("");
     setPrintQuantity(1);
     setPreviewUrl(null);
   };
@@ -397,7 +399,7 @@ export const MPD = memo(function MPD() {
       type: stickerType,
       monthYear: format(importDate, "MMM/yyyy").toUpperCase(),
       batchNumber: "N/A",
-      note: stickerNote.trim(),
+      note: product.note?.trim() || "",
       quantity,
     }),
     [
@@ -406,7 +408,6 @@ export const MPD = memo(function MPD() {
       stickerSize,
       stickerType,
       importDate,
-      stickerNote,
     ],
   );
 
@@ -931,7 +932,7 @@ export const MPD = memo(function MPD() {
             data={[
               "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
               "Commodity Name", "Country of Origin", "Unit Type",
-              "Net Qnty", "Factor", "Best Before (Months)", "Ownership"
+              "Net Qnty", "Factor", "Best Before (Months)", "Ownership", "Note"
             ]}
             value={updateFields}
             onChange={setUpdateFields}
@@ -1157,6 +1158,17 @@ export const MPD = memo(function MPD() {
                     }}
                   />
                 </Group>
+                <Input
+                  label="Product Note"
+                  placeholder="Note to print on stickers (optional)"
+                  value={formData.note || ""}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      note: event.target.value,
+                    }))
+                  }
+                />
               </Stack>
             </Paper>
 
@@ -1465,17 +1477,6 @@ export const MPD = memo(function MPD() {
                     const value = event.currentTarget.value;
                     setImportDate(value ? new Date(value) : new Date());
                   }}
-                />
-                <TextInput
-                  label="Note"
-                  size="xs"
-                  radius="md"
-                  mt="xs"
-                  placeholder="Optional note for sticker"
-                  value={stickerNote}
-                  onChange={(event) =>
-                    setStickerNote(event.currentTarget.value)
-                  }
                 />
               </Paper>
 
