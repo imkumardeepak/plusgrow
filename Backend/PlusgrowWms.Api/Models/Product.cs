@@ -46,7 +46,7 @@ public class Product
     public string? NetQuantity
     {
         get => _netQuantity;
-        set => _netQuantity = value?.Trim().ToLowerInvariant();
+        set => _netQuantity = value?.Trim();
     }
     private string? _netQuantity;
 

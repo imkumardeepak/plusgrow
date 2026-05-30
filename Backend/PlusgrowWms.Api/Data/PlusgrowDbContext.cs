@@ -290,10 +290,14 @@ public class PlusgrowDbContext : DbContext
                 {
                     if (property.Metadata.ClrType == typeof(string) && property.CurrentValue is string stringValue)
                     {
-                        // Keep NetQuantity and UnitType in lowercase for Products
-                        if (entry.Entity is Product && (property.Metadata.Name == "NetQuantity" || property.Metadata.Name == "UnitType"))
+                        // Keep UnitType in lowercase for Products, keep NetQuantity as is (preserve case)
+                        if (entry.Entity is Product && property.Metadata.Name == "UnitType")
                         {
                             property.CurrentValue = stringValue.ToLowerInvariant();
+                        }
+                        else if (entry.Entity is Product && property.Metadata.Name == "NetQuantity")
+                        {
+                            // Do nothing, preserve casing
                         }
                         else
                         {
