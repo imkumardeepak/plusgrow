@@ -38,10 +38,20 @@ import { toast } from "../lib/toast";
 
 type ScanTone = "idle" | "success" | "error";
 
+type PackingOrderGroup = {
+  salesOrderId: number;
+  orderNumber: string;
+  customerName: string;
+  items: OutwardOrder[];
+  totalQuantity: number;
+  packedQuantity: number;
+};
+
 export const Packing = memo(function Packing() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
+  const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [scanCode, setScanCode] = useState("");
   const [lastScanCode, setLastScanCode] = useState("");
@@ -99,29 +109,69 @@ export const Packing = memo(function Packing() {
     );
   }, [orders, searchQuery]);
 
+  const groupedOrders = useMemo<PackingOrderGroup[]>(() => {
+    const groups = new Map<number, PackingOrderGroup>();
+
+    filteredOrders.forEach((order) => {
+      const salesOrderId = order.salesOrderId ?? 0;
+      const current = groups.get(salesOrderId);
+      if (current) {
+        current.items.push(order);
+        current.totalQuantity += order.quantity;
+        return;
+      }
+
+      groups.set(salesOrderId, {
+        salesOrderId,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        items: [order],
+        totalQuantity: order.quantity,
+        packedQuantity: 0,
+      });
+    });
+
+    return Array.from(groups.values()).sort((a, b) => b.orderNumber.localeCompare(a.orderNumber));
+  }, [filteredOrders]);
+
   useEffect(() => {
-    if (selectedOrderId) {
-      void loadCartons(selectedOrderId);
+    if (activeItemId) {
+      void loadCartons(activeItemId);
     } else {
       setCartons([]);
       setActiveCartonId(null);
     }
-  }, [selectedOrderId, loadCartons]);
+  }, [activeItemId, loadCartons]);
 
   useEffect(() => {
-    if (!isMobile && !selectedOrderId && filteredOrders.length > 0) {
-      setSelectedOrderId(filteredOrders[0].id);
+    if (!isMobile && !selectedSalesOrderId && groupedOrders.length > 0) {
+      setSelectedSalesOrderId(groupedOrders[0].salesOrderId);
     }
     if (
-      selectedOrderId &&
-      !filteredOrders.some((row) => row.id === selectedOrderId)
+      selectedSalesOrderId &&
+      !groupedOrders.some((row) => row.salesOrderId === selectedSalesOrderId)
     ) {
-      setSelectedOrderId(!isMobile ? (filteredOrders[0]?.id ?? null) : null);
+      setSelectedSalesOrderId(!isMobile ? (groupedOrders[0]?.salesOrderId ?? null) : null);
     }
-  }, [filteredOrders, selectedOrderId, isMobile]);
+  }, [groupedOrders, selectedSalesOrderId, isMobile]);
+
+  const activeGroup =
+    groupedOrders.find((row) => row.salesOrderId === selectedSalesOrderId) ?? null;
+
+  useEffect(() => {
+    if (!activeGroup) {
+      setActiveItemId(null);
+      return;
+    }
+
+    const preferredItemId = activeGroup.items[0]?.id ?? null;
+    setActiveItemId((current) =>
+      activeGroup.items.some((item) => item.id === current) ? current : preferredItemId,
+    );
+  }, [activeGroup]);
 
   const activeOrder =
-    filteredOrders.find((row) => row.id === selectedOrderId) ?? null;
+    activeGroup?.items.find((row) => row.id === activeItemId) ?? activeGroup?.items[0] ?? null;
 
   const packedInCartons = useMemo(
     () => cartons.reduce((sum, c) => sum + c.quantity, 0),
@@ -285,23 +335,16 @@ export const Packing = memo(function Packing() {
               className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
 
-            {filteredOrders.length > 0 ? (
+            {groupedOrders.length > 0 ? (
               <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
-                {filteredOrders.map((order) => {
-                  const active = order.id === selectedOrderId;
-                  const orderCartons = cartons.filter(
-                    (c) => c.outwardOrderId === order.id,
-                  );
-                  const packed = orderCartons.reduce(
-                    (sum, c) => sum + c.quantity,
-                    0,
-                  );
-                  const done = packed >= order.quantity;
+                {groupedOrders.map((order) => {
+                  const active = order.salesOrderId === selectedSalesOrderId;
+                  const done = order.items.every((item) => item.status === "Packed");
 
                   return (
                     <button
-                      key={order.id}
-                      onClick={() => setSelectedOrderId(order.id)}
+                      key={order.salesOrderId}
+                      onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
                       className={`w-full rounded-xl border p-3 text-left transition ${
                         active
                           ? "border-brand-500/40 bg-brand-500/10"
@@ -328,18 +371,18 @@ export const Packing = memo(function Packing() {
                       <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                         <div>
                           <p className="uppercase tracking-[0.18em] text-neutral-500">
-                            SKU
+                            Items
                           </p>
                           <p className="mt-1 font-mono text-brand-300">
-                            {order.skuCode}
+                            {order.items.length}
                           </p>
                         </div>
                         <div>
                           <p className="uppercase tracking-[0.18em] text-neutral-500">
-                            Packed
+                            Quantity
                           </p>
                           <p className="mt-1 font-bold text-white">
-                            {packed} / {order.quantity}
+                            {order.totalQuantity}
                           </p>
                         </div>
                       </div>
@@ -364,13 +407,13 @@ export const Packing = memo(function Packing() {
             description="Create cartons and scan items into them."
             hideHeader={isMobile}
           >
-            {activeOrder ? (
+            {activeOrder && activeGroup ? (
               <Stack gap="md">
                 {isMobile && (
                   <Button
                     variant="outline"
                     size="xs"
-                    onClick={() => setSelectedOrderId(null)}
+                    onClick={() => setSelectedSalesOrderId(null)}
                     leftIcon={<ArrowLeft size={14} />}
                     className="mb-1 w-full"
                   >
@@ -383,10 +426,10 @@ export const Packing = memo(function Packing() {
                   <Group justify="space-between" align="flex-start">
                     <div>
                       <Text size="xs" fw={700}>
-                        {activeOrder.orderNumber}
+                        {activeGroup.orderNumber}
                       </Text>
                       <Text size="11px" c="dimmed">
-                        {activeOrder.customerName}
+                        {activeGroup.customerName}
                       </Text>
                     </div>
                     <Badge
@@ -399,7 +442,7 @@ export const Packing = memo(function Packing() {
                   </Group>
                   <Group gap="xs" mt="xs">
                     <Text size="11px" c="dimmed">
-                      SKU:
+                      Active SKU:
                     </Text>
                     <Text size="11px" ff="monospace" c="cyan.3">
                       {activeOrder.skuCode}
@@ -407,11 +450,55 @@ export const Packing = memo(function Packing() {
                   </Group>
                 </Paper>
 
+                {activeGroup.items.length > 1 && (
+                  <Paper radius="md" p="sm" withBorder>
+                    <Text size="xs" fw={700} mb="xs">
+                      Order Items
+                    </Text>
+                    <Stack gap="xs">
+                      {activeGroup.items.map((item) => {
+                        const isActiveItem = item.id === activeOrder.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveItemId(item.id)}
+                            className={`w-full rounded-lg border p-2.5 text-left transition ${
+                              isActiveItem
+                                ? "border-brand-500/40 bg-brand-500/10"
+                                : "border-white/10 bg-white/[0.02] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-xs font-semibold text-white">
+                                  {item.productName}
+                                </p>
+                                <p className="mt-0.5 font-mono text-[11px] text-brand-300">
+                                  {item.skuCode}
+                                  {item.alias ? ` / ${item.alias}` : ""}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={item.status === "Packed" ? "success" : "warning"}
+                                shape="pill"
+                                className="border-none"
+                              >
+                                {item.quantity} units
+                              </Badge>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </Stack>
+                  </Paper>
+                )}
+
                 {/* Progress */}
                 <Paper radius="md" p="sm" withBorder>
                   <Group justify="space-between">
                     <Text size="xs" fw={700}>
-                      Packing Progress
+                      Active Item Packing Progress
                     </Text>
                     <Text size="xs" fw={800}>
                       {packedInCartons} / {activeOrder.quantity}
@@ -426,7 +513,7 @@ export const Packing = memo(function Packing() {
                     />
                   </div>
                   <Text size="11px" c="dimmed" mt={4}>
-                    {remainingToPack} remaining · {cartons.length} cartons ·{" "}
+                    {remainingToPack} remaining for {activeOrder.skuCode} · {cartons.length} cartons ·{" "}
                     {readyCartons} ready
                   </Text>
                 </Paper>

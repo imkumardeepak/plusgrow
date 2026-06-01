@@ -3,7 +3,6 @@ import { CheckCircle2, ClipboardList, Send, Truck, User } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
-import { Input } from "../components/atoms/Input";
 import {
   OperationsEmptyState,
   OperationsPage,
@@ -12,11 +11,18 @@ import {
 import { OutwardOrder, outwardOrdersApi } from "../services/masterApi";
 import { toast } from "../lib/toast";
 
+type DispatchOrderGroup = {
+  salesOrderId: number;
+  orderNumber: string;
+  customerName: string;
+  items: OutwardOrder[];
+  totalQuantity: number;
+};
+
 export const Dispatch = memo(function Dispatch() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [cartonId, setCartonId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDispatching, setIsDispatching] = useState(false);
 
@@ -36,41 +42,71 @@ export const Dispatch = memo(function Dispatch() {
     void loadData();
   }, [loadData]);
 
-  const dispatchQueue = useMemo(() => {
+  const dispatchQueue = useMemo<DispatchOrderGroup[]>(() => {
     const query = searchQuery.toLowerCase();
-    return orders.filter(
-      (order) =>
-        order.status === "Packed" &&
-        (order.orderNumber.toLowerCase().includes(query) ||
-          order.customerName.toLowerCase().includes(query) ||
-          order.skuCode.toLowerCase().includes(query)),
-    );
+    const groups = new Map<number, DispatchOrderGroup>();
+
+    orders.forEach((order) => {
+      const salesOrderId = order.salesOrderId ?? 0;
+      const current = groups.get(salesOrderId);
+      if (current) {
+        current.items.push(order);
+        current.totalQuantity += order.quantity;
+        return;
+      }
+
+      groups.set(salesOrderId, {
+        salesOrderId,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        items: [order],
+        totalQuantity: order.quantity,
+      });
+    });
+
+    return Array.from(groups.values()).filter((group) => {
+      const matchesSearch =
+        !query ||
+        group.orderNumber.toLowerCase().includes(query) ||
+        group.customerName.toLowerCase().includes(query) ||
+        group.items.some((item) => item.skuCode.toLowerCase().includes(query));
+
+      const allPacked = group.items.every((item) => item.status === "Packed");
+      return matchesSearch && allPacked;
+    });
   }, [orders, searchQuery]);
 
-  const activeOrder = dispatchQueue.find((row) => row.id === selectedOrderId) ?? null;
+  const activeOrder = dispatchQueue.find((row) => row.salesOrderId === selectedSalesOrderId) ?? null;
   const dispatchedOrders = orders.filter((row) => row.status === "Dispatched").length;
   const dispatchProgress = orders.length > 0 ? Math.round((dispatchedOrders / orders.length) * 100) : 0;
 
   useEffect(() => {
     if (!activeOrder) {
-      setCartonId("");
       return;
     }
-
-    setCartonId(activeOrder.cartonId || `CTN-${activeOrder.orderNumber.replace("SO-", "")}`);
   }, [activeOrder]);
+
+  useEffect(() => {
+    if (!selectedSalesOrderId && dispatchQueue.length > 0) {
+      setSelectedSalesOrderId(dispatchQueue[0].salesOrderId);
+    }
+
+    if (
+      selectedSalesOrderId &&
+      !dispatchQueue.some((row) => row.salesOrderId === selectedSalesOrderId)
+    ) {
+      setSelectedSalesOrderId(dispatchQueue[0]?.salesOrderId ?? null);
+    }
+  }, [dispatchQueue, selectedSalesOrderId]);
 
   const handleDispatch = async () => {
     if (!activeOrder) return;
 
     try {
       setIsDispatching(true);
-      const updated = await outwardOrdersApi.dispatch(activeOrder.id, {
-        cartonId: cartonId.trim() || null,
-      });
-      toast.success(`Order ${updated.orderNumber} dispatched`);
-      setOrders((current) => current.map((row) => (row.id === updated.id ? updated : row)));
-      setSelectedOrderId(null);
+      await outwardOrdersApi.dispatchSalesOrder(activeOrder.salesOrderId);
+      toast.success(`Order ${activeOrder.orderNumber} dispatched`);
+      setSelectedSalesOrderId(null);
       await loadData();
     } catch (error: any) {
       toast.error(error.message || "Failed to dispatch order");
@@ -115,12 +151,12 @@ export const Dispatch = memo(function Dispatch() {
           {dispatchQueue.length > 0 ? (
             <div className="max-h-[540px] space-y-2 overflow-y-auto scrollbar-thin">
               {dispatchQueue.map((order) => {
-                const active = order.id === selectedOrderId;
+                const active = order.salesOrderId === selectedSalesOrderId;
 
                 return (
                   <button
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
+                    key={order.salesOrderId}
+                    onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
                     className={`w-full rounded-xl border p-3 text-left transition ${
                       active
                         ? "border-brand-500/40 bg-brand-500/10"
@@ -137,16 +173,16 @@ export const Dispatch = memo(function Dispatch() {
                       </Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <p className="uppercase tracking-[0.18em] text-neutral-500">SKU</p>
-                        <p className="mt-1 font-mono text-brand-300">{order.skuCode}</p>
+                        <div>
+                          <p className="uppercase tracking-[0.18em] text-neutral-500">SKU</p>
+                          <p className="mt-1 font-mono text-brand-300">{order.items.map((item) => item.skuCode).join(", ")}</p>
+                        </div>
+                        <div>
+                          <p className="uppercase tracking-[0.18em] text-neutral-500">Qty</p>
+                          <p className="mt-1 font-bold text-white">{order.totalQuantity}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="uppercase tracking-[0.18em] text-neutral-500">Qty</p>
-                        <p className="mt-1 font-bold text-white">{order.quantity}</p>
-                      </div>
-                    </div>
-                  </button>
+                    </button>
                 );
               })}
             </div>
@@ -180,12 +216,12 @@ export const Dispatch = memo(function Dispatch() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Carton ID</p>
-                  <p className="mt-2 font-mono text-xl font-black text-brand-300">{cartonId || "-"}</p>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Items</p>
+                  <p className="mt-2 text-xl font-black text-brand-300">{activeOrder.items.length}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Ship Date</p>
-                  <p className="mt-2 text-xl font-black text-white">{activeOrder.orderDate.slice(0, 10)}</p>
+                  <p className="mt-2 text-xl font-black text-white">{activeOrder.items[0]?.orderDate.slice(0, 10)}</p>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Customer</p>
@@ -195,17 +231,41 @@ export const Dispatch = memo(function Dispatch() {
                   </div>
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Shipment</p>
-                  <p className="mt-2 text-sm font-semibold text-white">{activeOrder.skuCode} · {activeOrder.quantity} units</p>
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-neutral-500">Shipment Qty</p>
+                  <p className="mt-2 text-sm font-semibold text-white">{activeOrder.totalQuantity} units</p>
                 </div>
               </div>
 
-              <Input
-                label="Carton ID"
-                value={cartonId}
-                onChange={(event) => setCartonId(event.target.value)}
-                fullWidth
-              />
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-3 flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4 text-brand-400" />
+                  <p className="text-sm font-semibold text-white">Order Items</p>
+                </div>
+                <div className="space-y-2">
+                  {activeOrder.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-white/10 bg-white/[0.02] p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{item.productName}</p>
+                          <p className="mt-1 font-mono text-xs text-brand-300">
+                            {item.skuCode}
+                            {item.alias ? ` / ${item.alias}` : ""}
+                          </p>
+                        </div>
+                        <Badge variant="warning" shape="pill" className="border-none">
+                          {item.quantity} units
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-xs text-neutral-400">
+                        Carton: {item.cartonId || `CTN-${item.orderNumber.replace("SO-", "")}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="mb-2 flex items-center gap-2">
@@ -213,7 +273,7 @@ export const Dispatch = memo(function Dispatch() {
                   <p className="text-sm font-semibold text-white">Dispatch Rule</p>
                 </div>
                 <p className="text-sm text-neutral-400">
-                  Dispatch will close the order, reduce live stock quantity, and update allotted location balances.
+                  Dispatch will close every packed item in this sales order, reduce live stock quantity, and update the sales-order header status.
                 </p>
               </div>
 
@@ -222,7 +282,7 @@ export const Dispatch = memo(function Dispatch() {
                 loading={isDispatching}
                 leftIcon={<Truck className="h-4 w-4" />}
               >
-                Dispatch Order
+                Dispatch Sales Order
               </Button>
             </div>
           ) : (

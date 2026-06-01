@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PlusgrowWms.Api.Models;
 
-[Table("outward_orders")]
+[Table("sales_order_items")]
 public class OutwardOrder
 {
     [Key]

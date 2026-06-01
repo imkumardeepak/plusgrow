@@ -79,6 +79,13 @@ import {
 } from "../services/stickerPrinterConfigsApi";
 
 type ProductFilterMode = "all" | "mapped" | "unpriced";
+type StickerMode = "Combined" | "Separate" | "Manufacture";
+
+const stickerModeLabel: Record<StickerMode, string> = {
+  Combined: "Imported & Marketed By",
+  Separate: "Marketed / Imported",
+  Manufacture: "Manufactured By",
+};
 
 export const MPD = memo(function MPD() {
   const [searchParams] = useSearchParams();
@@ -132,7 +139,7 @@ export const MPD = memo(function MPD() {
   const [selectedPrintProduct, setSelectedPrintProduct] =
     useState<Product | null>(null);
   const [stickerSize, setStickerSize] = useState("50x50");
-  const [stickerType, setStickerType] = useState<"Combined" | "Separate">(
+  const [stickerType, setStickerType] = useState<StickerMode>(
     "Combined",
   );
   const [printManufacturerId, setPrintManufacturerId] = useState<string | null>(
@@ -1442,18 +1449,23 @@ export const MPD = memo(function MPD() {
                     <Radio.Group
                       value={stickerType}
                       onChange={(value) =>
-                        setStickerType(value as "Combined" | "Separate")
+                        setStickerType(value as StickerMode)
                       }
                     >
                       <Stack gap={6}>
                         <Radio
                           value="Combined"
-                          label="Imported & Marketed By"
+                          label={stickerModeLabel.Combined}
                           size="xs"
                         />
                         <Radio
                           value="Separate"
-                          label="Marketed / Imported"
+                          label={stickerModeLabel.Separate}
+                          size="xs"
+                        />
+                        <Radio
+                          value="Manufacture"
+                          label={stickerModeLabel.Manufacture}
                           size="xs"
                         />
                       </Stack>
@@ -1558,9 +1570,7 @@ export const MPD = memo(function MPD() {
                       MODE
                     </Text>
                     <Text size="xs" fw={800}>
-                      {stickerType === "Combined"
-                        ? "Imported & Marketed By"
-                        : "Marketed / Imported"}
+                      {stickerModeLabel[stickerType]}
                     </Text>
                   </Box>
                   <Box>

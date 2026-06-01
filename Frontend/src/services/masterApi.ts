@@ -375,6 +375,11 @@ export interface OutwardOrder {
   id: number;
   orderNumber: string;
   salesOrderId?: number;
+  salesOrderStatus: "Open" | "Picking" | "Packed" | "Dispatched";
+  salesOrderNotes?: string | null;
+  salesOrderCreatedAt: string;
+  salesOrderUpdatedAt: string;
+  salesOrderDispatchedAt?: string | null;
   orderDate: string;
   customerName: string;
   productId: number;
@@ -430,6 +435,13 @@ export interface DirectOutwardPickDto {
 
 export interface DispatchOutwardOrderDto {
   cartonId?: string | null;
+}
+
+export interface DispatchSalesOrderResult {
+  salesOrderId: number;
+  orderNumber: string;
+  dispatchedItemCount: number;
+  items: OutwardOrder[];
 }
 
 export interface PackingCarton {
@@ -1222,6 +1234,12 @@ export const outwardOrdersApi = {
 
   dispatch: async (id: number, data: DispatchOutwardOrderDto): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  dispatchSalesOrder: async (salesOrderId: number): Promise<DispatchSalesOrderResult> => {
+    const response = await api.post<ApiResponse<DispatchSalesOrderResult>>(`/outwardorders/sales-orders/${salesOrderId}/dispatch`);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

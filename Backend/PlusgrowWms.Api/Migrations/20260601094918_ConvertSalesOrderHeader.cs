@@ -78,14 +78,18 @@ namespace PlusgrowWms.Api.Migrations
                 oldType: "integer",
                 oldNullable: true);
 
+            migrationBuilder.RenameTable(
+                name: "outward_orders",
+                newName: "sales_order_items");
+
             migrationBuilder.CreateIndex(
-                name: "IX_outward_orders_order_number",
-                table: "outward_orders",
+                name: "IX_sales_order_items_order_number",
+                table: "sales_order_items",
                 column: "order_number");
 
             migrationBuilder.CreateIndex(
-                name: "IX_outward_orders_sales_order_id",
-                table: "outward_orders",
+                name: "IX_sales_order_items_sales_order_id",
+                table: "sales_order_items",
                 column: "sales_order_id");
 
             migrationBuilder.CreateIndex(
@@ -95,8 +99,8 @@ namespace PlusgrowWms.Api.Migrations
                 unique: true);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_outward_orders_sales_orders_sales_order_id",
-                table: "outward_orders",
+                name: "FK_sales_order_items_sales_orders_sales_order_id",
+                table: "sales_order_items",
                 column: "sales_order_id",
                 principalTable: "sales_orders",
                 principalColumn: "id",
@@ -107,23 +111,27 @@ namespace PlusgrowWms.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_outward_orders_sales_orders_sales_order_id",
-                table: "outward_orders");
-
-            migrationBuilder.DropTable(
-                name: "sales_orders");
+                name: "FK_sales_order_items_sales_orders_sales_order_id",
+                table: "sales_order_items");
 
             migrationBuilder.DropIndex(
-                name: "IX_outward_orders_order_number",
-                table: "outward_orders");
+                name: "IX_sales_order_items_order_number",
+                table: "sales_order_items");
 
             migrationBuilder.DropIndex(
-                name: "IX_outward_orders_sales_order_id",
-                table: "outward_orders");
+                name: "IX_sales_order_items_sales_order_id",
+                table: "sales_order_items");
+
+            migrationBuilder.RenameTable(
+                name: "sales_order_items",
+                newName: "outward_orders");
 
             migrationBuilder.DropColumn(
                 name: "sales_order_id",
                 table: "outward_orders");
+
+            migrationBuilder.DropTable(
+                name: "sales_orders");
 
             migrationBuilder.CreateIndex(
                 name: "IX_outward_orders_order_number",

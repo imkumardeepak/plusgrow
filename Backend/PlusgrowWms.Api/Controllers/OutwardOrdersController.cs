@@ -329,49 +329,15 @@ public class OutwardOrdersController : BaseController
         if (order == null)
             return NotFound<OutwardOrderDto>("Outward order not found");
 
-        if (order.Status == "Dispatched")
-            return BadRequest<OutwardOrderDto>("Order is already dispatched");
-
-        if (order.PickedQuantity < order.Quantity)
-            return BadRequest<OutwardOrderDto>("Order must be fully picked before dispatch");
-
-        var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
-        var currentQuantity = quantityRow?.CurrentQuantity ?? 0;
-        if (currentQuantity < order.Quantity)
-            return BadRequest<OutwardOrderDto>($"Only {currentQuantity} units are available in stock");
-
-        if (quantityRow == null)
-            return BadRequest<OutwardOrderDto>("Product quantity row does not exist");
-
-        quantityRow.CurrentQuantity -= order.Quantity;
-        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
         var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
             ?? User.Identity?.Name
             ?? "System User";
 
-        var movement = new ProductStockMovement
-        {
-            ProductId = order.ProductId,
-            QuantityChange = -order.Quantity,
-            QuantityBefore = currentQuantity,
-            QuantityAfter = quantityRow.CurrentQuantity,
-            Reason = "Outward Dispatch",
-            MovementType = "dispatch",
-            Notes = $"Outward order {order.OrderNumber} dispatched",
-            PerformedByUserId = performedByUserId,
-            PerformedByName = performedByName,
-            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-        };
-
-        _context.ProductStockMovements.Add(movement);
-
-        order.Status = "Dispatched";
-        order.CartonId = string.IsNullOrWhiteSpace(dto.CartonId) ? (order.CartonId ?? BuildCartonId(order)) : dto.CartonId.Trim();
-        order.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var dispatchResult = await DispatchOrderInternalAsync(order, dto.CartonId, performedByUserId, performedByName);
+        if (!dispatchResult.Success)
+            return BadRequest<OutwardOrderDto>(dispatchResult.Message!);
 
         await _context.SaveChangesAsync();
         if (order.SalesOrderId > 0)
@@ -400,6 +366,57 @@ public class OutwardOrdersController : BaseController
         });
 
         return Success(response, "Order dispatched successfully");
+    }
+
+    [HttpPost("sales-orders/{salesOrderId}/dispatch")]
+    public async Task<ActionResult<ApiResponse<DispatchSalesOrderResultDto>>> DispatchSalesOrder(int salesOrderId)
+    {
+        var salesOrder = await _context.SalesOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == salesOrderId);
+        if (salesOrder == null)
+            return NotFound<DispatchSalesOrderResultDto>("Sales order not found");
+
+        var orders = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .Where(x => x.SalesOrderId == salesOrderId)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+
+        if (orders.Count == 0)
+            return NotFound<DispatchSalesOrderResultDto>("Sales order items not found");
+
+        var pendingOrders = orders.Where(x => x.Status != "Dispatched").ToList();
+        if (pendingOrders.Count == 0)
+            return BadRequest<DispatchSalesOrderResultDto>("Sales order is already fully dispatched");
+
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        foreach (var order in pendingOrders)
+        {
+            var dispatchResult = await DispatchOrderInternalAsync(order, null, performedByUserId, performedByName);
+            if (!dispatchResult.Success)
+                return BadRequest<DispatchSalesOrderResultDto>(dispatchResult.Message!);
+        }
+
+        await _context.SaveChangesAsync();
+        await UpdateSalesOrderStatusAsync(salesOrderId);
+        await _context.SaveChangesAsync();
+
+        var response = new DispatchSalesOrderResultDto
+        {
+            SalesOrderId = salesOrderId,
+            OrderNumber = salesOrder.OrderNumber,
+            DispatchedItemCount = pendingOrders.Count,
+            Items = pendingOrders.Select(MapOrder).ToList(),
+        };
+
+        return Success(response, pendingOrders.Count > 1
+            ? $"Sales order {salesOrder.OrderNumber} dispatched successfully"
+            : "Sales order dispatched successfully");
     }
 
     private async Task<string> GenerateOrderNumberAsync()
@@ -490,6 +507,55 @@ public class OutwardOrdersController : BaseController
         return $"CTN-{order.OrderNumber.Replace("SO-", string.Empty)}";
     }
 
+    private async Task<(bool Success, string? Message)> DispatchOrderInternalAsync(
+        OutwardOrder order,
+        string? cartonIdOverride,
+        int? performedByUserId,
+        string performedByName)
+    {
+        if (order.Status == "Dispatched")
+            return (false, $"Order {order.OrderNumber} is already dispatched");
+
+        if (order.PickedQuantity < order.Quantity)
+            return (false, $"Order {order.OrderNumber} must be fully picked before dispatch");
+
+        var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
+        if (quantityRow == null)
+            return (false, $"Stock quantity row is missing for {order.Product?.Name ?? order.OrderNumber}");
+
+        var currentQuantity = quantityRow.CurrentQuantity;
+        if (currentQuantity < order.Quantity)
+            return (false, $"Only {currentQuantity} units are available in stock for {order.Product?.Name ?? order.OrderNumber}");
+
+        quantityRow.CurrentQuantity -= order.Quantity;
+        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        var movement = new ProductStockMovement
+        {
+            ProductId = order.ProductId,
+            QuantityChange = -order.Quantity,
+            QuantityBefore = currentQuantity,
+            QuantityAfter = quantityRow.CurrentQuantity,
+            Reason = "Outward Dispatch",
+            MovementType = "dispatch",
+            Notes = $"Outward order {order.OrderNumber} dispatched",
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        };
+
+        _context.ProductStockMovements.Add(movement);
+
+        order.Status = "Dispatched";
+        order.CartonId = string.IsNullOrWhiteSpace(cartonIdOverride)
+            ? (order.CartonId ?? BuildCartonId(order))
+            : cartonIdOverride.Trim();
+        order.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        return (true, null);
+    }
+
     private async Task UpdateSalesOrderStatusAsync(int salesOrderId)
     {
         var header = await _context.SalesOrders.FirstOrDefaultAsync(x => x.Id == salesOrderId);
@@ -537,6 +603,11 @@ public class OutwardOrdersController : BaseController
             Id = row.Id,
             OrderNumber = row.OrderNumber,
             SalesOrderId = row.SalesOrderId,
+            SalesOrderStatus = row.SalesOrder?.Status ?? row.Status,
+            SalesOrderNotes = row.SalesOrder?.Notes,
+            SalesOrderCreatedAt = row.SalesOrder?.CreatedAt ?? row.CreatedAt,
+            SalesOrderUpdatedAt = row.SalesOrder?.UpdatedAt ?? row.UpdatedAt,
+            SalesOrderDispatchedAt = row.SalesOrder?.DispatchedAt,
             OrderDate = row.OrderDate,
             CustomerName = row.CustomerName,
             ProductId = row.ProductId,

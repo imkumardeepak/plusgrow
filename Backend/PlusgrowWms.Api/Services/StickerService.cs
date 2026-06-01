@@ -95,6 +95,8 @@ public class StickerService : IStickerService
             : 1;
         var companyHeader = string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase)
             ? "MARKETED BY"
+            : string.Equals(request.Type, "Manufacture", StringComparison.OrdinalIgnoreCase)
+                ? "MANUFACTURED BY"
             : "IMPORTED & MARKETED BY";
         var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
 
@@ -171,10 +173,13 @@ public class StickerService : IStickerService
         [
             new StickerTemplateDto { Name = "Imported & Marketed By 50 x 50", Size = "50x50", Type = "Combined", FileName = "IMPORTED_MARKTED-50x50.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 50 x 50", Size = "50x50", Type = "Separate", FileName = "MARKTEDBY-50x50.prn" },
+            new StickerTemplateDto { Name = "Manufactured By 50 x 50", Size = "50x50", Type = "Manufacture", FileName = "MANUFATUREBY-50x50.prn" },
             new StickerTemplateDto { Name = "Imported & Marketed By 60 x 60", Size = "60x60", Type = "Combined", FileName = "IMPORTED_MARKTED-60x60.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 60 x 60", Size = "60x60", Type = "Separate", FileName = "MARKTEDBY-60x60.prn" },
+            new StickerTemplateDto { Name = "Manufactured By 60 x 60", Size = "60x60", Type = "Manufacture", FileName = "MANUFATUREBY-60x60.prn" },
             new StickerTemplateDto { Name = "Imported & Marketed By 75 x 75", Size = "75x75", Type = "Combined", FileName = "IMPORTED_MARKTED-75x75.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" },
+            new StickerTemplateDto { Name = "Manufactured By 75 x 75", Size = "75x75", Type = "Manufacture", FileName = "MANUFACTREDBY-75x75.prn" },
             new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Combined", FileName = "Product-25x25x4-300.prn" },
             new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-300.prn" }
         ];
@@ -215,11 +220,20 @@ public class StickerService : IStickerService
 
         var normalizedType = string.Equals(type, "Separate", StringComparison.OrdinalIgnoreCase)
             ? "Separate"
+            : string.Equals(type, "Manufacture", StringComparison.OrdinalIgnoreCase)
+                ? "Manufacture"
             : "Combined";
 
         return normalizedType switch
         {
             "Separate" => $"MARKTEDBY-{size}.prn",
+            "Manufacture" => size switch
+            {
+                "50x50" => "MANUFATUREBY-50x50.prn",
+                "60x60" => "MANUFATUREBY-60x60.prn",
+                "75x75" => "MANUFACTREDBY-75x75.prn",
+                _ => $"MANUFATUREBY-{size}.prn",
+            },
             _ => $"IMPORTED_MARKTED-{size}.prn"
         };
     }

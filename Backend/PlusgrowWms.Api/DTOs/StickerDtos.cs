@@ -6,7 +6,7 @@ public class StickerPreviewRequest
     public int? ManufacturerId { get; set; }
     public int? ImporterId { get; set; }
     public string Size { get; set; } = "50x50"; // 50x50, 60x60, 75x75, 25x25
-    public string Type { get; set; } = "Combined"; // Combined, Separate
+    public string Type { get; set; } = "Combined"; // Combined, Separate, Manufacture
     public string MonthYear { get; set; } = string.Empty;
     public string BatchNumber { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;

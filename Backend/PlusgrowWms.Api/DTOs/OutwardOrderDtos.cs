@@ -5,6 +5,11 @@ public class OutwardOrderDto
     public int Id { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
     public int SalesOrderId { get; set; }
+    public string SalesOrderStatus { get; set; } = string.Empty;
+    public string? SalesOrderNotes { get; set; }
+    public DateTime SalesOrderCreatedAt { get; set; }
+    public DateTime SalesOrderUpdatedAt { get; set; }
+    public DateTime? SalesOrderDispatchedAt { get; set; }
     public DateTime OrderDate { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public int ProductId { get; set; }
@@ -66,4 +71,12 @@ public class DirectOutwardPickDto
 public class DispatchOutwardOrderDto
 {
     public string? CartonId { get; set; }
+}
+
+public class DispatchSalesOrderResultDto
+{
+    public int SalesOrderId { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public int DispatchedItemCount { get; set; }
+    public List<OutwardOrderDto> Items { get; set; } = [];
 }

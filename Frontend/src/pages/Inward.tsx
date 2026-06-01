@@ -73,7 +73,7 @@ import {
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
 type InwardStatusFilter = "all" | "pending" | "printed";
-type StickerMode = "Combined" | "Separate";
+type StickerMode = "Combined" | "Separate" | "Manufacture";
 type InvoiceSummary = PoInvoiceHeaderSummary & {
   invoiceKey: string;
 };
@@ -82,6 +82,7 @@ const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const labelModeText: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
+  Manufacture: "Manufactured By",
 };
 
 const defaultToDate = format(new Date(), "yyyy-MM-dd");
@@ -1382,6 +1383,11 @@ export const Inward = memo(function Inward() {
                         <Radio
                           value="Separate"
                           label={labelModeText.Separate}
+                          size="xs"
+                        />
+                        <Radio
+                          value="Manufacture"
+                          label={labelModeText.Manufacture}
                           size="xs"
                         />
                       </Stack>

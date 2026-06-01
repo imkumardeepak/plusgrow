@@ -3,7 +3,7 @@ import api from './authApi';
 export interface StickerTemplate {
   name: string;
   size: string;
-  type: 'Combined' | 'Separate';
+  type: 'Combined' | 'Separate' | 'Manufacture';
   fileName: string;
 }
 
@@ -12,7 +12,7 @@ export interface StickerPreviewPayload {
   manufacturerId?: number;
   importerId?: number;
   size: string;
-  type: 'Combined' | 'Separate';
+  type: 'Combined' | 'Separate' | 'Manufacture';
   monthYear: string;
   batchNumber: string;
   note: string;

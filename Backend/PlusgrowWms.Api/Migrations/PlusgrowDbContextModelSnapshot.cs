@@ -272,7 +272,7 @@ namespace PlusgrowWms.Api.Migrations
 
                     b.HasIndex("Status", "OrderDate");
 
-                    b.ToTable("outward_orders");
+                    b.ToTable("sales_order_items");
                 });
 
             modelBuilder.Entity("PlusgrowWms.Api.Models.PackingCarton", b =>

@@ -44,6 +44,14 @@ export interface StickerPrintModalProps {
   initialManufacturers?: Manufacturer[];
 }
 
+type StickerMode = "Combined" | "Separate" | "Manufacture";
+
+const stickerModeLabel: Record<StickerMode, string> = {
+  Combined: "Imported & Marketed By",
+  Separate: "Marketed / Imported",
+  Manufacture: "Manufactured By",
+};
+
 export function StickerPrintModal({
   isOpen,
   onClose,
@@ -56,7 +64,7 @@ export function StickerPrintModal({
   const [importers, setImporters] = useState<Importer[]>([]);
 
   const [stickerSize, setStickerSize] = useState("50x50");
-  const [stickerType, setStickerType] = useState<"Combined" | "Separate">("Combined");
+  const [stickerType, setStickerType] = useState<StickerMode>("Combined");
   const [printManufacturerId, setPrintManufacturerId] = useState<string | null>(null);
   const [printImporterId, setPrintImporterId] = useState<string | null>(null);
   const [importDate, setImportDate] = useState<Date>(new Date());
@@ -231,11 +239,12 @@ export function StickerPrintModal({
                   </Text>
                   <Radio.Group
                     value={stickerType}
-                    onChange={(value) => setStickerType(value as "Combined" | "Separate")}
+                    onChange={(value) => setStickerType(value as StickerMode)}
                   >
                     <Stack gap={6}>
-                      <Radio value="Combined" label="Imported & Marketed By" size="xs" />
-                      <Radio value="Separate" label="Marketed / Imported" size="xs" />
+                      <Radio value="Combined" label={stickerModeLabel.Combined} size="xs" />
+                      <Radio value="Separate" label={stickerModeLabel.Separate} size="xs" />
+                      <Radio value="Manufacture" label={stickerModeLabel.Manufacture} size="xs" />
                     </Stack>
                   </Radio.Group>
                 </Box>
@@ -337,7 +346,7 @@ export function StickerPrintModal({
                     MODE
                   </Text>
                   <Text size="xs" fw={800}>
-                    {stickerType === "Combined" ? "Imported & Marketed By" : "Marketed / Imported"}
+                    {stickerModeLabel[stickerType]}
                   </Text>
                 </Box>
                 <Box>
