@@ -98,6 +98,10 @@ public class StickerService : IStickerService
             : "IMPORTED & MARKETED BY";
         var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
 
+        var itemDescriptionLines = WrapText(product.Name, 25, 2);
+        var compactItemLines = WrapText(product.Name, 25, 2);
+        var noteLines = WrapText(product.Note, 30, 2);
+
         var values = new Dictionary<string, string>
         {
             { "<COMPANYHEADER>", companyHeader },
@@ -117,12 +121,12 @@ public class StickerService : IStickerService
             { "<UNIT>", product.UnitType ?? "Pcs" },
             { "<BESTBEFORE>", bestBeforeMonths.ToString() },
             { "<SKUCODE>", product.Sku ?? string.Empty },
-            { "<ITEMDESC1>", SplitIntoLength(product.Name, 30, 0) },
-            { "<ITEMDESC2>", SplitIntoLength(product.Name, 30, 1) },
-            { "<ITEMCODE1>", SplitIntoLength(product.Name, 20, 0) },
-            { "<ITEMCODE2>", SplitIntoLength(product.Name, 20, 1) },
-            { "<NOTE1>", SplitIntoLength(product.Note, 30, 0) },
-            { "<NOTE2>", SplitIntoLength(product.Note, 30, 1) },
+            { "<ITEMDESC1>", itemDescriptionLines[0] },
+            { "<ITEMDESC2>", itemDescriptionLines[1] },
+            { "<ITEMCODE1>", compactItemLines[0] },
+            { "<ITEMCODE2>", compactItemLines[1] },
+            { "<NOTE1>", noteLines[0] },
+            { "<NOTE2>", noteLines[1] },
             { "<ADDRESS1>", importerParts.Line1 },
             { "<ADDRESS2>", importerParts.Line2 },
             { "<COUNTRY>", manufacturerCountry },
@@ -254,17 +258,80 @@ public class StickerService : IStickerService
         );
     }
 
-    private static string SplitIntoLength(string? value, int length, int segment)
+    private static string[] WrapText(string? value, int maxLength, int maxLines)
     {
-        var source = value ?? string.Empty;
-        var start = segment * length;
+        var normalized = string.Join(
+            ' ',
+            (value ?? string.Empty)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-        if (source.Length <= start)
+        if (maxLines <= 0)
         {
-            return string.Empty;
+            return [];
         }
 
-        return source.Substring(start, Math.Min(length, source.Length - start));
+        var lines = new List<string>(maxLines);
+
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return Enumerable.Repeat(string.Empty, maxLines).ToArray();
+        }
+
+        var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var currentLine = new StringBuilder();
+
+        foreach (var word in words)
+        {
+            foreach (var piece in SplitLongWord(word, maxLength))
+            {
+                if (lines.Count == maxLines)
+                {
+                    return lines.ToArray();
+                }
+
+                if (currentLine.Length == 0)
+                {
+                    currentLine.Append(piece);
+                    continue;
+                }
+
+                var candidateLength = currentLine.Length + 1 + piece.Length;
+                if (candidateLength <= maxLength)
+                {
+                    currentLine.Append(' ').Append(piece);
+                    continue;
+                }
+
+                lines.Add(currentLine.ToString());
+                currentLine.Clear();
+                currentLine.Append(piece);
+            }
+        }
+
+        if (lines.Count < maxLines && currentLine.Length > 0)
+        {
+            lines.Add(currentLine.ToString());
+        }
+
+        while (lines.Count < maxLines)
+        {
+            lines.Add(string.Empty);
+        }
+
+        return lines.ToArray();
+    }
+
+    private static IEnumerable<string> SplitLongWord(string value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            yield break;
+        }
+
+        for (var index = 0; index < value.Length; index += maxLength)
+        {
+            yield return value.Substring(index, Math.Min(maxLength, value.Length - index));
+        }
     }
 
     private static string FirstFilled(params string?[] values)

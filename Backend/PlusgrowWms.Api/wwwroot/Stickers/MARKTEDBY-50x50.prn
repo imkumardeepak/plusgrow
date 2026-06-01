@@ -4,7 +4,7 @@
 ^PW595
 ~JSN
 ^JZY
-^LH0,0^LRN
+^LH5,0^LRN
 ^XZ
 ^XA
 ^FT7,36
@@ -49,7 +49,7 @@
 ^FT201,302
 ^A0N,25,34^FD<NETQNTY>^FS
 ^FT96,338
-^A0N,29,39^FD<MRP> (Incl. of all Taxes)^FS
+^A0N,29,39^FD<MRP>(Incl. of all Taxes)^FS
 ^FT164,358
 ^A0N,17,23^FD<FACTOR> /- per <UNIT>^FS
 ^FT146,377

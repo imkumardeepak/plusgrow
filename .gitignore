@@ -26,6 +26,7 @@ out/
 graphify-out/
 Document/
 .cursor/
+build-verify/
 
 # NuGet
 *.nupkg

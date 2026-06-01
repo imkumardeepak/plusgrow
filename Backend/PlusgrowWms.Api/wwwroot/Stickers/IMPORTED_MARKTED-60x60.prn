@@ -57,7 +57,7 @@
 ^FT207,365
 ^A0N,29,39^FD<NETQNTY>^FS
 ^FT120,408
-^A0N,33,45^FD<MRP> (Incl. of all Taxes)^FS
+^A0N,33,45^FD<MRP>(Incl. of all Taxes)^FS
 ^FT239,441
 ^A0N,25,34^FD<FACTOR> /- per <UNIT>^FS
 ^FT154,461
