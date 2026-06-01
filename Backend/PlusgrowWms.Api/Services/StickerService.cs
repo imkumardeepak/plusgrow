@@ -90,7 +90,7 @@ public class StickerService : IStickerService
         var companyHeader = string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase)
             ? "MARKETED BY"
             : string.Equals(request.Type, "Manufacture", StringComparison.OrdinalIgnoreCase)
-                ? "IMPORTED BY"
+                ? "MARKETED BY"
             : "IMPORTED & MARKETED BY";
         var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
 
