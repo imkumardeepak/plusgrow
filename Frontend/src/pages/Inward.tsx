@@ -576,6 +576,11 @@ export const Inward = memo(function Inward() {
       return;
     }
 
+    if (mode === "reprint" && !selectedPrintRow.printed) {
+      toast.error("Reprint is available only after full quantity has been printed");
+      return;
+    }
+
     const validationErrors = validateProductForSticker(selectedProduct);
     if (validationErrors.length > 0) {
       toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
@@ -1558,6 +1563,7 @@ export const Inward = memo(function Inward() {
                     min={1}
                     max={selectedPrintRow.billedQty}
                     value={reprintFrom}
+                    disabled={!selectedPrintRow.printed}
                     onChange={(value) =>
                       setReprintFrom(typeof value === "number" ? value : "")
                     }
@@ -1568,6 +1574,7 @@ export const Inward = memo(function Inward() {
                     min={1}
                     max={selectedPrintRow.billedQty}
                     value={reprintTo}
+                    disabled={!selectedPrintRow.printed}
                     onChange={(value) =>
                       setReprintTo(typeof value === "number" ? value : "")
                     }
@@ -1580,6 +1587,7 @@ export const Inward = memo(function Inward() {
                     leftIcon={<Printer size={14} />}
                     onClick={() => void handlePrint("reprint")}
                     loading={isPrinting}
+                    disabled={!selectedPrintRow.printed || selectedPrintRow.billedQty <= 0}
                   >
                     Reprint Range
                   </Button>
