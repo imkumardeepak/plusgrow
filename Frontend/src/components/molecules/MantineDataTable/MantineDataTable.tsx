@@ -85,6 +85,9 @@ export interface MantineDataTableProps<T> {
   /** Optional additional container classes */
   className?: string;
 
+  /** Optional row click handler */
+  onRowClick?: (row: T, rowIndex: number) => void;
+
   /** Controlled sort state (optional) */
   sortState?: SortState;
   /** Callback when sort changes (optional) */
@@ -110,6 +113,7 @@ function MantineDataTableInner<T>({
   maxHeight,
   fontSize = 12,
   className,
+  onRowClick,
   sortState: controlledSortState,
   onSortChange,
 }: MantineDataTableProps<T>) {
@@ -308,7 +312,19 @@ function MantineDataTableInner<T>({
             {pagination.paginatedItems.map((row, idx) => {
               const absoluteIndex = pagination.startIndex + idx;
               return (
-                <Table.Tr key={rowKey(row, absoluteIndex)}>
+                <Table.Tr
+                  key={rowKey(row, absoluteIndex)}
+                  onClick={
+                    onRowClick
+                      ? () => onRowClick(row, absoluteIndex)
+                      : undefined
+                  }
+                  style={
+                    onRowClick
+                      ? { cursor: "pointer" }
+                      : undefined
+                  }
+                >
                   {columns.map((col) => (
                     <Table.Td
                       key={col.key}

@@ -288,6 +288,7 @@ export interface ProductQuantityRecord {
   productId: number;
   skuCode: string;
   productName: string;
+  alias?: string;
   currentQuantity: number;
   updatedAt: string;
 }
@@ -332,6 +333,7 @@ export interface ProductAllottedLocationRecord {
   productId: number;
   skuCode: string;
   productName: string;
+  alias?: string;
   locationJson: Record<string, number>;
   updatedAt: string;
 }
@@ -377,6 +379,7 @@ export interface OutwardOrder {
   productId: number;
   skuCode: string;
   productName: string;
+  alias?: string;
   quantity: number;
   pickedQuantity: number;
   pendingQuantity: number;

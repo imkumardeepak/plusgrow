@@ -587,14 +587,14 @@ public class ProductsController : BaseController
         if (string.IsNullOrWhiteSpace(sku))
             return BadRequest<ProductLookupDto>("SKU is required");
 
-        var normalizedSku = sku.Trim().ToUpper();
+        var normalizedSku = sku.Trim().ToLower();
 
-        // Find the product by SKU or Alias
+        // Find the product by SKU or Alias (case-insensitive)
         var product = await _context.Products
             .Include(p => p.Commodity)
             .Include(p => p.Manufacturer)
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Sku == normalizedSku || p.Alias == normalizedSku);
+            .FirstOrDefaultAsync(p => (p.Sku != null && p.Sku.ToLower() == normalizedSku) || (p.Alias != null && p.Alias.ToLower() == normalizedSku));
 
         if (product == null)
             return NotFound<ProductLookupDto>("Product not found for the given SKU/Alias");

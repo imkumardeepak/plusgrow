@@ -130,10 +130,16 @@ public class OutwardOrdersController : BaseController
             return BadRequest<OutwardOrderDto>("Order is already fully picked");
 
         var expectedSku = order.Product?.Sku?.Trim();
-        if (!string.IsNullOrWhiteSpace(expectedSku) && !string.IsNullOrWhiteSpace(dto.SkuCode))
+        var expectedAlias = order.Product?.Alias?.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.SkuCode))
         {
-            if (!string.Equals(expectedSku, dto.SkuCode.Trim(), StringComparison.OrdinalIgnoreCase))
-                return BadRequest<OutwardOrderDto>($"Scanned SKU {dto.SkuCode.Trim()} does not match {expectedSku}");
+            var scanned = dto.SkuCode.Trim();
+            var matchesSku = !string.IsNullOrWhiteSpace(expectedSku) && string.Equals(expectedSku, scanned, StringComparison.OrdinalIgnoreCase);
+            var matchesAlias = !string.IsNullOrWhiteSpace(expectedAlias) && string.Equals(expectedAlias, scanned, StringComparison.OrdinalIgnoreCase);
+            if (!matchesSku && !matchesAlias)
+            {
+                return BadRequest<OutwardOrderDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
+            }
         }
 
         if (string.IsNullOrWhiteSpace(dto.LocationCode))
@@ -195,10 +201,16 @@ public class OutwardOrdersController : BaseController
             return BadRequest<OutwardOrderDto>("Selected product does not exist");
 
         var expectedSku = product.Sku?.Trim();
-        if (!string.IsNullOrWhiteSpace(expectedSku) && !string.IsNullOrWhiteSpace(dto.SkuCode))
+        var expectedAlias = product.Alias?.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.SkuCode))
         {
-            if (!string.Equals(expectedSku, dto.SkuCode.Trim(), StringComparison.OrdinalIgnoreCase))
-                return BadRequest<OutwardOrderDto>($"Scanned SKU {dto.SkuCode.Trim()} does not match {expectedSku}");
+            var scanned = dto.SkuCode.Trim();
+            var matchesSku = !string.IsNullOrWhiteSpace(expectedSku) && string.Equals(expectedSku, scanned, StringComparison.OrdinalIgnoreCase);
+            var matchesAlias = !string.IsNullOrWhiteSpace(expectedAlias) && string.Equals(expectedAlias, scanned, StringComparison.OrdinalIgnoreCase);
+            if (!matchesSku && !matchesAlias)
+            {
+                return BadRequest<OutwardOrderDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
+            }
         }
 
         var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
@@ -423,6 +435,7 @@ public class OutwardOrdersController : BaseController
             ProductId = row.ProductId,
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
+            Alias = row.Product?.Alias,
             Quantity = row.Quantity,
             PickedQuantity = row.PickedQuantity,
             PendingQuantity = Math.Max(row.Quantity - row.PickedQuantity, 0),

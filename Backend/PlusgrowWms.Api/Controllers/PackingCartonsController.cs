@@ -74,10 +74,16 @@ public class PackingCartonsController : BaseController
             return NotFound<PackingCartonDto>("Order not found");
 
         var expectedSku = order.Product?.Sku?.Trim();
-        if (!string.IsNullOrWhiteSpace(expectedSku) && !string.IsNullOrWhiteSpace(dto.SkuCode))
+        var expectedAlias = order.Product?.Alias?.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.SkuCode))
         {
-            if (!string.Equals(expectedSku, dto.SkuCode.Trim(), StringComparison.OrdinalIgnoreCase))
-                return BadRequest<PackingCartonDto>($"Scanned SKU {dto.SkuCode.Trim()} does not match {expectedSku}");
+            var scanned = dto.SkuCode.Trim();
+            var matchesSku = !string.IsNullOrWhiteSpace(expectedSku) && string.Equals(expectedSku, scanned, StringComparison.OrdinalIgnoreCase);
+            var matchesAlias = !string.IsNullOrWhiteSpace(expectedAlias) && string.Equals(expectedAlias, scanned, StringComparison.OrdinalIgnoreCase);
+            if (!matchesSku && !matchesAlias)
+            {
+                return BadRequest<PackingCartonDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
+            }
         }
 
         var totalPackedInCartons = await _context.PackingCartons

@@ -286,6 +286,7 @@ public class ProductQuantitiesController : BaseController
             ProductId = row.ProductId,
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
+            Alias = row.Product?.Alias,
             CurrentQuantity = row.CurrentQuantity,
             UpdatedAt = row.UpdatedAt,
         };

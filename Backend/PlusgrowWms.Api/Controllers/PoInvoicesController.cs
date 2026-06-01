@@ -45,6 +45,7 @@ public class PoInvoicesController : BaseController
                 (x.Header != null && x.Header.InvoiceNumber.ToLower().Contains(search)) ||
                 (x.Header != null && x.Header.PartyName.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)) ||
+                (x.Product != null && x.Product.Alias != null && x.Product.Alias.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Name.ToLower().Contains(search)));
         }
 
@@ -104,6 +105,7 @@ public class PoInvoicesController : BaseController
                 x.PartyName.ToLower().Contains(search) ||
                 x.Items.Any(item =>
                     (item.Product != null && item.Product.Sku != null && item.Product.Sku.ToLower().Contains(search)) ||
+                    (item.Product != null && item.Product.Alias != null && item.Product.Alias.ToLower().Contains(search)) ||
                     (item.Product != null && item.Product.Name.ToLower().Contains(search))));
         }
 
@@ -411,12 +413,14 @@ public class PoInvoicesController : BaseController
                     Product? product = null;
                     if (!string.IsNullOrWhiteSpace(partNo))
                     {
-                        product = await _context.Products.FirstOrDefaultAsync(x => x.Sku == partNo);
+                        var partNoLower = partNo.Trim().ToLower();
+                        product = await _context.Products.FirstOrDefaultAsync(x => (x.Sku != null && x.Sku.ToLower() == partNoLower) || (x.Alias != null && x.Alias.ToLower() == partNoLower));
                     }
 
                     if (product == null && !string.IsNullOrWhiteSpace(itemName))
                     {
-                        product = await _context.Products.FirstOrDefaultAsync(x => x.Name == itemName);
+                        var itemNameLower = itemName.Trim().ToLower();
+                        product = await _context.Products.FirstOrDefaultAsync(x => x.Name.ToLower() == itemNameLower);
                     }
 
                     if (product == null)

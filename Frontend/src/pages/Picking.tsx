@@ -123,7 +123,8 @@ export const Picking = memo(function Picking() {
           order.status === "Packed") &&
         (order.orderNumber.toLowerCase().includes(query) ||
           order.customerName.toLowerCase().includes(query) ||
-          order.skuCode.toLowerCase().includes(query)),
+          order.skuCode.toLowerCase().includes(query) ||
+          (order.alias && order.alias.toLowerCase().includes(query))),
     );
   }, [orders, searchQuery]);
 
@@ -271,10 +272,14 @@ export const Picking = memo(function Picking() {
       return;
     }
 
-    if (normalizedScan.toLowerCase() !== activeOrder.skuCode.toLowerCase()) {
+    const expectedSku = activeOrder.skuCode.toLowerCase();
+    const expectedAlias = activeOrder.alias?.toLowerCase();
+    const scanVal = normalizedScan.toLowerCase();
+
+    if (scanVal !== expectedSku && scanVal !== expectedAlias) {
       setScanTone("error");
-      setLastScanMessage(`SKU mismatch. Expected: ${activeOrder.skuCode}`);
-      toast.error("SKU mismatch");
+      setLastScanMessage(`SKU/Alias mismatch. Expected SKU: ${activeOrder.skuCode}${activeOrder.alias ? ` or Alias: ${activeOrder.alias}` : ""}`);
+      toast.error("SKU/Alias mismatch");
       setScanCode("");
       window.setTimeout(() => scanInputRef.current?.focus(), 0);
       return;
@@ -645,7 +650,7 @@ export const Picking = memo(function Picking() {
                         }}
                         placeholder={
                           isLocationLocked
-                            ? `Scan ${activeOrder.skuCode}`
+                            ? `Scan ${activeOrder.skuCode}${activeOrder.alias ? ` or ${activeOrder.alias}` : ""}`
                             : "Set location first"
                         }
                         disabled={!isLocationLocked || isFullyPicked}

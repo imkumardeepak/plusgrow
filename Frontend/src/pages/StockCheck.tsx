@@ -150,18 +150,18 @@ export const StockCheck = memo(function StockCheck() {
     setScanInput(sku);
 
     const product =
-      products.find((item) => normalizeSku(item.sku) === sku) ?? null;
+      products.find((item) => normalizeSku(item.sku) === sku || normalizeSku(item.alias) === sku) ?? null;
     const quantityRow =
-      quantityRows.find((row) => normalizeSku(row.skuCode) === sku) ?? null;
+      quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
     const resolvedProductId =
       product?.id ?? quantityRow?.productId ?? null;
     const allottedLocation =
       allottedLocations.find((row) =>
         resolvedProductId
           ? row.productId === resolvedProductId
-          : normalizeSku(row.skuCode) === sku,
+          : normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku,
       ) ??
-      allottedLocations.find((row) => normalizeSku(row.skuCode) === sku) ??
+      allottedLocations.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ??
       null;
 
     try {
@@ -170,8 +170,11 @@ export const StockCheck = memo(function StockCheck() {
         search: sku,
         pageSize: 100,
       });
+      const resolvedSku = product?.sku 
+        ? normalizeSku(product.sku) 
+        : (quantityRow?.skuCode ? normalizeSku(quantityRow.skuCode) : sku);
       const invoices = invoiceRows
-        .filter((row) => normalizeSku(row.skuCode) === sku)
+        .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
         .sort((first, second) => {
           const dateDiff =
             new Date(second.invoiceDate).getTime() -

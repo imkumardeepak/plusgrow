@@ -42,6 +42,7 @@ type PutAwayTask = {
   productId: number;
   skuCode: string;
   productName: string;
+  alias?: string;
   currentQuantity: number;
   allocatedQuantity: number;
   remainingQuantity: number;
@@ -111,6 +112,7 @@ export const PutAway = () => {
           productId: quantityRow.productId,
           skuCode: quantityRow.skuCode,
           productName: quantityRow.productName,
+          alias: quantityRow.alias,
           currentQuantity: quantityRow.currentQuantity,
           allocatedQuantity,
           remainingQuantity,
@@ -131,6 +133,7 @@ export const PutAway = () => {
       allTasks.find(
         (task) =>
           task.skuCode.toLowerCase() === scan ||
+          (task.alias && task.alias.toLowerCase() === scan) ||
           task.productName.toLowerCase() === scan,
       ) ?? null
     );
@@ -176,6 +179,7 @@ export const PutAway = () => {
       const task = allTasks.find(
         (t) =>
           t.skuCode.toLowerCase() === scan.toLowerCase() ||
+          (t.alias && t.alias.toLowerCase() === scan.toLowerCase()) ||
           t.productName.toLowerCase() === scan.toLowerCase(),
       );
 
@@ -198,6 +202,7 @@ export const PutAway = () => {
         const product = allProducts.find(
           (p) =>
             p.sku?.toLowerCase() === scan.toLowerCase() ||
+            p.alias?.toLowerCase() === scan.toLowerCase() ||
             p.name.toLowerCase() === scan.toLowerCase(),
         );
 

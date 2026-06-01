@@ -71,6 +71,7 @@ public class ProductQuantityDto
     public int ProductId { get; set; }
     public string SkuCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
     public int CurrentQuantity { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -92,6 +93,7 @@ public class ProductAllottedLocationDto
     public int ProductId { get; set; }
     public string SkuCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
     public Dictionary<string, int> LocationJson { get; set; } = new();
     public DateTime UpdatedAt { get; set; }
 }

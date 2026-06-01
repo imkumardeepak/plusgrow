@@ -140,8 +140,9 @@ public class ProductAllottedLocationsController : BaseController
         var productScan = dto.ProductScanCode.Trim();
         var locationScan = dto.LocationOrBinScanCode.Trim();
 
-        var product = await _context.Products.FirstOrDefaultAsync(x => x.Sku == productScan)
-            ?? await _context.Products.FirstOrDefaultAsync(x => x.Name == productScan);
+        var product = await _context.Products.FirstOrDefaultAsync(x => x.Sku != null && x.Sku.ToLower() == productScan.ToLower())
+            ?? await _context.Products.FirstOrDefaultAsync(x => x.Alias != null && x.Alias.ToLower() == productScan.ToLower())
+            ?? await _context.Products.FirstOrDefaultAsync(x => x.Name.ToLower() == productScan.ToLower());
 
         if (product == null)
             return NotFound<PutAwayScanAssignmentResultDto>("Scanned product was not found");
@@ -358,6 +359,7 @@ public class ProductAllottedLocationsController : BaseController
             ProductId = row.ProductId,
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
+            Alias = row.Product?.Alias,
             LocationJson = row.LocationJson,
             UpdatedAt = row.UpdatedAt,
         };

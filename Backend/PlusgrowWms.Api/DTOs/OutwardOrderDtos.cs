@@ -9,6 +9,7 @@ public class OutwardOrderDto
     public int ProductId { get; set; }
     public string SkuCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
     public int Quantity { get; set; }
     public int PickedQuantity { get; set; }
     public int PendingQuantity { get; set; }
