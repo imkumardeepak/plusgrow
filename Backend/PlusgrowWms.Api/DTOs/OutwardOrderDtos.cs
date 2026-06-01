@@ -44,6 +44,16 @@ public class UpdateOutwardPickingDto
     public string? LocationCode { get; set; }
 }
 
+public class DirectOutwardPickDto
+{
+    public int ProductId { get; set; }
+    public int Quantity { get; set; } = 1;
+    public string? SkuCode { get; set; }
+    public string LocationCode { get; set; } = string.Empty;
+    public string Remark { get; set; } = string.Empty;
+    public string? CustomerName { get; set; }
+}
+
 public class DispatchOutwardOrderDto
 {
     public string? CartonId { get; set; }

@@ -176,6 +176,80 @@ public class OutwardOrdersController : BaseController
         return Success(response, "Picking progress updated successfully");
     }
 
+    [HttpPost("direct-pick")]
+    public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DirectPick([FromBody] DirectOutwardPickDto dto)
+    {
+        if (dto.ProductId <= 0)
+            return BadRequest<OutwardOrderDto>("Product is required");
+
+        var pickQty = dto.Quantity <= 0 ? 1 : dto.Quantity;
+
+        if (string.IsNullOrWhiteSpace(dto.LocationCode))
+            return BadRequest<OutwardOrderDto>("Location scan is required");
+
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<OutwardOrderDto>("Remark is required for direct outward picking");
+
+        var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
+        if (product == null)
+            return BadRequest<OutwardOrderDto>("Selected product does not exist");
+
+        var expectedSku = product.Sku?.Trim();
+        if (!string.IsNullOrWhiteSpace(expectedSku) && !string.IsNullOrWhiteSpace(dto.SkuCode))
+        {
+            if (!string.Equals(expectedSku, dto.SkuCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                return BadRequest<OutwardOrderDto>($"Scanned SKU {dto.SkuCode.Trim()} does not match {expectedSku}");
+        }
+
+        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        if (string.IsNullOrWhiteSpace(resolvedLocationCode))
+            return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
+
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty);
+        if (!reduceLocationResult.Success)
+            return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
+
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var order = new OutwardOrder
+        {
+            OrderNumber = await GenerateDirectOrderNumberAsync(),
+            OrderDate = now.Date,
+            CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? "Direct Outward" : dto.CustomerName.Trim(),
+            ProductId = product.Id,
+            Product = product,
+            Quantity = pickQty,
+            PickedQuantity = pickQty,
+            Status = "Packed",
+            Notes = $"Direct outward pick. Remark: {dto.Remark.Trim()}",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        order.CartonId = BuildCartonId(order);
+
+        _context.OutwardOrders.Add(order);
+        await _context.SaveChangesAsync();
+
+        var response = MapOrder(order);
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "outward.direct-picked",
+            Title = "Direct outward picked",
+            Message = $"{response.OrderNumber} picked without sales order and is ready for packing.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["orderId"] = response.Id,
+                ["orderNumber"] = response.OrderNumber,
+                ["skuCode"] = response.SkuCode,
+                ["quantity"] = response.Quantity,
+                ["locationCode"] = resolvedLocationCode,
+                ["remark"] = dto.Remark.Trim(),
+            },
+        });
+
+        return Success(response, "Direct outward picked successfully and moved to packing");
+    }
+
     [HttpPost("{id}/dispatch")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DispatchOrder(int id, [FromBody] DispatchOutwardOrderDto dto)
     {
@@ -253,6 +327,25 @@ public class OutwardOrdersController : BaseController
     private async Task<string> GenerateOrderNumberAsync()
     {
         var prefix = $"SO-{DateTime.Now:yyMMdd}";
+        var lastOrder = await _context.OutwardOrders
+            .Where(x => x.OrderNumber.StartsWith(prefix))
+            .OrderByDescending(x => x.OrderNumber)
+            .FirstOrDefaultAsync();
+
+        var nextSequence = 1;
+        if (lastOrder != null)
+        {
+            var suffix = lastOrder.OrderNumber.Split('-').LastOrDefault();
+            if (int.TryParse(suffix, out var parsed))
+                nextSequence = parsed + 1;
+        }
+
+        return $"{prefix}-{nextSequence:000}";
+    }
+
+    private async Task<string> GenerateDirectOrderNumberAsync()
+    {
+        var prefix = $"DO-{DateTime.Now:yyMMdd}";
         var lastOrder = await _context.OutwardOrders
             .Where(x => x.OrderNumber.StartsWith(prefix))
             .OrderByDescending(x => x.OrderNumber)

@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { NumberInput, Select, Textarea, TextInput } from "@mantine/core";
 import {
   ArrowRight,
   ArrowLeft,
@@ -26,9 +27,11 @@ import {
 } from "../components/organisms/Operations/OperationsShell";
 import {
   OutwardOrder,
+  Product,
   outwardOrdersApi,
   productAllottedLocationsApi,
   ProductAllottedLocationRecord,
+  productsApi,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 
@@ -37,6 +40,7 @@ type ScanTone = "idle" | "success" | "error";
 export const Picking = memo(function Picking() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
     [],
   );
@@ -53,6 +57,14 @@ export const Picking = memo(function Picking() {
   const [isLocationLocked, setIsLocationLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPicking, setIsPicking] = useState(false);
+  const [isDirectPicking, setIsDirectPicking] = useState(false);
+  const [directProductSearch, setDirectProductSearch] = useState("");
+  const [directProductId, setDirectProductId] = useState<number | null>(null);
+  const [directSkuCode, setDirectSkuCode] = useState("");
+  const [directLocationCode, setDirectLocationCode] = useState("");
+  const [directQuantity, setDirectQuantity] = useState(1);
+  const [directRemark, setDirectRemark] = useState("");
+  const [directCustomerName, setDirectCustomerName] = useState("");
   const navigate = useNavigate();
   const scanInputRef = useRef<HTMLInputElement | null>(null);
   const locationInputRef = useRef<HTMLInputElement | null>(null);
@@ -73,9 +85,34 @@ export const Picking = memo(function Picking() {
     }
   }, []);
 
+  const loadProducts = useCallback(async () => {
+    try {
+      const data = await productsApi.search(directProductSearch);
+      setProducts(data);
+    } catch {
+      toast.error("Failed to load product lookup");
+    }
+  }, [directProductSearch]);
+
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadProducts();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [loadProducts]);
+
+  const productOptions = useMemo(
+    () =>
+      products.map((product) => ({
+        value: String(product.id),
+        label: `${product.sku || "NO-SKU"} - ${product.name}`,
+      })),
+    [products],
+  );
 
   const openOrders = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -246,13 +283,126 @@ export const Picking = memo(function Picking() {
     await handlePick(activeOrder, normalizedScan);
   };
 
+  const handleDirectPickSubmit = async () => {
+    if (!directProductId) {
+      toast.error("Select product first");
+      return;
+    }
+
+    if (!directLocationCode.trim()) {
+      toast.error("Scan or enter location");
+      return;
+    }
+
+    if (directQuantity <= 0) {
+      toast.error("Quantity must be greater than zero");
+      return;
+    }
+
+    if (!directRemark.trim()) {
+      toast.error("Remark is required for direct outward");
+      return;
+    }
+
+    try {
+      setIsDirectPicking(true);
+      const created = await outwardOrdersApi.directPick({
+        productId: directProductId,
+        quantity: directQuantity,
+        skuCode: directSkuCode.trim() || undefined,
+        locationCode: directLocationCode.trim(),
+        remark: directRemark.trim(),
+        customerName: directCustomerName.trim() || null,
+      });
+      setOrders((current) => [created, ...current]);
+      setSelectedOrderId(created.id);
+      setDirectProductId(null);
+      setDirectSkuCode("");
+      setDirectLocationCode("");
+      setDirectQuantity(1);
+      setDirectRemark("");
+      setDirectCustomerName("");
+      toast.success(`${created.orderNumber} direct picked and ready for packing`);
+    } catch (error: any) {
+      toast.error(error.message || "Direct pick failed");
+    } finally {
+      setIsDirectPicking(false);
+    }
+  };
+
   return (
     <OperationsPage
       title="Picking"
-      description="Pick orders by scanning SKU and location."
+      description="Pick sales orders, or direct-pick stock with a remark when no sales order exists."
       icon={Package}
       hideHeader
     >
+      <OperationsPanel
+        title="Direct Outward Pick"
+        icon={Package}
+        description="Use this when there is no sales order. Pick stock with a mandatory remark, then continue packing."
+      >
+        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.9fr]">
+          <Select
+            label="Product"
+            placeholder="Search SKU or product"
+            searchable
+            data={productOptions}
+            searchValue={directProductSearch}
+            onSearchChange={setDirectProductSearch}
+            value={directProductId ? String(directProductId) : null}
+            onChange={(value) => {
+              const productId = value ? Number(value) : null;
+              const selected = products.find((product) => product.id === productId);
+              setDirectProductId(productId);
+              setDirectSkuCode(selected?.sku || "");
+            }}
+          />
+          <TextInput
+            label="SKU Scan"
+            placeholder="Optional SKU scan"
+            value={directSkuCode}
+            onChange={(event) => setDirectSkuCode(event.currentTarget.value)}
+          />
+          <TextInput
+            label="Location / Bin"
+            placeholder="Scan location"
+            value={directLocationCode}
+            onChange={(event) => setDirectLocationCode(event.currentTarget.value)}
+          />
+          <NumberInput
+            label="Quantity"
+            min={1}
+            value={directQuantity}
+            onChange={(value) => setDirectQuantity(Number(value) || 1)}
+          />
+        </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.4fr_auto] lg:items-end">
+          <TextInput
+            label="Party / Customer"
+            placeholder="Optional"
+            value={directCustomerName}
+            onChange={(event) => setDirectCustomerName(event.currentTarget.value)}
+          />
+          <Textarea
+            label="Remark"
+            placeholder="Required reason for direct outward"
+            autosize
+            minRows={1}
+            value={directRemark}
+            onChange={(event) => setDirectRemark(event.currentTarget.value)}
+          />
+          <Button
+            onClick={() => void handleDirectPickSubmit()}
+            loading={isDirectPicking}
+            leftIcon={<Package className="h-3.5 w-3.5" />}
+            className="h-10"
+          >
+            Direct Pick
+          </Button>
+        </div>
+      </OperationsPanel>
+
       <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
         {(!isMobile || !activeOrder) && (
           <OperationsPanel
