@@ -55,6 +55,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<RolePageAccess> RolePageAccesses => Set<RolePageAccess>();
     public DbSet<Bin> Bins => Set<Bin>();
     public DbSet<Location> Locations => Set<Location>();
+    public DbSet<PoInvoiceHeader> PoInvoiceHeaders => Set<PoInvoiceHeader>();
     public DbSet<PoInvoice> PoInvoices => Set<PoInvoice>();
     public DbSet<ProductQuantity> ProductQuantities => Set<ProductQuantity>();
     public DbSet<ProductStockMovement> ProductStockMovements => Set<ProductStockMovement>();
@@ -140,12 +141,15 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<ProductStockMovement>()
             .HasIndex(x => x.CreatedAt);
 
-        modelBuilder.Entity<PoInvoice>()
-            .HasIndex(x => new { x.InvoiceDate, x.ProductId });
-
-        modelBuilder.Entity<PoInvoice>()
+        modelBuilder.Entity<PoInvoiceHeader>()
             .HasIndex(x => x.InvoiceNumber)
             .IsUnique();
+
+        modelBuilder.Entity<PoInvoiceHeader>()
+            .HasIndex(x => x.InvoiceDate);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => new { x.PoInvoiceHeaderId, x.ProductId });
 
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => x.Printed);
@@ -157,7 +161,7 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.RemainingAllocation);
 
         modelBuilder.Entity<PoInvoice>()
-            .HasIndex(x => new { x.ProductId, x.RemainingAllocation, x.InvoiceDate });
+            .HasIndex(x => new { x.ProductId, x.RemainingAllocation, x.PoInvoiceHeaderId });
 
         modelBuilder.Entity<OutwardOrder>()
             .HasIndex(x => new { x.Status, x.OrderDate });
@@ -171,6 +175,12 @@ public class PlusgrowDbContext : DbContext
 
         modelBuilder.Entity<Product>()
             .HasIndex(p => p.Name);
+
+        modelBuilder.Entity<PoInvoice>()
+            .HasOne(x => x.Header)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.PoInvoiceHeaderId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<PoInvoice>()
             .HasOne(x => x.Product)

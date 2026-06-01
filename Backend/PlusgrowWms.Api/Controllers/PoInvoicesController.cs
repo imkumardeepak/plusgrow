@@ -33,6 +33,7 @@ public class PoInvoicesController : BaseController
         var page = Math.Max(filter.Page, 1);
         var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var query = _context.PoInvoices
+            .Include(x => x.Header)
             .Include(x => x.Product)
             .AsNoTracking()
             .AsQueryable();
@@ -41,8 +42,8 @@ public class PoInvoicesController : BaseController
         {
             var search = filter.Search.Trim().ToLower();
             query = query.Where(x =>
-                x.InvoiceNumber.ToLower().Contains(search) ||
-                x.PartyName.ToLower().Contains(search) ||
+                (x.Header != null && x.Header.InvoiceNumber.ToLower().Contains(search)) ||
+                (x.Header != null && x.Header.PartyName.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Name.ToLower().Contains(search)));
         }
@@ -63,19 +64,19 @@ public class PoInvoicesController : BaseController
         if (filter.FromDate.HasValue)
         {
             var fromDate = NormalizeInvoiceDate(filter.FromDate.Value);
-            query = query.Where(x => x.InvoiceDate >= fromDate);
+            query = query.Where(x => x.Header != null && x.Header.InvoiceDate >= fromDate);
         }
 
         if (filter.ToDate.HasValue)
         {
             var toDate = NormalizeInvoiceDate(filter.ToDate.Value);
-            query = query.Where(x => x.InvoiceDate <= toDate);
+            query = query.Where(x => x.Header != null && x.Header.InvoiceDate <= toDate);
         }
 
         var total = await query.CountAsync();
         var invoices = await query
-            .OrderByDescending(x => x.InvoiceDate)
-            .ThenBy(x => x.PartyName)
+            .OrderByDescending(x => x.Header!.InvoiceDate)
+            .ThenBy(x => x.Header!.PartyName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -92,11 +93,19 @@ public class PoInvoicesController : BaseController
         if (string.IsNullOrWhiteSpace(dto.InvoiceNumber))
             return BadRequest<PoInvoiceDto>("Invoice number is required");
 
+        PoInvoiceHeader header;
+        try
+        {
+            header = await GetOrCreateInvoiceHeaderAsync(dto.InvoiceNumber, dto.InvoiceDate, dto.PartyName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest<PoInvoiceDto>(ex.Message);
+        }
+
         var entity = new PoInvoice
         {
-            InvoiceNumber = dto.InvoiceNumber.Trim(),
-            InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate),
-            PartyName = dto.PartyName.Trim(),
+            PoInvoiceHeaderId = header.Id,
             ProductId = dto.ProductId,
             BilledQty = dto.BilledQty,
             Printed = false,
@@ -108,7 +117,10 @@ public class PoInvoicesController : BaseController
         await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
         await _context.SaveChangesAsync();
 
-        var created = await _context.PoInvoices.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
+        var created = await _context.PoInvoices
+            .Include(x => x.Header)
+            .Include(x => x.Product)
+            .FirstAsync(x => x.Id == entity.Id);
         var response = MapInvoice(created);
         await SendNotificationAsync(new RealtimeNotificationDto
         {
@@ -145,24 +157,52 @@ public class PoInvoicesController : BaseController
         if (string.IsNullOrWhiteSpace(dto.InvoiceNumber))
             return BadRequest<PoInvoiceDto>("Invoice number is required");
 
-        entity.InvoiceNumber = dto.InvoiceNumber.Trim();
-        entity.InvoiceDate = NormalizeInvoiceDate(dto.InvoiceDate);
-        entity.PartyName = dto.PartyName.Trim();
+        var previousHeaderId = entity.PoInvoiceHeaderId;
+        PoInvoiceHeader header;
+        try
+        {
+            header = await GetOrCreateInvoiceHeaderAsync(dto.InvoiceNumber, dto.InvoiceDate, dto.PartyName, previousHeaderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest<PoInvoiceDto>(ex.Message);
+        }
+
+        var previousProductId = entity.ProductId;
+        var previousBilledQty = entity.BilledQty;
+        var previouslyAllocatedQty = Math.Max(entity.BilledQty - entity.RemainingAllocation, 0);
+
+        entity.PoInvoiceHeaderId = header.Id;
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
 
-        // Calculate the difference in billed quantity and update product_quantities
-        var quantityDifference = dto.BilledQty - entity.BilledQty;
-        if (quantityDifference != 0)
+        if (previousProductId != dto.ProductId)
         {
-            await UpsertProductQuantityAsync(dto.ProductId, quantityDifference);
+            await UpsertProductQuantityAsync(previousProductId, -previousBilledQty);
+            await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
+        }
+        else
+        {
+            var quantityDifference = dto.BilledQty - previousBilledQty;
+            if (quantityDifference != 0)
+            {
+                await UpsertProductQuantityAsync(dto.ProductId, quantityDifference);
+            }
         }
 
-        entity.RemainingAllocation = dto.BilledQty;
+        entity.RemainingAllocation = Math.Max(dto.BilledQty - previouslyAllocatedQty, 0);
+        entity.LocationAllotted = entity.RemainingAllocation <= 0;
 
         await _context.SaveChangesAsync();
+        if (previousHeaderId != header.Id)
+        {
+            await DeleteHeaderIfOrphanedAsync(previousHeaderId);
+        }
 
-        var updated = await _context.PoInvoices.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
+        var updated = await _context.PoInvoices
+            .Include(x => x.Header)
+            .Include(x => x.Product)
+            .FirstAsync(x => x.Id == entity.Id);
         return Success(MapInvoice(updated), "PO invoice updated successfully");
     }
 
@@ -173,8 +213,10 @@ public class PoInvoicesController : BaseController
         if (entity == null)
             return NotFound("PO invoice not found");
 
+        var headerId = entity.PoInvoiceHeaderId;
         _context.PoInvoices.Remove(entity);
         await _context.SaveChangesAsync();
+        await DeleteHeaderIfOrphanedAsync(headerId);
 
         return Ok("PO invoice deleted successfully");
     }
@@ -314,11 +356,11 @@ public class PoInvoicesController : BaseController
                         await _context.SaveChangesAsync();
                     }
 
+                    var header = await GetOrCreateInvoiceHeaderAsync(invoiceNumber, invoiceDate.Value, partyName);
+
                     var entity = new PoInvoice
                     {
-                        InvoiceNumber = invoiceNumber,
-                        InvoiceDate = NormalizeInvoiceDate(invoiceDate.Value),
-                        PartyName = partyName,
+                        PoInvoiceHeaderId = header.Id,
                         ProductId = product.Id,
                         BilledQty = billedQty,
                         Printed = false,
@@ -399,7 +441,7 @@ public class PoInvoicesController : BaseController
         var year = DateTime.Now.Year % 100;
         var prefix = $"IN{year:D2}";
 
-        var maxInvoice = await _context.PoInvoices
+        var maxInvoice = await _context.PoInvoiceHeaders
             .Where(x => x.InvoiceNumber.StartsWith(prefix))
             .OrderByDescending(x => x.InvoiceNumber)
             .FirstOrDefaultAsync();
@@ -422,9 +464,9 @@ public class PoInvoicesController : BaseController
         return new PoInvoiceDto
         {
             Id = invoice.Id,
-            InvoiceNumber = invoice.InvoiceNumber,
-            InvoiceDate = invoice.InvoiceDate,
-            PartyName = invoice.PartyName,
+            InvoiceNumber = invoice.Header?.InvoiceNumber ?? string.Empty,
+            InvoiceDate = invoice.Header?.InvoiceDate ?? default,
+            PartyName = invoice.Header?.PartyName ?? string.Empty,
             ProductId = invoice.ProductId,
             SkuCode = invoice.Product?.Sku ?? string.Empty,
             ProductName = invoice.Product?.Name ?? string.Empty,
@@ -447,6 +489,49 @@ public class PoInvoicesController : BaseController
         return DateTime.SpecifyKind(value.Date, DateTimeKind.Unspecified);
     }
 
+    private async Task<PoInvoiceHeader> GetOrCreateInvoiceHeaderAsync(string invoiceNumber, DateTime invoiceDate, string partyName, int? currentHeaderId = null)
+    {
+        var normalizedInvoiceNumber = invoiceNumber.Trim();
+        var normalizedInvoiceDate = NormalizeInvoiceDate(invoiceDate);
+        var normalizedPartyName = partyName.Trim();
+
+        var existingHeader = await _context.PoInvoiceHeaders
+            .FirstOrDefaultAsync(x => x.InvoiceNumber == normalizedInvoiceNumber);
+
+        if (existingHeader == null)
+        {
+            var nextHeader = new PoInvoiceHeader
+            {
+                InvoiceNumber = normalizedInvoiceNumber,
+                InvoiceDate = normalizedInvoiceDate,
+                PartyName = normalizedPartyName,
+            };
+
+            _context.PoInvoiceHeaders.Add(nextHeader);
+            await _context.SaveChangesAsync();
+            return nextHeader;
+        }
+
+        var headerMismatch =
+            existingHeader.InvoiceDate != normalizedInvoiceDate ||
+            !string.Equals(existingHeader.PartyName, normalizedPartyName, StringComparison.OrdinalIgnoreCase);
+
+        if (headerMismatch && currentHeaderId != existingHeader.Id)
+        {
+            throw new InvalidOperationException(
+                $"Invoice {normalizedInvoiceNumber} already exists with a different invoice date or party name.");
+        }
+
+        if (currentHeaderId == existingHeader.Id)
+        {
+            existingHeader.InvoiceDate = normalizedInvoiceDate;
+            existingHeader.PartyName = normalizedPartyName;
+            await _context.SaveChangesAsync();
+        }
+
+        return existingHeader;
+    }
+
     private async Task UpsertProductQuantityAsync(int productId, int billedQty)
     {
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
@@ -464,6 +549,29 @@ public class PoInvoicesController : BaseController
 
         quantityRow.CurrentQuantity += billedQty;
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+    }
+
+    private async Task DeleteHeaderIfOrphanedAsync(int? headerId = null)
+    {
+        if (headerId == null)
+        {
+            return;
+        }
+
+        var headerHasItems = await _context.PoInvoices.AnyAsync(x => x.PoInvoiceHeaderId == headerId.Value);
+        if (headerHasItems)
+        {
+            return;
+        }
+
+        var header = await _context.PoInvoiceHeaders.FindAsync(headerId.Value);
+        if (header == null)
+        {
+            return;
+        }
+
+        _context.PoInvoiceHeaders.Remove(header);
+        await _context.SaveChangesAsync();
     }
 
     private static DateTime? TryParseInvoiceDate(IXLCell cell)

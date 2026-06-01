@@ -10,18 +10,11 @@ public class PoInvoice
     [Column("id")]
     public int Id { get; set; }
 
-    [Column("invoice_date")]
-    public DateTime InvoiceDate { get; set; }
+    [Column("po_invoice_header_id")]
+    public int PoInvoiceHeaderId { get; set; }
 
-    [Required]
-    [MaxLength(255)]
-    [Column("party_name")]
-    public string PartyName { get; set; } = string.Empty;
-
-    [Required]
-    [MaxLength(20)]
-    [Column("invoice_number")]
-    public string InvoiceNumber { get; set; } = string.Empty;
+    [ForeignKey(nameof(PoInvoiceHeaderId))]
+    public PoInvoiceHeader? Header { get; set; }
 
     [Column("product_id")]
     public int ProductId { get; set; }

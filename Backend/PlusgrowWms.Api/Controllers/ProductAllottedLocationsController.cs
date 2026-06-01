@@ -367,8 +367,9 @@ public class ProductAllottedLocationsController : BaseController
     {
         var remainingToAllocate = assignedQuantity;
         var invoices = await _context.PoInvoices
+            .Include(x => x.Header)
             .Where(x => x.ProductId == productId && x.RemainingAllocation > 0)
-            .OrderBy(x => x.InvoiceDate)
+            .OrderBy(x => x.Header!.InvoiceDate)
             .ThenBy(x => x.Id)
             .ToListAsync();
 
