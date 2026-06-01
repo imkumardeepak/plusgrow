@@ -37,6 +37,16 @@ import { toast } from "../lib/toast";
 
 type ScanTone = "idle" | "success" | "error";
 
+type PickingOrderGroup = {
+  orderNumber: string;
+  customerName: string;
+  status: OutwardOrder["status"];
+  items: OutwardOrder[];
+  totalQuantity: number;
+  totalPickedQuantity: number;
+  pendingQuantity: number;
+};
+
 export const Picking = memo(function Picking() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
@@ -44,7 +54,8 @@ export const Picking = memo(function Picking() {
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
     [],
   );
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
+  const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [scanCode, setScanCode] = useState("");
   const [locationScanCode, setLocationScanCode] = useState("");
@@ -124,68 +135,138 @@ export const Picking = memo(function Picking() {
         (order.orderNumber.toLowerCase().includes(query) ||
           order.customerName.toLowerCase().includes(query) ||
           order.skuCode.toLowerCase().includes(query) ||
+          order.productName.toLowerCase().includes(query) ||
           (order.alias && order.alias.toLowerCase().includes(query))),
     );
   }, [orders, searchQuery]);
 
+  const openOrderGroups = useMemo<PickingOrderGroup[]>(() => {
+    const map = new Map<string, PickingOrderGroup>();
+
+    openOrders.forEach((order) => {
+      const existing = map.get(order.orderNumber);
+      if (existing) {
+        existing.items.push(order);
+        existing.totalQuantity += order.quantity;
+        existing.totalPickedQuantity += order.pickedQuantity;
+        existing.pendingQuantity += order.pendingQuantity;
+        existing.status =
+          existing.items.every((item) => item.pendingQuantity === 0 || item.status === "Packed")
+            ? "Packed"
+            : existing.items.some((item) => item.pickedQuantity > 0 || item.status === "Picking")
+              ? "Picking"
+              : "Open";
+        return;
+      }
+
+      map.set(order.orderNumber, {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        status: order.pendingQuantity === 0 || order.status === "Packed" ? "Packed" : order.status,
+        items: [order],
+        totalQuantity: order.quantity,
+        totalPickedQuantity: order.pickedQuantity,
+        pendingQuantity: order.pendingQuantity,
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const dateDiff =
+        new Date(b.items[0]?.orderDate || 0).getTime() -
+        new Date(a.items[0]?.orderDate || 0).getTime();
+      return dateDiff || b.orderNumber.localeCompare(a.orderNumber);
+    });
+  }, [openOrders]);
+
   useEffect(() => {
-    if (!isMobile && !selectedOrderId && openOrders.length > 0) {
-      setSelectedOrderId(openOrders[0].id);
+    if (!isMobile && !selectedOrderNumber && openOrderGroups.length > 0) {
+      setSelectedOrderNumber(openOrderGroups[0].orderNumber);
     }
 
     if (
-      selectedOrderId &&
-      !openOrders.some((row) => row.id === selectedOrderId)
+      selectedOrderNumber &&
+      !openOrderGroups.some((row) => row.orderNumber === selectedOrderNumber)
     ) {
-      setSelectedOrderId(!isMobile ? (openOrders[0]?.id ?? null) : null);
+      setSelectedOrderNumber(!isMobile ? (openOrderGroups[0]?.orderNumber ?? null) : null);
     }
-  }, [openOrders, selectedOrderId, isMobile]);
+  }, [openOrderGroups, selectedOrderNumber, isMobile]);
 
-  const activeOrder =
-    openOrders.find((row) => row.id === selectedOrderId) ?? null;
-  const locationRow = activeOrder
-    ? (locations.find((row) => row.productId === activeOrder.productId) ?? null)
-    : null;
+  const activeGroup =
+    openOrderGroups.find((row) => row.orderNumber === selectedOrderNumber) ?? null;
 
-  const locationSummary = useMemo(() => {
-    if (!locationRow) return "Not mapped";
-    const entries = Object.entries(locationRow.locationJson || {});
-    if (entries.length === 0) return "Not mapped";
-    return entries
-      .slice(0, 2)
-      .map(([code]) => code)
-      .join(", ");
-  }, [locationRow]);
+  useEffect(() => {
+    if (!activeGroup) {
+      setActiveItemId(null);
+      return;
+    }
 
-  const readyOrders = openOrders.filter(
+    const preferredItemId =
+      activeGroup.items.find((item) => item.pendingQuantity > 0)?.id ??
+      activeGroup.items[0]?.id ??
+      null;
+
+    setActiveItemId((current) => {
+      const currentItem = activeGroup.items.find((item) => item.id === current);
+      if (!currentItem) return preferredItemId;
+      if (currentItem.pendingQuantity === 0 && preferredItemId && preferredItemId !== current) {
+        return preferredItemId;
+      }
+      return current;
+    });
+  }, [activeGroup]);
+
+  const activeItem =
+    activeGroup?.items.find((row) => row.id === activeItemId) ??
+    activeGroup?.items[0] ??
+    null;
+
+  const getLocationSummary = useCallback(
+    (productId: number) => {
+      const locationRow =
+        locations.find((row) => row.productId === productId) ?? null;
+      if (!locationRow) return "Not mapped";
+      const entries = Object.entries(locationRow.locationJson || {});
+      if (entries.length === 0) return "Not mapped";
+      return entries
+        .map(([code, quantity]) => `${code} (${quantity})`)
+        .join(", ");
+    },
+    [locations],
+  );
+
+  const locationSummary = activeItem
+    ? getLocationSummary(activeItem.productId)
+    : "Not mapped";
+
+  const readyOrders = openOrderGroups.filter(
     (row) => row.status === "Packed",
   ).length;
-  const pickedOrders = openOrders.filter(
+  const pickedOrders = openOrderGroups.filter(
     (row) => row.pendingQuantity === 0,
   ).length;
   const progress =
-    openOrders.length > 0
-      ? Math.round((pickedOrders / openOrders.length) * 100)
+    openOrderGroups.length > 0
+      ? Math.round((pickedOrders / openOrderGroups.length) * 100)
       : 0;
-  const isFullyPicked = activeOrder ? activeOrder.pendingQuantity === 0 : false;
+  const isFullyPicked = activeGroup ? activeGroup.pendingQuantity === 0 : false;
 
   useEffect(() => {
-    if (!activeOrder) return;
+    if (!activeGroup) return;
     setLastScanMessage("Scan location first.");
     setScanTone("idle");
     setScanCode("");
     setLocationScanCode("");
     setIsLocationLocked(false);
     window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  }, [activeOrder?.id]);
+  }, [activeGroup?.orderNumber]);
 
   const handlePick = useCallback(
-    async (order: OutwardOrder, scannedSku: string) => {
+    async (orderItem: OutwardOrder, scannedSku: string) => {
       const normalizedLocation = locationScanCode.trim();
 
       try {
         setIsPicking(true);
-        const updated = await outwardOrdersApi.pick(order.id, {
+        const updated = await outwardOrdersApi.pick(orderItem.id, {
           quantity: 1,
           skuCode: scannedSku,
           locationCode: normalizedLocation,
@@ -193,7 +274,8 @@ export const Picking = memo(function Picking() {
         setOrders((current) =>
           current.map((row) => (row.id === updated.id ? updated : row)),
         );
-        setSelectedOrderId(updated.id);
+        setSelectedOrderNumber(updated.orderNumber);
+        setActiveItemId(updated.id);
         setLastScanCode(scannedSku);
         setLastLocationCode(normalizedLocation);
         setScanTone("success");
@@ -245,7 +327,7 @@ export const Picking = memo(function Picking() {
   };
 
   const handleScanSubmit = async () => {
-    if (!activeOrder) {
+    if (!activeGroup) {
       toast.error("Select order first");
       return;
     }
@@ -272,20 +354,30 @@ export const Picking = memo(function Picking() {
       return;
     }
 
-    const expectedSku = activeOrder.skuCode.toLowerCase();
-    const expectedAlias = activeOrder.alias?.toLowerCase();
     const scanVal = normalizedScan.toLowerCase();
+    const matchedItem =
+      activeGroup.items.find(
+        (item) =>
+          item.pendingQuantity > 0 &&
+          (item.skuCode.toLowerCase() === scanVal ||
+            item.alias?.toLowerCase() === scanVal),
+      ) ?? null;
 
-    if (scanVal !== expectedSku && scanVal !== expectedAlias) {
+    if (!matchedItem) {
       setScanTone("error");
-      setLastScanMessage(`SKU/Alias mismatch. Expected SKU: ${activeOrder.skuCode}${activeOrder.alias ? ` or Alias: ${activeOrder.alias}` : ""}`);
+      setLastScanMessage(
+        `SKU/Alias mismatch. Expected one of: ${activeGroup.items
+          .map((item) => `${item.skuCode}${item.alias ? ` / ${item.alias}` : ""}`)
+          .join(", ")}`,
+      );
       toast.error("SKU/Alias mismatch");
       setScanCode("");
       window.setTimeout(() => scanInputRef.current?.focus(), 0);
       return;
     }
 
-    await handlePick(activeOrder, normalizedScan);
+    setActiveItemId(matchedItem.id);
+    await handlePick(matchedItem, normalizedScan);
   };
 
   const handleDirectPickSubmit = async () => {
@@ -320,7 +412,8 @@ export const Picking = memo(function Picking() {
         customerName: directCustomerName.trim() || null,
       });
       setOrders((current) => [created, ...current]);
-      setSelectedOrderId(created.id);
+      setSelectedOrderNumber(created.orderNumber);
+      setActiveItemId(created.id);
       setDirectProductId(null);
       setDirectSkuCode("");
       setDirectLocationCode("");
@@ -409,7 +502,7 @@ export const Picking = memo(function Picking() {
       </OperationsPanel>
 
       <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
-        {(!isMobile || !activeOrder) && (
+        {(!isMobile || !activeGroup) && (
           <OperationsPanel
             title="Orders"
             icon={ClipboardList}
@@ -418,7 +511,7 @@ export const Picking = memo(function Picking() {
             action={
               <div className="flex items-center gap-2">
                 <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                  {openOrders.length} Active
+                  {openOrderGroups.length} Active
                 </span>
                 <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
                   {readyOrders} Ready
@@ -432,7 +525,7 @@ export const Picking = memo(function Picking() {
             {isMobile && (
               <div className="flex items-center justify-between gap-2 mb-3">
                 <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
-                  {openOrders.length} Active
+                  {openOrderGroups.length} Active
                 </span>
                 <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
                   {readyOrders} Ready
@@ -450,16 +543,16 @@ export const Picking = memo(function Picking() {
               className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
 
-            {openOrders.length > 0 ? (
+            {openOrderGroups.length > 0 ? (
               <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
-                {openOrders.map((order) => {
+                {openOrderGroups.map((order) => {
                   const done = order.pendingQuantity === 0;
-                  const active = order.id === selectedOrderId;
+                  const active = order.orderNumber === selectedOrderNumber;
 
                   return (
                     <button
-                      key={order.id}
-                      onClick={() => setSelectedOrderId(order.id)}
+                      key={order.orderNumber}
+                      onClick={() => setSelectedOrderNumber(order.orderNumber)}
                       className={`w-full rounded-xl border p-3 text-left transition ${
                         active
                           ? "border-brand-500/40 bg-brand-500/10"
@@ -486,10 +579,10 @@ export const Picking = memo(function Picking() {
                       <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                         <div>
                           <p className="uppercase tracking-[0.18em] text-neutral-500">
-                            SKU
+                            Items
                           </p>
                           <p className="mt-1 font-mono text-brand-300">
-                            {order.skuCode}
+                            {order.items.length}
                           </p>
                         </div>
                         <div>
@@ -497,7 +590,7 @@ export const Picking = memo(function Picking() {
                             Picked
                           </p>
                           <p className="mt-1 font-bold text-white">
-                            {order.pickedQuantity} / {order.quantity}
+                            {order.totalPickedQuantity} / {order.totalQuantity}
                           </p>
                         </div>
                       </div>
@@ -515,20 +608,20 @@ export const Picking = memo(function Picking() {
           </OperationsPanel>
         )}
 
-        {(!isMobile || activeOrder) && (
+        {(!isMobile || activeGroup) && (
           <OperationsPanel
             title="Scan to Pick"
             icon={ScanLine}
-            description="Scan SKU then location."
+            description="Select one sales order, review all items and locations, then scan location and SKU."
             hideHeader={isMobile}
           >
-            {activeOrder ? (
+            {activeGroup && activeItem ? (
               <div className="space-y-3">
                 {isMobile && (
                   <Button
                     variant="outline"
                     size="xs"
-                    onClick={() => setSelectedOrderId(null)}
+                    onClick={() => setSelectedOrderNumber(null)}
                     leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
                     className="mb-3 w-full"
                   >
@@ -541,10 +634,10 @@ export const Picking = memo(function Picking() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-semibold text-white">
-                        {activeOrder.orderNumber}
+                        {activeGroup.orderNumber}
                       </p>
                       <p className="mt-0.5 text-[11px] text-neutral-400">
-                        {activeOrder.customerName}
+                        {activeGroup.customerName}
                       </p>
                     </div>
                     <Badge
@@ -552,7 +645,7 @@ export const Picking = memo(function Picking() {
                       shape="pill"
                       className="border-none"
                     >
-                      {isFullyPicked ? "Packed" : activeOrder.status}
+                      {isFullyPicked ? "Packed" : activeGroup.status}
                     </Badge>
                   </div>
                 </div>
@@ -561,21 +654,21 @@ export const Picking = memo(function Picking() {
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                      Product
-                    </p>
-                    <p className="mt-0.5 text-xs font-semibold text-white line-clamp-1">
-                      {activeOrder.productName}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                        Product
+                      </p>
+                      <p className="mt-0.5 text-xs font-semibold text-white line-clamp-1">
+                        {activeItem.productName}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-500">
                       SKU
-                    </p>
-                    <p className="mt-0.5 font-mono text-xs font-semibold text-brand-300">
-                      {activeOrder.skuCode}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                      </p>
+                      <p className="mt-0.5 font-mono text-xs font-semibold text-brand-300">
+                        {activeItem.skuCode}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-500">
                       Location
                     </p>
@@ -583,13 +676,60 @@ export const Picking = memo(function Picking() {
                       {locationSummary}
                     </p>
                   </div>
-                  <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                    <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                      Progress
-                    </p>
-                    <p className="mt-0.5 text-xs font-bold text-white">
-                      {activeOrder.pickedQuantity} / {activeOrder.quantity}
-                    </p>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
+                        Progress
+                      </p>
+                      <p className="mt-0.5 text-xs font-bold text-white">
+                        {activeGroup.totalPickedQuantity} / {activeGroup.totalQuantity}
+                      </p>
+                    </div>
+                  </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ClipboardList className="h-3.5 w-3.5 text-brand-400" />
+                    <p className="text-xs font-semibold text-white">Order Items</p>
+                  </div>
+                  <div className="space-y-2">
+                    {activeGroup.items.map((item) => {
+                      const isActiveItem = item.id === activeItem.id;
+                      const itemDone = item.pendingQuantity === 0;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setActiveItemId(item.id)}
+                          className={`w-full rounded-lg border p-2.5 text-left transition ${
+                            isActiveItem
+                              ? "border-brand-500/40 bg-brand-500/10"
+                              : "border-white/10 bg-white/[0.02] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-semibold text-white">
+                                {item.productName}
+                              </p>
+                              <p className="mt-0.5 font-mono text-[11px] text-brand-300">
+                                {item.skuCode}
+                                {item.alias ? ` / ${item.alias}` : ""}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={itemDone ? "success" : "warning"}
+                              shape="pill"
+                              className="border-none"
+                            >
+                              {itemDone ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
+                            </Badge>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-neutral-400">
+                            Location: {getLocationSummary(item.productId)}
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -650,7 +790,7 @@ export const Picking = memo(function Picking() {
                         }}
                         placeholder={
                           isLocationLocked
-                            ? `Scan ${activeOrder.skuCode}${activeOrder.alias ? ` or ${activeOrder.alias}` : ""}`
+                            ? `Scan ${activeItem.skuCode}${activeItem.alias ? ` or ${activeItem.alias}` : ""}`
                             : "Set location first"
                         }
                         disabled={!isLocationLocked || isFullyPicked}
@@ -711,7 +851,7 @@ export const Picking = memo(function Picking() {
               <OperationsEmptyState
                 icon={Package}
                 title="No order"
-                description="Select order from left to start."
+                description="Select one sales order from the left to start picking its items."
               />
             )}
           </OperationsPanel>

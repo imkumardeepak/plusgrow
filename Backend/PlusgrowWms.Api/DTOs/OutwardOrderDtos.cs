@@ -33,9 +33,16 @@ public class CreateOutwardOrderDto
 {
     public DateTime OrderDate { get; set; }
     public string CustomerName { get; set; } = string.Empty;
+    public int? ProductId { get; set; }
+    public int? Quantity { get; set; }
+    public string? Notes { get; set; }
+    public List<CreateOutwardOrderItemDto>? Items { get; set; }
+}
+
+public class CreateOutwardOrderItemDto
+{
     public int ProductId { get; set; }
     public int Quantity { get; set; }
-    public string? Notes { get; set; }
 }
 
 public class UpdateOutwardPickingDto

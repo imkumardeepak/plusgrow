@@ -65,41 +65,64 @@ public class OutwardOrdersController : BaseController
         if (string.IsNullOrWhiteSpace(dto.CustomerName))
             return BadRequest<OutwardOrderDto>("Customer name is required");
 
-        if (dto.ProductId <= 0)
+        var requestedItems = BuildRequestedItems(dto);
+        if (requestedItems.Count == 0)
+            return BadRequest<OutwardOrderDto>("At least one product item is required");
+
+        if (requestedItems.Any(item => item.ProductId <= 0))
             return BadRequest<OutwardOrderDto>("Product is required");
 
-        if (dto.Quantity <= 0)
+        if (requestedItems.Any(item => item.Quantity <= 0))
             return BadRequest<OutwardOrderDto>("Quantity must be greater than zero");
 
-        var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
-        if (product == null)
-            return BadRequest<OutwardOrderDto>("Selected product does not exist");
+        var productIds = requestedItems
+            .Select(item => item.ProductId)
+            .Distinct()
+            .ToList();
+        var products = await _context.Products
+            .Where(x => productIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id);
+        var missingProductId = productIds.FirstOrDefault(productId => !products.ContainsKey(productId));
+        if (missingProductId > 0)
+            return BadRequest<OutwardOrderDto>($"Selected product {missingProductId} does not exist");
 
-        var order = new OutwardOrder
+        var orderNumber = await GenerateOrderNumberAsync();
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var normalizedOrderDate = DateTime.SpecifyKind(dto.OrderDate.Date, DateTimeKind.Unspecified);
+        var normalizedCustomerName = dto.CustomerName.Trim();
+        var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
+
+        var orders = requestedItems.Select(item => new OutwardOrder
         {
-            OrderNumber = await GenerateOrderNumberAsync(),
-            OrderDate = DateTime.SpecifyKind(dto.OrderDate.Date, DateTimeKind.Unspecified),
-            CustomerName = dto.CustomerName.Trim(),
-            ProductId = dto.ProductId,
-            Quantity = dto.Quantity,
+            OrderNumber = orderNumber,
+            OrderDate = normalizedOrderDate,
+            CustomerName = normalizedCustomerName,
+            ProductId = item.ProductId,
+            Quantity = item.Quantity,
             PickedQuantity = 0,
             Status = "Open",
-            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
-            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-            UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-        };
+            Notes = normalizedNotes,
+            CreatedAt = now,
+            UpdatedAt = now,
+        }).ToList();
 
-        _context.OutwardOrders.Add(order);
+        _context.OutwardOrders.AddRange(orders);
         await _context.SaveChangesAsync();
 
-        var created = await _context.OutwardOrders.Include(x => x.Product).FirstAsync(x => x.Id == order.Id);
+        var createdOrders = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Where(x => x.OrderNumber == orderNumber)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        var created = createdOrders.First();
         var response = MapOrder(created);
+        var totalQuantity = createdOrders.Sum(order => order.Quantity);
 
         await SendNotificationAsync(new RealtimeNotificationDto
         {
             Type = "outward.created",
             Title = "Outward order created",
-            Message = $"{response.OrderNumber} created for {response.CustomerName}.",
+            Message = $"{response.OrderNumber} created for {response.CustomerName} with {createdOrders.Count} item(s).",
             Severity = "info",
             Data = new Dictionary<string, object?>
             {
@@ -107,11 +130,14 @@ public class OutwardOrdersController : BaseController
                 ["orderNumber"] = response.OrderNumber,
                 ["customerName"] = response.CustomerName,
                 ["skuCode"] = response.SkuCode,
-                ["quantity"] = response.Quantity,
+                ["quantity"] = totalQuantity,
+                ["itemCount"] = createdOrders.Count,
             },
         });
 
-        return Success(response, "Outward order created successfully");
+        return Success(response, createdOrders.Count > 1
+            ? $"Outward order created successfully with {createdOrders.Count} items"
+            : "Outward order created successfully");
     }
 
     [HttpPost("{id}/pick")]
@@ -451,5 +477,27 @@ public class OutwardOrdersController : BaseController
     private Task SendNotificationAsync(RealtimeNotificationDto notification)
     {
         return _notificationHub.Clients.All.SendAsync("ReceiveNotification", notification);
+    }
+
+    private static List<CreateOutwardOrderItemDto> BuildRequestedItems(CreateOutwardOrderDto dto)
+    {
+        if (dto.Items != null && dto.Items.Count > 0)
+        {
+            return dto.Items;
+        }
+
+        if (dto.ProductId.HasValue && dto.Quantity.HasValue)
+        {
+            return
+            [
+                new CreateOutwardOrderItemDto
+                {
+                    ProductId = dto.ProductId.Value,
+                    Quantity = dto.Quantity.Value,
+                },
+            ];
+        }
+
+        return [];
     }
 }

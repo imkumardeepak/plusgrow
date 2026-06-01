@@ -394,9 +394,15 @@ export interface OutwardOrder {
 export interface CreateOutwardOrderDto {
   orderDate: string;
   customerName: string;
+  productId?: number | null;
+  quantity?: number | null;
+  notes?: string | null;
+  items?: CreateOutwardOrderItemDto[];
+}
+
+export interface CreateOutwardOrderItemDto {
   productId: number;
   quantity: number;
-  notes?: string | null;
 }
 
 export interface OutwardOrderFilters {
@@ -1173,7 +1179,11 @@ export const productAllottedLocationsApi = {
 
 export const outwardOrdersApi = {
   getAll: async (filters: OutwardOrderFilters = {}): Promise<OutwardOrder[]> => {
-    const result = await outwardOrdersApi.getPaged(filters);
+    const result = await outwardOrdersApi.getPaged({
+      page: filters.page ?? 1,
+      pageSize: filters.pageSize ?? 500,
+      ...filters,
+    });
     return result.data;
   },
 
