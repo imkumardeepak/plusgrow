@@ -472,7 +472,10 @@ export const Inward = memo(function Inward() {
               radius="md"
               variant="light"
               color="cyan"
-              onClick={() => setSelectedInvoiceSummary(row)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedInvoiceSummary(row);
+              }}
               aria-label="View invoice items"
             >
               <Eye size={15} />
@@ -970,6 +973,7 @@ export const Inward = memo(function Inward() {
             emptyDescription="No inward invoices match current search or filter."
             itemLabel="invoices"
             resetPageKey={`${search}-${statusFilter}-${fromDate}-${toDate}`}
+            onRowClick={(row) => setSelectedInvoiceSummary(row)}
           />
         </OperationsPanel>
       </Stack>
@@ -1302,7 +1306,10 @@ export const Inward = memo(function Inward() {
                           radius="md"
                           variant="light"
                           color="cyan"
-                          onClick={() => openPrintForRow(row)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPrintForRow(row);
+                          }}
                           aria-label="Print sticker"
                         >
                           <Printer size={15} />
@@ -1320,6 +1327,7 @@ export const Inward = memo(function Inward() {
               itemLabel="items"
               enablePagination={false}
               minWidth={860}
+              onRowClick={(row) => openPrintForRow(row)}
             />
           </Stack>
         ) : null}
