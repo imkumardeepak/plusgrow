@@ -12,6 +12,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   FileText,
   Plus,
@@ -75,6 +76,7 @@ const statusTone = (status: SalesOrderRecord["status"]) => {
 };
 
 export const Outward = memo(function Outward() {
+  const isLargeScreen = useMediaQuery("(min-width: 90em)");
   const [orders, setOrders] = useState<SalesOrderRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,7 +169,7 @@ export const Outward = memo(function Outward() {
       sortable: true,
       sortAccessor: (row) => row.orderNumber,
       render: (row) => (
-        <Text size="11px" ff="monospace" c="cyan.2" fw={700}>
+        <Text size={isLargeScreen ? "sm" : "11px"} ff="monospace" c="cyan.2" fw={700}>
           {row.orderNumber}
         </Text>
       ),
@@ -179,7 +181,7 @@ export const Outward = memo(function Outward() {
       sortable: true,
       sortAccessor: (row) => row.orderDate,
       render: (row) => (
-        <Text size="xs">{format(new Date(row.orderDate), "dd MMM yyyy")}</Text>
+        <Text size={isLargeScreen ? "sm" : "xs"}>{format(new Date(row.orderDate), "dd MMM yyyy")}</Text>
       ),
       width: 120,
     },
@@ -189,7 +191,7 @@ export const Outward = memo(function Outward() {
       sortable: true,
       sortAccessor: (row) => row.customerName,
       render: (row) => (
-        <Text size="xs" fw={600}>
+        <Text size={isLargeScreen ? "sm" : "xs"} fw={600}>
           {row.customerName}
         </Text>
       ),
@@ -202,10 +204,10 @@ export const Outward = memo(function Outward() {
       sortAccessor: (row) => row.itemCount,
       render: (row) => (
         <Stack gap={2}>
-          <Text size="xs" fw={700}>
+          <Text size={isLargeScreen ? "sm" : "xs"} fw={700}>
             {row.itemCount} item{row.itemCount > 1 ? "s" : ""}
           </Text>
-          <Text size="10px" c="dimmed" lineClamp={1}>
+          <Text size={isLargeScreen ? "xs" : "10px"} c="dimmed" lineClamp={1}>
             {row.items.map((item) => item.skuCode).join(", ")}
           </Text>
         </Stack>
@@ -219,7 +221,7 @@ export const Outward = memo(function Outward() {
       sortable: true,
       sortAccessor: (row) => row.totalQuantity,
       render: (row) => (
-        <Text size="xs" fw={800}>
+        <Text size={isLargeScreen ? "sm" : "xs"} fw={800}>
           {row.totalQuantity}
         </Text>
       ),
@@ -232,7 +234,7 @@ export const Outward = memo(function Outward() {
       sortable: true,
       sortAccessor: (row) => row.totalPickedQuantity,
       render: (row) => (
-        <Text size="xs" fw={800} c={row.pendingQuantity === 0 ? "green.3" : "orange.3"}>
+        <Text size={isLargeScreen ? "sm" : "xs"} fw={800} c={row.pendingQuantity === 0 ? "green.3" : "orange.3"}>
           {row.totalPickedQuantity} / {row.totalQuantity}
         </Text>
       ),
@@ -474,6 +476,7 @@ export const Outward = memo(function Outward() {
             setIsDetailsOpen(true);
           }}
           isLoading={isLoading}
+          fontSize={isLargeScreen ? 14 : 12}
           itemLabel="orders"
           resetPageKey={`${searchTerm}-${statusFilter}`}
           emptyIcon={FileText}

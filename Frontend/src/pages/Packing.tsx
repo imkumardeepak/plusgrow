@@ -105,7 +105,8 @@ export const Packing = memo(function Packing() {
       (order) =>
         order.orderNumber.toLowerCase().includes(query) ||
         order.customerName.toLowerCase().includes(query) ||
-        order.skuCode.toLowerCase().includes(query),
+        order.skuCode.toLowerCase().includes(query) ||
+        (order.alias && order.alias.toLowerCase().includes(query)),
     );
   }, [orders, searchQuery]);
 
@@ -186,7 +187,7 @@ export const Packing = memo(function Packing() {
 
   useEffect(() => {
     if (!activeOrder) return;
-    setLastScanMessage("Scan SKU to pack into active carton.");
+    setLastScanMessage("Scan SKU or Alias to pack into active carton.");
     setScanTone("idle");
     setScanCode("");
     window.setTimeout(() => scanInputRef.current?.focus(), 0);
@@ -222,7 +223,7 @@ export const Packing = memo(function Packing() {
 
     const normalizedScan = scanCode.trim().split("#")[0].trim();
     if (!normalizedScan) {
-      toast.error("Scan SKU code");
+      toast.error("Scan SKU or Alias");
       return;
     }
 
@@ -295,7 +296,7 @@ export const Packing = memo(function Packing() {
   return (
     <OperationsPage
       title="Packing"
-      description="Pack picked items into cartons. Scan SKU to add items, create cartons, and mark them ready."
+      description="Pack picked items into cartons. Scan SKU or Alias to add items, create cartons, and mark them ready."
       icon={Archive}
       hideHeader
     >
@@ -331,7 +332,7 @@ export const Packing = memo(function Packing() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search order, customer, SKU..."
+              placeholder="Search order, customer, SKU or alias..."
               className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
 
@@ -404,7 +405,7 @@ export const Packing = memo(function Packing() {
           <OperationsPanel
             title="Carton Packing"
             icon={BoxIcon}
-            description="Create cartons and scan items into them."
+            description="Create cartons and scan SKU or Alias into cartons."
             hideHeader={isMobile}
           >
             {activeOrder && activeGroup ? (
@@ -442,10 +443,11 @@ export const Packing = memo(function Packing() {
                   </Group>
                   <Group gap="xs" mt="xs">
                     <Text size="11px" c="dimmed">
-                      Active SKU:
+                      Active Code:
                     </Text>
                     <Text size="11px" ff="monospace" c="cyan.3">
                       {activeOrder.skuCode}
+                      {activeOrder.alias ? ` / ${activeOrder.alias}` : ""}
                     </Text>
                   </Group>
                 </Paper>
@@ -513,7 +515,8 @@ export const Packing = memo(function Packing() {
                     />
                   </div>
                   <Text size="11px" c="dimmed" mt={4}>
-                    {remainingToPack} remaining for {activeOrder.skuCode} · {cartons.length} cartons ·{" "}
+                    {remainingToPack} remaining for {activeOrder.skuCode}
+                    {activeOrder.alias ? ` / ${activeOrder.alias}` : ""} · {cartons.length} cartons ·{" "}
                     {readyCartons} ready
                   </Text>
                 </Paper>
@@ -675,7 +678,7 @@ export const Packing = memo(function Packing() {
                         activeCartonId
                           ? isFullyPacked
                             ? "Order fully packed"
-                            : `Scan ${activeOrder.skuCode}`
+                            : `Scan ${activeOrder.skuCode}${activeOrder.alias ? ` or ${activeOrder.alias}` : ""}`
                           : "Select a carton first"
                       }
                       disabled={!activeCartonId || isFullyPacked}
@@ -708,7 +711,7 @@ export const Packing = memo(function Packing() {
                   )}
                   {lastScanCode && (
                     <Text size="11px" c="dimmed" mt={2}>
-                      Last scan: {lastScanCode}
+                      Last code: {lastScanCode}
                     </Text>
                   )}
                 </Paper>

@@ -125,7 +125,7 @@ export const Picking = memo(function Picking() {
     () =>
       products.map((product) => ({
         value: String(product.id),
-        label: `${product.sku || "NO-SKU"} - ${product.name}`,
+        label: `${product.sku || "NO-SKU"}${product.alias ? ` / ${product.alias}` : ""} - ${product.name}`,
       })),
     [products],
   );
@@ -287,12 +287,12 @@ export const Picking = memo(function Picking() {
         const remaining = updated.pendingQuantity;
         setLastScanMessage(
           remaining === 0
-            ? `${updated.orderNumber} packed.`
+            ? `${updated.orderNumber} picked and ready for packing.`
             : `${remaining} left to pick.`,
         );
         toast.success(
           remaining === 0
-            ? `${updated.orderNumber} packed`
+            ? `${updated.orderNumber} ready for packing`
             : `Picked 1 for ${updated.orderNumber}`,
         );
         if (remaining > 0) {
@@ -319,7 +319,7 @@ export const Picking = memo(function Picking() {
     }
     setLastLocationCode(normalizedLocation);
     setIsLocationLocked(true);
-    setLastScanMessage("Location set. Now scan SKU.");
+    setLastScanMessage("Location set. Now scan SKU or Alias.");
     setScanCode("");
     window.setTimeout(() => scanInputRef.current?.focus(), 0);
   };
@@ -346,7 +346,7 @@ export const Picking = memo(function Picking() {
     // Split scanned data by '#' and use the first part (index 0)
     const normalizedScan = scanCode.trim().split("#")[0].trim();
     if (!normalizedScan) {
-      toast.error("Scan SKU code");
+      toast.error("Scan SKU or Alias");
       return;
     }
 
@@ -454,7 +454,7 @@ export const Picking = memo(function Picking() {
           <div className="grid gap-3 md:grid-cols-2">
             <Select
               label="Product"
-              placeholder="Search SKU or product"
+              placeholder="Search SKU, alias or product"
               searchable
               data={productOptions}
               searchValue={directProductSearch}
@@ -464,12 +464,12 @@ export const Picking = memo(function Picking() {
                 const productId = value ? Number(value) : null;
                 const selected = products.find((product) => product.id === productId);
                 setDirectProductId(productId);
-                setDirectSkuCode(selected?.sku || "");
+                setDirectSkuCode(selected?.sku || selected?.alias || "");
               }}
             />
             <TextInput
-              label="SKU Scan"
-              placeholder="Optional SKU scan"
+              label="SKU / Alias Scan"
+              placeholder="Optional SKU or alias scan"
               value={directSkuCode}
               onChange={(event) => setDirectSkuCode(event.currentTarget.value)}
             />
@@ -573,7 +573,7 @@ export const Picking = memo(function Picking() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search order, customer, SKU..."
+              placeholder="Search order, customer, SKU or alias..."
               className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
 
@@ -646,7 +646,7 @@ export const Picking = memo(function Picking() {
           <OperationsPanel
             title="Scan to Pick"
             icon={ScanLine}
-            description="Select one sales order, review all items and locations, then scan location and SKU."
+            description="Select one sales order, review all items and locations, then scan location and SKU or Alias."
             hideHeader={isMobile}
           >
             {activeGroup && activeItem ? (
@@ -696,10 +696,11 @@ export const Picking = memo(function Picking() {
                     </div>
                     <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                      SKU
+                      SKU / Alias
                       </p>
                       <p className="mt-0.5 font-mono text-xs font-semibold text-brand-300">
                         {activeItem.skuCode}
+                        {activeItem.alias ? ` / ${activeItem.alias}` : ""}
                       </p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
@@ -810,7 +811,7 @@ export const Picking = memo(function Picking() {
                       )}
                     </div>
 
-                    {/* SKU Input */}
+                    {/* SKU or Alias Input */}
                     <div className="flex gap-2">
                       <input
                         ref={scanInputRef}
@@ -875,7 +876,7 @@ export const Picking = memo(function Picking() {
                   </p>
                   {lastScanCode && (
                     <p className="mt-0.5 text-[11px] text-neutral-400">
-                      SKU: {lastScanCode}
+                      Code: {lastScanCode}
                       {lastLocationCode ? ` · Loc: ${lastLocationCode}` : ""}
                     </p>
                   )}

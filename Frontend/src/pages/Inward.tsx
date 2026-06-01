@@ -22,6 +22,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   ArrowDownToLine,
   CheckCircle2,
@@ -100,6 +101,7 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
 });
 
 export const Inward = memo(function Inward() {
+  const isLargeScreen = useMediaQuery("(min-width: 90em)");
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
@@ -361,7 +363,7 @@ export const Inward = memo(function Inward() {
       sortable: true,
       sortAccessor: (row) => row.invoiceNumber,
       render: (row) => (
-        <Text size="11px" ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
+        <Text size={isLargeScreen ? "sm" : "11px"} ff="monospace" c="cyan.2" fw={700} lineClamp={1}>
           {row.invoiceNumber}
         </Text>
       ),
@@ -374,10 +376,10 @@ export const Inward = memo(function Inward() {
       sortAccessor: (row) => row.productCount,
       render: (row) => (
         <Stack gap={2}>
-          <Text size="xs" fw={700}>
+          <Text size={isLargeScreen ? "sm" : "xs"} fw={700}>
             {row.productCount} products
           </Text>
-          <Text size="11px" c="dimmed" lineClamp={1} maw={240}>
+          <Text size={isLargeScreen ? "xs" : "11px"} c="dimmed" lineClamp={1} maw={240}>
             {row.items
               .slice(0, 2)
               .map((item) => item.productName)
@@ -394,7 +396,7 @@ export const Inward = memo(function Inward() {
       sortable: true,
       sortAccessor: (row) => row.invoiceDate,
       render: (row) => (
-        <Text size="xs" fw={500} lineClamp={1}>
+        <Text size={isLargeScreen ? "sm" : "xs"} fw={500} lineClamp={1}>
           {format(new Date(row.invoiceDate), "dd MMM yyyy")}
         </Text>
       ),
@@ -406,7 +408,7 @@ export const Inward = memo(function Inward() {
       sortable: true,
       sortAccessor: (row) => row.partyName,
       render: (row) => (
-        <Text size="xs" lineClamp={1} maw={160}>
+        <Text size={isLargeScreen ? "sm" : "xs"} lineClamp={1} maw={160}>
           {row.partyName || "N/A"}
         </Text>
       ),
@@ -419,7 +421,7 @@ export const Inward = memo(function Inward() {
       sortable: true,
       sortAccessor: (row) => row.totalBilledQty,
       render: (row) => (
-        <Text size="xs" fw={800} c="cyan.3">
+        <Text size={isLargeScreen ? "sm" : "xs"} fw={800} c="cyan.3">
           {row.totalBilledQty}
         </Text>
       ),
@@ -433,7 +435,7 @@ export const Inward = memo(function Inward() {
       sortAccessor: (row) => row.totalRemainingAllocation,
       render: (row) => (
         <Text
-          size="xs"
+          size={isLargeScreen ? "sm" : "xs"}
           fw={800}
           c={row.totalRemainingAllocation > 0 ? "orange.3" : "green.3"}
         >
@@ -960,6 +962,7 @@ export const Inward = memo(function Inward() {
             rowKey={(row) => row.invoiceKey}
             isLoading={isLoading || isRowsLoading}
             pageSize={25}
+            fontSize={isLargeScreen ? 14 : 12}
             emptyIcon={FileText}
             emptyTitle="No inward invoices"
             emptyDescription="No inward invoices match current search or filter."
