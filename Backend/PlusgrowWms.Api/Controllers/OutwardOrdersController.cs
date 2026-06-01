@@ -27,6 +27,7 @@ public class OutwardOrdersController : BaseController
         var page = Math.Max(filter.Page, 1);
         var pageSize = Math.Clamp(filter.PageSize, 1, 200);
         var query = _context.OutwardOrders
+            .Include(x => x.SalesOrder)
             .Include(x => x.Product)
             .AsNoTracking()
             .AsQueryable();
@@ -92,8 +93,20 @@ public class OutwardOrdersController : BaseController
         var normalizedCustomerName = dto.CustomerName.Trim();
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
 
+        var salesOrder = new SalesOrder
+        {
+            OrderNumber = orderNumber,
+            OrderDate = normalizedOrderDate,
+            CustomerName = normalizedCustomerName,
+            Status = "Open",
+            Notes = normalizedNotes,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
         var orders = requestedItems.Select(item => new OutwardOrder
         {
+            SalesOrder = salesOrder,
             OrderNumber = orderNumber,
             OrderDate = normalizedOrderDate,
             CustomerName = normalizedCustomerName,
@@ -106,6 +119,7 @@ public class OutwardOrdersController : BaseController
             UpdatedAt = now,
         }).ToList();
 
+        _context.SalesOrders.Add(salesOrder);
         _context.OutwardOrders.AddRange(orders);
         await _context.SaveChangesAsync();
 
@@ -143,7 +157,7 @@ public class OutwardOrdersController : BaseController
     [HttpPost("{id}/pick")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> PickOrder(int id, [FromBody] UpdateOutwardPickingDto dto)
     {
-        var order = await _context.OutwardOrders.Include(x => x.Product).FirstOrDefaultAsync(x => x.Id == id);
+        var order = await _context.OutwardOrders.Include(x => x.Product).Include(x => x.SalesOrder).FirstOrDefaultAsync(x => x.Id == id);
         if (order == null)
             return NotFound<OutwardOrderDto>("Outward order not found");
 
@@ -185,6 +199,12 @@ public class OutwardOrdersController : BaseController
         order.CartonId ??= BuildCartonId(order);
 
         await _context.SaveChangesAsync();
+        if (order.SalesOrderId > 0)
+        {
+            await UpdateSalesOrderStatusAsync(order.SalesOrderId);
+            await _context.SaveChangesAsync();
+        }
+
         var response = MapOrder(order);
 
         if (order.Status == "Packed")
@@ -248,22 +268,36 @@ public class OutwardOrdersController : BaseController
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        var order = new OutwardOrder
+        var orderNumber = await GenerateDirectOrderNumberAsync();
+        var salesOrder = new SalesOrder
         {
-            OrderNumber = await GenerateDirectOrderNumberAsync(),
+            OrderNumber = orderNumber,
             OrderDate = now.Date,
             CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? "Direct Outward" : dto.CustomerName.Trim(),
-            ProductId = product.Id,
-            Product = product,
-            Quantity = pickQty,
-            PickedQuantity = pickQty,
             Status = "Packed",
             Notes = $"Direct outward pick. Remark: {dto.Remark.Trim()}",
             CreatedAt = now,
             UpdatedAt = now,
         };
+
+        var order = new OutwardOrder
+        {
+            SalesOrder = salesOrder,
+            OrderNumber = orderNumber,
+            OrderDate = now.Date,
+            CustomerName = salesOrder.CustomerName,
+            ProductId = product.Id,
+            Product = product,
+            Quantity = pickQty,
+            PickedQuantity = pickQty,
+            Status = "Packed",
+            Notes = salesOrder.Notes,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
         order.CartonId = BuildCartonId(order);
 
+        _context.SalesOrders.Add(salesOrder);
         _context.OutwardOrders.Add(order);
         await _context.SaveChangesAsync();
 
@@ -291,7 +325,7 @@ public class OutwardOrdersController : BaseController
     [HttpPost("{id}/dispatch")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DispatchOrder(int id, [FromBody] DispatchOutwardOrderDto dto)
     {
-        var order = await _context.OutwardOrders.Include(x => x.Product).FirstOrDefaultAsync(x => x.Id == id);
+        var order = await _context.OutwardOrders.Include(x => x.Product).Include(x => x.SalesOrder).FirstOrDefaultAsync(x => x.Id == id);
         if (order == null)
             return NotFound<OutwardOrderDto>("Outward order not found");
 
@@ -340,6 +374,12 @@ public class OutwardOrdersController : BaseController
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         await _context.SaveChangesAsync();
+        if (order.SalesOrderId > 0)
+        {
+            await UpdateSalesOrderStatusAsync(order.SalesOrderId);
+            await _context.SaveChangesAsync();
+        }
+
         var response = MapOrder(order);
 
         await SendNotificationAsync(new RealtimeNotificationDto
@@ -365,7 +405,7 @@ public class OutwardOrdersController : BaseController
     private async Task<string> GenerateOrderNumberAsync()
     {
         var prefix = $"SO-{DateTime.Now:yyMMdd}";
-        var lastOrder = await _context.OutwardOrders
+        var lastOrder = await _context.SalesOrders
             .Where(x => x.OrderNumber.StartsWith(prefix))
             .OrderByDescending(x => x.OrderNumber)
             .FirstOrDefaultAsync();
@@ -384,7 +424,7 @@ public class OutwardOrdersController : BaseController
     private async Task<string> GenerateDirectOrderNumberAsync()
     {
         var prefix = $"DO-{DateTime.Now:yyMMdd}";
-        var lastOrder = await _context.OutwardOrders
+        var lastOrder = await _context.SalesOrders
             .Where(x => x.OrderNumber.StartsWith(prefix))
             .OrderByDescending(x => x.OrderNumber)
             .FirstOrDefaultAsync();
@@ -450,12 +490,53 @@ public class OutwardOrdersController : BaseController
         return $"CTN-{order.OrderNumber.Replace("SO-", string.Empty)}";
     }
 
+    private async Task UpdateSalesOrderStatusAsync(int salesOrderId)
+    {
+        var header = await _context.SalesOrders.FirstOrDefaultAsync(x => x.Id == salesOrderId);
+        if (header == null)
+            return;
+
+        var items = await _context.OutwardOrders
+            .AsNoTracking()
+            .Where(x => x.SalesOrderId == salesOrderId)
+            .Select(x => new { x.Status, x.Quantity, x.PickedQuantity })
+            .ToListAsync();
+
+        if (items.Count == 0)
+            return;
+
+        if (items.All(item => item.Status == "Dispatched"))
+        {
+            header.Status = "Dispatched";
+            header.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        }
+        else if (items.All(item => item.Status == "Packed" || item.PickedQuantity >= item.Quantity))
+        {
+            header.Status = "Packed";
+            header.DispatchedAt = null;
+        }
+        else if (items.Any(item => item.Status == "Picking" || item.PickedQuantity > 0))
+        {
+            header.Status = "Picking";
+            header.DispatchedAt = null;
+        }
+        else
+        {
+            header.Status = "Open";
+            header.DispatchedAt = null;
+        }
+
+        header.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        _context.SalesOrders.Update(header);
+    }
+
     private static OutwardOrderDto MapOrder(OutwardOrder row)
     {
         return new OutwardOrderDto
         {
             Id = row.Id,
             OrderNumber = row.OrderNumber,
+            SalesOrderId = row.SalesOrderId,
             OrderDate = row.OrderDate,
             CustomerName = row.CustomerName,
             ProductId = row.ProductId,

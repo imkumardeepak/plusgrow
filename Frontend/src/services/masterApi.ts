@@ -374,6 +374,7 @@ export interface PutAwayScanAssignmentResult {
 export interface OutwardOrder {
   id: number;
   orderNumber: string;
+  salesOrderId?: number;
   orderDate: string;
   customerName: string;
   productId: number;

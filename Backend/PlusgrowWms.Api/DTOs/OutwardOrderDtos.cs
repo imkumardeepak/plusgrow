@@ -4,6 +4,7 @@ public class OutwardOrderDto
 {
     public int Id { get; set; }
     public string OrderNumber { get; set; } = string.Empty;
+    public int SalesOrderId { get; set; }
     public DateTime OrderDate { get; set; }
     public string CustomerName { get; set; } = string.Empty;
     public int ProductId { get; set; }

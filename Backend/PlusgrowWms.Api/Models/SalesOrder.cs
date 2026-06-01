@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace PlusgrowWms.Api.Models;
 
-[Table("outward_orders")]
-public class OutwardOrder
+[Table("sales_orders")]
+public class SalesOrder
 {
     [Key]
     [Column("id")]
@@ -13,35 +13,14 @@ public class OutwardOrder
     [Column("order_number")]
     public string OrderNumber { get; set; } = string.Empty;
 
-    [Column("sales_order_id")]
-    public int SalesOrderId { get; set; }
-
-    [ForeignKey(nameof(SalesOrderId))]
-    public SalesOrder? SalesOrder { get; set; }
-
     [Column("order_date")]
     public DateTime OrderDate { get; set; }
 
     [Column("customer_name")]
     public string CustomerName { get; set; } = string.Empty;
 
-    [Column("product_id")]
-    public int ProductId { get; set; }
-
-    [ForeignKey(nameof(ProductId))]
-    public Product? Product { get; set; }
-
-    [Column("quantity")]
-    public int Quantity { get; set; }
-
-    [Column("picked_quantity")]
-    public int PickedQuantity { get; set; }
-
     [Column("status")]
     public string Status { get; set; } = "Open";
-
-    [Column("carton_id")]
-    public string? CartonId { get; set; }
 
     [Column("notes")]
     public string? Notes { get; set; }
@@ -54,4 +33,6 @@ public class OutwardOrder
 
     [Column("dispatched_at")]
     public DateTime? DispatchedAt { get; set; }
+
+    public ICollection<OutwardOrder> Items { get; set; } = [];
 }

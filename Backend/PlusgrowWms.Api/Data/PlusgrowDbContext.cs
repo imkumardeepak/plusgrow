@@ -49,6 +49,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<Party> Parties => Set<Party>();
     public DbSet<Commodity> Commodities => Set<Commodity>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<OutwardOrder> OutwardOrders => Set<OutwardOrder>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
@@ -99,8 +100,14 @@ public class PlusgrowDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<OutwardOrder>()
+            .HasIndex(x => x.OrderNumber);
+
+        modelBuilder.Entity<SalesOrder>()
             .HasIndex(x => x.OrderNumber)
             .IsUnique();
+
+        modelBuilder.Entity<OutwardOrder>()
+            .HasIndex(x => x.SalesOrderId);
 
         modelBuilder.Entity<OutwardOrder>()
             .HasIndex(x => x.Status);
@@ -198,6 +205,12 @@ public class PlusgrowDbContext : DbContext
             .HasOne(x => x.Product)
             .WithMany()
             .HasForeignKey(x => x.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<OutwardOrder>()
+            .HasOne(x => x.SalesOrder)
+            .WithMany(x => x.Items)
+            .HasForeignKey(x => x.SalesOrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<OutwardOrder>()

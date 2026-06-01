@@ -28,8 +28,8 @@ public class DashboardRepository : IDashboardRepository
         var pendingPoCount = await _context.PoInvoices.AsNoTracking().CountAsync(x => !x.Printed || !x.LocationAllotted);
         var pendingStickerRows = await _context.PoInvoices.AsNoTracking().CountAsync(x => !x.Printed);
         var pendingPutAway = await _context.PoInvoices.AsNoTracking().SumAsync(x => (int?)x.RemainingAllocation) ?? 0;
-        var outwardCount = await _context.OutwardOrders.AsNoTracking().CountAsync();
-        var openOutwardCount = await _context.OutwardOrders.AsNoTracking().CountAsync(x => x.Status != "Dispatched");
+        var outwardCount = await _context.SalesOrders.AsNoTracking().CountAsync();
+        var openOutwardCount = await _context.SalesOrders.AsNoTracking().CountAsync(x => x.Status != "Dispatched");
         var pendingDispatch = await _context.OutwardOrders
             .AsNoTracking()
             .Where(x => x.Status != "Dispatched")

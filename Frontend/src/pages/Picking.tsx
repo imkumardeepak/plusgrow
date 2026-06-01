@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { NumberInput, Select, Textarea, TextInput } from "@mantine/core";
+import { NumberInput, Select, Stack, Group, Text, Textarea, TextInput } from "@mantine/core";
 import {
   ArrowRight,
   ArrowLeft,
@@ -15,11 +15,13 @@ import {
   MapPin,
   Package,
   ScanLine,
+  Plus,
 } from "lucide-react";
 import { useMediaQuery } from "@mantine/hooks";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
+import { Modal } from "../components/atoms/Modal";
 import {
   OperationsEmptyState,
   OperationsPage,
@@ -69,6 +71,7 @@ export const Picking = memo(function Picking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPicking, setIsPicking] = useState(false);
   const [isDirectPicking, setIsDirectPicking] = useState(false);
+  const [isDirectPickModalOpen, setIsDirectPickModalOpen] = useState(false);
   const [directProductSearch, setDirectProductSearch] = useState("");
   const [directProductId, setDirectProductId] = useState<number | null>(null);
   const [directSkuCode, setDirectSkuCode] = useState("");
@@ -420,6 +423,7 @@ export const Picking = memo(function Picking() {
       setDirectQuantity(1);
       setDirectRemark("");
       setDirectCustomerName("");
+      setIsDirectPickModalOpen(false);
       toast.success(`${created.orderNumber} direct picked and ready for packing`);
     } catch (error: any) {
       toast.error(error.message || "Direct pick failed");
@@ -435,71 +439,81 @@ export const Picking = memo(function Picking() {
       icon={Package}
       hideHeader
     >
-      <OperationsPanel
+      <Modal
+        isOpen={isDirectPickModalOpen}
+        onClose={() => setIsDirectPickModalOpen(false)}
         title="Direct Outward Pick"
-        icon={Package}
-        description="Use this when there is no sales order. Pick stock with a mandatory remark, then continue packing."
+        size="xl"
       >
-        <div className="grid gap-3 lg:grid-cols-[1.2fr_0.7fr_0.7fr_0.9fr]">
-          <Select
-            label="Product"
-            placeholder="Search SKU or product"
-            searchable
-            data={productOptions}
-            searchValue={directProductSearch}
-            onSearchChange={setDirectProductSearch}
-            value={directProductId ? String(directProductId) : null}
-            onChange={(value) => {
-              const productId = value ? Number(value) : null;
-              const selected = products.find((product) => product.id === productId);
-              setDirectProductId(productId);
-              setDirectSkuCode(selected?.sku || "");
-            }}
-          />
-          <TextInput
-            label="SKU Scan"
-            placeholder="Optional SKU scan"
-            value={directSkuCode}
-            onChange={(event) => setDirectSkuCode(event.currentTarget.value)}
-          />
-          <TextInput
-            label="Location / Bin"
-            placeholder="Scan location"
-            value={directLocationCode}
-            onChange={(event) => setDirectLocationCode(event.currentTarget.value)}
-          />
-          <NumberInput
-            label="Quantity"
-            min={1}
-            value={directQuantity}
-            onChange={(value) => setDirectQuantity(Number(value) || 1)}
-          />
-        </div>
-        <div className="mt-3 grid gap-3 lg:grid-cols-[0.9fr_1.4fr_auto] lg:items-end">
-          <TextInput
-            label="Party / Customer"
-            placeholder="Optional"
-            value={directCustomerName}
-            onChange={(event) => setDirectCustomerName(event.currentTarget.value)}
-          />
-          <Textarea
-            label="Remark"
-            placeholder="Required reason for direct outward"
-            autosize
-            minRows={1}
-            value={directRemark}
-            onChange={(event) => setDirectRemark(event.currentTarget.value)}
-          />
-          <Button
-            onClick={() => void handleDirectPickSubmit()}
-            loading={isDirectPicking}
-            leftIcon={<Package className="h-3.5 w-3.5" />}
-            className="h-10"
-          >
-            Direct Pick
-          </Button>
-        </div>
-      </OperationsPanel>
+        <Stack gap="md">
+          <Text size="xs" c="dimmed">
+            Use this when there is no sales order. Pick stock with a mandatory remark, then continue packing.
+          </Text>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select
+              label="Product"
+              placeholder="Search SKU or product"
+              searchable
+              data={productOptions}
+              searchValue={directProductSearch}
+              onSearchChange={setDirectProductSearch}
+              value={directProductId ? String(directProductId) : null}
+              onChange={(value) => {
+                const productId = value ? Number(value) : null;
+                const selected = products.find((product) => product.id === productId);
+                setDirectProductId(productId);
+                setDirectSkuCode(selected?.sku || "");
+              }}
+            />
+            <TextInput
+              label="SKU Scan"
+              placeholder="Optional SKU scan"
+              value={directSkuCode}
+              onChange={(event) => setDirectSkuCode(event.currentTarget.value)}
+            />
+            <TextInput
+              label="Location / Bin"
+              placeholder="Scan location"
+              value={directLocationCode}
+              onChange={(event) => setDirectLocationCode(event.currentTarget.value)}
+            />
+            <NumberInput
+              label="Quantity"
+              min={1}
+              value={directQuantity}
+              onChange={(value) => setDirectQuantity(Number(value) || 1)}
+            />
+            <TextInput
+              label="Party / Customer"
+              placeholder="Optional"
+              value={directCustomerName}
+              onChange={(event) => setDirectCustomerName(event.currentTarget.value)}
+              className="md:col-span-2"
+            />
+            <Textarea
+              label="Remark"
+              placeholder="Required reason for direct outward"
+              autosize
+              minRows={2}
+              value={directRemark}
+              onChange={(event) => setDirectRemark(event.currentTarget.value)}
+              className="md:col-span-2"
+            />
+          </div>
+          <Group justify="flex-end" mt="md">
+            <Button variant="outline" onClick={() => setIsDirectPickModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleDirectPickSubmit()}
+              loading={isDirectPicking}
+              leftIcon={<Package className="h-3.5 w-3.5" />}
+            >
+              Direct Pick
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
         {(!isMobile || !activeGroup) && (
@@ -510,6 +524,14 @@ export const Picking = memo(function Picking() {
             hideHeader={isMobile}
             action={
               <div className="flex items-center gap-2">
+                <Button
+                  size="xs"
+                  onClick={() => setIsDirectPickModalOpen(true)}
+                  leftIcon={<Plus className="h-3 w-3" />}
+                  className="h-7 text-[10px] px-3 font-bold uppercase tracking-wider"
+                >
+                  Direct Pick
+                </Button>
                 <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
                   {openOrderGroups.length} Active
                 </span>
@@ -523,16 +545,26 @@ export const Picking = memo(function Picking() {
             }
           >
             {isMobile && (
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
-                  {openOrderGroups.length} Active
-                </span>
-                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
-                  {readyOrders} Ready
-                </span>
-                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
-                  {progress}% Done
-                </span>
+              <div className="flex flex-col gap-2 mb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    {openOrderGroups.length} Active
+                  </span>
+                  <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    {readyOrders} Ready
+                  </span>
+                  <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    {progress}% Done
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setIsDirectPickModalOpen(true)}
+                  leftIcon={<Plus className="h-4 w-4" />}
+                  fullWidth
+                >
+                  Direct Outward Pick
+                </Button>
               </div>
             )}
 
