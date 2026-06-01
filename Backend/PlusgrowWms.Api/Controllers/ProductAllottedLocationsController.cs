@@ -137,7 +137,7 @@ public class ProductAllottedLocationsController : BaseController
         if (dto.Quantity <= 0)
             return BadRequest<PutAwayScanAssignmentResultDto>("Quantity must be greater than zero");
 
-        var productScan = dto.ProductScanCode.Trim();
+        var productScan = NormalizeScanCode(dto.ProductScanCode);
         var locationScan = dto.LocationOrBinScanCode.Trim();
 
         var product = await _context.Products.FirstOrDefaultAsync(x => x.Sku != null && x.Sku.ToLower() == productScan.ToLower())
@@ -385,6 +385,11 @@ public class ProductAllottedLocationsController : BaseController
             invoice.LocationAllotted = invoice.RemainingAllocation <= 0;
             remainingToAllocate -= reduceBy;
         }
+    }
+
+    private static string NormalizeScanCode(string value)
+    {
+        return value.Trim().Split('#')[0].Trim();
     }
 
     private Task SendNotificationAsync(RealtimeNotificationDto notification)

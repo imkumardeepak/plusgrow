@@ -50,9 +50,12 @@ type PutAwayTask = {
 };
 
 const emptyResult: PutAwayScanAssignmentResult | null = null;
+const normalizeScanCode = (value: string) =>
+  value.trim().split("#")[0].trim().toLowerCase();
 
 export const PutAway = () => {
   const isMobile = useMediaQuery("(max-width: 48em)");
+  const [products, setProducts] = useState<Product[]>([]);
   const [productQuantities, setProductQuantities] = useState<
     ProductQuantityRecord[]
   >([]);
@@ -74,11 +77,13 @@ export const PutAway = () => {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [quantitiesData, allocationsData] = await Promise.all([
+      const [productsData, quantitiesData, allocationsData] = await Promise.all([
+        productsApi.getAll(),
         productQuantitiesApi.getAll(),
         productAllottedLocationsApi.getAll(),
       ]);
 
+      setProducts(productsData);
       setProductQuantities(quantitiesData);
       setAllocations(allocationsData);
     } catch (error) {
@@ -95,6 +100,7 @@ export const PutAway = () => {
   const allTasks = useMemo<PutAwayTask[]>(() => {
     return productQuantities
       .map((quantityRow) => {
+        const product = products.find((item) => item.id === quantityRow.productId);
         const allocationRow = allocations.find(
           (entry) => entry.productId === quantityRow.productId,
         );
@@ -110,9 +116,9 @@ export const PutAway = () => {
 
         return {
           productId: quantityRow.productId,
-          skuCode: quantityRow.skuCode,
-          productName: quantityRow.productName,
-          alias: quantityRow.alias,
+          skuCode: product?.sku?.trim() || quantityRow.skuCode,
+          productName: product?.name?.trim() || quantityRow.productName,
+          alias: product?.alias?.trim() || quantityRow.alias,
           currentQuantity: quantityRow.currentQuantity,
           allocatedQuantity,
           remainingQuantity,
@@ -121,20 +127,20 @@ export const PutAway = () => {
       })
       .filter((task) => task.remainingQuantity > 0)
       .sort((a, b) => b.remainingQuantity - a.remainingQuantity);
-  }, [allocations, productQuantities]);
+  }, [allocations, productQuantities, products]);
 
   const tasks = allTasks;
 
   const selectedTask = useMemo(() => {
     if (!productScanCode.trim()) return null;
 
-    const scan = productScanCode.trim().toLowerCase();
+    const scan = normalizeScanCode(productScanCode);
     return (
       allTasks.find(
         (task) =>
-          task.skuCode.toLowerCase() === scan ||
-          (task.alias && task.alias.toLowerCase() === scan) ||
-          task.productName.toLowerCase() === scan,
+          task.skuCode.trim().toLowerCase() === scan ||
+          (task.alias && task.alias.trim().toLowerCase() === scan) ||
+          task.productName.trim().toLowerCase() === scan,
       ) ?? null
     );
   }, [allTasks, productScanCode]);
@@ -171,16 +177,15 @@ export const PutAway = () => {
     if (e.key === "Enter" && productScanCode.trim()) {
       e.preventDefault();
 
-      // Split scanned data by '#' and use the first part (index 0)
-      const scan = productScanCode.trim().split("#")[0].trim();
+      const scan = normalizeScanCode(productScanCode);
       setProductScanCode(scan);
 
       // First check in put-away tasks
       const task = allTasks.find(
         (t) =>
-          t.skuCode.toLowerCase() === scan.toLowerCase() ||
-          (t.alias && t.alias.toLowerCase() === scan.toLowerCase()) ||
-          t.productName.toLowerCase() === scan.toLowerCase(),
+          t.skuCode.trim().toLowerCase() === scan ||
+          (t.alias && t.alias.trim().toLowerCase() === scan) ||
+          t.productName.trim().toLowerCase() === scan,
       );
 
       if (task) {
@@ -198,12 +203,11 @@ export const PutAway = () => {
       // Not in put-away queue, fetch from Product Master
       setIsFetchingProduct(true);
       try {
-        const allProducts = await productsApi.getAll();
-        const product = allProducts.find(
+        const product = products.find(
           (p) =>
-            p.sku?.toLowerCase() === scan.toLowerCase() ||
-            p.alias?.toLowerCase() === scan.toLowerCase() ||
-            p.name.toLowerCase() === scan.toLowerCase(),
+            p.sku?.trim().toLowerCase() === scan ||
+            p.alias?.trim().toLowerCase() === scan ||
+            p.name.trim().toLowerCase() === scan,
         );
 
         if (product) {
@@ -276,7 +280,7 @@ export const PutAway = () => {
     setIsAssigning(true);
     try {
       const result = await productAllottedLocationsApi.assignScan({
-        productScanCode: productScanCode.trim(),
+        productScanCode: normalizeScanCode(productScanCode),
         locationOrBinScanCode: locationScanCode.trim(),
         quantity,
       });

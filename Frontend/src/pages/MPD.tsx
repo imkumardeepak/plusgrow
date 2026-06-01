@@ -633,7 +633,10 @@ export const MPD = memo(function MPD() {
           fw={700}
           lineClamp={1}
           style={{ cursor: "pointer", textDecoration: "underline" }}
-          onClick={() => openEditModal(row)}
+          onClick={(event) => {
+            event.stopPropagation();
+            openEditModal(row);
+          }}
         >
           {row.sku || "N/A"}
         </Text>
@@ -757,6 +760,29 @@ export const MPD = memo(function MPD() {
         </Text>
       ),
       width: 110,
+    },
+    {
+      key: "actions",
+      header: "Print",
+      align: "center",
+      render: (row) => (
+        <Tooltip label="Print sticker">
+          <ActionIcon
+            size="sm"
+            radius="md"
+            variant="light"
+            color="cyan"
+            aria-label="Print sticker"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleOpenPrintModal(row);
+            }}
+          >
+            <Printer size={16} />
+          </ActionIcon>
+        </Tooltip>
+      ),
+      width: 90,
     },
   ];
 
@@ -898,6 +924,7 @@ export const MPD = memo(function MPD() {
               data={filteredProducts}
               columns={columns}
               rowKey={(row) => row.id}
+              onRowClick={(row) => openEditModal(row)}
               isLoading={isLoading}
               emptyIcon={Package}
               emptyTitle="No product rows"
