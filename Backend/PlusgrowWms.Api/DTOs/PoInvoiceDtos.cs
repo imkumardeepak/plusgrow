@@ -17,6 +17,20 @@ public class PoInvoiceDto
     public DateTime CreatedAt { get; set; }
 }
 
+public class PoInvoiceHeaderSummaryDto
+{
+    public int Id { get; set; }
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime InvoiceDate { get; set; }
+    public string PartyName { get; set; } = string.Empty;
+    public int TotalBilledQty { get; set; }
+    public int TotalRemainingAllocation { get; set; }
+    public int ProductCount { get; set; }
+    public int PrintedCount { get; set; }
+    public int PendingCount { get; set; }
+    public List<PoInvoiceDto> Items { get; set; } = new();
+}
+
 public class CreatePoInvoiceDto
 {
     public string InvoiceNumber { get; set; } = string.Empty;

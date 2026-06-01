@@ -84,6 +84,65 @@ public class PoInvoicesController : BaseController
         return Success(invoices.Select(MapInvoice).ToList(), page, pageSize, total);
     }
 
+    [HttpGet("headers")]
+    public async Task<ActionResult<ApiResponse<List<PoInvoiceHeaderSummaryDto>>>> GetPoInvoiceHeaders([FromQuery] PoInvoiceFilterDto filter)
+    {
+        var page = Math.Max(filter.Page, 1);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 500);
+
+        var query = _context.PoInvoiceHeaders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var search = filter.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.InvoiceNumber.ToLower().Contains(search) ||
+                x.PartyName.ToLower().Contains(search) ||
+                x.Items.Any(item =>
+                    (item.Product != null && item.Product.Sku != null && item.Product.Sku.ToLower().Contains(search)) ||
+                    (item.Product != null && item.Product.Name.ToLower().Contains(search))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            var status = filter.Status.Trim().ToLowerInvariant();
+            if (status == "pending")
+            {
+                query = query.Where(x => x.Items.Any(item => !item.Printed) || !x.Items.Any());
+            }
+            else if (status == "printed")
+            {
+                query = query.Where(x => x.Items.Any() && x.Items.All(item => item.Printed));
+            }
+        }
+
+        if (filter.FromDate.HasValue)
+        {
+            var fromDate = NormalizeInvoiceDate(filter.FromDate.Value);
+            query = query.Where(x => x.InvoiceDate >= fromDate);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            var toDate = NormalizeInvoiceDate(filter.ToDate.Value);
+            query = query.Where(x => x.InvoiceDate <= toDate);
+        }
+
+        var total = await query.CountAsync();
+        var headers = await query
+            .OrderByDescending(x => x.InvoiceDate)
+            .ThenBy(x => x.PartyName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Success(headers.Select(MapHeaderSummary).ToList(), page, pageSize, total);
+    }
+
     [HttpPost]
     public async Task<ActionResult<ApiResponse<PoInvoiceDto>>> CreatePoInvoice([FromBody] CreatePoInvoiceDto dto)
     {
@@ -239,6 +298,7 @@ public class PoInvoicesController : BaseController
             using var stream = new MemoryStream();
             await file.CopyToAsync(stream);
             stream.Position = 0;
+            var manufacturerCache = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
 
             using var workbook = new XLWorkbook(stream);
             var worksheet = workbook.Worksheets.First();
@@ -246,7 +306,7 @@ public class PoInvoicesController : BaseController
             if (headerRow == null)
                 return BadRequest<ImportResultDto>("The uploaded file does not contain a header row");
 
-            var dataRows = worksheet.RowsUsed().Skip(headerRow.RowNumber());
+            var dataRows = worksheet.RowsUsed().Skip(headerRow.RowNumber()).ToList();
 
             var headerMap = headerRow.CellsUsed()
                 .ToDictionary(
@@ -269,6 +329,45 @@ public class PoInvoicesController : BaseController
             var missingHeaders = requiredHeaders.Where(header => !headerMap.ContainsKey(header)).ToList();
             if (missingHeaders.Count > 0)
                 return BadRequest<ImportResultDto>($"Missing required columns: {string.Join(", ", missingHeaders)}");
+
+            await DeleteOrphanHeadersAsync();
+
+            var uploadInvoiceRows = dataRows
+                .Select(row => new
+                {
+                    RowNumber = row.RowNumber(),
+                    InvoiceNumber = row.Cell(headerMap["invoiceno"]).GetString().Trim(),
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber))
+                .ToList();
+
+            var uploadInvoiceNumbers = uploadInvoiceRows
+                .Select(x => x.InvoiceNumber)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (uploadInvoiceNumbers.Count > 0)
+            {
+                var existingInvoiceNumbers = await _context.PoInvoiceHeaders
+                    .Where(x => uploadInvoiceNumbers.Contains(x.InvoiceNumber))
+                    .Select(x => x.InvoiceNumber)
+                    .ToListAsync();
+
+                if (existingInvoiceNumbers.Count > 0)
+                {
+                    var duplicateInvoiceSet = new HashSet<string>(existingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
+                    var duplicateErrors = uploadInvoiceRows
+                        .Where(x => duplicateInvoiceSet.Contains(x.InvoiceNumber))
+                        .GroupBy(x => x.InvoiceNumber, StringComparer.OrdinalIgnoreCase)
+                        .Select(group =>
+                            $"Invoice {group.Key} already exists in inward. Re-upload is not allowed. Rows: {string.Join(", ", group.Select(x => x.RowNumber))}")
+                        .ToList();
+
+                    return BadRequest<ImportResultDto>(
+                        "Upload blocked. One or more invoice numbers already exist in inward.",
+                        duplicateErrors);
+                }
+            }
 
             foreach (var row in dataRows)
             {
@@ -344,6 +443,7 @@ public class PoInvoicesController : BaseController
                         {
                             Name = itemName,
                             Sku = string.IsNullOrWhiteSpace(partNo) ? null : partNo,
+                            ManufacturerId = null,
                             Mrp = mrpVal,
                             BestBeforeMonths = 84,
                             UnitType = "pcs",
@@ -354,6 +454,13 @@ public class PoInvoicesController : BaseController
 
                         _context.Products.Add(product);
                         await _context.SaveChangesAsync();
+                    }
+
+                    if (product.ManufacturerId == null && !string.IsNullOrWhiteSpace(partyName))
+                    {
+                        var manufacturer = await GetOrCreateManufacturerAsync(partyName, manufacturerCache);
+                        product.ManufacturerId = manufacturer.Id;
+                        product.Manufacturer = manufacturer;
                     }
 
                     var header = await GetOrCreateInvoiceHeaderAsync(invoiceNumber, invoiceDate.Value, partyName);
@@ -379,6 +486,17 @@ public class PoInvoicesController : BaseController
             }
 
             await _context.SaveChangesAsync();
+            await DeleteOrphanHeadersAsync();
+
+            if (result.ImportedCount == 0)
+            {
+                return BadRequest<ImportResultDto>(
+                    "Upload did not create any inward rows.",
+                    result.Errors.Count > 0
+                        ? result.Errors
+                        : new List<string> { "No valid inward rows were found in the uploaded file." });
+            }
+
             result.Success = true;
             if (result.ImportedCount > 0)
             {
@@ -479,6 +597,28 @@ public class PoInvoicesController : BaseController
         };
     }
 
+    private static PoInvoiceHeaderSummaryDto MapHeaderSummary(PoInvoiceHeader header)
+    {
+        var items = header.Items
+            .OrderBy(item => item.Id)
+            .Select(MapInvoice)
+            .ToList();
+
+        return new PoInvoiceHeaderSummaryDto
+        {
+            Id = header.Id,
+            InvoiceNumber = header.InvoiceNumber,
+            InvoiceDate = header.InvoiceDate,
+            PartyName = header.PartyName,
+            TotalBilledQty = items.Sum(item => item.BilledQty),
+            TotalRemainingAllocation = items.Sum(item => item.RemainingAllocation),
+            ProductCount = items.Count,
+            PrintedCount = items.Count(item => item.Printed),
+            PendingCount = items.Count(item => !item.Printed),
+            Items = items,
+        };
+    }
+
     private static string NormalizeHeader(string value)
     {
         return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
@@ -532,6 +672,36 @@ public class PoInvoicesController : BaseController
         return existingHeader;
     }
 
+    private async Task<Manufacturer> GetOrCreateManufacturerAsync(
+        string manufacturerName,
+        IDictionary<string, Manufacturer> manufacturerCache)
+    {
+        var normalizedName = manufacturerName.Trim();
+        if (manufacturerCache.TryGetValue(normalizedName, out var cachedManufacturer))
+        {
+            return cachedManufacturer;
+        }
+
+        var existingManufacturer = await _context.Manufacturers
+            .FirstOrDefaultAsync(x => x.Name == normalizedName);
+
+        if (existingManufacturer != null)
+        {
+            manufacturerCache[normalizedName] = existingManufacturer;
+            return existingManufacturer;
+        }
+
+        var manufacturer = new Manufacturer
+        {
+            Name = normalizedName,
+        };
+
+        _context.Manufacturers.Add(manufacturer);
+        await _context.SaveChangesAsync();
+        manufacturerCache[normalizedName] = manufacturer;
+        return manufacturer;
+    }
+
     private async Task UpsertProductQuantityAsync(int productId, int billedQty)
     {
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
@@ -571,6 +741,21 @@ public class PoInvoicesController : BaseController
         }
 
         _context.PoInvoiceHeaders.Remove(header);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task DeleteOrphanHeadersAsync()
+    {
+        var orphanHeaders = await _context.PoInvoiceHeaders
+            .Where(header => !_context.PoInvoices.Any(item => item.PoInvoiceHeaderId == header.Id))
+            .ToListAsync();
+
+        if (orphanHeaders.Count == 0)
+        {
+            return;
+        }
+
+        _context.PoInvoiceHeaders.RemoveRange(orphanHeaders);
         await _context.SaveChangesAsync();
     }
 

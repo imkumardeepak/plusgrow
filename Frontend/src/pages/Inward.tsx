@@ -26,6 +26,7 @@ import {
   ArrowDownToLine,
   CheckCircle2,
   Download,
+  Eye,
   FileSpreadsheet,
   FileText,
   Loader2,
@@ -55,6 +56,7 @@ import {
   Manufacturer,
   PoInvoiceFilters,
   PoInvoice,
+  PoInvoiceHeaderSummary,
   PaginationInfo,
   Product,
   importersApi,
@@ -72,6 +74,9 @@ import {
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
 type InwardStatusFilter = "all" | "pending" | "printed";
 type StickerMode = "Combined" | "Separate";
+type InvoiceSummary = PoInvoiceHeaderSummary & {
+  invoiceKey: string;
+};
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const labelModeText: Record<StickerMode, string> = {
@@ -97,6 +102,7 @@ export const Inward = memo(function Inward() {
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
+  const [invoiceSummaries, setInvoiceSummaries] = useState<InvoiceSummary[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [importers, setImporters] = useState<Importer[]>([]);
   const [templates, setTemplates] = useState<StickerTemplate[]>([]);
@@ -106,7 +112,6 @@ export const Inward = memo(function Inward() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRowsLoading, setIsRowsLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -128,6 +133,8 @@ export const Inward = memo(function Inward() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  const [selectedInvoiceSummary, setSelectedInvoiceSummary] =
+    useState<InvoiceSummary | null>(null);
   const [selectedPrintRow, setSelectedPrintRow] = useState<PoInvoice | null>(
     null,
   );
@@ -254,8 +261,17 @@ export const Inward = memo(function Inward() {
   const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
     try {
       setIsRowsLoading(true);
-      const result = await poInvoicesApi.getPaged(filters);
-      setPoInvoices(result.data);
+      const result = await poInvoicesApi.getHeaders({
+        ...filters,
+        page: 1,
+        pageSize: 1000,
+      });
+      const summaries = result.data.map((row) => ({
+        ...row,
+        invoiceKey: `${row.invoiceNumber}__${row.invoiceDate}__${row.partyName}`,
+      }));
+      setInvoiceSummaries(summaries);
+      setPoInvoices(summaries.flatMap((row) => row.items));
       setPagination(result.pagination);
     } catch {
       toast.error("Failed to load inward rows");
@@ -270,14 +286,8 @@ export const Inward = memo(function Inward() {
       status: statusFilter,
       fromDate,
       toDate,
-      page,
-      pageSize: 25,
     });
-  }, [fromDate, loadInvoiceRows, page, search, statusFilter, toDate]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [fromDate, search, statusFilter, toDate]);
+  }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
 
   const productOptions = useMemo(
     () =>
@@ -324,16 +334,15 @@ export const Inward = memo(function Inward() {
   );
 
   const invoiceStats = useMemo(() => {
-    const pendingPrint = poInvoices.filter((row) => !row.printed).length;
-    const printedCount = poInvoices.length - pendingPrint;
-    const totalBilled = poInvoices.reduce((sum, row) => sum + row.billedQty, 0);
-    const totalRemaining = poInvoices.reduce(
+    const allItems = invoiceSummaries.flatMap((row) => row.items);
+    const pendingPrint = allItems.filter((row) => !row.printed).length;
+    const printedCount = allItems.length - pendingPrint;
+    const totalBilled = allItems.reduce((sum, row) => sum + row.billedQty, 0);
+    const totalRemaining = allItems.reduce(
       (sum, row) => sum + row.remainingAllocation,
       0,
     );
-    const allottedCount = poInvoices.filter(
-      (row) => row.locationAllotted,
-    ).length;
+    const allottedCount = allItems.filter((row) => row.locationAllotted).length;
 
     return {
       pendingPrint,
@@ -342,9 +351,9 @@ export const Inward = memo(function Inward() {
       totalRemaining,
       allottedCount,
     };
-  }, [poInvoices]);
+  }, [invoiceSummaries]);
 
-  const columns: DataTableColumn<PoInvoice>[] = [
+  const columns: DataTableColumn<InvoiceSummary>[] = [
     {
       key: "invoiceNo",
       header: "Invoice No.",
@@ -358,16 +367,25 @@ export const Inward = memo(function Inward() {
       width: 160,
     },
     {
-      key: "product",
-      header: "Product Name",
+      key: "items",
+      header: "Items",
       sortable: true,
-      sortAccessor: (row) => row.productName,
+      sortAccessor: (row) => row.productCount,
       render: (row) => (
-        <Text size="xs" fw={600} lineClamp={1} maw={200}>
-          {row.productName}
-        </Text>
+        <Stack gap={2}>
+          <Text size="xs" fw={700}>
+            {row.productCount} products
+          </Text>
+          <Text size="11px" c="dimmed" lineClamp={1} maw={240}>
+            {row.items
+              .slice(0, 2)
+              .map((item) => item.productName)
+              .join(", ")}
+            {row.items.length > 2 ? ` +${row.items.length - 2} more` : ""}
+          </Text>
+        </Stack>
       ),
-      width: 200,
+      width: 240,
     },
     {
       key: "date",
@@ -398,10 +416,10 @@ export const Inward = memo(function Inward() {
       header: "Billed Qty.",
       align: "right",
       sortable: true,
-      sortAccessor: (row) => row.billedQty,
+      sortAccessor: (row) => row.totalBilledQty,
       render: (row) => (
         <Text size="xs" fw={800} c="cyan.3">
-          {row.billedQty}
+          {row.totalBilledQty}
         </Text>
       ),
       width: 90,
@@ -411,14 +429,14 @@ export const Inward = memo(function Inward() {
       header: "Location Allot Pending",
       align: "right",
       sortable: true,
-      sortAccessor: (row) => row.remainingAllocation,
+      sortAccessor: (row) => row.totalRemainingAllocation,
       render: (row) => (
         <Text
           size="xs"
           fw={800}
-          c={row.remainingAllocation > 0 ? "orange.3" : "green.3"}
+          c={row.totalRemainingAllocation > 0 ? "orange.3" : "green.3"}
         >
-          {row.remainingAllocation}
+          {row.totalRemainingAllocation}
         </Text>
       ),
       width: 140,
@@ -427,15 +445,17 @@ export const Inward = memo(function Inward() {
       key: "printed",
       header: "Sticker Print",
       sortable: true,
-      sortAccessor: (row) => (row.printed ? "1" : "0"),
+      sortAccessor: (row) => row.pendingCount,
       render: (row) => (
         <Badge
           size="sm"
           radius="md"
           variant="light"
-          color={row.printed ? "green" : "orange"}
+          color={row.pendingCount === 0 ? "green" : "orange"}
         >
-          {row.printed ? "Printed" : "Pending"}
+          {row.pendingCount === 0
+            ? "Fully Printed"
+            : `${row.pendingCount} Pending`}
         </Badge>
       ),
       width: 130,
@@ -446,16 +466,16 @@ export const Inward = memo(function Inward() {
       align: "right",
       render: (row) => (
         <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Tooltip label="Print sticker">
+          <Tooltip label="View invoice items">
             <ActionIcon
               size="sm"
               radius="md"
               variant="light"
               color="cyan"
-              onClick={() => setSelectedPrintRow(row)}
-              aria-label="Print sticker"
+              onClick={() => setSelectedInvoiceSummary(row)}
+              aria-label="View invoice items"
             >
-              <Printer size={15} />
+              <Eye size={15} />
             </ActionIcon>
           </Tooltip>
         </Group>
@@ -568,9 +588,26 @@ export const Inward = memo(function Inward() {
       return;
     }
 
+    if (!activeTemplate) {
+      toast.error("Sticker template not found for selected size and label mode");
+      return;
+    }
+
     const from = Number(reprintFrom || 1);
     const to = Number(reprintTo || from);
-    const reprintQuantity = Math.max(1, to - from + 1);
+    if (mode === "reprint") {
+      if (from < 1 || to < 1 || from > selectedPrintRow.billedQty || to > selectedPrintRow.billedQty) {
+        toast.error("Reprint range must stay within billed quantity");
+        return;
+      }
+
+      if (from > to) {
+        toast.error("Reprint range is invalid. 'From sticker' cannot be greater than 'To sticker'");
+        return;
+      }
+    }
+
+    const reprintQuantity = to - from + 1;
     const quantity =
       mode === "normal" ? selectedPrintRow.billedQty : reprintQuantity;
 
@@ -596,8 +633,6 @@ export const Inward = memo(function Inward() {
           status: statusFilter,
           fromDate,
           toDate,
-          page,
-          pageSize: 25,
         });
         setSelectedPrintRow((current) =>
           current ? { ...current, printed: true } : current,
@@ -667,8 +702,6 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
-        page,
-        pageSize: 25,
       });
       resetInvoiceModal();
     } catch (error: any) {
@@ -692,8 +725,6 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
-        page,
-        pageSize: 25,
       });
       setDeleteTarget(null);
     } catch (error: any) {
@@ -729,16 +760,20 @@ export const Inward = memo(function Inward() {
       if (result.success) {
         toast.success(`Imported ${result.importedCount} invoice rows`);
         if (result.errors?.length) {
-          toast.warning(`${result.errors.length} rows had errors`);
+          toast.warning(`${result.errors.length} rows had errors`, {
+            description: result.errors.slice(0, 3).join(" | "),
+          });
         }
+        setSearch("");
+        setStatusFilter("all");
+        setFromDate("");
+        setToDate("");
         await loadData();
         await loadInvoiceRows({
-          search,
-          status: statusFilter,
-          fromDate,
-          toDate,
-          page: 1,
-          pageSize: 25,
+          search: "",
+          status: "all",
+          fromDate: "",
+          toDate: "",
         });
         setIsUploadModalOpen(false);
         setUploadFile(null);
@@ -746,10 +781,19 @@ export const Inward = memo(function Inward() {
         toast.error("Invoice upload failed");
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to upload invoice file");
+      const responseErrors = error.response?.data?.errors;
+      toast.error(error.message || "Failed to upload invoice file", {
+        description: Array.isArray(responseErrors) && responseErrors.length > 0
+          ? responseErrors.slice(0, 3).join(" | ")
+          : undefined,
+      });
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const openPrintForRow = (row: PoInvoice) => {
+    setSelectedPrintRow(row);
   };
 
   const closeUploadModal = () => {
@@ -884,8 +928,6 @@ export const Inward = memo(function Inward() {
                     status: statusFilter,
                     fromDate,
                     toDate,
-                    page,
-                    pageSize: 25,
                   })
                 }
                 loading={isRowsLoading}
@@ -912,18 +954,15 @@ export const Inward = memo(function Inward() {
           }
           contentClassName="p-0"
         >
-          <MantineDataTable<PoInvoice>
-            data={poInvoices}
+          <MantineDataTable<InvoiceSummary>
+            data={invoiceSummaries}
             columns={columns}
-            rowKey={(row) => row.id}
+            rowKey={(row) => row.invoiceKey}
             isLoading={isLoading || isRowsLoading}
-            pageSize={pagination?.pageSize ?? 25}
-            currentPage={pagination?.page ?? page}
-            totalItems={pagination?.total}
-            onPageChange={setPage}
+            pageSize={25}
             emptyIcon={FileText}
-            emptyTitle="No inward rows"
-            emptyDescription="No PO invoice rows match current search or filter."
+            emptyTitle="No inward invoices"
+            emptyDescription="No inward invoices match current search or filter."
             itemLabel="invoices"
             resetPageKey={`${search}-${statusFilter}-${fromDate}-${toDate}`}
           />
@@ -1132,6 +1171,153 @@ export const Inward = memo(function Inward() {
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(selectedInvoiceSummary)}
+        onClose={() => setSelectedInvoiceSummary(null)}
+        title="Invoice Items"
+        size="xxl"
+      >
+        {selectedInvoiceSummary ? (
+          <Stack gap="md">
+            <Paper radius="md" p="sm" withBorder>
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={2}>
+                  <Text size="xs" fw={800} ff="monospace" c="cyan.3">
+                    {selectedInvoiceSummary.invoiceNumber}
+                  </Text>
+                  <Text size="sm" fw={700}>
+                    {selectedInvoiceSummary.partyName}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {format(
+                      new Date(selectedInvoiceSummary.invoiceDate),
+                      "dd MMM yyyy",
+                    )}
+                  </Text>
+                </Stack>
+                <Group gap="xs">
+                  <Badge variant="light" color="blue">
+                    {selectedInvoiceSummary.productCount} Items
+                  </Badge>
+                  <Badge variant="light" color="cyan">
+                    {selectedInvoiceSummary.totalBilledQty} Billed
+                  </Badge>
+                  <Badge
+                    variant="light"
+                    color={
+                      selectedInvoiceSummary.totalRemainingAllocation > 0
+                        ? "orange"
+                        : "green"
+                    }
+                  >
+                    {selectedInvoiceSummary.totalRemainingAllocation} Remaining
+                  </Badge>
+                </Group>
+              </Group>
+            </Paper>
+
+            <MantineDataTable<PoInvoice>
+              data={selectedInvoiceSummary.items}
+              columns={[
+                {
+                  key: "sku",
+                  header: "SKU",
+                  sortable: true,
+                  sortAccessor: (row) => row.skuCode,
+                  render: (row) => (
+                    <Text size="11px" ff="monospace" fw={700} c="cyan.2">
+                      {row.skuCode || "N/A"}
+                    </Text>
+                  ),
+                  width: 170,
+                },
+                {
+                  key: "product",
+                  header: "Product",
+                  sortable: true,
+                  sortAccessor: (row) => row.productName,
+                  render: (row) => (
+                    <Text size="xs" fw={600} maw={260}>
+                      {row.productName}
+                    </Text>
+                  ),
+                },
+                {
+                  key: "billedQty",
+                  header: "Billed Qty.",
+                  align: "right",
+                  sortable: true,
+                  sortAccessor: (row) => row.billedQty,
+                  render: (row) => <Text size="xs">{row.billedQty}</Text>,
+                  width: 90,
+                },
+                {
+                  key: "remainingQty",
+                  header: "Remaining",
+                  align: "right",
+                  sortable: true,
+                  sortAccessor: (row) => row.remainingAllocation,
+                  render: (row) => (
+                    <Text
+                      size="xs"
+                      c={row.remainingAllocation > 0 ? "orange.3" : "green.3"}
+                    >
+                      {row.remainingAllocation}
+                    </Text>
+                  ),
+                  width: 90,
+                },
+                {
+                  key: "status",
+                  header: "Sticker",
+                  sortable: true,
+                  sortAccessor: (row) => (row.printed ? "1" : "0"),
+                  render: (row) => (
+                    <Badge
+                      size="sm"
+                      variant="light"
+                      color={row.printed ? "green" : "orange"}
+                    >
+                      {row.printed ? "Printed" : "Pending"}
+                    </Badge>
+                  ),
+                  width: 110,
+                },
+                {
+                  key: "actions",
+                  header: "Action",
+                  align: "right",
+                  render: (row) => (
+                    <Group justify="flex-end" wrap="nowrap">
+                      <Tooltip label="Print sticker">
+                        <ActionIcon
+                          size="sm"
+                          radius="md"
+                          variant="light"
+                          color="cyan"
+                          onClick={() => openPrintForRow(row)}
+                          aria-label="Print sticker"
+                        >
+                          <Printer size={15} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  ),
+                  width: 80,
+                },
+              ]}
+              rowKey={(row) => row.id}
+              emptyIcon={FileText}
+              emptyTitle="No invoice items"
+              emptyDescription="This invoice does not have any items."
+              itemLabel="items"
+              enablePagination={false}
+              minWidth={860}
+            />
+          </Stack>
+        ) : null}
       </Modal>
 
       <Modal
@@ -1402,7 +1588,7 @@ export const Inward = memo(function Inward() {
                     leftIcon={<Printer size={14} />}
                     onClick={() => void handlePrint("normal")}
                     loading={isPrinting}
-                    disabled={selectedPrintRow.printed}
+                    disabled={selectedPrintRow.printed || selectedPrintRow.billedQty <= 0}
                   >
                     Print Full Qty
                   </Button>

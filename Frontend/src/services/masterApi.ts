@@ -261,6 +261,19 @@ export interface PoInvoice {
   createdAt: string;
 }
 
+export interface PoInvoiceHeaderSummary {
+  id: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  partyName: string;
+  totalBilledQty: number;
+  totalRemainingAllocation: number;
+  productCount: number;
+  printedCount: number;
+  pendingCount: number;
+  items: PoInvoice[];
+}
+
 export interface CreatePoInvoiceDto {
   id?: number;
   invoiceNumber: string;
@@ -974,6 +987,33 @@ export const locationsApi = {
 };
 
 export const poInvoicesApi = {
+  getHeaders: async (
+    filters?: PoInvoiceFilters,
+  ): Promise<PagedResult<PoInvoiceHeaderSummary>> => {
+    const response = await api.get<ApiResponse<PoInvoiceHeaderSummary[]>>(
+      "/poinvoices/headers",
+      {
+        params: {
+          search: filters?.search || undefined,
+          status:
+            filters?.status && filters.status !== "all"
+              ? filters.status
+              : undefined,
+          fromDate: filters?.fromDate || undefined,
+          toDate: filters?.toDate || undefined,
+          page: filters?.page,
+          pageSize: filters?.pageSize,
+        },
+      },
+    );
+    return {
+      data: response.data.data || [],
+      pagination:
+        response.data.pagination ||
+        emptyPagination(filters?.page, filters?.pageSize),
+    };
+  },
+
   getAll: async (filters?: PoInvoiceFilters): Promise<PoInvoice[]> => {
     const result = await poInvoicesApi.getPaged(filters);
     return result.data;
