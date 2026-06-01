@@ -99,9 +99,6 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(p => p.Sku)
             .IsUnique();
 
-        modelBuilder.Entity<OutwardOrder>()
-            .HasIndex(x => x.OrderNumber);
-
         modelBuilder.Entity<SalesOrder>()
             .HasIndex(x => x.OrderNumber)
             .IsUnique();
@@ -169,9 +166,6 @@ public class PlusgrowDbContext : DbContext
 
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => new { x.ProductId, x.RemainingAllocation, x.PoInvoiceHeaderId });
-
-        modelBuilder.Entity<OutwardOrder>()
-            .HasIndex(x => new { x.Status, x.OrderDate });
 
         // Additional indexes for performance
         modelBuilder.Entity<Product>()

@@ -54,15 +54,16 @@ public class DashboardRepository : IDashboardRepository
         var activeDispatchQueue = await _context.OutwardOrders
             .AsNoTracking()
             .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
             .Where(x => x.Status != "Dispatched")
-            .OrderBy(x => x.OrderDate)
+            .OrderBy(x => x.SalesOrder != null ? x.SalesOrder.OrderDate : x.CreatedAt)
             .ThenBy(x => x.Id)
             .Take(8)
             .Select(x => new DashboardDispatchQueueDto
             {
                 Id = x.Id,
-                OrderNumber = x.OrderNumber,
-                CustomerName = x.CustomerName,
+                OrderNumber = x.SalesOrder != null ? x.SalesOrder.OrderNumber : string.Empty,
+                CustomerName = x.SalesOrder != null ? x.SalesOrder.CustomerName : string.Empty,
                 ProductName = x.Product != null ? x.Product.Name : string.Empty,
                 PendingQuantity = Math.Max(x.Quantity - x.PickedQuantity, 0),
                 Status = x.Status,

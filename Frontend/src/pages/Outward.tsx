@@ -13,7 +13,6 @@ import {
   TextInput,
 } from "@mantine/core";
 import {
-  Eye,
   FileText,
   Plus,
   RefreshCw,
@@ -30,10 +29,10 @@ import {
 import {
   CreateOutwardOrderDto,
   CreateOutwardOrderItemDto,
-  OutwardOrder,
   outwardOrdersApi,
   Product,
   productsApi,
+  SalesOrderRecord,
 } from "../services/masterApi";
 import {
   OperationsPage,
@@ -49,19 +48,6 @@ type OrderItemInput = {
   quantity: number;
 };
 
-type OutwardOrderGroup = {
-  orderNumber: string;
-  orderDate: string;
-  customerName: string;
-  notes?: string | null;
-  items: OutwardOrder[];
-  itemCount: number;
-  totalQuantity: number;
-  totalPickedQuantity: number;
-  pendingQuantity: number;
-  status: OutwardOrder["status"];
-};
-
 const createOrderItemInput = (): OrderItemInput => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   productId: 0,
@@ -75,7 +61,7 @@ const emptyOrderForm = (): CreateOutwardOrderDto & { items: OrderItemInput[] } =
   items: [createOrderItemInput()],
 });
 
-const statusTone = (status: OutwardOrder["status"]) => {
+const statusTone = (status: SalesOrderRecord["status"]) => {
   switch (status) {
     case "Dispatched":
       return { color: "green", label: "Dispatched" };
@@ -88,22 +74,15 @@ const statusTone = (status: OutwardOrder["status"]) => {
   }
 };
 
-const deriveGroupStatus = (items: OutwardOrder[]): OutwardOrder["status"] => {
-  if (items.every((item) => item.status === "Dispatched")) return "Dispatched";
-  if (items.every((item) => item.pendingQuantity === 0 || item.status === "Packed")) return "Packed";
-  if (items.some((item) => item.pickedQuantity > 0 || item.status === "Picking")) return "Picking";
-  return "Open";
-};
-
 export const Outward = memo(function Outward() {
-  const [orders, setOrders] = useState<OutwardOrder[]>([]);
+  const [orders, setOrders] = useState<SalesOrderRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState<OutwardOrderGroup | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<SalesOrderRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
   const [productSearch, setProductSearch] = useState("");
@@ -120,7 +99,7 @@ export const Outward = memo(function Outward() {
   const loadOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const ordersData = await outwardOrdersApi.getAll();
+      const ordersData = await outwardOrdersApi.getSalesOrders();
       setOrders(ordersData);
     } catch {
       toast.error("Failed to load outward orders");
@@ -150,46 +129,10 @@ export const Outward = memo(function Outward() {
     [products],
   );
 
-  const groupedOrders = useMemo<OutwardOrderGroup[]>(() => {
-    const map = new Map<string, OutwardOrderGroup>();
-
-    orders.forEach((order) => {
-      const existing = map.get(order.orderNumber);
-      if (existing) {
-        existing.items.push(order);
-        existing.itemCount += 1;
-        existing.totalQuantity += order.quantity;
-        existing.totalPickedQuantity += order.pickedQuantity;
-        existing.pendingQuantity += order.pendingQuantity;
-        existing.status = deriveGroupStatus(existing.items);
-        return;
-      }
-
-      map.set(order.orderNumber, {
-        orderNumber: order.orderNumber,
-        orderDate: order.orderDate,
-        customerName: order.customerName,
-        notes: order.notes,
-        items: [order],
-        itemCount: 1,
-        totalQuantity: order.quantity,
-        totalPickedQuantity: order.pickedQuantity,
-        pendingQuantity: order.pendingQuantity,
-        status: deriveGroupStatus([order]),
-      });
-    });
-
-    return Array.from(map.values()).sort((a, b) => {
-      const dateDiff =
-        new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
-      return dateDiff || b.orderNumber.localeCompare(a.orderNumber);
-    });
-  }, [orders]);
-
   const filteredGroups = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
-    return groupedOrders.filter((group) => {
+    return orders.filter((group) => {
       const matchesStatus =
         statusFilter === "all" ||
         group.status.toLowerCase() === statusFilter;
@@ -206,18 +149,18 @@ export const Outward = memo(function Outward() {
 
       return matchesStatus && matchesSearch;
     });
-  }, [groupedOrders, searchTerm, statusFilter]);
+  }, [orders, searchTerm, statusFilter]);
 
   const metrics = useMemo(() => {
-    const total = groupedOrders.length;
-    const open = groupedOrders.filter((row) => row.status === "Open").length;
-    const picking = groupedOrders.filter((row) => row.status === "Picking").length;
-    const packed = groupedOrders.filter((row) => row.status === "Packed").length;
-    const dispatched = groupedOrders.filter((row) => row.status === "Dispatched").length;
+    const total = orders.length;
+    const open = orders.filter((row) => row.status === "Open").length;
+    const picking = orders.filter((row) => row.status === "Picking").length;
+    const packed = orders.filter((row) => row.status === "Packed").length;
+    const dispatched = orders.filter((row) => row.status === "Dispatched").length;
     return { total, open, picking, packed, dispatched };
-  }, [groupedOrders]);
+  }, [orders]);
 
-  const columns: DataTableColumn<OutwardOrderGroup>[] = [
+  const columns: DataTableColumn<SalesOrderRecord>[] = [
     {
       key: "orderNumber",
       header: "Order No.",
@@ -310,30 +253,9 @@ export const Outward = memo(function Outward() {
       },
       width: 110,
     },
-    {
-      key: "actions",
-      header: "View",
-      align: "center",
-      render: (row) => (
-        <ActionIcon
-          size="sm"
-          radius="md"
-          variant="light"
-          color="cyan"
-          onClick={() => {
-            setSelectedGroup(row);
-            setIsDetailsOpen(true);
-          }}
-          aria-label="View order items"
-        >
-          <Eye size={16} />
-        </ActionIcon>
-      ),
-      width: 80,
-    },
   ];
 
-  const detailColumns: DataTableColumn<OutwardOrder>[] = [
+  const detailColumns: DataTableColumn<SalesOrderRecord["items"][number]>[] = [
     {
       key: "product",
       header: "Product",
@@ -474,14 +396,14 @@ export const Outward = memo(function Outward() {
   return (
     <OperationsPage
       title="Outward Orders"
-      description="Create sales orders with multiple items, review grouped orders, and move work into picking, packing, and dispatch."
+      description="Create sales orders with multiple items, review header and item details, and move work into picking, packing, and dispatch."
       icon={FileText}
       hideHeader
     >
       <OperationsPanel
         title="Sales Order Ledger"
         icon={FileText}
-        description="Grouped outward sales orders with line items under each order number."
+        description="Sales order headers with line items under each order number."
         contentClassName="p-0"
         action={
           <Group gap="xs" wrap="nowrap">
@@ -547,12 +469,16 @@ export const Outward = memo(function Outward() {
           data={filteredGroups}
           columns={columns}
           rowKey={(row) => row.orderNumber}
+          onRowClick={(row) => {
+            setSelectedGroup(row);
+            setIsDetailsOpen(true);
+          }}
           isLoading={isLoading}
           itemLabel="orders"
           resetPageKey={`${searchTerm}-${statusFilter}`}
           emptyIcon={FileText}
           emptyTitle="No outward orders"
-          emptyDescription="Create a sales order to start the outbound workflow."
+          emptyDescription="Create a sales order to start the outward workflow."
         />
       </OperationsPanel>
 

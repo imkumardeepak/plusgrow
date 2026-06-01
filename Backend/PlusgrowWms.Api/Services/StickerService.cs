@@ -14,11 +14,6 @@ public class StickerService : IStickerService
     private const string DefaultCompanyAddress2 = "NAGPUR 440016, MAHARASHTRA";
     private const string DefaultCompanyPhone = "99600 88888";
     private const string DefaultCompanyEmail = "CONNECT@PLUSGROW.COM";
-    private const string DefaultImporterName = "SAGO INDUSTRIES PVT LTD.";
-    private const string DefaultImporterAddress1 = "C501, KAMAL PARK CSH, LBS MARG, BHANDUP WEST,";
-    private const string DefaultImporterAddress2 = "MUMBAI 78";
-    private const string DefaultImporterCountry = "INDIA";
-
     private readonly PlusgrowDbContext _context;
     private readonly IWebHostEnvironment _env;
     private readonly HttpClient _httpClient;
@@ -87,8 +82,7 @@ public class StickerService : IStickerService
             selectedManufacturer?.Country);
         var manufacturerCountry = FirstFilled(
             selectedManufacturer?.Country,
-            importerParts.Country,
-            DefaultImporterCountry);
+            importerParts.Country);
         var quantity = request.Quantity > 0 ? request.Quantity : 1;
         var bestBeforeMonths = product.BestBeforeMonths > 0
             ? product.BestBeforeMonths
@@ -112,7 +106,7 @@ public class StickerService : IStickerService
             { "<COMPANYADDRESS2>", DefaultCompanyAddress2 },
             { "<COMPANYPHONE>", DefaultCompanyPhone },
             { "<COMPANYEMAIL>", DefaultCompanyEmail },
-            { "<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name, DefaultImporterName).ToUpperInvariant() },
+            { "<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name).ToUpperInvariant() },
             { "<COUNTYOFIMPORT>", manufacturerCountry },
             { "<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS" },
             { "<DATEOFIMPORT>", request.MonthYear },
@@ -242,33 +236,27 @@ public class StickerService : IStickerService
     {
         if (string.IsNullOrWhiteSpace(address))
         {
-            return (
-                DefaultImporterAddress1,
-                DefaultImporterAddress2,
-                FirstFilled(countryOverride, DefaultImporterCountry));
+            return (string.Empty, string.Empty, FirstFilled(countryOverride));
         }
 
-        var parts = address
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
+        var normalized = string.Join(
+            ' ',
+            address
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
-        if (parts.Count == 0)
+        if (string.IsNullOrWhiteSpace(normalized))
         {
-            return (
-                DefaultImporterAddress1,
-                DefaultImporterAddress2,
-                FirstFilled(countryOverride, DefaultImporterCountry));
+            return (string.Empty, string.Empty, FirstFilled(countryOverride));
         }
 
-        var country = FirstFilled(countryOverride, DefaultImporterCountry);
-        var midpoint = Math.Max(1, (int)Math.Ceiling(parts.Count / 2d));
-        var line1 = string.Join(", ", parts.Take(midpoint));
-        var line2 = string.Join(", ", parts.Skip(midpoint));
+        var lines = WrapText(normalized, 20, 2);
+        var line1 = lines[0];
+        var line2 = normalized.Length > 20 ? lines[1] : string.Empty;
 
         return (
-            string.IsNullOrWhiteSpace(line1) ? DefaultImporterAddress1 : $"{line1},",
-            string.IsNullOrWhiteSpace(line2) ? DefaultImporterAddress2 : line2,
-            string.IsNullOrWhiteSpace(country) ? DefaultImporterCountry : country
+            line1,
+            line2,
+            FirstFilled(countryOverride)
         );
     }
 

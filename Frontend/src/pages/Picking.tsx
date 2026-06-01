@@ -40,7 +40,9 @@ import { toast } from "../lib/toast";
 type ScanTone = "idle" | "success" | "error";
 
 type PickingOrderGroup = {
+  salesOrderId: number;
   orderNumber: string;
+  orderDate: string;
   customerName: string;
   status: OutwardOrder["status"];
   items: OutwardOrder[];
@@ -56,7 +58,7 @@ export const Picking = memo(function Picking() {
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
     [],
   );
-  const [selectedOrderNumber, setSelectedOrderNumber] = useState<string | null>(null);
+  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [scanCode, setScanCode] = useState("");
@@ -144,10 +146,10 @@ export const Picking = memo(function Picking() {
   }, [orders, searchQuery]);
 
   const openOrderGroups = useMemo<PickingOrderGroup[]>(() => {
-    const map = new Map<string, PickingOrderGroup>();
+    const map = new Map<number, PickingOrderGroup>();
 
     openOrders.forEach((order) => {
-      const existing = map.get(order.orderNumber);
+      const existing = map.get(order.salesOrderId);
       if (existing) {
         existing.items.push(order);
         existing.totalQuantity += order.quantity;
@@ -162,8 +164,10 @@ export const Picking = memo(function Picking() {
         return;
       }
 
-      map.set(order.orderNumber, {
+      map.set(order.salesOrderId, {
+        salesOrderId: order.salesOrderId,
         orderNumber: order.orderNumber,
+        orderDate: order.orderDate,
         customerName: order.customerName,
         status: order.pendingQuantity === 0 || order.status === "Packed" ? "Packed" : order.status,
         items: [order],
@@ -174,28 +178,26 @@ export const Picking = memo(function Picking() {
     });
 
     return Array.from(map.values()).sort((a, b) => {
-      const dateDiff =
-        new Date(b.items[0]?.orderDate || 0).getTime() -
-        new Date(a.items[0]?.orderDate || 0).getTime();
+      const dateDiff = new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
       return dateDiff || b.orderNumber.localeCompare(a.orderNumber);
     });
   }, [openOrders]);
 
   useEffect(() => {
-    if (!isMobile && !selectedOrderNumber && openOrderGroups.length > 0) {
-      setSelectedOrderNumber(openOrderGroups[0].orderNumber);
+    if (!isMobile && !selectedSalesOrderId && openOrderGroups.length > 0) {
+      setSelectedSalesOrderId(openOrderGroups[0].salesOrderId);
     }
 
     if (
-      selectedOrderNumber &&
-      !openOrderGroups.some((row) => row.orderNumber === selectedOrderNumber)
+      selectedSalesOrderId &&
+      !openOrderGroups.some((row) => row.salesOrderId === selectedSalesOrderId)
     ) {
-      setSelectedOrderNumber(!isMobile ? (openOrderGroups[0]?.orderNumber ?? null) : null);
+      setSelectedSalesOrderId(!isMobile ? (openOrderGroups[0]?.salesOrderId ?? null) : null);
     }
-  }, [openOrderGroups, selectedOrderNumber, isMobile]);
+  }, [openOrderGroups, selectedSalesOrderId, isMobile]);
 
   const activeGroup =
-    openOrderGroups.find((row) => row.orderNumber === selectedOrderNumber) ?? null;
+    openOrderGroups.find((row) => row.salesOrderId === selectedSalesOrderId) ?? null;
 
   useEffect(() => {
     if (!activeGroup) {
@@ -261,7 +263,7 @@ export const Picking = memo(function Picking() {
     setLocationScanCode("");
     setIsLocationLocked(false);
     window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  }, [activeGroup?.orderNumber]);
+  }, [activeGroup?.salesOrderId]);
 
   const handlePick = useCallback(
     async (orderItem: OutwardOrder, scannedSku: string) => {
@@ -277,7 +279,7 @@ export const Picking = memo(function Picking() {
         setOrders((current) =>
           current.map((row) => (row.id === updated.id ? updated : row)),
         );
-        setSelectedOrderNumber(updated.orderNumber);
+        setSelectedSalesOrderId(updated.salesOrderId);
         setActiveItemId(updated.id);
         setLastScanCode(scannedSku);
         setLastLocationCode(normalizedLocation);
@@ -415,7 +417,7 @@ export const Picking = memo(function Picking() {
         customerName: directCustomerName.trim() || null,
       });
       setOrders((current) => [created, ...current]);
-      setSelectedOrderNumber(created.orderNumber);
+      setSelectedSalesOrderId(created.salesOrderId);
       setActiveItemId(created.id);
       setDirectProductId(null);
       setDirectSkuCode("");
@@ -579,12 +581,12 @@ export const Picking = memo(function Picking() {
               <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
                 {openOrderGroups.map((order) => {
                   const done = order.pendingQuantity === 0;
-                  const active = order.orderNumber === selectedOrderNumber;
+                  const active = order.salesOrderId === selectedSalesOrderId;
 
                   return (
                     <button
-                      key={order.orderNumber}
-                      onClick={() => setSelectedOrderNumber(order.orderNumber)}
+                      key={order.salesOrderId}
+                      onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
                       className={`w-full rounded-xl border p-3 text-left transition ${
                         active
                           ? "border-brand-500/40 bg-brand-500/10"
@@ -653,7 +655,7 @@ export const Picking = memo(function Picking() {
                   <Button
                     variant="outline"
                     size="xs"
-                    onClick={() => setSelectedOrderNumber(null)}
+                    onClick={() => setSelectedSalesOrderId(null)}
                     leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
                     className="mb-3 w-full"
                   >
@@ -845,11 +847,11 @@ export const Picking = memo(function Picking() {
                       <Button
                         variant="outline"
                         size="xs"
-                        onClick={() => navigate("/dispatch")}
+                        onClick={() => navigate("/packing")}
                         rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
                         className="h-9 w-full"
                       >
-                        Move to Dispatch
+                        Move to Packing
                       </Button>
                     )}
                   </div>

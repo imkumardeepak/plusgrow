@@ -21,6 +21,48 @@ public class OutwardOrdersController : BaseController
         _notificationHub = notificationHub;
     }
 
+    [HttpGet("sales-orders")]
+    public async Task<ActionResult<ApiResponse<List<SalesOrderDto>>>> GetSalesOrders([FromQuery] SalesOrderFilterDto filter)
+    {
+        var page = Math.Max(filter.Page, 1);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
+        var query = _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var search = filter.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.OrderNumber.ToLower().Contains(search) ||
+                x.CustomerName.ToLower().Contains(search) ||
+                x.Status.ToLower().Contains(search) ||
+                (x.Notes != null && x.Notes.ToLower().Contains(search)) ||
+                x.Items.Any(item =>
+                    (item.Product != null && item.Product.Name.ToLower().Contains(search)) ||
+                    (item.Product != null && item.Product.Sku != null && item.Product.Sku.ToLower().Contains(search)) ||
+                    (item.Product != null && item.Product.Alias != null && item.Product.Alias.ToLower().Contains(search))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) && !string.Equals(filter.Status, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            var status = filter.Status.Trim().ToLowerInvariant();
+            query = query.Where(x => x.Status.ToLower() == status);
+        }
+
+        var total = await query.CountAsync();
+        var rows = await query
+            .OrderByDescending(x => x.OrderDate)
+            .ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Success(rows.Select(MapSalesOrder).ToList(), page, pageSize, total);
+    }
+
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<OutwardOrderDto>>>> GetOrders([FromQuery] OutwardOrderFilterDto filter)
     {
@@ -36,11 +78,12 @@ public class OutwardOrdersController : BaseController
         {
             var search = filter.Search.Trim().ToLower();
             query = query.Where(x =>
-                x.OrderNumber.ToLower().Contains(search) ||
-                x.CustomerName.ToLower().Contains(search) ||
+                (x.SalesOrder != null && x.SalesOrder.OrderNumber.ToLower().Contains(search)) ||
+                (x.SalesOrder != null && x.SalesOrder.CustomerName.ToLower().Contains(search)) ||
                 x.Status.ToLower().Contains(search) ||
                 (x.Product != null && x.Product.Name.ToLower().Contains(search)) ||
-                (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)));
+                (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)) ||
+                (x.Product != null && x.Product.Alias != null && x.Product.Alias.ToLower().Contains(search)));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Status) && !string.Equals(filter.Status, "all", StringComparison.OrdinalIgnoreCase))
@@ -51,7 +94,7 @@ public class OutwardOrdersController : BaseController
 
         var total = await query.CountAsync();
         var rows = await query
-            .OrderByDescending(x => x.OrderDate)
+            .OrderByDescending(x => x.SalesOrder != null ? x.SalesOrder.OrderDate : x.CreatedAt)
             .ThenByDescending(x => x.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -107,9 +150,6 @@ public class OutwardOrdersController : BaseController
         var orders = requestedItems.Select(item => new OutwardOrder
         {
             SalesOrder = salesOrder,
-            OrderNumber = orderNumber,
-            OrderDate = normalizedOrderDate,
-            CustomerName = normalizedCustomerName,
             ProductId = item.ProductId,
             Quantity = item.Quantity,
             PickedQuantity = 0,
@@ -124,8 +164,9 @@ public class OutwardOrdersController : BaseController
         await _context.SaveChangesAsync();
 
         var createdOrders = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
             .Include(x => x.Product)
-            .Where(x => x.OrderNumber == orderNumber)
+            .Where(x => x.SalesOrderId == salesOrder.Id)
             .OrderBy(x => x.Id)
             .ToListAsync();
         var created = createdOrders.First();
@@ -283,9 +324,6 @@ public class OutwardOrdersController : BaseController
         var order = new OutwardOrder
         {
             SalesOrder = salesOrder,
-            OrderNumber = orderNumber,
-            OrderDate = now.Date,
-            CustomerName = salesOrder.CustomerName,
             ProductId = product.Id,
             Product = product,
             Quantity = pickQty,
@@ -504,7 +542,8 @@ public class OutwardOrdersController : BaseController
 
     private static string BuildCartonId(OutwardOrder order)
     {
-        return $"CTN-{order.OrderNumber.Replace("SO-", string.Empty)}";
+        var orderNumber = order.SalesOrder?.OrderNumber ?? $"ORD-{order.Id}";
+        return $"CTN-{orderNumber.Replace("SO-", string.Empty).Replace("DO-", string.Empty)}";
     }
 
     private async Task<(bool Success, string? Message)> DispatchOrderInternalAsync(
@@ -514,18 +553,18 @@ public class OutwardOrdersController : BaseController
         string performedByName)
     {
         if (order.Status == "Dispatched")
-            return (false, $"Order {order.OrderNumber} is already dispatched");
+            return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} is already dispatched");
 
         if (order.PickedQuantity < order.Quantity)
-            return (false, $"Order {order.OrderNumber} must be fully picked before dispatch");
+            return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully picked before dispatch");
 
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
         if (quantityRow == null)
-            return (false, $"Stock quantity row is missing for {order.Product?.Name ?? order.OrderNumber}");
+            return (false, $"Stock quantity row is missing for {order.Product?.Name ?? order.SalesOrder?.OrderNumber ?? order.Id.ToString()}");
 
         var currentQuantity = quantityRow.CurrentQuantity;
         if (currentQuantity < order.Quantity)
-            return (false, $"Only {currentQuantity} units are available in stock for {order.Product?.Name ?? order.OrderNumber}");
+            return (false, $"Only {currentQuantity} units are available in stock for {order.Product?.Name ?? order.SalesOrder?.OrderNumber ?? order.Id.ToString()}");
 
         quantityRow.CurrentQuantity -= order.Quantity;
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
@@ -538,7 +577,7 @@ public class OutwardOrdersController : BaseController
             QuantityAfter = quantityRow.CurrentQuantity,
             Reason = "Outward Dispatch",
             MovementType = "dispatch",
-            Notes = $"Outward order {order.OrderNumber} dispatched",
+            Notes = $"Outward order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} dispatched",
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,
             CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
@@ -598,18 +637,19 @@ public class OutwardOrdersController : BaseController
 
     private static OutwardOrderDto MapOrder(OutwardOrder row)
     {
+        var salesOrder = row.SalesOrder;
         return new OutwardOrderDto
         {
             Id = row.Id,
-            OrderNumber = row.OrderNumber,
+            OrderNumber = salesOrder?.OrderNumber ?? string.Empty,
             SalesOrderId = row.SalesOrderId,
-            SalesOrderStatus = row.SalesOrder?.Status ?? row.Status,
-            SalesOrderNotes = row.SalesOrder?.Notes,
-            SalesOrderCreatedAt = row.SalesOrder?.CreatedAt ?? row.CreatedAt,
-            SalesOrderUpdatedAt = row.SalesOrder?.UpdatedAt ?? row.UpdatedAt,
-            SalesOrderDispatchedAt = row.SalesOrder?.DispatchedAt,
-            OrderDate = row.OrderDate,
-            CustomerName = row.CustomerName,
+            SalesOrderStatus = salesOrder?.Status ?? row.Status,
+            SalesOrderNotes = salesOrder?.Notes,
+            SalesOrderCreatedAt = salesOrder?.CreatedAt ?? row.CreatedAt,
+            SalesOrderUpdatedAt = salesOrder?.UpdatedAt ?? row.UpdatedAt,
+            SalesOrderDispatchedAt = salesOrder?.DispatchedAt,
+            OrderDate = salesOrder?.OrderDate ?? row.CreatedAt,
+            CustomerName = salesOrder?.CustomerName ?? string.Empty,
             ProductId = row.ProductId,
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
@@ -623,6 +663,32 @@ public class OutwardOrdersController : BaseController
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             DispatchedAt = row.DispatchedAt,
+        };
+    }
+
+    private static SalesOrderDto MapSalesOrder(SalesOrder row)
+    {
+        var items = row.Items
+            .OrderBy(x => x.Id)
+            .Select(MapOrder)
+            .ToList();
+
+        return new SalesOrderDto
+        {
+            Id = row.Id,
+            OrderNumber = row.OrderNumber,
+            OrderDate = row.OrderDate,
+            CustomerName = row.CustomerName,
+            Status = row.Status,
+            Notes = row.Notes,
+            ItemCount = items.Count,
+            TotalQuantity = items.Sum(x => x.Quantity),
+            TotalPickedQuantity = items.Sum(x => x.PickedQuantity),
+            PendingQuantity = items.Sum(x => x.PendingQuantity),
+            CreatedAt = row.CreatedAt,
+            UpdatedAt = row.UpdatedAt,
+            DispatchedAt = row.DispatchedAt,
+            Items = items,
         };
     }
 

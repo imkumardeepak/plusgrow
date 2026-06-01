@@ -34,7 +34,9 @@ public class PackingCartonsController : BaseController
     [HttpPost]
     public async Task<ActionResult<ApiResponse<PackingCartonDto>>> CreateCarton([FromBody] CreatePackingCartonDto dto)
     {
-        var order = await _context.OutwardOrders.FindAsync(dto.OutwardOrderId);
+        var order = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
+            .FirstOrDefaultAsync(x => x.Id == dto.OutwardOrderId);
         if (order == null)
             return NotFound<PackingCartonDto>("Outward order not found");
 
@@ -134,8 +136,11 @@ public class PackingCartonsController : BaseController
 
     private async Task<string> GenerateCartonNumberAsync(int orderId)
     {
-        var order = await _context.OutwardOrders.FindAsync(orderId);
-        var prefix = order?.OrderNumber ?? $"ORD-{orderId}";
+        var order = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == orderId);
+        var prefix = order?.SalesOrder?.OrderNumber ?? $"ORD-{orderId}";
         var existingCount = await _context.PackingCartons
             .CountAsync(c => c.OutwardOrderId == orderId);
         var suffix = (existingCount + 1).ToString("000");

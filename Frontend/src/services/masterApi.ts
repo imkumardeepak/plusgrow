@@ -374,7 +374,7 @@ export interface PutAwayScanAssignmentResult {
 export interface OutwardOrder {
   id: number;
   orderNumber: string;
-  salesOrderId?: number;
+  salesOrderId: number;
   salesOrderStatus: "Open" | "Picking" | "Packed" | "Dispatched";
   salesOrderNotes?: string | null;
   salesOrderCreatedAt: string;
@@ -395,6 +395,23 @@ export interface OutwardOrder {
   createdAt: string;
   updatedAt: string;
   dispatchedAt?: string | null;
+}
+
+export interface SalesOrderRecord {
+  id: number;
+  orderNumber: string;
+  orderDate: string;
+  customerName: string;
+  status: "Open" | "Picking" | "Packed" | "Dispatched";
+  notes?: string | null;
+  itemCount: number;
+  totalQuantity: number;
+  totalPickedQuantity: number;
+  pendingQuantity: number;
+  createdAt: string;
+  updatedAt: string;
+  dispatchedAt?: string | null;
+  items: OutwardOrder[];
 }
 
 export interface CreateOutwardOrderDto {
@@ -1191,6 +1208,29 @@ export const productAllottedLocationsApi = {
 };
 
 export const outwardOrdersApi = {
+  getSalesOrders: async (filters: OutwardOrderFilters = {}): Promise<SalesOrderRecord[]> => {
+    const result = await outwardOrdersApi.getSalesOrderPaged({
+      page: filters.page ?? 1,
+      pageSize: filters.pageSize ?? 500,
+      ...filters,
+    });
+    return result.data;
+  },
+
+  getSalesOrderPaged: async (filters: OutwardOrderFilters = {}): Promise<PagedResult<SalesOrderRecord>> => {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.page) params.set('page', String(filters.page));
+    if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
+    const query = params.toString();
+    const response = await api.get<ApiResponse<SalesOrderRecord[]>>(`/outwardorders/sales-orders${query ? `?${query}` : ''}`);
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(filters.page, filters.pageSize),
+    };
+  },
+
   getAll: async (filters: OutwardOrderFilters = {}): Promise<OutwardOrder[]> => {
     const result = await outwardOrdersApi.getPaged({
       page: filters.page ?? 1,

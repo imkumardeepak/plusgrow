@@ -1475,7 +1475,7 @@ export const MPD = memo(function MPD() {
                     label="Manufacturer"
                     size="xs"
                     radius="md"
-                    placeholder="Default"
+                    placeholder="Select manufacturer"
                     value={printManufacturerId}
                     onChange={setPrintManufacturerId}
                     searchable

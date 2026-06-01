@@ -461,31 +461,6 @@ export const Inward = memo(function Inward() {
       ),
       width: 130,
     },
-    {
-      key: "actions",
-      header: "Action",
-      align: "right",
-      render: (row) => (
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <Tooltip label="View invoice items">
-            <ActionIcon
-              size="sm"
-              radius="md"
-              variant="light"
-              color="cyan"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedInvoiceSummary(row);
-              }}
-              aria-label="View invoice items"
-            >
-              <Eye size={15} />
-            </ActionIcon>
-          </Tooltip>
-        </Group>
-      ),
-      width: 80,
-    },
   ];
 
   useEffect(() => {
@@ -507,6 +482,19 @@ export const Inward = memo(function Inward() {
       isMounted = false;
     };
   }, [selectedPrintRow]);
+
+  useEffect(() => {
+    if (!selectedPrintRow) {
+      setManufacturerId(null);
+      return;
+    }
+
+    setManufacturerId(
+      selectedProduct?.manufacturerId
+        ? String(selectedProduct.manufacturerId)
+        : null,
+    );
+  }, [selectedPrintRow, selectedProduct]);
 
   const buildStickerPayload = useCallback(
     (row: PoInvoice, quantity: number) => ({
@@ -803,6 +791,9 @@ export const Inward = memo(function Inward() {
 
   const openPrintForRow = (row: PoInvoice) => {
     setSelectedPrintRow(row);
+    setImporterId(null);
+    setManufacturerSearch("");
+    setImporterSearch("");
   };
 
   const closeUploadModal = () => {
@@ -1397,7 +1388,7 @@ export const Inward = memo(function Inward() {
                     label="Manufacturer"
                     size="xs"
                     radius="md"
-                    placeholder="Default"
+                    placeholder="Select manufacturer"
                     value={manufacturerId}
                     onChange={setManufacturerId}
                     searchable

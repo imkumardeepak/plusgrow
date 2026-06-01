@@ -10,20 +10,11 @@ public class OutwardOrder
     [Column("id")]
     public int Id { get; set; }
 
-    [Column("order_number")]
-    public string OrderNumber { get; set; } = string.Empty;
-
     [Column("sales_order_id")]
     public int SalesOrderId { get; set; }
 
     [ForeignKey(nameof(SalesOrderId))]
     public SalesOrder? SalesOrder { get; set; }
-
-    [Column("order_date")]
-    public DateTime OrderDate { get; set; }
-
-    [Column("customer_name")]
-    public string CustomerName { get; set; } = string.Empty;
 
     [Column("product_id")]
     public int ProductId { get; set; }
