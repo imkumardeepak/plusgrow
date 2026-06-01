@@ -135,6 +135,13 @@ public class ProductsController : BaseController
             var allSkus = rows
                 .Select(r => GetCell(r, "SKU").GetString()?.Trim())
                 .Where(s => !string.IsNullOrEmpty(s))
+                .Select(s => s!.ToUpperInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var allProductNames = rows
+                .Select(r => GetCell(r, "Product Name").GetString()?.Trim())
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!.ToUpperInvariant())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // ─── 2. BULK LOAD existing data ──────────────────────────────────────
@@ -147,8 +154,13 @@ public class ProductsController : BaseController
                 .ToDictionaryAsync(c => c.Name, StringComparer.OrdinalIgnoreCase);
 
             var existingSkus = await _context.Products
-                .Where(p => p.Sku != null && allSkus.Contains(p.Sku))
-                .Select(p => p.Sku!)
+                .Where(p => p.Sku != null && allSkus.Contains(p.Sku.ToUpper()))
+                .Select(p => p.Sku!.ToUpper())
+                .ToHashSetAsync(StringComparer.OrdinalIgnoreCase);
+
+            var existingProductNames = await _context.Products
+                .Where(p => allProductNames.Contains(p.Name.ToUpper()))
+                .Select(p => p.Name.ToUpper())
                 .ToHashSetAsync(StringComparer.OrdinalIgnoreCase);
 
             // ─── 3. CREATE missing manufacturers & commodities in bulk ─────────────
@@ -182,6 +194,7 @@ public class ProductsController : BaseController
             var newProducts = new List<Product>();
             var rowProductMap = new List<(IXLRangeRow Row, Product Product)>();
             var processedSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var processedProductNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in rows)
             {
@@ -214,19 +227,34 @@ public class ProductsController : BaseController
                         continue;
                     }
 
-                    if (existingSkus.Contains(sku))
+                    var normalizedSku = sku.ToUpperInvariant();
+                    var normalizedProductName = productName.ToUpperInvariant();
+
+                    if (existingSkus.Contains(normalizedSku))
                     {
                         result.SkippedRows.Add(new SkippedRowInfo
                         {
                             RowNumber = row.RowNumber(),
                             Sku = sku,
                             ProductName = productName,
-                            Reason = "SKU already exists in database"
+                            Reason = "Product already exists in master with this SKU"
                         });
                         continue;
                     }
 
-                    if (processedSkus.Contains(sku))
+                    if (existingProductNames.Contains(normalizedProductName))
+                    {
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productName,
+                            Reason = "Product already exists in master with this Product Name"
+                        });
+                        continue;
+                    }
+
+                    if (processedSkus.Contains(normalizedSku))
                     {
                         result.SkippedRows.Add(new SkippedRowInfo
                         {
@@ -237,7 +265,20 @@ public class ProductsController : BaseController
                         });
                         continue;
                     }
-                    processedSkus.Add(sku);
+                    processedSkus.Add(normalizedSku);
+
+                    if (processedProductNames.Contains(normalizedProductName))
+                    {
+                        result.SkippedRows.Add(new SkippedRowInfo
+                        {
+                            RowNumber = row.RowNumber(),
+                            Sku = sku,
+                            ProductName = productName,
+                            Reason = "Duplicate Product Name in this file"
+                        });
+                        continue;
+                    }
+                    processedProductNames.Add(normalizedProductName);
 
                     existingManufacturers.TryGetValue(
                         GetCell(row, "Manufacturer Name").GetString()?.Trim() ?? "", out var manufacturer);
