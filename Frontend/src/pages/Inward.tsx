@@ -83,7 +83,7 @@ const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const labelModeText: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
-  Manufacture: "Manufactured By",
+  Manufacture: "Marketed By / Manufacture By",
 };
 
 const defaultToDate = format(new Date(), "yyyy-MM-dd");

@@ -33,7 +33,7 @@ import {
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
-import { toast } from "sonner";
+import { toast } from "../lib/toast";
 
 type ViewMode = "2d" | "3d";
 

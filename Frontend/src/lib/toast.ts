@@ -13,6 +13,8 @@ interface ToastPromiseMessages<T> {
   error: string | ((error: unknown) => string);
 }
 
+const DEFAULT_TOAST_DURATION = 1000;
+
 function showToast(
   color: "green" | "red" | "blue" | "yellow",
   message: string,
@@ -21,7 +23,7 @@ function showToast(
   notifications.show({
     color,
     icon: options?.icon,
-    autoClose: options?.duration,
+    autoClose: options?.duration ?? DEFAULT_TOAST_DURATION,
     title: options?.description ? message : undefined,
     message: options?.description ?? message,
   });
@@ -56,7 +58,7 @@ export const toast = {
       notifications.update({
         id,
         loading: false,
-        autoClose: 4000,
+        autoClose: DEFAULT_TOAST_DURATION,
         color: "green",
         message: typeof messages.success === "function" ? messages.success(result) : messages.success,
       });
@@ -65,7 +67,7 @@ export const toast = {
       notifications.update({
         id,
         loading: false,
-        autoClose: 5000,
+        autoClose: DEFAULT_TOAST_DURATION,
         color: "red",
         message: typeof messages.error === "function" ? messages.error(error) : messages.error,
       });

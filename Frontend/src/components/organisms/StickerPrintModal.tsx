@@ -49,7 +49,7 @@ type StickerMode = "Combined" | "Separate" | "Manufacture";
 const stickerModeLabel: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
-  Manufacture: "Manufactured By",
+  Manufacture: "Marketed By / Manufacture By",
 };
 
 export function StickerPrintModal({
