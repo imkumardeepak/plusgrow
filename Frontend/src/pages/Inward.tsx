@@ -284,12 +284,22 @@ export const Inward = memo(function Inward() {
   }, []);
 
   useEffect(() => {
-    void loadInvoiceRows({
-      search,
-      status: statusFilter,
-      fromDate,
-      toDate,
-    });
+    const fetchRows = () => {
+      void loadInvoiceRows({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      });
+    };
+
+    fetchRows();
+
+    const interval = setInterval(() => {
+      fetchRows();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
 
   const productOptions = useMemo(

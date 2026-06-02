@@ -48,6 +48,7 @@ export function DashboardLayout({
 
   const resolvedUserName = authUser?.fullName ?? authUser?.full_name ?? "User";
   const resolvedUserRole = authUser?.roleName ?? authUser?.role?.name ?? "User";
+  const isPartyRole = resolvedUserRole.trim().toLowerCase() === "party";
   const pageEyebrow =
     pageTitle ?? breadcrumbs?.[breadcrumbs.length - 1]?.label ?? "Operations";
 
@@ -69,9 +70,9 @@ export function DashboardLayout({
       padding={0}
       header={{ height: { base: 76, md: 84 } }}
       navbar={{
-        width: { base: "100%", md: 240, lg: 240 },
+        width: isPartyRole ? 0 : { base: "100%", md: 240, lg: 240 },
         breakpoint: "md",
-        collapsed: { mobile: !mobileMenuOpen, desktop: false },
+        collapsed: { mobile: isPartyRole || !mobileMenuOpen, desktop: isPartyRole },
       }}
       withBorder={false}
       transitionDuration={180}
@@ -81,11 +82,14 @@ export function DashboardLayout({
           "radial-gradient(circle at top left, rgba(35, 196, 255, 0.16), transparent 24%), radial-gradient(circle at top right, rgba(62, 99, 221, 0.18), transparent 26%), linear-gradient(180deg, #0f1726 0%, #0b1320 48%, #070d18 100%)",
       }}
     >
-      <Sidebar onMobileClose={() => setMobileMenuOpen(false)} />
+      {isPartyRole ? null : (
+        <Sidebar onMobileClose={() => setMobileMenuOpen(false)} />
+      )}
 
       <AppShell.Header withBorder={false} bg="transparent">
         <Header
           onMenuClick={() => setMobileMenuOpen(true)}
+          showMenuButton={!isPartyRole}
           onSync={refreshData}
           isSyncing={isLoading}
           userName={resolvedUserName}

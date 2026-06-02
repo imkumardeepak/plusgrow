@@ -65,3 +65,37 @@ public class DashboardMovementDto
     public string Reason { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+public class PartyDashboardSummaryDto
+{
+    public string PartyName { get; set; } = string.Empty;
+    public string PartyEmail { get; set; } = string.Empty;
+    public int ProductCount { get; set; }
+    public int TotalStockQuantity { get; set; }
+    public int LocatedQuantity { get; set; }
+    public int UnlocatedQuantity { get; set; }
+    public List<PartyDashboardProductDto> Products { get; set; } = new();
+}
+
+public class PartyDashboardProductDto
+{
+    public int ProductId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
+    public string? CommodityName { get; set; }
+    public string? ManufacturerName { get; set; }
+    public string? CountryOfOrigin { get; set; }
+    public string? NetQuantity { get; set; }
+    public string? UnitType { get; set; }
+    public decimal? Mrp { get; set; }
+    public decimal? Weight { get; set; }
+    public int CurrentQuantity { get; set; }
+    public List<PartyDashboardLocationDto> Locations { get; set; } = new();
+}
+
+public class PartyDashboardLocationDto
+{
+    public string LocationCode { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+}

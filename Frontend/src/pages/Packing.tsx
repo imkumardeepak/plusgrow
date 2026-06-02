@@ -61,6 +61,7 @@ export const Packing = memo(function Packing() {
   const [scanTone, setScanTone] = useState<ScanTone>("idle");
   const [isLoading, setIsLoading] = useState(true);
   const [isPacking, setIsPacking] = useState(false);
+  const [isMarkingPacked, setIsMarkingPacked] = useState(false);
   const [cartons, setCartons] = useState<PackingCarton[]>([]);
   const [activeCartonId, setActiveCartonId] = useState<number | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
@@ -272,6 +273,36 @@ export const Packing = memo(function Packing() {
       toast.success(`${carton.cartonNumber} marked as ready`);
     } catch (error: any) {
       toast.error(error.message || "Failed to mark ready");
+    }
+  };
+
+  const handleMarkPacked = async () => {
+    if (!activeOrder) {
+      toast.error("Select order first");
+      return;
+    }
+
+    try {
+      setIsMarkingPacked(true);
+      const carton = await packingCartonsApi.markOrderPacked(activeOrder.id);
+      setCartons((current) => {
+        const exists = current.some((item) => item.id === carton.id);
+        if (exists) {
+          return current.map((item) => (item.id === carton.id ? carton : item));
+        }
+        return [...current, carton];
+      });
+      setOrders((current) => current.filter((item) => item.id !== activeOrder.id));
+      setLastScanCode("");
+      setLastScanMessage("Marked packed without box packing.");
+      setScanTone("success");
+      toast.success(`${activeOrder.skuCode} marked as packed`);
+    } catch (error: any) {
+      setScanTone("error");
+      setLastScanMessage(error.message || "Failed to mark packed.");
+      toast.error(error.message || "Failed to mark packed");
+    } finally {
+      setIsMarkingPacked(false);
     }
   };
 
@@ -498,10 +529,15 @@ export const Packing = memo(function Packing() {
 
                 {/* Progress */}
                 <Paper radius="md" p="sm" withBorder>
-                  <Group justify="space-between">
-                    <Text size="xs" fw={700}>
-                      Active Item Packing Progress
-                    </Text>
+                  <Group justify="space-between" align="flex-start" gap="sm">
+                    <Box>
+                      <Text size="xs" fw={700}>
+                        Active Item Packing Progress
+                      </Text>
+                      <Text size="11px" c="dimmed" mt={2}>
+                        Pack into cartons or mark packed without box packing.
+                      </Text>
+                    </Box>
                     <Text size="xs" fw={800}>
                       {packedInCartons} / {activeOrder.quantity}
                     </Text>
@@ -519,6 +555,19 @@ export const Packing = memo(function Packing() {
                     {activeOrder.alias ? ` / ${activeOrder.alias}` : ""} · {cartons.length} cartons ·{" "}
                     {readyCartons} ready
                   </Text>
+                  <Group justify="flex-end" mt="sm">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => void handleMarkPacked()}
+                      loading={isMarkingPacked}
+                      disabled={isFullyPacked}
+                      leftIcon={<CheckCircle2 size={14} />}
+                      className={isMobile ? "w-full" : ""}
+                    >
+                      Mark Packed
+                    </Button>
+                  </Group>
                 </Paper>
 
                 {/* Carton List */}
@@ -663,7 +712,7 @@ export const Packing = memo(function Packing() {
                         : "Select a carton to scan"}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       ref={scanInputRef}
                       value={scanCode}
@@ -684,16 +733,29 @@ export const Packing = memo(function Packing() {
                       disabled={!activeCartonId || isFullyPacked}
                       className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
                     />
-                    <Button
-                      onClick={() => void handlePackScan()}
-                      loading={isPacking}
-                      disabled={!activeCartonId || isFullyPacked}
-                      size="xs"
-                      leftIcon={<Package className="h-3.5 w-3.5" />}
-                      className="h-9"
-                    >
-                      Pack
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2 sm:flex">
+                      <Button
+                        onClick={() => void handlePackScan()}
+                        loading={isPacking}
+                        disabled={!activeCartonId || isFullyPacked}
+                        size="xs"
+                        leftIcon={<Package className="h-3.5 w-3.5" />}
+                        className="h-9"
+                      >
+                        Pack
+                      </Button>
+                      <Button
+                        onClick={() => void handleMarkPacked()}
+                        loading={isMarkingPacked}
+                        disabled={isFullyPacked}
+                        size="xs"
+                        variant="outline"
+                        leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
+                        className="h-9"
+                      >
+                        Mark Packed
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Status Message */}

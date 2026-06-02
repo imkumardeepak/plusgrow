@@ -510,6 +510,37 @@ export interface DashboardMovement {
   createdAt: string;
 }
 
+export interface PartyDashboardLocation {
+  locationCode: string;
+  quantity: number;
+}
+
+export interface PartyDashboardProduct {
+  productId: number;
+  skuCode: string;
+  productName: string;
+  alias?: string | null;
+  commodityName?: string | null;
+  manufacturerName?: string | null;
+  countryOfOrigin?: string | null;
+  netQuantity?: string | null;
+  unitType?: string | null;
+  mrp?: number | null;
+  weight?: number | null;
+  currentQuantity: number;
+  locations: PartyDashboardLocation[];
+}
+
+export interface PartyDashboardSummary {
+  partyName: string;
+  partyEmail: string;
+  productCount: number;
+  totalStockQuantity: number;
+  locatedQuantity: number;
+  unlocatedQuantity: number;
+  products: PartyDashboardProduct[];
+}
+
 export interface DashboardSummary {
   productCount: number;
   commodityCount: number;
@@ -1309,6 +1340,12 @@ export const packingCartonsApi = {
     return response.data.data!;
   },
 
+  markOrderPacked: async (orderId: number): Promise<PackingCarton> => {
+    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/by-order/${orderId}/mark-packed`);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
   delete: async (cartonId: number): Promise<void> => {
     await api.delete(`/packingcartons/${cartonId}`);
   },
@@ -1318,6 +1355,14 @@ export const dashboardApi = {
   getSummary: async (): Promise<DashboardSummary> => {
     const response = await api.get<ApiResponse<DashboardSummary>>('/dashboard/summary');
     if (!response.data.success) throw new Error(response.data.message || 'Error loading dashboard summary');
+    return response.data.data!;
+  },
+};
+
+export const partyDashboardApi = {
+  getSummary: async (): Promise<PartyDashboardSummary> => {
+    const response = await api.get<ApiResponse<PartyDashboardSummary>>('/partydashboard');
+    if (!response.data.success) throw new Error(response.data.message || 'Error loading party dashboard');
     return response.data.data!;
   },
 };

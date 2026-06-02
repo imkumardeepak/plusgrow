@@ -60,6 +60,7 @@ import {
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 import { useAuth } from "../context/AuthContext";
+import { PartyDashboard } from "./PartyDashboard";
 
 interface MetricCard {
   title: string;
@@ -122,6 +123,8 @@ const orderPendingQuantity = (order: DashboardDispatchQueue) =>
 
 export const Dashboard = memo(function Dashboard() {
   const { user, hasPermission } = useAuth();
+  const roleName = (user?.roleName ?? user?.role?.name ?? "").trim().toLowerCase();
+  const isPartyRole = roleName === "party";
   const [summary, setSummary] = useState<DashboardSummary>(emptySummary);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -137,6 +140,9 @@ export const Dashboard = memo(function Dashboard() {
       setError(null);
 
       try {
+        if (isPartyRole) {
+          return;
+        }
         const nextSummary = await dashboardApi.getSummary();
         if (isMounted) setSummary(nextSummary);
       } catch (loadError) {
@@ -156,7 +162,7 @@ export const Dashboard = memo(function Dashboard() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isPartyRole]);
 
   const metrics: MetricCard[] = useMemo(
     () => [
@@ -305,9 +311,7 @@ export const Dashboard = memo(function Dashboard() {
     [quantityMixLabels, totalMixQuantity],
   );
 
-  const isPickingRole =
-    (user?.roleName ?? user?.role?.name ?? "").trim().toLowerCase() ===
-    "picking";
+  const isPickingRole = roleName === "picking";
 
   const mobileLauncherCards = useMemo(
     () =>
@@ -380,6 +384,10 @@ export const Dashboard = memo(function Dashboard() {
       ].filter((item) => item.visible),
     [hasPermission],
   );
+
+  if (isPartyRole) {
+    return <PartyDashboard />;
+  }
 
   if (isLoading) {
     return (

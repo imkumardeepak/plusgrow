@@ -152,9 +152,22 @@ export const MPD = memo(function MPD() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  useEffect(() => {
-    loadData();
+  const refreshTableData = useCallback(async () => {
+    try {
+      const productsData = await productsApi.getAll();
+      setProducts(productsData);
+    } catch (error: any) {
+      console.error("Failed to auto-refresh product list:", error);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadData();
+    const interval = setInterval(() => {
+      void refreshTableData();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [refreshTableData]);
 
   const loadData = async () => {
     try {

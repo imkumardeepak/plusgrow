@@ -30,6 +30,7 @@ import type { RealtimeNotification } from "../../../../context/NotificationConte
 
 export interface HeaderProps {
   onMenuClick?: () => void;
+  showMenuButton?: boolean;
   isSyncing?: boolean;
   onSync?: () => void;
   userName?: string;
@@ -58,6 +59,7 @@ function formatNotificationTime(value: string) {
 
 export function Header({
   onMenuClick,
+  showMenuButton = true,
   isSyncing = false,
   onSync,
   userName = "John Doe",
@@ -88,13 +90,15 @@ export function Header({
     >
       <Group justify="space-between" wrap="nowrap" h="100%" gap="sm">
         <Group gap={10} wrap="nowrap" style={{ minWidth: 0 }}>
-          <Burger
-            hiddenFrom="md"
-            opened={false}
-            onClick={onMenuClick}
-            aria-label="Open navigation"
-            size="sm"
-          />
+          {showMenuButton ? (
+            <Burger
+              hiddenFrom="md"
+              opened={false}
+              onClick={onMenuClick}
+              aria-label="Open navigation"
+              size="sm"
+            />
+          ) : null}
 
           <Group
             gap={8}

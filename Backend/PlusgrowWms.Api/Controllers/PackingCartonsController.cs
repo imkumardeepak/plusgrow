@@ -121,6 +121,70 @@ public class PackingCartonsController : BaseController
         return Success(MapCarton(carton), "Carton marked as ready");
     }
 
+    [HttpPost("by-order/{orderId}/mark-packed")]
+    public async Task<ActionResult<ApiResponse<PackingCartonDto>>> MarkOrderPacked(int orderId)
+    {
+        var order = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
+            .FirstOrDefaultAsync(x => x.Id == orderId);
+        if (order == null)
+            return NotFound<PackingCartonDto>("Outward order not found");
+
+        if (order.Status != "Packed")
+            return BadRequest<PackingCartonDto>("Order must be fully picked before it can be marked packed");
+
+        var cartons = await _context.PackingCartons
+            .Where(c => c.OutwardOrderId == orderId)
+            .ToListAsync();
+
+        var packedQuantity = cartons.Sum(c => c.Quantity);
+        var remainingQuantity = Math.Max(order.Quantity - packedQuantity, 0);
+
+        PackingCarton carton;
+        if (remainingQuantity > 0)
+        {
+            carton = new PackingCarton
+            {
+                OutwardOrderId = orderId,
+                CartonNumber = await GenerateNoBoxCartonNumberAsync(orderId),
+                Quantity = remainingQuantity,
+                Status = "Ready",
+                CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            };
+            _context.PackingCartons.Add(carton);
+        }
+        else
+        {
+            carton = cartons
+                .OrderByDescending(c => c.UpdatedAt)
+                .ThenByDescending(c => c.Id)
+                .FirstOrDefault()
+                ?? new PackingCarton
+                {
+                    OutwardOrderId = orderId,
+                    CartonNumber = await GenerateNoBoxCartonNumberAsync(orderId),
+                    Quantity = 0,
+                    CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                };
+
+            carton.Status = "Ready";
+            carton.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            if (carton.Id == 0)
+                _context.PackingCartons.Add(carton);
+        }
+
+        foreach (var openCarton in cartons.Where(c => c.Quantity > 0 && c.Status == "Open"))
+        {
+            openCarton.Status = "Ready";
+            openCarton.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Success(MapCarton(carton), "Order marked as packed");
+    }
+
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> DeleteCarton(int id)
     {
@@ -145,6 +209,19 @@ public class PackingCartonsController : BaseController
             .CountAsync(c => c.OutwardOrderId == orderId);
         var suffix = (existingCount + 1).ToString("000");
         return $"{prefix}-CTN-{suffix}";
+    }
+
+    private async Task<string> GenerateNoBoxCartonNumberAsync(int orderId)
+    {
+        var order = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == orderId);
+        var prefix = order?.SalesOrder?.OrderNumber ?? $"ORD-{orderId}";
+        var existingCount = await _context.PackingCartons
+            .CountAsync(c => c.OutwardOrderId == orderId && c.CartonNumber.Contains("-NOBOX-"));
+        var suffix = (existingCount + 1).ToString("000");
+        return $"{prefix}-NOBOX-{suffix}";
     }
 
     private static PackingCartonDto MapCarton(PackingCarton carton)
