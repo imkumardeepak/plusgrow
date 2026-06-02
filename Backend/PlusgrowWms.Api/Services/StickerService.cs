@@ -37,17 +37,21 @@ public class StickerService : IStickerService
             throw new Exception("Product not found");
         }
 
+        var isSkuOnlySticker = string.Equals(request.Size, "25x25", StringComparison.OrdinalIgnoreCase);
         var missingFields = new List<string>();
-        if (string.IsNullOrWhiteSpace(product.Name)) missingFields.Add("Product Name");
         if (string.IsNullOrWhiteSpace(product.Sku)) missingFields.Add("SKU");
-        if (product.CommodityId == null || product.Commodity == null) missingFields.Add("Commodity");
-        if (product.ManufacturerId == null && !request.ManufacturerId.HasValue) missingFields.Add("Manufacturer");
-        if (string.IsNullOrWhiteSpace(product.CountryOfOrigin)) missingFields.Add("Country of Origin");
-        if (string.IsNullOrWhiteSpace(product.NetQuantity)) missingFields.Add("Net Quantity");
-        if (string.IsNullOrWhiteSpace(product.UnitType)) missingFields.Add("Unit Type");
-        if (product.Mrp == null || product.Mrp <= 0) missingFields.Add("MRP");
-        if (product.BestBeforeMonths <= 0) missingFields.Add("Best Before Months");
-        if (string.IsNullOrWhiteSpace(product.Factor)) missingFields.Add("Factor");
+        if (!isSkuOnlySticker)
+        {
+            if (string.IsNullOrWhiteSpace(product.Name)) missingFields.Add("Product Name");
+            if (product.CommodityId == null || product.Commodity == null) missingFields.Add("Commodity");
+            if (product.ManufacturerId == null && !request.ManufacturerId.HasValue) missingFields.Add("Manufacturer");
+            if (string.IsNullOrWhiteSpace(product.CountryOfOrigin)) missingFields.Add("Country of Origin");
+            if (string.IsNullOrWhiteSpace(product.NetQuantity)) missingFields.Add("Net Quantity");
+            if (string.IsNullOrWhiteSpace(product.UnitType)) missingFields.Add("Unit Type");
+            if (product.Mrp == null || product.Mrp <= 0) missingFields.Add("MRP");
+            if (product.BestBeforeMonths <= 0) missingFields.Add("Best Before Months");
+            if (string.IsNullOrWhiteSpace(product.Factor)) missingFields.Add("Factor");
+        }
 
         if (missingFields.Count > 0)
         {
@@ -94,8 +98,9 @@ public class StickerService : IStickerService
             : "IMPORTED & MARKETED BY";
         var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
 
-        var itemDescriptionLines = WrapText(product.Name, 25, 2);
-        var compactItemLines = WrapText(product.Name, 25, 2);
+        var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
+        var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
+        var compactItemLines = WrapText(stickerProductName, 25, 2);
         var noteLines = WrapText(product.Note, 30, 2);
 
         var values = new Dictionary<string, string>
@@ -144,6 +149,7 @@ public class StickerService : IStickerService
     public async Task<byte[]> GetPreviewImageAsync(string zpl, string size)
     {
         string labelSize = "2x2";
+        if (size == "38x38") labelSize = "1.5x1.5";
         if (size == "60x60") labelSize = "2.4x2.4";
         if (size == "75x75") labelSize = "3x3";
         if (size == "25x25") labelSize = "4x1";
@@ -175,7 +181,10 @@ public class StickerService : IStickerService
             new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" },
             new StickerTemplateDto { Name = "Manufactured By 75 x 75", Size = "75x75", Type = "Manufacture", FileName = "MANUFACTREDBY-75x75.prn" },
             new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Combined", FileName = "Product-25x25x4-300.prn" },
-            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-300.prn" }
+            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-300.prn" },
+            new StickerTemplateDto { Name = "Imported & Marketed By 38 x 38", Size = "38x38", Type = "Combined", FileName = "IMPORTED_MARKTED-38x38.prn" },
+            new StickerTemplateDto { Name = "Imported By + Marketed By 38 x 38", Size = "38x38", Type = "Separate", FileName = "MARKTEDBY-38x38.prn" },
+            new StickerTemplateDto { Name = "Manufactured By 38 x 38", Size = "38x38", Type = "Manufacture", FileName = "MANUFACTREDBY-38x38.prn" }
         ];
     }
 
@@ -223,6 +232,7 @@ public class StickerService : IStickerService
             "Separate" => $"MARKTEDBY-{size}.prn",
             "Manufacture" => size switch
             {
+                "38x38" => "MANUFACTREDBY-38x38.prn",
                 "50x50" => "MANUFATUREBY-50x50.prn",
                 "60x60" => "MANUFATUREBY-60x60.prn",
                 "75x75" => "MANUFACTREDBY-75x75.prn",

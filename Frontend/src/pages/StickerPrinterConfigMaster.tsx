@@ -42,6 +42,7 @@ import {
 
 const STICKER_SIZES = [
   { value: "25x25", label: "25 x 25 MM" },
+  { value: "38x38", label: "38 x 38 MM" },
   { value: "50x50", label: "50 x 50 MM" },
   { value: "60x60", label: "60 x 60 MM" },
   { value: "75x75", label: "75 x 75 MM" },

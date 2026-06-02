@@ -60,10 +60,15 @@ export interface Product {
   createdAt: string;
 }
 
-export function validateProductForSticker(product: Product): string[] {
+export function validateProductForSticker(
+  product: Product,
+  stickerSize?: string,
+): string[] {
   const errors: string[] = [];
-  if (!product.name?.trim()) errors.push("Product Name");
   if (!product.sku?.trim()) errors.push("SKU");
+  if (stickerSize === "25x25") return errors;
+
+  if (!product.name?.trim()) errors.push("Product Name");
   if (!product.commodityId && !product.commodity?.name) errors.push("Commodity");
   if (!product.manufacturerId && !product.manufacturer?.name) errors.push("Manufacturer");
   if (!product.countryOfOrigin?.trim()) errors.push("Country of Origin");

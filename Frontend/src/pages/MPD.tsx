@@ -1449,6 +1449,7 @@ export const MPD = memo(function MPD() {
                       onChange={setStickerSize}
                       data={[
                         { value: "25x25", label: "25x25" },
+                        { value: "38x38", label: "38x38" },
                         { value: "50x50", label: "50x50" },
                         { value: "60x60", label: "60x60" },
                         { value: "75x75", label: "75x75" },

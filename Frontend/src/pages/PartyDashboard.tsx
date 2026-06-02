@@ -8,9 +8,11 @@ import {
   Loader,
   Paper,
   ScrollArea,
+  Select,
   SimpleGrid,
   Stack,
   Table,
+  Tabs,
   Text,
   TextInput,
   ThemeIcon,
@@ -18,6 +20,7 @@ import {
 import {
   IconAlertTriangle,
   IconBox,
+  IconClipboardCheck,
   IconMapPin,
   IconPackage,
   IconSearch,
@@ -71,6 +74,9 @@ const LocationList = ({ product }: { product: PartyDashboardProduct }) => {
 export const PartyDashboard = memo(function PartyDashboard() {
   const [summary, setSummary] = useState<PartyDashboardSummary>(emptySummary);
   const [search, setSearch] = useState("");
+  const [stockCheckProductId, setStockCheckProductId] = useState<string | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -118,6 +124,21 @@ export const PartyDashboard = memo(function PartyDashboard() {
       );
     });
   }, [search, summary.products]);
+
+  const stockCheckOptions = useMemo(() => {
+    return summary.products.map((product) => ({
+      value: product.productId.toString(),
+      label: `${product.skuCode || "N/A"} - ${product.productName}`,
+    }));
+  }, [summary.products]);
+
+  const stockCheckProduct = useMemo(() => {
+    return (
+      summary.products.find(
+        (product) => product.productId.toString() === stockCheckProductId,
+      ) ?? null
+    );
+  }, [stockCheckProductId, summary.products]);
 
   if (isLoading) {
     return (
@@ -229,85 +250,172 @@ export const PartyDashboard = memo(function PartyDashboard() {
         </Card>
       </SimpleGrid>
 
-      <Card withBorder radius="md" p={0}>
-        <Group justify="space-between" p="md" pb="xs" gap="md">
-          <Group gap="xs">
-            <IconBox size={18} color="var(--mantine-color-cyan-4)" />
-            <Text fw={800}>My Products</Text>
-            <Badge variant="light">{filteredProducts.length} rows</Badge>
-          </Group>
-          <TextInput
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-            placeholder="Search SKU, product, location..."
-            leftSection={<IconSearch size={15} />}
-            size="xs"
-            radius="md"
-            w={{ base: "100%", sm: 280 }}
-          />
-        </Group>
+      <Tabs defaultValue="ledger" variant="pills" radius="md">
+        <Tabs.List mb="md">
+          <Tabs.Tab value="ledger" leftSection={<IconBox size={16} />}>
+            Stock Ledger
+          </Tabs.Tab>
+          <Tabs.Tab
+            value="stock-check"
+            leftSection={<IconClipboardCheck size={16} />}
+          >
+            Stock Check
+          </Tabs.Tab>
+        </Tabs.List>
 
-        <ScrollArea>
-          <Table striped highlightOnHover miw={920}>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>SKU</Table.Th>
-                <Table.Th>Product</Table.Th>
-                <Table.Th>Details</Table.Th>
-                <Table.Th ta="right">Stock</Table.Th>
-                <Table.Th>Location</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {filteredProducts.map((product) => (
-                <Table.Tr key={product.productId}>
-                  <Table.Td>
-                    <Badge variant="light" color="gray">
-                      {product.skuCode || "N/A"}
+        <Tabs.Panel value="ledger">
+          <Card withBorder radius="md" p={0}>
+            <Group justify="space-between" p="md" pb="xs" gap="md">
+              <Group gap="xs">
+                <IconBox size={18} color="var(--mantine-color-cyan-4)" />
+                <Text fw={800}>My Products</Text>
+                <Badge variant="light">{filteredProducts.length} rows</Badge>
+              </Group>
+              <TextInput
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search SKU, product, location..."
+                leftSection={<IconSearch size={15} />}
+                size="xs"
+                radius="md"
+                w={{ base: "100%", sm: 280 }}
+              />
+            </Group>
+
+            <ScrollArea>
+              <Table striped highlightOnHover miw={920}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>SKU</Table.Th>
+                    <Table.Th>Product</Table.Th>
+                    <Table.Th>Details</Table.Th>
+                    <Table.Th ta="right">Stock</Table.Th>
+                    <Table.Th>Location</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {filteredProducts.map((product) => (
+                    <Table.Tr key={product.productId}>
+                      <Table.Td>
+                        <Badge variant="light" color="gray">
+                          {product.skuCode || "N/A"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={800} lineClamp={1}>
+                          {product.productName}
+                        </Text>
+                        <Text size="xs" c="dimmed" lineClamp={1}>
+                          {product.alias || "No alias"}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs" fw={700}>
+                          {product.commodityName || "No commodity"}
+                        </Text>
+                        <Text size="11px" c="dimmed">
+                          {product.netQuantity || "-"} {product.unitType || ""}
+                          {product.mrp ? ` · MRP ${product.mrp}` : ""}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td ta="right">
+                        <Text fw={900} c="cyan.3">
+                          {formatNumber(product.currentQuantity)}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <LocationList product={product} />
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                  {filteredProducts.length === 0 ? (
+                    <Table.Tr>
+                      <Table.Td colSpan={5}>
+                        <Center py="xl">
+                          <Text size="sm" c="dimmed">
+                            No products match this view.
+                          </Text>
+                        </Center>
+                      </Table.Td>
+                    </Table.Tr>
+                  ) : null}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Card>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="stock-check">
+          <Card withBorder radius="md" p="md">
+            <Stack gap="md">
+              <Group justify="space-between" align="flex-start" gap="md">
+                <Group gap="xs">
+                  <IconClipboardCheck
+                    size={18}
+                    color="var(--mantine-color-cyan-4)"
+                  />
+                  <Text fw={800}>Stock Check</Text>
+                </Group>
+                <Select
+                  value={stockCheckProductId}
+                  onChange={setStockCheckProductId}
+                  data={stockCheckOptions}
+                  placeholder="Select SKU or product"
+                  searchable
+                  clearable
+                  leftSection={<IconSearch size={15} />}
+                  radius="md"
+                  w={{ base: "100%", sm: 360 }}
+                />
+              </Group>
+
+              {stockCheckProduct ? (
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+                  <Card withBorder radius="md" p="md">
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Product
+                    </Text>
+                    <Text fw={900} mt={6} lineClamp={2}>
+                      {stockCheckProduct.productName}
+                    </Text>
+                    <Badge mt="xs" variant="light" color="gray">
+                      {stockCheckProduct.skuCode || "N/A"}
                     </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" fw={800} lineClamp={1}>
-                      {product.productName}
+                  </Card>
+
+                  <Card withBorder radius="md" p="md">
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Current Stock
                     </Text>
-                    <Text size="xs" c="dimmed" lineClamp={1}>
-                      {product.alias || "No alias"}
+                    <Text fz={30} fw={900} c="cyan.3" mt={2}>
+                      {formatNumber(stockCheckProduct.currentQuantity)}
                     </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs" fw={700}>
-                      {product.commodityName || "No commodity"}
+                    <Text size="xs" c="dimmed">
+                      {stockCheckProduct.netQuantity || "-"}{" "}
+                      {stockCheckProduct.unitType || ""}
                     </Text>
-                    <Text size="11px" c="dimmed">
-                      {product.netQuantity || "-"} {product.unitType || ""}
-                      {product.mrp ? ` · MRP ${product.mrp}` : ""}
+                  </Card>
+
+                  <Card withBorder radius="md" p="md">
+                    <Text size="xs" c="dimmed" fw={700} tt="uppercase">
+                      Location
                     </Text>
-                  </Table.Td>
-                  <Table.Td ta="right">
-                    <Text fw={900} c="cyan.3">
-                      {formatNumber(product.currentQuantity)}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <LocationList product={product} />
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-              {filteredProducts.length === 0 ? (
-                <Table.Tr>
-                  <Table.Td colSpan={5}>
-                    <Center py="xl">
-                      <Text size="sm" c="dimmed">
-                        No products match this view.
-                      </Text>
-                    </Center>
-                  </Table.Td>
-                </Table.Tr>
-              ) : null}
-            </Table.Tbody>
-          </Table>
-        </ScrollArea>
-      </Card>
+                    <Stack gap="xs" mt="sm">
+                      <LocationList product={stockCheckProduct} />
+                    </Stack>
+                  </Card>
+                </SimpleGrid>
+              ) : (
+                <Center py="xl">
+                  <Text size="sm" c="dimmed">
+                    Select a product for stock check.
+                  </Text>
+                </Center>
+              )}
+            </Stack>
+          </Card>
+        </Tabs.Panel>
+      </Tabs>
     </Stack>
   );
 });

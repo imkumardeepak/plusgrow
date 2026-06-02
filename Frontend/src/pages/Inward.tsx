@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 import {
   ActionIcon,
   Badge,
@@ -55,6 +56,7 @@ import {
   CreatePoInvoiceDto,
   Importer,
   Manufacturer,
+  Party,
   PoInvoiceFilters,
   PoInvoice,
   PoInvoiceHeaderSummary,
@@ -62,6 +64,7 @@ import {
   Product,
   importersApi,
   manufacturersApi,
+  partiesApi,
   poInvoicesApi,
   productsApi,
   validateProductForSticker,
@@ -71,12 +74,23 @@ import {
   StickerPrinterConfig,
   stickerPrinterConfigsApi,
 } from "../services/stickerPrinterConfigsApi";
+import {
+  InwardInvoiceModal,
+  InwardEntryMode,
+  InvoiceLineDraft,
+} from "./Inward/components/InwardInvoiceModal";
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
 type InwardStatusFilter = "all" | "pending" | "printed";
 type StickerMode = "Combined" | "Separate" | "Manufacture";
 type InvoiceSummary = PoInvoiceHeaderSummary & {
   invoiceKey: string;
+};
+type InvoiceUploadSkippedRow = {
+  rowNumber: number;
+  skuCode: string;
+  quantity: string;
+  reason: string;
 };
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
@@ -107,6 +121,7 @@ export const Inward = memo(function Inward() {
   const [poInvoices, setPoInvoices] = useState<PoInvoice[]>([]);
   const [invoiceSummaries, setInvoiceSummaries] = useState<InvoiceSummary[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [importers, setImporters] = useState<Importer[]>([]);
   const [templates, setTemplates] = useState<StickerTemplate[]>([]);
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>(
@@ -128,6 +143,13 @@ export const Inward = memo(function Inward() {
 
   const [invoiceForm, setInvoiceForm] =
     useState<CreatePoInvoiceDto>(emptyInvoiceForm());
+  const [invoiceLines, setInvoiceLines] = useState<InvoiceLineDraft[]>([]);
+  const [invoiceUploadSkippedRows, setInvoiceUploadSkippedRows] = useState<
+    InvoiceUploadSkippedRow[]
+  >([]);
+  const [isInvoiceLineUploading, setIsInvoiceLineUploading] = useState(false);
+  const [inwardEntryMode, setInwardEntryMode] =
+    useState<InwardEntryMode>("manufacturer");
 
   const [isSavingInvoice, setIsSavingInvoice] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
@@ -149,6 +171,7 @@ export const Inward = memo(function Inward() {
   const [manufacturerId, setManufacturerId] = useState<string | null>(null);
   const [importerId, setImporterId] = useState<string | null>(null);
   const [invoiceManufacturerSearch, setInvoiceManufacturerSearch] = useState("");
+  const [invoicePartySearch, setInvoicePartySearch] = useState("");
   const [manufacturerSearch, setManufacturerSearch] = useState("");
   const [importerSearch, setImporterSearch] = useState("");
   const [reprintFrom, setReprintFrom] = useState<number | "">(1);
@@ -161,12 +184,14 @@ export const Inward = memo(function Inward() {
       const [
         productsData,
         manufacturerData,
+        partyData,
         importerData,
         templateData,
         configData,
       ] = await Promise.all([
         productsApi.search(""),
         manufacturersApi.getPaged({ page: 1, pageSize: 25 }),
+        partiesApi.getPaged({ page: 1, pageSize: 25 }),
         importersApi.getPaged({ page: 1, pageSize: 25 }),
         stickersApi.getTemplates(),
         stickerPrinterConfigsApi.getAll(),
@@ -174,6 +199,7 @@ export const Inward = memo(function Inward() {
 
       setProducts(productsData);
       setManufacturers(manufacturerData.data);
+      setParties(partyData.data);
       setImporters(importerData.data);
       setTemplates(templateData);
       setPrinterConfigs(configData);
@@ -205,6 +231,21 @@ export const Inward = memo(function Inward() {
       setManufacturers(result.data);
     } catch {
       toast.error("Failed to search manufacturers");
+    }
+  }, []);
+
+  const loadPartyLookup = useCallback(async (query: string) => {
+    try {
+      const result = await partiesApi.getPaged({
+        search: query,
+        page: 1,
+        pageSize: 25,
+        sortBy: "name",
+        sortDirection: "asc",
+      });
+      setParties(result.data);
+    } catch {
+      toast.error("Failed to search parties");
     }
   }, []);
 
@@ -249,6 +290,14 @@ export const Inward = memo(function Inward() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      void loadPartyLookup(invoicePartySearch);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [invoicePartySearch, loadPartyLookup]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
       void loadImporterLookup(importerSearch);
     }, 250);
 
@@ -262,6 +311,12 @@ export const Inward = memo(function Inward() {
   useEffect(() => {
     setImporterId(null);
   }, [stickerType]);
+
+  useEffect(() => {
+    if (stickerSize === "25x25" && stickerType !== "Combined") {
+      setStickerType("Combined");
+    }
+  }, [stickerSize, stickerType]);
 
   useEffect(() => {
     if (!selectedPrintRow) return;
@@ -354,6 +409,47 @@ export const Inward = memo(function Inward() {
 
     return options;
   }, [invoiceForm.partyName, manufacturers]);
+
+  const invoicePartyOptions = useMemo(() => {
+    const options = parties.map((item) => ({
+      value: item.name,
+      label: item.name,
+    }));
+
+    if (
+      invoiceForm.partyName &&
+      !options.some(
+        (item) =>
+          item.value.trim().toLowerCase() ===
+          invoiceForm.partyName.trim().toLowerCase(),
+      )
+    ) {
+      return [
+        {
+          value: invoiceForm.partyName,
+          label: invoiceForm.partyName,
+        },
+        ...options,
+      ];
+    }
+
+    return options;
+  }, [invoiceForm.partyName, parties]);
+
+  const handleInwardEntryModeChange = (value: string | null) => {
+    const nextMode = (value || "manufacturer") as InwardEntryMode;
+    setInwardEntryMode(nextMode);
+    setInvoiceForm((prev) => ({
+      ...prev,
+      invoiceNumber: "",
+      invoiceDate: new Date().toISOString().slice(0, 10),
+      partyName: "",
+    }));
+    setInvoiceLines([]);
+    setInvoiceUploadSkippedRows([]);
+    setInvoiceManufacturerSearch("");
+    setInvoicePartySearch("");
+  };
 
   const importerOptions = useMemo(
     () =>
@@ -567,7 +663,10 @@ export const Inward = memo(function Inward() {
       return;
     }
 
-    const validationErrors = validateProductForSticker(selectedProduct);
+    const validationErrors = validateProductForSticker(
+      selectedProduct,
+      stickerSize,
+    );
     if (validationErrors.length > 0) {
       setPreviewUrl(null);
       return;
@@ -587,7 +686,7 @@ export const Inward = memo(function Inward() {
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [buildStickerPayload, selectedPrintRow, selectedProduct]);
+  }, [buildStickerPayload, selectedPrintRow, selectedProduct, stickerSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -620,7 +719,10 @@ export const Inward = memo(function Inward() {
       return;
     }
 
-    const validationErrors = validateProductForSticker(selectedProduct);
+    const validationErrors = validateProductForSticker(
+      selectedProduct,
+      stickerSize,
+    );
     if (validationErrors.length > 0) {
       toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
       return;
@@ -698,14 +800,22 @@ export const Inward = memo(function Inward() {
   const resetInvoiceModal = () => {
     setEditingInvoice(null);
     setInvoiceForm(emptyInvoiceForm());
+    setInvoiceLines([]);
+    setInvoiceUploadSkippedRows([]);
+    setInwardEntryMode("manufacturer");
     setInvoiceManufacturerSearch("");
+    setInvoicePartySearch("");
     setInvoiceModalOpen(false);
   };
 
   const openCreateInvoice = () => {
     setEditingInvoice(null);
     setInvoiceForm(emptyInvoiceForm());
+    setInvoiceLines([]);
+    setInvoiceUploadSkippedRows([]);
+    setInwardEntryMode("manufacturer");
     setInvoiceManufacturerSearch("");
+    setInvoicePartySearch("");
     setInvoiceModalOpen(true);
   };
 
@@ -718,8 +828,237 @@ export const Inward = memo(function Inward() {
       productId: row.productId,
       billedQty: row.billedQty,
     });
+    setInvoiceLines([]);
+    setInvoiceUploadSkippedRows([]);
+    setInwardEntryMode("manufacturer");
     setInvoiceManufacturerSearch(row.partyName);
+    setInvoicePartySearch("");
     setInvoiceModalOpen(true);
+  };
+
+  const getProductLabel = (productId: number) => {
+    const product = products.find((item) => item.id === productId);
+    if (!product) return `Product #${productId}`;
+    return `${product.sku || "NO-SKU"} - ${product.name}`;
+  };
+
+  const handleAddInvoiceLine = () => {
+    if (!invoiceForm.productId) {
+      toast.error("Select product first");
+      return;
+    }
+
+    if (!invoiceForm.billedQty || invoiceForm.billedQty <= 0) {
+      toast.error("Billed quantity must be greater than zero");
+      return;
+    }
+
+    const existing = invoiceLines.find(
+      (line) => line.productId === invoiceForm.productId,
+    );
+    if (existing) {
+      setInvoiceLines((current) =>
+        current.map((line) =>
+          line.productId === invoiceForm.productId
+            ? { ...line, billedQty: line.billedQty + invoiceForm.billedQty }
+            : line,
+        ),
+      );
+    } else {
+      setInvoiceLines((current) => [
+        ...current,
+        {
+          id: `line-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          productId: invoiceForm.productId,
+          billedQty: invoiceForm.billedQty,
+        },
+      ]);
+    }
+
+    setInvoiceForm((prev) => ({
+      ...prev,
+      productId: 0,
+      billedQty: 0,
+    }));
+    setProductSearch("");
+  };
+
+  const mergeInvoiceLines = (nextLines: InvoiceLineDraft[]) => {
+    setInvoiceLines((current) => {
+      const lineMap = new Map<number, InvoiceLineDraft>();
+
+      [...current, ...nextLines].forEach((line) => {
+        const existing = lineMap.get(line.productId);
+        if (existing) {
+          lineMap.set(line.productId, {
+            ...existing,
+            billedQty: existing.billedQty + line.billedQty,
+          });
+          return;
+        }
+
+        lineMap.set(line.productId, line);
+      });
+
+      return Array.from(lineMap.values());
+    });
+  };
+
+  const handleDownloadThirdPartyLineTemplate = () => {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet([
+      {
+        "SKU Code": "SKU-001",
+        "Qnty": 10,
+      },
+    ]);
+    worksheet["!cols"] = [{ wch: 24 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Product Lines");
+    XLSX.writeFile(workbook, "Third_Party_Inward_Product_Lines.xlsx");
+  };
+
+  const handleDownloadSkippedInvoiceLines = () => {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(
+      invoiceUploadSkippedRows.map((row) => ({
+        "Row #": row.rowNumber,
+        "SKU Code": row.skuCode,
+        "Qnty": row.quantity,
+        Reason: row.reason,
+      })),
+    );
+    worksheet["!cols"] = [{ wch: 8 }, { wch: 24 }, { wch: 12 }, { wch: 42 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Skipped Rows");
+    XLSX.writeFile(workbook, `Skipped_Inward_Lines_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`);
+  };
+
+  const getUploadCell = (
+    row: Record<string, unknown>,
+    names: string[],
+  ) => {
+    const entry = Object.entries(row).find(([key]) =>
+      names.some((name) => key.trim().toLowerCase() === name.toLowerCase()),
+    );
+
+    return entry?.[1] == null ? "" : String(entry[1]).trim();
+  };
+
+  const handleThirdPartyLineUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+    if (!invoiceForm.invoiceNumber.trim()) {
+      toast.error("Reference Number is required before upload");
+      return;
+    }
+    if (!invoiceForm.partyName.trim()) {
+      toast.error("Select Party before upload");
+      return;
+    }
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setIsInvoiceLineUploading(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        defval: "",
+      });
+
+      const nextLines: InvoiceLineDraft[] = [];
+      const skippedRows: InvoiceUploadSkippedRow[] = [];
+
+      for (const [index, row] of rows.entries()) {
+        const rowNumber = index + 2;
+        const skuCode = getUploadCell(row, [
+          "SKU Code",
+          "SKU",
+          "SkuCode",
+          "Part No",
+          "PartNo",
+        ]);
+        const quantityText = getUploadCell(row, [
+          "Qnty",
+          "Qty",
+          "Quantity",
+          "Billed Qty",
+          "BilledQty",
+        ]);
+
+        if (!skuCode && !quantityText) continue;
+
+        const quantity = Number(quantityText);
+        if (!skuCode) {
+          skippedRows.push({
+            rowNumber,
+            skuCode,
+            quantity: quantityText,
+            reason: "SKU Code is blank",
+          });
+          continue;
+        }
+
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          skippedRows.push({
+            rowNumber,
+            skuCode,
+            quantity: quantityText,
+            reason: "Quantity must be greater than zero",
+          });
+          continue;
+        }
+
+        try {
+          const lookup = await productsApi.lookup(skuCode);
+          if (!lookup.product?.id) {
+            skippedRows.push({
+              rowNumber,
+              skuCode,
+              quantity: quantityText,
+              reason: "SKU Code not found in Product Master",
+            });
+            continue;
+          }
+
+          nextLines.push({
+            id: `line-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+            productId: lookup.product.id,
+            billedQty: quantity,
+          });
+        } catch {
+          skippedRows.push({
+            rowNumber,
+            skuCode,
+            quantity: quantityText,
+            reason: "SKU Code not found in Product Master",
+          });
+        }
+      }
+
+      mergeInvoiceLines(nextLines);
+      setInvoiceUploadSkippedRows(skippedRows);
+
+      if (nextLines.length > 0) {
+        toast.success(`${nextLines.length} product lines added`);
+      }
+      if (skippedRows.length > 0) {
+        toast.warning(`${skippedRows.length} rows skipped`);
+      }
+      if (nextLines.length === 0 && skippedRows.length === 0) {
+        toast.warning("No product lines found in Excel");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to read Excel file");
+    } finally {
+      setIsInvoiceLineUploading(false);
+    }
   };
 
   const handleInvoiceSubmit = async (event: React.FormEvent) => {
@@ -730,8 +1069,22 @@ export const Inward = memo(function Inward() {
       return;
     }
 
-    if (!invoiceForm.productId || !invoiceForm.partyName.trim()) {
-      toast.error("Manufacturer and product are required");
+    if (!invoiceForm.partyName.trim()) {
+      toast.error(
+        inwardEntryMode === "thirdParty"
+          ? "Party is required"
+          : "Manufacturer is required",
+      );
+      return;
+    }
+
+    if (editingInvoice && !invoiceForm.productId) {
+      toast.error("Product is required");
+      return;
+    }
+
+    if (!editingInvoice && invoiceLines.length === 0) {
+      toast.error("Add at least one product line");
       return;
     }
 
@@ -741,8 +1094,18 @@ export const Inward = memo(function Inward() {
         await poInvoicesApi.update(editingInvoice.id, invoiceForm);
         toast.success("PO invoice updated");
       } else {
-        await poInvoicesApi.create(invoiceForm);
-        toast.success("PO invoice created");
+        await Promise.all(
+          invoiceLines.map((line) =>
+            poInvoicesApi.create({
+              invoiceNumber: invoiceForm.invoiceNumber,
+              invoiceDate: invoiceForm.invoiceDate,
+              partyName: invoiceForm.partyName,
+              productId: line.productId,
+              billedQty: line.billedQty,
+            }),
+          ),
+        );
+        toast.success(`${invoiceLines.length} invoice rows created`);
       }
       await loadInvoiceRows({
         search,
@@ -1021,131 +1384,37 @@ export const Inward = memo(function Inward() {
         </OperationsPanel>
       </Stack>
 
-      <Modal
+      <InwardInvoiceModal
         isOpen={invoiceModalOpen}
+        editingInvoice={editingInvoice}
+        invoiceForm={invoiceForm}
+        invoiceLines={invoiceLines}
+        inwardEntryMode={inwardEntryMode}
+        invoiceManufacturerOptions={invoiceManufacturerOptions}
+        invoicePartyOptions={invoicePartyOptions}
+        invoiceManufacturerSearch={invoiceManufacturerSearch}
+        invoicePartySearch={invoicePartySearch}
+        productOptions={productOptions}
+        productSearch={productSearch}
+        skippedRowCount={invoiceUploadSkippedRows.length}
+        isInvoiceLineUploading={isInvoiceLineUploading}
+        isSavingInvoice={isSavingInvoice}
         onClose={resetInvoiceModal}
-        title={editingInvoice ? "Edit PO Invoice" : "New PO Invoice"}
-        size="xl"
-      >
-        <form onSubmit={handleInvoiceSubmit}>
-          <Stack gap="md">
-            <Paper radius="lg" p="md" withBorder bg="transparent">
-              <Stack gap="md">
-                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                  Invoice Details
-                </Text>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                  <Input
-                    label="Invoice Number"
-                    value={invoiceForm.invoiceNumber}
-                    onChange={(e) =>
-                      setInvoiceForm((prev) => ({
-                        ...prev,
-                        invoiceNumber: e.target.value,
-                      }))
-                    }
-                    placeholder="Enter invoice number"
-                  />
-                  <Input
-                    label="Invoice Date"
-                    type="date"
-                    value={invoiceForm.invoiceDate}
-                    onChange={(e) =>
-                      setInvoiceForm((prev) => ({
-                        ...prev,
-                        invoiceDate: e.target.value,
-                      }))
-                    }
-                  />
-                  <Select
-                    label="Manufacturer"
-                    placeholder="Select manufacturer"
-                    data={invoiceManufacturerOptions}
-                    searchValue={invoiceManufacturerSearch}
-                    onSearchChange={setInvoiceManufacturerSearch}
-                    value={invoiceForm.partyName || null}
-                    onChange={(value) =>
-                      setInvoiceForm((prev) => ({
-                        ...prev,
-                        partyName: value || "",
-                      }))
-                    }
-                    searchable
-                    clearable
-                    styles={{
-                      input: {
-                        backgroundColor: "rgba(255,255,255,0.03)",
-                        borderColor: "rgba(255,255,255,0.12)",
-                      },
-                      dropdown: {
-                        background:
-                          "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                        borderColor: "rgba(148, 163, 184, 0.16)",
-                      },
-                    }}
-                  />
-                </SimpleGrid>
-                <Select
-                  label="Product"
-                  placeholder="Select product"
-                  data={productOptions.map((p) => ({
-                    value: String(p.value),
-                    label: p.label,
-                  }))}
-                  searchValue={productSearch}
-                  onSearchChange={setProductSearch}
-                  value={
-                    invoiceForm.productId ? String(invoiceForm.productId) : null
-                  }
-                  onChange={(value) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      productId: value ? Number(value) : 0,
-                    }))
-                  }
-                  searchable
-                  styles={{
-                    input: {
-                      backgroundColor: "rgba(255,255,255,0.03)",
-                      borderColor: "rgba(255,255,255,0.12)",
-                    },
-                    dropdown: {
-                      background:
-                        "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
-                      borderColor: "rgba(148, 163, 184, 0.16)",
-                    },
-                  }}
-                />
-                <Input
-                  label="Billed Qty."
-                  type="number"
-                  min="0"
-                  value={invoiceForm.billedQty}
-                  onChange={(e) =>
-                    setInvoiceForm((prev) => ({
-                      ...prev,
-                      billedQty: Number(e.target.value),
-                    }))
-                  }
-                />
-              </Stack>
-            </Paper>
-
-            <Group justify="flex-end" pt="sm">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={resetInvoiceModal}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" loading={isSavingInvoice}>
-                {editingInvoice ? "Update Invoice" : "Create Invoice"}
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
+        onSubmit={handleInvoiceSubmit}
+        onInvoiceFormChange={setInvoiceForm}
+        onInvoiceLinesChange={setInvoiceLines}
+        onEntryModeChange={handleInwardEntryModeChange}
+        onManufacturerSearchChange={setInvoiceManufacturerSearch}
+        onPartySearchChange={setInvoicePartySearch}
+        onProductSearchChange={setProductSearch}
+        onAddLine={handleAddInvoiceLine}
+        onDownloadThirdPartyTemplate={handleDownloadThirdPartyLineTemplate}
+        onDownloadSkippedRows={handleDownloadSkippedInvoiceLines}
+        onThirdPartyLineUpload={(event) =>
+          void handleThirdPartyLineUpload(event)
+        }
+        getProductLabel={getProductLabel}
+      />
 
       <Modal
         isOpen={isUploadModalOpen}
@@ -1418,53 +1687,69 @@ export const Inward = memo(function Inward() {
                       onChange={setStickerSize}
                       data={[
                         { value: "25x25", label: "25x25" },
+                        { value: "38x38", label: "38x38" },
                         { value: "50x50", label: "50x50" },
                         { value: "60x60", label: "60x60" },
                         { value: "75x75", label: "75x75" },
                       ]}
                     />
                   </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed" mb={5}>
-                      LABEL MODE
-                    </Text>
-                    <Radio.Group
-                      value={stickerType}
-                      onChange={(value) => setStickerType(value as StickerMode)}
-                    >
-                      <Stack gap={6}>
-                        <Radio
-                          value="Combined"
-                          label={labelModeText.Combined}
-                          size="xs"
-                        />
-                        <Radio
-                          value="Separate"
-                          label={labelModeText.Separate}
-                          size="xs"
-                        />
-                        <Radio
-                          value="Manufacture"
-                          label={labelModeText.Manufacture}
-                          size="xs"
-                        />
-                      </Stack>
-                    </Radio.Group>
-                  </Box>
-                  <Select
-                    label="Manufacturer"
-                    size="xs"
-                    radius="md"
-                    placeholder="Select manufacturer"
-                    value={manufacturerId}
-                    onChange={setManufacturerId}
-                    searchable
-                    searchValue={manufacturerSearch}
-                    onSearchChange={setManufacturerSearch}
-                    clearable
-                    data={manufacturerOptions}
-                  />
-                  {stickerType === "Separate" ? (
+                  {stickerSize !== "25x25" ? (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed" mb={5}>
+                        LABEL MODE
+                      </Text>
+                      <Radio.Group
+                        value={stickerType}
+                        onChange={(value) =>
+                          setStickerType(value as StickerMode)
+                        }
+                      >
+                        <Stack gap={6}>
+                          <Radio
+                            value="Combined"
+                            label={labelModeText.Combined}
+                            size="xs"
+                          />
+                          <Radio
+                            value="Separate"
+                            label={labelModeText.Separate}
+                            size="xs"
+                          />
+                          <Radio
+                            value="Manufacture"
+                            label={labelModeText.Manufacture}
+                            size="xs"
+                          />
+                        </Stack>
+                      </Radio.Group>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed">
+                        TEMPLATE
+                      </Text>
+                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
+                        {activeTemplate?.name || "Template missing"}
+                      </Text>
+                    </Box>
+                  )}
+                  {stickerSize !== "25x25" ? (
+                    <Select
+                      label="Manufacturer"
+                      size="xs"
+                      radius="md"
+                      placeholder="Select manufacturer"
+                      value={manufacturerId}
+                      onChange={setManufacturerId}
+                      searchable
+                      searchValue={manufacturerSearch}
+                      onSearchChange={setManufacturerSearch}
+                      clearable
+                      data={manufacturerOptions}
+                    />
+                  ) : null}
+                  {stickerSize !== "25x25" && stickerType === "Separate" ? (
                     <Select
                       label="Importer"
                       size="xs"
@@ -1478,16 +1763,7 @@ export const Inward = memo(function Inward() {
                       clearable
                       data={importerOptions}
                     />
-                  ) : (
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        TEMPLATE
-                      </Text>
-                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
-                        {activeTemplate?.name || "Template missing"}
-                      </Text>
-                    </Box>
-                  )}
+                  ) : null}
                 </SimpleGrid>
                 <TextInput
                   label="Note"
@@ -1610,14 +1886,14 @@ export const Inward = memo(function Inward() {
                     style={{ textAlign: "center" }}
                   >
                     <Tag size={48} style={{ marginBottom: 12 }} />
-                    <Text fw={700} size="lg" mb="xs" c={selectedProduct && validateProductForSticker(selectedProduct).length > 0 ? "red.4" : undefined}>
-                      {selectedProduct && validateProductForSticker(selectedProduct).length > 0 
+                    <Text fw={700} size="lg" mb="xs" c={selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0 ? "red.4" : undefined}>
+                      {selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0
                         ? "Missing Product Data" 
                         : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      {selectedProduct && validateProductForSticker(selectedProduct).length > 0
-                        ? `Please fill missing product fields: ${validateProductForSticker(selectedProduct).join(", ")}`
+                      {selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0
+                        ? `Please fill missing product fields: ${validateProductForSticker(selectedProduct, stickerSize).join(", ")}`
                         : "Preview not available for this row."}
                     </Text>
                   </Paper>
