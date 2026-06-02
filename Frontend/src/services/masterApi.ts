@@ -532,6 +532,11 @@ export interface PartyDashboardProduct {
   unitType?: string | null;
   mrp?: number | null;
   weight?: number | null;
+  factor?: string | null;
+  ussp?: number | null;
+  bestBeforeMonths?: number | null;
+  note?: string | null;
+  ownership?: string | null;
   currentQuantity: number;
   locations: PartyDashboardLocation[];
 }

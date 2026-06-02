@@ -90,6 +90,11 @@ public class PartyDashboardProductDto
     public string? UnitType { get; set; }
     public decimal? Mrp { get; set; }
     public decimal? Weight { get; set; }
+    public string? Factor { get; set; }
+    public decimal? Ussp { get; set; }
+    public int BestBeforeMonths { get; set; }
+    public string? Note { get; set; }
+    public string? Ownership { get; set; }
     public int CurrentQuantity { get; set; }
     public List<PartyDashboardLocationDto> Locations { get; set; } = new();
 }

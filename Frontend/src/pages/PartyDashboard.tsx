@@ -1,4 +1,6 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
+import { useMediaQuery } from "@mantine/hooks";
+import * as XLSX from "xlsx";
 import {
   Alert,
   Badge,
@@ -19,6 +21,8 @@ import {
   Grid,
   Button,
   Divider,
+  Box,
+  SegmentedControl,
 } from "@mantine/core";
 import {
   IconAlertTriangle,
@@ -32,7 +36,13 @@ import {
   IconCurrencyRupee,
   IconQrcode,
   IconRefresh,
+  IconDownload,
 } from "@tabler/icons-react";
+
+import {
+  MantineDataTable,
+  DataTableColumn,
+} from "../components/molecules/MantineDataTable";
 
 import {
   partyDashboardApi,
@@ -58,10 +68,10 @@ const formatNumber = (value: number) => value.toLocaleString("en-IN");
 const formatMoney = (value?: number | null) =>
   typeof value === "number"
     ? new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 2,
-      }).format(value)
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(value)
     : "-";
 
 const normalizeSku = (value?: string | null) => (value || "").trim().toUpperCase();
@@ -92,6 +102,7 @@ const LocationList = ({ product }: { product: PartyDashboardProduct }) => {
 };
 
 export const PartyDashboard = memo(function PartyDashboard() {
+  const isMobile = useMediaQuery("(max-width: 48em)");
   const [summary, setSummary] = useState<PartyDashboardSummary>(emptySummary);
   const [stockCheckProductId, setStockCheckProductId] = useState<string | null>(
     null,
@@ -99,11 +110,57 @@ export const PartyDashboard = memo(function PartyDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [showStockCheck, setShowStockCheck] = useState(false);
+  const [activeView, setActiveView] = useState<"menu" | "products" | "stock-check">("menu");
+  const [search, setSearch] = useState("");
   const [scanInput, setScanInput] = useState("");
   const [lookupResult, setLookupResult] = useState<PartyDashboardProduct | null>(null);
   const [invoices, setInvoices] = useState<PoInvoice[]>([]);
   const [isInvoiceLoading, setIsInvoiceLoading] = useState(false);
+  const [filterMode, setFilterMode] = useState<"all" | "mapped" | "unpriced">("all");
+
+  const handleExportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const exportData = filteredProducts.map((p) => ({
+      "SKU Code": p.skuCode || "",
+      "Alias": p.alias || "",
+      "Product Name": p.productName || "",
+      "Commodity Name": p.commodityName || "",
+      "Manufacturer Name": p.manufacturerName || "",
+      "Country of Origin": p.countryOfOrigin || "",
+      "Unit Type": p.unitType || "",
+      "MRP": p.mrp || 0,
+      "USSP": p.ussp || 0,
+      "Net Qnty": p.netQuantity || "",
+      "Factor": p.factor || "",
+      "Best Before (Months)": p.bestBeforeMonths || 0,
+      "Weight": p.weight || 0,
+      "Ownership": p.ownership || "",
+      "Stock Qnty": p.currentQuantity || 0,
+      "Note": p.note || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    ws["!cols"] = [
+      { wch: 15 }, // SKU Code
+      { wch: 15 }, // Alias
+      { wch: 35 }, // Product Name
+      { wch: 20 }, // Commodity Name
+      { wch: 25 }, // Manufacturer Name
+      { wch: 18 }, // Country of Origin
+      { wch: 12 }, // Unit Type
+      { wch: 12 }, // MRP
+      { wch: 12 }, // USSP
+      { wch: 12 }, // Net Qnty
+      { wch: 15 }, // Factor
+      { wch: 20 }, // Best Before (Months)
+      { wch: 12 }, // Weight
+      { wch: 15 }, // Ownership
+      { wch: 12 }, // Stock Qnty
+      { wch: 20 }, // Note
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "My Products");
+    XLSX.writeFile(wb, `My_Products_${(summary?.partyName || "Party").replace(/\s+/g, "_")}.xlsx`);
+    toast.success("Products exported successfully");
+  };
 
   const handleLookup = async (skuOrAlias: string) => {
     const sku = normalizeSku(skuOrAlias.split("#")[0]);
@@ -140,13 +197,13 @@ export const PartyDashboard = memo(function PartyDashboard() {
       });
       const resolvedSku = normalizeSku(product.skuCode);
       const filtered = invoiceRows
-        .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
-        .sort((first, second) => {
-          const dateDiff =
-            new Date(second.invoiceDate).getTime() -
-            new Date(first.invoiceDate).getTime();
-          return dateDiff || second.id - first.id;
-        });
+          .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
+          .sort((first, second) => {
+            const dateDiff =
+                new Date(second.invoiceDate).getTime() -
+                new Date(first.invoiceDate).getTime();
+            return dateDiff || second.id - first.id;
+          });
       setInvoices(filtered);
     } catch (err: any) {
       toast.error("Failed to load SKU invoices");
@@ -200,7 +257,177 @@ export const PartyDashboard = memo(function PartyDashboard() {
     };
   }, []);
 
+  const filteredProducts = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
+    return summary.products.filter((product) => {
+      const matchesSearch =
+        !query ||
+        product.productName.toLowerCase().includes(query) ||
+        (product.skuCode || "").toLowerCase().includes(query) ||
+        (product.alias || "").toLowerCase().includes(query) ||
+        (product.commodityName || "").toLowerCase().includes(query) ||
+        (product.manufacturerName || "").toLowerCase().includes(query);
+
+      const matchesFilter =
+        filterMode === "all" ||
+        (filterMode === "mapped" && (product.manufacturerName || product.commodityName)) ||
+        (filterMode === "unpriced" && Number(product.mrp || 0) <= 0);
+
+      return matchesSearch && matchesFilter;
+    });
+  }, [filterMode, search, summary.products]);
+  const columns = useMemo<DataTableColumn<PartyDashboardProduct>[]>((() => [
+    {
+      key: "sku",
+      header: "SKU",
+      sortable: true,
+      sortAccessor: (row) => row.skuCode,
+      render: (row) => (
+        <Text
+          size="11px"
+          ff="monospace"
+          c="blue.4"
+          fw={700}
+          lineClamp={1}
+        >
+          {row.skuCode || "N/A"}
+        </Text>
+      ),
+      width: 120,
+    },
+    {
+      key: "alias",
+      header: "Alias",
+      sortable: true,
+      sortAccessor: (row) => row.alias || "",
+      render: (row) => (
+        <Text size="11px" c="dimmed" lineClamp={1} maw={120}>
+          {row.alias || "N/A"}
+        </Text>
+      ),
+      width: 130,
+    },
+    {
+      key: "name",
+      header: "Product",
+      sortable: true,
+      sortAccessor: (row) => row.productName,
+      render: (row) => (
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon
+            size={38}
+            radius="lg"
+            variant="light"
+            color="cyan"
+            style={{
+              background: "rgba(30, 192, 243, 0.12)",
+              border: "1px solid rgba(30, 192, 243, 0.18)",
+            }}
+          >
+            <IconPackage size={18} />
+          </ThemeIcon>
+          <Stack gap={2} style={{ minWidth: 0 }}>
+            <Text size="xs" fw={700} lineClamp={1} maw={190}>
+              {row.productName}
+            </Text>
+            <Text size="11px" c="dimmed" lineClamp={1}>
+              {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
+            </Text>
+          </Stack>
+        </Group>
+      ),
+      width: 280,
+    },
+    {
+      key: "commodity",
+      header: "Commodity",
+      sortable: true,
+      sortAccessor: (row) => row.commodityName || "",
+      render: (row) => (
+        <Text size="xs" lineClamp={1} maw={130}>
+          {row.commodityName || "N/A"}
+        </Text>
+      ),
+      width: 150,
+    },
+    {
+      key: "ownership",
+      header: "Ownership",
+      sortable: true,
+      sortAccessor: (row) => row.ownership || "",
+      render: (row) => (
+        <Badge size="xs" variant="light" color={row.ownership?.toUpperCase() === "SELF" ? "blue" : "orange"}>
+          {row.ownership || "N/A"}
+        </Badge>
+      ),
+      width: 100,
+    },
+    {
+      key: "weight",
+      header: "Weight",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.weight || 0,
+      render: (row) => (
+        <Text size="xs" fw={700}>
+          {row.weight ? Number(row.weight).toFixed(2) : "0.00"}
+        </Text>
+      ),
+      width: 90,
+    },
+    {
+      key: "mrp",
+      header: "MRP",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.mrp || 0,
+      render: (row) => (
+        <Text size="xs" fw={800} c="green.3">
+          Rs {row.mrp ? Number(row.mrp).toFixed(2) : "0.00"}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "ussp",
+      header: "USSP",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.ussp || 0,
+      render: (row) => (
+        <Text size="xs" fw={700} c="cyan.3">
+          Rs {row.ussp ? Number(row.ussp).toFixed(2) : "0.00"}
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "pack",
+      header: "Pack",
+      sortable: true,
+      sortAccessor: (row) => `${row.netQuantity || ""}-${row.bestBeforeMonths || ""}`,
+      render: (row) => (
+        <Text size="xs" lineClamp={1}>
+          {row.netQuantity || "N/A"} • {row.bestBeforeMonths || 84} mo
+        </Text>
+      ),
+      width: 110,
+    },
+    {
+      key: "stock",
+      header: "Stock",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.currentQuantity,
+      render: (row) => (
+        <Text fw={900} c="cyan.3" size="xs" ff="monospace">
+          {formatNumber(row.currentQuantity)}
+        </Text>
+      ),
+      width: 100,
+    },
+  ]), []);
 
   const stockCheckOptions = useMemo(() => {
     return summary.products.map((product) => ({
@@ -276,13 +503,51 @@ export const PartyDashboard = memo(function PartyDashboard() {
         </Group>
       </Paper>
 
-      {!showStockCheck ? (
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+      {activeView === "menu" && (
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+          {/* Card 1: My Products */}
           <Card
             withBorder
             radius="lg"
             p="xl"
-            onClick={() => setShowStockCheck(true)}
+            onClick={() => setActiveView("products")}
+            style={{
+              cursor: "pointer",
+              background: "linear-gradient(135deg, rgba(30, 192, 243, 0.08), rgba(6, 19, 31, 0.6))",
+              borderColor: "rgba(34, 211, 238, 0.2)",
+              transition: "transform 0.2s ease, border-color 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.borderColor = "rgba(34, 211, 238, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = "rgba(34, 211, 238, 0.2)";
+            }}
+          >
+            <Group justify="space-between" mb="md">
+              <ThemeIcon color="teal" variant="light" size={48} radius="md">
+                <IconBox size={28} />
+              </ThemeIcon>
+              <Badge color="teal" variant="light" size="lg">
+                Products
+              </Badge>
+            </Group>
+            <Text size="xl" fw={900} mt="md" c="white">
+              My Products
+            </Text>
+            <Text size="sm" c="dimmed" mt="xs">
+              View your mapped product catalog, descriptions, MRPs, unit sizes, and total quantities.
+            </Text>
+          </Card>
+
+          {/* Card 2: Stock Check */}
+          <Card
+            withBorder
+            radius="lg"
+            p="xl"
+            onClick={() => setActiveView("stock-check")}
             style={{
               cursor: "pointer",
               background: "linear-gradient(135deg, rgba(30, 192, 243, 0.08), rgba(6, 19, 31, 0.6))",
@@ -314,7 +579,202 @@ export const PartyDashboard = memo(function PartyDashboard() {
             </Text>
           </Card>
         </SimpleGrid>
-      ) : (
+      )}
+
+      {activeView === "products" && (
+        <Stack gap="md">
+          <Paper radius="md" p="sm" withBorder bg="rgba(6, 19, 31, 0.2)">
+            <Group justify="space-between" align="center">
+              <Group gap="xs">
+                <IconBox size={20} color="var(--mantine-color-cyan-4)" />
+                <Text fw={800}>My Products Catalog</Text>
+              </Group>
+              <Button
+                variant="subtle"
+                color="cyan"
+                size="xs"
+                onClick={() => {
+                  setActiveView("menu");
+                  setSearch("");
+                  setFilterMode("all");
+                }}
+              >
+                Back to Dashboard
+              </Button>
+            </Group>
+          </Paper>
+
+          {/* Replicated Scope Filters Panel */}
+          <Paper radius="md" p="md" withBorder>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  PRODUCT SCOPE
+                </Text>
+                <SegmentedControl
+                  fullWidth
+                  size="xs"
+                  radius="md"
+                  value={filterMode}
+                  onChange={(value) =>
+                    setFilterMode(value as "all" | "mapped" | "unpriced")
+                  }
+                  data={[
+                    { value: "all", label: "All" },
+                    { value: "mapped", label: "Mapped" },
+                    { value: "unpriced", label: "Unpriced" },
+                  ]}
+                />
+              </Box>
+
+              <TextInput
+                size="xs"
+                radius="md"
+                label="Search"
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                placeholder="Search SKU, alias, product, manufacturer..."
+                leftSection={<IconSearch size={14} />}
+              />
+
+              <Box>
+                <Text size="10px" fw={800} c="dimmed" mb={5}>
+                  QUICK ACTION
+                </Text>
+                <Group gap="xs" wrap="nowrap">
+                  <Button
+                    size="xs"
+                    variant="light"
+                    color="cyan"
+                    onClick={() => {
+                      setFilterMode("unpriced");
+                      setSearch("");
+                    }}
+                  >
+                    Missing MRP
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => {
+                      setFilterMode("all");
+                      setSearch("");
+                    }}
+                  >
+                    Clear All
+                  </Button>
+                </Group>
+              </Box>
+            </SimpleGrid>
+          </Paper>
+
+          <Card withBorder radius="md" p={0}>
+            <Group justify="space-between" p="md" pb="xs" gap="md">
+              <Group gap="xs">
+                <IconBox size={18} color="var(--mantine-color-cyan-4)" />
+                <Text fw={800}>Mapped Products</Text>
+                <Badge variant="light">{filteredProducts.length} rows</Badge>
+              </Group>
+              <Button
+                size="xs"
+                variant="outline"
+                color="cyan"
+                onClick={handleExportExcel}
+                leftSection={<IconDownload size={16} />}
+              >
+                Export to Excel
+              </Button>
+            </Group>
+
+            {isMobile ? (
+              <Stack gap="sm" p="md">
+                {filteredProducts.map((product) => (
+                  <Card key={product.productId} withBorder radius="md" p="sm" bg="rgba(6, 19, 31, 0.2)">
+                    <Group justify="space-between" mb="xs">
+                      <Badge variant="light" color="gray">
+                        {product.skuCode || "N/A"}
+                      </Badge>
+                      <Text fw={900} c="cyan.3" size="sm">
+                        Stock: {formatNumber(product.currentQuantity)}
+                      </Text>
+                    </Group>
+                    <Text size="sm" fw={800} lineClamp={2}>
+                      {product.productName}
+                    </Text>
+                    {product.alias && (
+                      <Text size="xs" c="dimmed" mb="xs">
+                        {product.alias}
+                      </Text>
+                    )}
+                    <Divider my="xs" style={{ borderColor: "rgba(255,255,255,0.06)" }} />
+                    <SimpleGrid cols={2} spacing="xs">
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">COMMODITY</Text>
+                        <Text size="xs" fw={700} truncate>{product.commodityName || "-"}</Text>
+                      </div>
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">MANUFACTURER</Text>
+                        <Text size="xs" fw={700} truncate>{product.manufacturerName || "-"}</Text>
+                      </div>
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">COUNTRY / UNIT</Text>
+                        <Text size="xs" fw={700} truncate>
+                          {product.countryOfOrigin || "-"} ({product.unitType || "UNIT"})
+                        </Text>
+                      </div>
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">MRP / USSP</Text>
+                        <Text size="xs" fw={700} truncate>
+                          {product.mrp ? formatMoney(product.mrp) : "-"} / {product.ussp ? formatMoney(product.ussp) : "-"}
+                        </Text>
+                      </div>
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">PACK / WEIGHT</Text>
+                        <Text size="xs" fw={700} truncate>
+                          {product.netQuantity || "-"} ({product.bestBeforeMonths || 84} mo) / {product.weight ? `${Number(product.weight).toFixed(2)} kg` : "-"}
+                        </Text>
+                      </div>
+                      <div>
+                        <Text size="9px" fw={800} c="dimmed">OWNERSHIP</Text>
+                        <Text size="xs" fw={700} truncate>{product.ownership || "-"}</Text>
+                      </div>
+                    </SimpleGrid>
+                    {product.note && (
+                      <>
+                        <Divider my="xs" style={{ borderColor: "rgba(255,255,255,0.06)" }} />
+                        <div>
+                          <Text size="9px" fw={800} c="dimmed">NOTE</Text>
+                          <Text size="xs" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>{product.note}</Text>
+                        </div>
+                      </>
+                    )}
+                  </Card>
+                ))}
+                {filteredProducts.length === 0 && (
+                  <Center py="xl">
+                    <Text size="sm" c="dimmed">No products match this view.</Text>
+                  </Center>
+                )}
+              </Stack>
+            ) : (
+              <MantineDataTable<PartyDashboardProduct>
+                data={filteredProducts}
+                columns={columns}
+                rowKey={(row) => row.productId}
+                isLoading={false}
+                emptyIcon={IconBox}
+                emptyTitle="No product rows"
+                emptyDescription="No products match current search or filter."
+                itemLabel="products"
+                resetPageKey={`${search}-${filterMode}`}
+              />
+            )}
+          </Card>
+        </Stack>
+      )}
+
+      {activeView === "stock-check" && (
         <Stack gap="md">
           <Paper radius="md" p="sm" withBorder bg="rgba(6, 19, 31, 0.2)">
             <Group justify="space-between" align="center">
@@ -327,7 +787,7 @@ export const PartyDashboard = memo(function PartyDashboard() {
                 color="cyan"
                 size="xs"
                 onClick={() => {
-                  setShowStockCheck(false);
+                  setActiveView("menu");
                   setLookupResult(null);
                   setInvoices([]);
                   setScanInput("");
@@ -533,7 +993,7 @@ export const PartyDashboard = memo(function PartyDashboard() {
                           PRODUCT MASTER
                         </Text>
                       </Group>
-                      <SimpleGrid cols={2} spacing="xs">
+                      <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="xs">
                         <div>
                           <Text size="9px" fw={800} c="dimmed">NAME</Text>
                           <Text size="xs" fw={700} truncate>{lookupResult.productName}</Text>
@@ -632,6 +1092,36 @@ export const PartyDashboard = memo(function PartyDashboard() {
                           No invoices found for this SKU.
                         </Text>
                       </Group>
+                    ) : isMobile ? (
+                      <Stack gap="xs" mt="xs">
+                        {invoices.map((invoice) => (
+                          <Card key={invoice.id} withBorder radius="md" p="xs" bg="rgba(6, 19, 31, 0.2)">
+                            <Group justify="space-between" mb={4}>
+                              <Text size="xs" fw={800} ff="monospace" c="cyan.3">
+                                {invoice.invoiceNumber}
+                              </Text>
+                              <Text size="xs" fw={800}>
+                                Qty: {formatNumber(invoice.billedQty)}
+                              </Text>
+                            </Group>
+                            <Group justify="space-between" mb={2}>
+                              <Text size="11px" c="dimmed">
+                                {new Date(invoice.invoiceDate).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric"
+                                })}
+                              </Text>
+                              <Text size="11px" fw={700}>
+                                {formatMoney(invoice.mrp)}
+                              </Text>
+                            </Group>
+                            <Text size="11px" c="dimmed" truncate>
+                              Party: {invoice.partyName}
+                            </Text>
+                          </Card>
+                        ))}
+                      </Stack>
                     ) : (
                       <ScrollArea type="auto">
                         <Table striped highlightOnHover withTableBorder={false} miw={600}>

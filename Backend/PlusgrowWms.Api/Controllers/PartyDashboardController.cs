@@ -85,6 +85,11 @@ public class PartyDashboardController : BaseController
                 UnitType = product.UnitType,
                 Mrp = product.Mrp,
                 Weight = product.Weight,
+                Factor = product.Factor,
+                Ussp = product.Ussp,
+                BestBeforeMonths = product.BestBeforeMonths,
+                Note = product.Note,
+                Ownership = product.Ownership,
                 CurrentQuantity = quantity?.CurrentQuantity ?? 0,
                 Locations = locations,
             };
