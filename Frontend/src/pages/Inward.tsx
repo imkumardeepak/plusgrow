@@ -148,6 +148,7 @@ export const Inward = memo(function Inward() {
   const [stickerType, setStickerType] = useState<StickerMode>("Combined");
   const [manufacturerId, setManufacturerId] = useState<string | null>(null);
   const [importerId, setImporterId] = useState<string | null>(null);
+  const [invoiceManufacturerSearch, setInvoiceManufacturerSearch] = useState("");
   const [manufacturerSearch, setManufacturerSearch] = useState("");
   const [importerSearch, setImporterSearch] = useState("");
   const [reprintFrom, setReprintFrom] = useState<number | "">(1);
@@ -240,6 +241,14 @@ export const Inward = memo(function Inward() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+      void loadManufacturerLookup(invoiceManufacturerSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [invoiceManufacturerSearch, loadManufacturerLookup]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
       void loadImporterLookup(importerSearch);
     }, 250);
 
@@ -319,6 +328,32 @@ export const Inward = memo(function Inward() {
       })),
     [manufacturers],
   );
+
+  const invoiceManufacturerOptions = useMemo(() => {
+    const options = manufacturers.map((item) => ({
+      value: item.name,
+      label: item.name,
+    }));
+
+    if (
+      invoiceForm.partyName &&
+      !options.some(
+        (item) =>
+          item.value.trim().toLowerCase() ===
+          invoiceForm.partyName.trim().toLowerCase(),
+      )
+    ) {
+      return [
+        {
+          value: invoiceForm.partyName,
+          label: invoiceForm.partyName,
+        },
+        ...options,
+      ];
+    }
+
+    return options;
+  }, [invoiceForm.partyName, manufacturers]);
 
   const importerOptions = useMemo(
     () =>
@@ -663,12 +698,14 @@ export const Inward = memo(function Inward() {
   const resetInvoiceModal = () => {
     setEditingInvoice(null);
     setInvoiceForm(emptyInvoiceForm());
+    setInvoiceManufacturerSearch("");
     setInvoiceModalOpen(false);
   };
 
   const openCreateInvoice = () => {
     setEditingInvoice(null);
     setInvoiceForm(emptyInvoiceForm());
+    setInvoiceManufacturerSearch("");
     setInvoiceModalOpen(true);
   };
 
@@ -681,6 +718,7 @@ export const Inward = memo(function Inward() {
       productId: row.productId,
       billedQty: row.billedQty,
     });
+    setInvoiceManufacturerSearch(row.partyName);
     setInvoiceModalOpen(true);
   };
 
@@ -693,7 +731,7 @@ export const Inward = memo(function Inward() {
     }
 
     if (!invoiceForm.productId || !invoiceForm.partyName.trim()) {
-      toast.error("Party name and product are required");
+      toast.error("Manufacturer and product are required");
       return;
     }
 
@@ -1019,16 +1057,32 @@ export const Inward = memo(function Inward() {
                       }))
                     }
                   />
-                  <Input
-                    label="Party Name"
-                    value={invoiceForm.partyName}
-                    onChange={(e) =>
+                  <Select
+                    label="Manufacturer"
+                    placeholder="Select manufacturer"
+                    data={invoiceManufacturerOptions}
+                    searchValue={invoiceManufacturerSearch}
+                    onSearchChange={setInvoiceManufacturerSearch}
+                    value={invoiceForm.partyName || null}
+                    onChange={(value) =>
                       setInvoiceForm((prev) => ({
                         ...prev,
-                        partyName: e.target.value,
+                        partyName: value || "",
                       }))
                     }
-                    placeholder="Enter party name"
+                    searchable
+                    clearable
+                    styles={{
+                      input: {
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        borderColor: "rgba(255,255,255,0.12)",
+                      },
+                      dropdown: {
+                        background:
+                          "linear-gradient(180deg, rgba(16,25,41,0.98) 0%, rgba(8,14,26,0.98) 100%)",
+                        borderColor: "rgba(148, 163, 184, 0.16)",
+                      },
+                    }}
                   />
                 </SimpleGrid>
                 <Select
