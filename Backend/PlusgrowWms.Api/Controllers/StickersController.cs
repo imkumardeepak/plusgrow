@@ -65,9 +65,10 @@ public class StickersController : BaseController
             {
                 var zpl = await _stickerService.GenerateZplAsync(item.Config);
                 
-                if (item.Quantity > 1)
+                var printQuantity = GetTemplatePrintQuantity(item.Config.Size, item.Quantity);
+                if (printQuantity > 1)
                 {
-                    zpl = ApplyPrintQuantity(zpl, item.Quantity);
+                    zpl = ApplyPrintQuantity(zpl, printQuantity);
                 }
 
                 await _stickerService.PrintAsync(zpl, request.PrinterIp);
@@ -79,6 +80,17 @@ public class StickersController : BaseController
         {
             return StatusCode(500, ex.Message);
         }
+    }
+
+    private static int GetTemplatePrintQuantity(string size, int requestedQuantity)
+    {
+        var quantity = Math.Max(requestedQuantity, 1);
+        if (string.Equals(size, "25x25", StringComparison.OrdinalIgnoreCase))
+        {
+            return (int)Math.Ceiling(quantity / 4m);
+        }
+
+        return quantity;
     }
 
     private static string ApplyPrintQuantity(string zpl, int quantity)
