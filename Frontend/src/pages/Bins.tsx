@@ -217,18 +217,7 @@ export const Bins = memo(function Bins() {
         </Group>
       ),
     },
-    {
-      key: "createdAt",
-      header: "Created",
-      sortable: true,
-      sortAccessor: (row) => row.createdAt,
-      render: (row) => (
-        <Badge variant="light" color="gray" size="xs" radius="sm">
-          {row.createdAt ? format(new Date(row.createdAt), "dd-MMM-yy") : "N/A"}
-        </Badge>
-      ),
-      width: 140,
-    },
+
     {
       key: "actions",
       header: "Action",

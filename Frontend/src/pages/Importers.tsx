@@ -214,20 +214,7 @@ export const Importers = memo(function Importers() {
         </Text>
       ),
     },
-    {
-      key: "created_at",
-      header: "Created",
-      sortable: true,
-      sortAccessor: (row) => row.created_at,
-      render: (row) => (
-        <Badge variant="light" color="gray" size="xs" radius="sm">
-          {row.created_at
-            ? format(new Date(row.created_at), "dd-MMM-yy")
-            : "N/A"}
-        </Badge>
-      ),
-      width: 120,
-    },
+
     {
       key: "actions",
       header: "Action",

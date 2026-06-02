@@ -233,20 +233,7 @@ export const Parties = memo(function Parties() {
         </Text>
       ),
     },
-    {
-      key: "created_at",
-      header: "Registered",
-      sortable: true,
-      sortAccessor: (row) => row.created_at,
-      render: (row) => (
-        <Badge variant="light" color="gray" size="xs" radius="sm">
-          {row.created_at
-            ? format(new Date(row.created_at), "dd-MMM-yy")
-            : "N/A"}
-        </Badge>
-      ),
-      width: 140,
-    },
+
     {
       key: "actions",
       header: "Action",
