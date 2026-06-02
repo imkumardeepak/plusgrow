@@ -56,8 +56,7 @@ export function Login() {
 
     if (result.success) {
       notifications.show({
-        title: "Authentication successful",
-        message: "Welcome to PlusGrow WMS command center",
+        message: "Welcome back",
         color: "blue",
         icon: <IconShieldCheck size={18} />,
       });

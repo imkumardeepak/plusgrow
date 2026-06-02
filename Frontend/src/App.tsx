@@ -149,7 +149,7 @@ const theme = createTheme({
 export default function App() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <Notifications position="top-right" />
+      <Notifications position="top-right" autoClose={1000} />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
