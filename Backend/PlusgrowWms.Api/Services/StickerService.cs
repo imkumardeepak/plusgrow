@@ -148,13 +148,16 @@ public class StickerService : IStickerService
 
     public async Task<byte[]> GetPreviewImageAsync(string zpl, string size)
     {
+        var printerDensity = string.Equals(size, "25x25", StringComparison.OrdinalIgnoreCase)
+            ? "8dpmm"
+            : "12dpmm";
         string labelSize = "2x2";
         if (size == "38x38") labelSize = "1.5x1.5";
         if (size == "60x60") labelSize = "2.4x2.4";
         if (size == "75x75") labelSize = "3x3";
         if (size == "25x25") labelSize = "4x1";
 
-        var url = $"http://api.labelary.com/v1/printers/12dpmm/labels/{labelSize}/0/";
+        var url = $"http://api.labelary.com/v1/printers/{printerDensity}/labels/{labelSize}/0/";
 
         var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -180,8 +183,8 @@ public class StickerService : IStickerService
             new StickerTemplateDto { Name = "Imported & Marketed By 75 x 75", Size = "75x75", Type = "Combined", FileName = "IMPORTED_MARKTED-75x75.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 75 x 75", Size = "75x75", Type = "Separate", FileName = "MARKTEDBY-75x75.prn" },
             new StickerTemplateDto { Name = "Manufactured By 75 x 75", Size = "75x75", Type = "Manufacture", FileName = "MANUFACTREDBY-75x75.prn" },
-            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Combined", FileName = "Product-25x25x4-300.prn" },
-            new StickerTemplateDto { Name = "Product 25 x 25 (4-up)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-300.prn" },
+            new StickerTemplateDto { Name = "Product 25 x 25 (4-up 200 DPI)", Size = "25x25", Type = "Combined", FileName = "Product-25x25x4-200.prn" },
+            new StickerTemplateDto { Name = "Product 25 x 25 (4-up 200 DPI)", Size = "25x25", Type = "Separate", FileName = "Product-25x25x4-200.prn" },
             new StickerTemplateDto { Name = "Imported & Marketed By 38 x 38", Size = "38x38", Type = "Combined", FileName = "IMPORTED_MARKTED-38x38.prn" },
             new StickerTemplateDto { Name = "Imported By + Marketed By 38 x 38", Size = "38x38", Type = "Separate", FileName = "MARKTEDBY-38x38.prn" },
             new StickerTemplateDto { Name = "Manufactured By 38 x 38", Size = "38x38", Type = "Manufacture", FileName = "MANUFACTREDBY-38x38.prn" }
@@ -218,7 +221,7 @@ public class StickerService : IStickerService
     {
         if (size == "25x25")
         {
-            return "Product-25x25x4-300.prn";
+            return "Product-25x25x4-200.prn";
         }
 
         var normalizedType = string.Equals(type, "Separate", StringComparison.OrdinalIgnoreCase)

@@ -169,6 +169,12 @@ export const MPD = memo(function MPD() {
     return () => clearInterval(interval);
   }, [refreshTableData]);
 
+  useEffect(() => {
+    if (stickerSize === "25x25" && stickerType !== "Combined") {
+      setStickerType("Combined");
+    }
+  }, [stickerSize, stickerType]);
+
   const loadData = async () => {
     try {
       setIsLoading(true);
@@ -437,7 +443,10 @@ export const MPD = memo(function MPD() {
       return;
     }
 
-    const validationErrors = validateProductForSticker(selectedPrintProduct);
+    const validationErrors = validateProductForSticker(
+      selectedPrintProduct,
+      stickerSize,
+    );
     if (validationErrors.length > 0) {
       setPreviewUrl(null);
       return;
@@ -457,7 +466,7 @@ export const MPD = memo(function MPD() {
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [buildStickerPayload, selectedPrintProduct, printQuantity]);
+  }, [buildStickerPayload, selectedPrintProduct, printQuantity, stickerSize]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -475,7 +484,10 @@ export const MPD = memo(function MPD() {
   const handlePrint = async () => {
     if (!selectedPrintProduct) return;
 
-    const validationErrors = validateProductForSticker(selectedPrintProduct);
+    const validationErrors = validateProductForSticker(
+      selectedPrintProduct,
+      stickerSize,
+    );
     if (validationErrors.length > 0) {
       toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
       return;
@@ -1456,47 +1468,60 @@ export const MPD = memo(function MPD() {
                       ]}
                     />
                   </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed" mb={5}>
-                      LABEL MODE
-                    </Text>
-                    <Radio.Group
-                      value={stickerType}
-                      onChange={(value) =>
-                        setStickerType(value as StickerMode)
-                      }
-                    >
-                      <Stack gap={6}>
-                        <Radio
-                          value="Combined"
-                          label={stickerModeLabel.Combined}
-                          size="xs"
-                        />
-                        <Radio
-                          value="Separate"
-                          label={stickerModeLabel.Separate}
-                          size="xs"
-                        />
-                        <Radio
-                          value="Manufacture"
-                          label={stickerModeLabel.Manufacture}
-                          size="xs"
-                        />
-                      </Stack>
-                    </Radio.Group>
-                  </Box>
-                  <Select
-                    label="Manufacturer"
-                    size="xs"
-                    radius="md"
-                    placeholder="Select manufacturer"
-                    value={printManufacturerId}
-                    onChange={setPrintManufacturerId}
-                    searchable
-                    clearable
-                    data={manufacturerOptions}
-                  />
-                  {stickerType === "Separate" ? (
+                  {stickerSize !== "25x25" ? (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed" mb={5}>
+                        LABEL MODE
+                      </Text>
+                      <Radio.Group
+                        value={stickerType}
+                        onChange={(value) =>
+                          setStickerType(value as StickerMode)
+                        }
+                      >
+                        <Stack gap={6}>
+                          <Radio
+                            value="Combined"
+                            label={stickerModeLabel.Combined}
+                            size="xs"
+                          />
+                          <Radio
+                            value="Separate"
+                            label={stickerModeLabel.Separate}
+                            size="xs"
+                          />
+                          <Radio
+                            value="Manufacture"
+                            label={stickerModeLabel.Manufacture}
+                            size="xs"
+                          />
+                        </Stack>
+                      </Radio.Group>
+                    </Box>
+                  ) : (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed">
+                        TEMPLATE
+                      </Text>
+                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
+                        {activeTemplate?.name || "Template missing"}
+                      </Text>
+                    </Box>
+                  )}
+                  {stickerSize !== "25x25" ? (
+                    <Select
+                      label="Manufacturer"
+                      size="xs"
+                      radius="md"
+                      placeholder="Select manufacturer"
+                      value={printManufacturerId}
+                      onChange={setPrintManufacturerId}
+                      searchable
+                      clearable
+                      data={manufacturerOptions}
+                    />
+                  ) : null}
+                  {stickerSize !== "25x25" && stickerType === "Separate" ? (
                     <Select
                       label="Importer"
                       size="xs"
@@ -1508,7 +1533,7 @@ export const MPD = memo(function MPD() {
                       clearable
                       data={importerOptions}
                     />
-                  ) : (
+                  ) : stickerSize !== "25x25" ? (
                     <Box>
                       <Text size="10px" fw={800} c="dimmed">
                         TEMPLATE
@@ -1517,7 +1542,7 @@ export const MPD = memo(function MPD() {
                         {activeTemplate?.name || "Template missing"}
                       </Text>
                     </Box>
-                  )}
+                  ) : null}
                 </SimpleGrid>
                 <TextInput
                   label="Import Date"
@@ -1634,14 +1659,14 @@ export const MPD = memo(function MPD() {
                     style={{ textAlign: "center" }}
                   >
                     <Tag size={48} style={{ marginBottom: 12 }} />
-                    <Text fw={700} size="lg" mb="xs" c={selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0 ? "red.4" : undefined}>
-                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0 
+                    <Text fw={700} size="lg" mb="xs" c={selectedPrintProduct && validateProductForSticker(selectedPrintProduct, stickerSize).length > 0 ? "red.4" : undefined}>
+                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct, stickerSize).length > 0
                         ? "Missing Product Data" 
                         : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">
-                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct).length > 0
-                        ? `Please fill missing product fields: ${validateProductForSticker(selectedPrintProduct).join(", ")}`
+                      {selectedPrintProduct && validateProductForSticker(selectedPrintProduct, stickerSize).length > 0
+                        ? `Please fill missing product fields: ${validateProductForSticker(selectedPrintProduct, stickerSize).join(", ")}`
                         : "Preview not available for this configuration."}
                     </Text>
                   </Paper>

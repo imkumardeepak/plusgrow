@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Services;
+using System.Text.RegularExpressions;
 
 namespace PlusgrowWms.Api.Controllers;
 
@@ -64,12 +65,9 @@ public class StickersController : BaseController
             {
                 var zpl = await _stickerService.GenerateZplAsync(item.Config);
                 
-                // Construct the ZPL for the specified quantity
-                // Zebra printers support ^PQ (Print Quantity)
-                // We'll insert ^PQ into the ZPL before the ending ^XZ
                 if (item.Quantity > 1)
                 {
-                    zpl = zpl.Replace("^XZ", $"^PQ{item.Quantity}^XZ");
+                    zpl = ApplyPrintQuantity(zpl, item.Quantity);
                 }
 
                 await _stickerService.PrintAsync(zpl, request.PrinterIp);
@@ -81,5 +79,21 @@ public class StickersController : BaseController
         {
             return StatusCode(500, ex.Message);
         }
+    }
+
+    private static string ApplyPrintQuantity(string zpl, int quantity)
+    {
+        var printQuantity = Math.Max(quantity, 1);
+        if (Regex.IsMatch(zpl, @"\^PQ\d+(?:,\d+,\d+,[A-Z])?"))
+        {
+            return Regex.Replace(
+                zpl,
+                @"\^PQ\d+(?:,\d+,\d+,[A-Z])?",
+                $"^PQ{printQuantity}",
+                RegexOptions.None,
+                TimeSpan.FromMilliseconds(100));
+        }
+
+        return zpl.Replace("^XZ", $"^PQ{printQuantity}^XZ");
     }
 }

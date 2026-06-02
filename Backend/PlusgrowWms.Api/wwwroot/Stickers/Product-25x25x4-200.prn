@@ -1,0 +1,40 @@
+^XA
+^SZ2
+^JMA
+^MCY
+^PMN
+^PW778
+~JSN
+^JZY
+^LH0,0
+^LRN
+^FX ================= LABEL 1 =================
+^FO40,18
+^BXN,5,200
+^FD<SKUCODE>^FS
+^FO18,150
+^A0N,30,30
+^FD<SKUCODE>^FS
+^FX ================= LABEL 2 =================
+^FO232,18
+^BXN,5,200
+^FD<SKUCODE>^FS
+^FO210,150
+^A0N,30,30
+^FD<SKUCODE>^FS
+^FX ================= LABEL 3 =================
+^FO424,18
+^BXN,5,200
+^FD<SKUCODE>^FS
+^FO402,150
+^A0N,30,30
+^FD<SKUCODE>^FS
+^FX ================= LABEL 4 =================
+^FO616,18
+^BXN,5,200
+^FD<SKUCODE>^FS
+^FO594,150
+^A0N,30,30
+^FD<SKUCODE>^FS
+^PQ1,0,1,Y
+^XZ
