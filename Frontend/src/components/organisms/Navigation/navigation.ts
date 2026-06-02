@@ -181,7 +181,7 @@ export const navigationGroups: NavGroup[] = [
       },
       {
         id: "stock-movement",
-        label: "Stock Movement",
+        label: "Stock Adjustment",
         icon: Move,
         href: "/stock-movement",
       },

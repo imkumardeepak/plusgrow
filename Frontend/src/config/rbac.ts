@@ -47,7 +47,7 @@ export const SYSTEM_PAGES = [
   { key: "mpd", label: "Products", path: "/mpd", group: "Inventory", icon: Box },
   { key: "sticker-printer-config", label: "Printer Config", path: "/sticker-printer-config", group: "Master Data", icon: Printer },
   { key: "stock-check", label: "Stock Check", path: "/stock-check", group: "Inventory", icon: ClipboardCheck },
-  { key: "stock-movement", label: "Stock Movement", path: "/stock-movement", group: "Inventory", icon: Move },
+  { key: "stock-movement", label: "Stock Adjustment", path: "/stock-movement", group: "Inventory", icon: Move },
   { key: "warehouse-map", label: "Warehouse Map", path: "/warehouse-map", group: "Inventory", icon: Map },
   { key: "role-master", label: "Role Master", path: "/role-master", group: "Security", icon: ShieldCheck },
   { key: "user-master", label: "User Master", path: "/user-master", group: "Security", icon: UserCog },

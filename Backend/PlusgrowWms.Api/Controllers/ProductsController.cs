@@ -328,14 +328,25 @@ public class ProductsController : BaseController
                 result.ImportedCount = newProducts.Count;
             }
 
-            // ─── 6. BULK UPSERT stock quantities ───────────────────────────────────
+            // ─── 6. BULK UPSERT stock quantities and default location allotments ───
             var productIds = newProducts.Select(p => p.Id).ToList();
             var existingQtys = await _context.ProductQuantities
                 .Where(pq => productIds.Contains(pq.ProductId))
                 .ToDictionaryAsync(pq => pq.ProductId);
+            var existingAllotments = await _context.ProductAllottedLocations
+                .Where(al => productIds.Contains(al.ProductId))
+                .ToDictionaryAsync(al => al.ProductId);
 
             var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
             var newQtys = new List<ProductQuantity>();
+            var newAllotments = new List<ProductAllottedLocation>();
+
+            var defaultLocationExists = await _context.Locations
+                .AnyAsync(l => l.LocationCode == Location.DefaultLocationCode);
+            if (!defaultLocationExists)
+            {
+                _context.Locations.Add(Location.CreateDefault());
+            }
 
             foreach (var (row, product) in rowProductMap)
             {
@@ -357,10 +368,33 @@ public class ProductsController : BaseController
                         UpdatedAt = now
                     });
                 }
+
+                if (existingAllotments.TryGetValue(product.Id, out var allotment))
+                {
+                    allotment.LocationJson ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    allotment.LocationJson[Location.DefaultLocationCode] = stockQnty;
+                    allotment.UpdatedAt = now;
+                    _context.Entry(allotment).Property(x => x.LocationJson).IsModified = true;
+                }
+                else
+                {
+                    newAllotments.Add(new ProductAllottedLocation
+                    {
+                        ProductId = product.Id,
+                        LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            [Location.DefaultLocationCode] = stockQnty,
+                        },
+                        UpdatedAt = now
+                    });
+                }
             }
 
             if (newQtys.Any())
                 await _context.ProductQuantities.AddRangeAsync(newQtys);
+
+            if (newAllotments.Any())
+                await _context.ProductAllottedLocations.AddRangeAsync(newAllotments);
 
             await _context.SaveChangesAsync(); // final single save
 

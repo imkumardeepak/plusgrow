@@ -38,7 +38,7 @@ const routeLabels: Record<string, string> = {
   "/mpd": "Products",
   "/mcd": "Customers",
   "/stock-check": "Stock Check",
-  "/stock-movement": "Stock Movement",
+  "/stock-movement": "Stock Adjustment",
   "/warehouse-map": "Warehouse Map",
   "/profile": "My Profile",
 };

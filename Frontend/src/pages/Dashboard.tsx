@@ -352,7 +352,7 @@ export const Dashboard = memo(function Dashboard() {
         },
         {
           key: "stock-movement",
-          title: "Stock Movement",
+          title: "Stock Adjustment",
           description: "Post quantity increases and decreases by location.",
           icon: IconChartBar,
           color: "cyan",

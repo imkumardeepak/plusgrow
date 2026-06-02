@@ -6,6 +6,11 @@ namespace PlusgrowWms.Api.Models;
 [Table("locations")]
 public class Location
 {
+    public const string DefaultAisle = "0";
+    public const string DefaultRack = "0";
+    public const string DefaultShelf = "0";
+    public const string DefaultLocationCode = "0-0-0";
+
     [Key]
     [Column("id")]
     public int Id { get; set; }
@@ -33,6 +38,19 @@ public class Location
     [Column("bins", TypeName = "jsonb")]
     public List<string> Bins { get; set; } = new();
     
-[Column("created_at")]
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+    public static Location CreateDefault()
+    {
+        return new Location
+        {
+            Aisle = DefaultAisle,
+            Rack = DefaultRack,
+            Shelf = DefaultShelf,
+            LocationCode = DefaultLocationCode,
+            Bins = new List<string>(),
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        };
+    }
 }

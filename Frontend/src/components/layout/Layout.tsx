@@ -90,7 +90,7 @@ const navGroups: NavGroup[] = [
     items: [
       { to: "/mpd", icon: Package, label: "Products" },
       { to: "/stock-check", icon: ClipboardCheck, label: "Stock Check" },
-      { to: "/stock-movement", icon: Move, label: "Stock Movement" },
+      { to: "/stock-movement", icon: Move, label: "Stock Adjustment" },
       { to: "/warehouse-map", icon: Map, label: "Warehouse Map" },
     ],
   },
