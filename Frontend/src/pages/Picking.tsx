@@ -86,6 +86,15 @@ export const Picking = memo(function Picking() {
   const navigate = useNavigate();
   const scanInputRef = useRef<HTMLInputElement | null>(null);
   const locationInputRef = useRef<HTMLInputElement | null>(null);
+  const directSkuInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isDirectPickModalOpen) {
+      window.setTimeout(() => {
+        directSkuInputRef.current?.focus();
+      }, 50);
+    }
+  }, [isDirectPickModalOpen]);
 
   const loadData = useCallback(async () => {
     try {
@@ -476,6 +485,7 @@ export const Picking = memo(function Picking() {
           </Text>
           <div className="grid gap-3 md:grid-cols-2">
             <TextInput
+              ref={directSkuInputRef}
               label="SKU / Alias Scan"
               placeholder="Scan SKU or alias"
               value={directSkuCode}
