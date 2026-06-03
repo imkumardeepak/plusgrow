@@ -108,10 +108,15 @@ public class ProductsController : BaseController
                 StringComparer.OrdinalIgnoreCase
             );
 
-            IXLCell GetCell(IXLRangeRow rangeRow, string name) =>
-                headers.TryGetValue(name, out var colNum)
-                    ? worksheet.Row(rangeRow.RowNumber()).Cell(colNum)
-                    : worksheet.Row(rangeRow.RowNumber()).Cell(100);
+            IXLCell GetCell(IXLRangeRow rangeRow, params string[] names)
+            {
+                foreach (var name in names)
+                {
+                    if (headers.TryGetValue(name, out var colNum))
+                        return worksheet.Row(rangeRow.RowNumber()).Cell(colNum);
+                }
+                return worksheet.Row(rangeRow.RowNumber()).Cell(100);
+            }
 
             var rangeUsed = worksheet.RangeUsed();
             if (rangeUsed == null)
@@ -139,7 +144,7 @@ public class ProductsController : BaseController
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var allProductNames = rows
-                .Select(r => GetCell(r, "Product Name").GetString()?.Trim())
+                .Select(r => GetCell(r, "Name", "Product Name").GetString()?.Trim())
                 .Where(n => !string.IsNullOrEmpty(n))
                 .Select(n => n!.ToUpperInvariant())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -200,7 +205,7 @@ public class ProductsController : BaseController
             {
                 try
                 {
-                    var productName = GetCell(row, "Product Name").GetString()?.Trim();
+                    var productName = GetCell(row, "Name", "Product Name").GetString()?.Trim();
                     var sku = GetCell(row, "SKU").GetString()?.Trim();
 
                     if (string.IsNullOrEmpty(productName))
@@ -286,9 +291,9 @@ public class ProductsController : BaseController
                         GetCell(row, "Commodity Name").GetString()?.Trim() ?? "", out var commodity);
 
                     decimal.TryParse(GetCell(row, "MRP").GetString(), out decimal mrp);
-                    int.TryParse(GetCell(row, "Best Before (Months)").GetString(), out int bestBefore);
+                    int.TryParse(GetCell(row, "Best Before", "Best Before (Months)").GetString(), out int bestBefore);
                     decimal.TryParse(GetCell(row, "Weight").GetString(), out decimal weight);
-                    var netQntyStr = GetCell(row, "Net Qnty").GetString()?.Trim();
+                    var netQntyStr = GetCell(row, "MRP Quantity", "Net Qnty").GetString()?.Trim();
                     var ownership = GetCell(row, "Ownership").GetString()?.Trim();
                     if (string.IsNullOrEmpty(ownership)) ownership = "Self";
 
@@ -350,7 +355,7 @@ public class ProductsController : BaseController
 
             foreach (var (row, product) in rowProductMap)
             {
-                var stockQntyStr = GetCell(row, "Stock Qnty").GetString()?.Trim();
+                var stockQntyStr = GetCell(row, "Stock", "Stock Qnty").GetString()?.Trim();
                 if (string.IsNullOrEmpty(stockQntyStr) ||
                     !int.TryParse(stockQntyStr, out int stockQnty) || stockQnty < 0) continue;
 
@@ -458,9 +463,11 @@ public class ProductsController : BaseController
                 try
                 {
                     var sku = row.Cell(headers["SKU"]).GetString()?.Trim();
-                    var productNameForLog = headers.ContainsKey("Product Name")
-                        ? row.Cell(headers["Product Name"]).GetString()?.Trim()
-                        : null;
+                    var productNameForLog = headers.ContainsKey("Name")
+                        ? row.Cell(headers["Name"]).GetString()?.Trim()
+                        : headers.ContainsKey("Product Name")
+                            ? row.Cell(headers["Product Name"]).GetString()?.Trim()
+                            : null;
 
                     if (string.IsNullOrEmpty(sku))
                     {
@@ -488,7 +495,12 @@ public class ProductsController : BaseController
                     }
 
                     // Update dynamically based on headers
-                    if (headers.ContainsKey("Product Name"))
+                    if (headers.ContainsKey("Name"))
+                    {
+                        var val = row.Cell(headers["Name"]).GetString()?.Trim();
+                        if (!string.IsNullOrEmpty(val)) product.Name = val;
+                    }
+                    else if (headers.ContainsKey("Product Name"))
                     {
                         var val = row.Cell(headers["Product Name"]).GetString()?.Trim();
                         if (!string.IsNullOrEmpty(val)) product.Name = val;
@@ -512,13 +524,23 @@ public class ProductsController : BaseController
                     if (headers.ContainsKey("Note"))
                         product.Note = row.Cell(headers["Note"]).GetString()?.Trim();
 
-                    if (headers.ContainsKey("Net Qnty"))
+                    if (headers.ContainsKey("MRP Quantity"))
+                    {
+                        var val = row.Cell(headers["MRP Quantity"]).GetString()?.Trim();
+                        product.NetQuantity = string.IsNullOrEmpty(val) ? null : val;
+                    }
+                    else if (headers.ContainsKey("Net Qnty"))
                     {
                         var val = row.Cell(headers["Net Qnty"]).GetString()?.Trim();
                         product.NetQuantity = string.IsNullOrEmpty(val) ? null : val;
                     }
 
-                    if (headers.ContainsKey("Best Before (Months)"))
+                    if (headers.ContainsKey("Best Before"))
+                    {
+                        if (int.TryParse(row.Cell(headers["Best Before"]).GetString(), out int bestBefore))
+                            product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 84;
+                    }
+                    else if (headers.ContainsKey("Best Before (Months)"))
                     {
                         if (int.TryParse(row.Cell(headers["Best Before (Months)"]).GetString(), out int bestBefore))
                             product.BestBeforeMonths = bestBefore > 0 ? bestBefore : 84;
@@ -530,7 +552,12 @@ public class ProductsController : BaseController
                             product.Mrp = mrp;
                     }
 
-                    if (headers.ContainsKey("USSP"))
+                    if (headers.ContainsKey("USP"))
+                    {
+                        if (decimal.TryParse(row.Cell(headers["USP"]).GetString(), out decimal ussp))
+                            product.Ussp = ussp;
+                    }
+                    else if (headers.ContainsKey("USSP"))
                     {
                         if (decimal.TryParse(row.Cell(headers["USSP"]).GetString(), out decimal ussp))
                             product.Ussp = ussp;

@@ -871,7 +871,7 @@ export const productsApi = {
   uploadExcel: async (file: File): Promise<ProductUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await api.post<ApiResponse<ProductUploadResult>>('/products/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -883,7 +883,7 @@ export const productsApi = {
   updateFromExcel: async (file: File): Promise<ProductUploadResult> => {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const response = await api.post<ApiResponse<ProductUploadResult>>('/products/update-excel', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -895,13 +895,13 @@ export const productsApi = {
 
   downloadUpdateTemplate: (products: Product[], selectedFields: string[]): void => {
     const wb = XLSX.utils.book_new();
-    
+
     // Build rows with SKU as the first column and the selected fields
     const templateData = products.map(product => {
       const row: any = { 'SKU': product.sku };
-      
+
       selectedFields.forEach(field => {
-        switch(field) {
+        switch (field) {
           case 'MRP': row['MRP'] = product.mrp ?? ''; break;
           case 'Weight': row['Weight'] = product.weight ?? ''; break;
           case 'Alias': row['Alias'] = product.alias ?? ''; break;
@@ -918,59 +918,61 @@ export const productsApi = {
           case 'Note': row['Note'] = product.note ?? ''; break;
         }
       });
-      
+
       return row;
     });
-    
+
     const ws = XLSX.utils.json_to_sheet(templateData);
-    
+
     // Auto-size columns based on header length or a default
     ws['!cols'] = [
       { wch: 20 }, // SKU
       ...selectedFields.map(() => ({ wch: 15 })) // Default width for others
     ];
-    
+
     XLSX.utils.book_append_sheet(wb, ws, 'Update Template');
     XLSX.writeFile(wb, 'Product_Update_Template.xlsx');
   },
-  
+
   downloadTemplate: (): void => {
     const wb = XLSX.utils.book_new();
     const templateData = [
       {
-        'Product Name': '',
+        'Name': '',
         'SKU': '',
+        'Country of Origin': 'India',
+        'MRP Quantity': '',
+        'Factor': '1L or 500g',
+        'USP': '',
+        'MRP': '',
+        'Best Before': '84',
+        'Stock': '',
         'Alias': '',
         'Manufacturer Name': '',
         'Commodity Name': '',
-        'Country of Origin': 'India',
         'Unit Type': 'UNIT',
-        'MRP': '',
-        'Net Qnty': '',
-        'Factor': '1L or 500g',
-        'Best Before (Months)': '84',
         'Weight': '',
         'Ownership': 'Self',
-        'Stock Qnty': '',
         'Note': '',
       }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     ws['!cols'] = [
-      { wch: 35 },  // Product Name
+      { wch: 35 },  // Name
       { wch: 20 },  // SKU
+      { wch: 18 },  // Country of Origin
+      { wch: 15 },  // MRP Quantity
+      { wch: 15 },  // Factor
+      { wch: 12 },  // USP
+      { wch: 12 },  // MRP
+      { wch: 15 },  // Best Before
+      { wch: 12 },  // Stock
       { wch: 20 },  // Alias
       { wch: 25 },  // Manufacturer Name
       { wch: 20 },  // Commodity Name
-      { wch: 18 },  // Country of Origin
       { wch: 12 },  // Unit Type
-      { wch: 12 },  // MRP
-      { wch: 12 },  // Net Qnty
-      { wch: 15 },  // Factor
-      { wch: 20 },  // Best Before (Months)
       { wch: 12 },  // Weight
       { wch: 15 },  // Ownership
-      { wch: 12 },  // Stock Qnty
       { wch: 20 },  // Note
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Product Template');
