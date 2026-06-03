@@ -246,7 +246,6 @@ namespace PlusgrowWms.Api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasDefaultValue("Active")
                         .HasColumnType("text")
                         .HasColumnName("status");
 
@@ -445,7 +444,9 @@ namespace PlusgrowWms.Api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
+                        .HasDefaultValue("Active")
                         .HasColumnName("status");
 
                     b.HasKey("Id");
