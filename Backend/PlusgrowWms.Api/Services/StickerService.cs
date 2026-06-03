@@ -96,7 +96,9 @@ public class StickerService : IStickerService
             : string.Equals(request.Type, "Manufacture", StringComparison.OrdinalIgnoreCase)
                 ? "MARKETED BY"
             : "IMPORTED & MARKETED BY";
-        var dmData = $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}";
+        var dmData = isSkuOnlySticker
+            ? product.Sku ?? string.Empty
+            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}#{FormatRupee(product.Mrp, 2)}";
 
         var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
