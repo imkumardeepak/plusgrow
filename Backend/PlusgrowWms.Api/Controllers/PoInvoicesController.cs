@@ -703,8 +703,9 @@ public class PoInvoicesController : BaseController
             return cachedManufacturer;
         }
 
+        var normalizedLower = normalizedName.ToLower();
         var existingManufacturer = await _context.Manufacturers
-            .FirstOrDefaultAsync(x => x.Name == normalizedName);
+            .FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedLower);
 
         if (existingManufacturer != null)
         {

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
@@ -13,6 +13,7 @@ import {
   Loader,
   NumberInput,
   Paper,
+  Progress,
   Radio,
   Select,
   SegmentedControl,
@@ -33,6 +34,7 @@ import {
   FileSpreadsheet,
   FileText,
   Loader2,
+  Layers,
   Plus,
   Printer,
   RefreshCw,
@@ -190,6 +192,16 @@ export const Inward = memo(function Inward() {
   const [reprintFrom, setReprintFrom] = useState<number | "">(1);
   const [reprintTo, setReprintTo] = useState<number | "">(1);
   const [stickerNote, setStickerNote] = useState("");
+
+  const [printAllSizePickerOpen, setPrintAllSizePickerOpen] = useState(false);
+  const [printAllSize, setPrintAllSize] = useState("50x50");
+  const [printAllProgressOpen, setPrintAllProgressOpen] = useState(false);
+  const [printAllCurrent, setPrintAllCurrent] = useState(0);
+  const [printAllTotal, setPrintAllTotal] = useState(0);
+  const [printAllCurrentProduct, setPrintAllCurrentProduct] = useState("");
+  const [printAllErrors, setPrintAllErrors] = useState<string[]>([]);
+  const [printAllDone, setPrintAllDone] = useState(false);
+  const [printAllCancelled, setPrintAllCancelled] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -1322,6 +1334,174 @@ export const Inward = memo(function Inward() {
     setIsUploadModalOpen(true);
   };
 
+  const openPrintAllSizePicker = () => {
+    if (!selectedInvoiceSummary) return;
+    if (isInvoiceCanceled(selectedInvoiceSummary)) {
+      toast.error("Canceled invoice cannot be printed");
+      return;
+    }
+    const unprintedItems = selectedInvoiceSummary.items.filter(
+      (item) => !item.printed && item.billedQty > 0,
+    );
+    if (unprintedItems.length === 0) {
+      toast.error("All items in this invoice have already been printed");
+      return;
+    }
+    setPrintAllSize("50x50");
+    setPrintAllSizePickerOpen(true);
+  };
+
+  const cancelledRef = useRef(false);
+
+  const handlePrintAll = async () => {
+    if (!selectedInvoiceSummary) return;
+
+    const unprintedItems = selectedInvoiceSummary.items.filter(
+      (item) => !item.printed && item.billedQty > 0,
+    );
+    if (unprintedItems.length === 0) {
+      toast.error("No unprinted items found");
+      return;
+    }
+
+    const config = printerConfigs.find(
+      (c) => c.stickerSize === printAllSize && c.isActive,
+    );
+    if (!config?.printerIp?.trim()) {
+      toast.error(
+        "Active printer profile not found for selected sticker size",
+      );
+      return;
+    }
+    const printerAddress = `${config.printerIp.trim()}:${config.printerPort}`;
+
+    const template = templates.find(
+      (t) => t.size === printAllSize && t.type === "Combined",
+    );
+    if (!template) {
+      toast.error(
+        "Sticker template not found for selected size (Combined mode)",
+      );
+      return;
+    }
+
+    setPrintAllSizePickerOpen(false);
+    setPrintAllCurrent(0);
+    setPrintAllTotal(unprintedItems.length);
+    setPrintAllErrors([]);
+    setPrintAllDone(false);
+    setPrintAllCancelled(false);
+    cancelledRef.current = false;
+    setPrintAllProgressOpen(true);
+
+    const printedIds: number[] = [];
+
+    for (let i = 0; i < unprintedItems.length; i++) {
+      if (cancelledRef.current) break;
+
+      const row = unprintedItems[i];
+      setPrintAllCurrent(i + 1);
+      setPrintAllCurrentProduct(
+        `${row.skuCode || "NO-SKU"} - ${row.productName}`,
+      );
+
+      try {
+        const product = await productsApi.getById(row.productId);
+        if (!product) {
+          setPrintAllErrors((prev) => [
+            ...prev,
+            `${row.skuCode}: Product not found`,
+          ]);
+          continue;
+        }
+
+        const validationErrors = validateProductForSticker(
+          product,
+          printAllSize,
+        );
+        if (validationErrors.length > 0) {
+          setPrintAllErrors((prev) => [
+            ...prev,
+            `${row.skuCode}: Missing ${validationErrors.join(", ")}`,
+          ]);
+          continue;
+        }
+
+        const payload = {
+          productId: row.productId,
+          manufacturerId: product.manufacturerId ?? undefined,
+          size: printAllSize,
+          type: "Combined" as const,
+          monthYear: format(
+            new Date(row.invoiceDate),
+            "MMM/yyyy",
+          ).toUpperCase(),
+          batchNumber: row.invoiceNumber,
+          note: "",
+          quantity: row.billedQty,
+          mrp: row.mrp ?? null,
+        };
+
+        await stickersApi.print({
+          printerIp: printerAddress,
+          items: [{ config: payload, quantity: row.billedQty }],
+        });
+
+        printedIds.push(row.id);
+      } catch (error: any) {
+        setPrintAllErrors((prev) => [
+          ...prev,
+          `${row.skuCode}: ${error.message || "Print failed"}`,
+        ]);
+      }
+    }
+
+    if (printedIds.length > 0) {
+      try {
+        await poInvoicesApi.markPrinted(printedIds);
+      } catch {
+        // silent
+      }
+      await loadInvoiceRows({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      });
+
+      setSelectedInvoiceSummary((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          items: prev.items.map((item) =>
+            printedIds.includes(item.id)
+              ? { ...item, printed: true }
+              : item,
+          ),
+          pendingCount: Math.max(
+            0,
+            prev.pendingCount - printedIds.length,
+          ),
+        };
+      });
+    }
+
+    setPrintAllDone(true);
+    if (cancelledRef.current) {
+      toast.warning(
+        `Print All canceled. ${printedIds.length} of ${unprintedItems.length} printed.`,
+      );
+    } else if (printedIds.length === unprintedItems.length) {
+      toast.success(
+        `All ${printedIds.length} items printed successfully`,
+      );
+    } else {
+      toast.warning(
+        `${printedIds.length} of ${unprintedItems.length} items printed`,
+      );
+    }
+  };
+
   return (
     <OperationsPage
       title="Purchase Invoices"
@@ -1716,20 +1896,37 @@ export const Inward = memo(function Inward() {
         size="xxl"
         footer={
           <Group justify="space-between">
-            <Button
-              variant="outline"
-              color="red"
-              disabled={
-                !selectedInvoiceSummary ||
-                isInvoiceCanceled(selectedInvoiceSummary)
-              }
-              onClick={() => {
-                setCancelInvoiceSummary(selectedInvoiceSummary);
-                setCancelRemark("");
-              }}
-            >
-              Cancel Invoice
-            </Button>
+            <Group gap="xs">
+              <Button
+                variant="outline"
+                color="red"
+                disabled={
+                  !selectedInvoiceSummary ||
+                  isInvoiceCanceled(selectedInvoiceSummary)
+                }
+                onClick={() => {
+                  setCancelInvoiceSummary(selectedInvoiceSummary);
+                  setCancelRemark("");
+                }}
+              >
+                Cancel Invoice
+              </Button>
+              <Button
+                variant="light"
+                color="cyan"
+                leftIcon={<Layers size={14} />}
+                disabled={
+                  !selectedInvoiceSummary ||
+                  isInvoiceCanceled(selectedInvoiceSummary) ||
+                  selectedInvoiceSummary.items.every(
+                    (item) => item.printed || item.billedQty <= 0,
+                  )
+                }
+                onClick={openPrintAllSizePicker}
+              >
+                Print All
+              </Button>
+            </Group>
             <Button
               variant="outline"
               onClick={() => setSelectedInvoiceSummary(null)}
@@ -2275,6 +2472,167 @@ export const Inward = memo(function Inward() {
         variant="danger"
         isLoading={isDeleting}
       />
+
+      {/* Print All - Size Picker Modal */}
+      <Modal
+        isOpen={printAllSizePickerOpen}
+        onClose={() => setPrintAllSizePickerOpen(false)}
+        title="Print All Stickers"
+        size="md"
+        footer={
+          <Group justify="flex-end">
+            <Button
+              variant="outline"
+              onClick={() => setPrintAllSizePickerOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              leftIcon={<Printer size={14} />}
+              onClick={() => void handlePrintAll()}
+            >
+              Start Printing
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            This will print stickers for all{" "}
+            <Text component="span" fw={800} c="cyan.3">
+              {selectedInvoiceSummary?.items.filter(
+                (item) => !item.printed && item.billedQty > 0,
+              ).length || 0}
+            </Text>{" "}
+            unprinted items in invoice{" "}
+            <Text component="span" fw={800} ff="monospace" c="cyan.3">
+              {selectedInvoiceSummary?.invoiceNumber}
+            </Text>
+            . Label mode will be set to Combined.
+          </Text>
+          <Paper radius="md" p="md" withBorder bg="transparent">
+            <Text size="10px" fw={800} c="dimmed" mb={8} tt="uppercase">
+              Sticker Size
+            </Text>
+            <SegmentedControl
+              fullWidth
+              size="sm"
+              radius="md"
+              value={printAllSize}
+              onChange={setPrintAllSize}
+              data={[
+                { value: "25x25", label: "25×25" },
+                { value: "38x38", label: "38×38" },
+                { value: "50x50", label: "50×50" },
+                { value: "60x60", label: "60×60" },
+                { value: "75x75", label: "75×75" },
+              ]}
+            />
+          </Paper>
+        </Stack>
+      </Modal>
+
+      {/* Print All - Progress Modal */}
+      <Modal
+        isOpen={printAllProgressOpen}
+        onClose={() => {
+          if (!printAllDone) {
+            cancelledRef.current = true;
+            setPrintAllCancelled(true);
+          } else {
+            setPrintAllProgressOpen(false);
+          }
+        }}
+        title="Printing All Stickers"
+        size="lg"
+        footer={
+          <Group justify="flex-end">
+            {!printAllDone ? (
+              <Button
+                variant="outline"
+                color="red"
+                disabled={printAllCancelled}
+                onClick={() => {
+                  cancelledRef.current = true;
+                  setPrintAllCancelled(true);
+                }}
+              >
+                {printAllCancelled ? "Canceling..." : "Cancel"}
+              </Button>
+            ) : (
+              <Button onClick={() => setPrintAllProgressOpen(false)}>
+                Close
+              </Button>
+            )}
+          </Group>
+        }
+      >
+        <Stack gap="md">
+          <Paper radius="md" p="md" withBorder bg="transparent">
+            <Group justify="space-between" mb="xs">
+              <Text size="xs" fw={800} c="dimmed" tt="uppercase">
+                Progress
+              </Text>
+              <Badge
+                size="sm"
+                variant="light"
+                color={printAllDone ? "green" : "cyan"}
+              >
+                {printAllCurrent} / {printAllTotal}
+              </Badge>
+            </Group>
+            <Progress
+              value={
+                printAllTotal > 0
+                  ? (printAllCurrent / printAllTotal) * 100
+                  : 0
+              }
+              size="lg"
+              radius="md"
+              color={printAllDone ? "green" : "cyan"}
+              animated={!printAllDone}
+              striped={!printAllDone}
+            />
+            {!printAllDone ? (
+              <Text size="xs" c="dimmed" mt="xs" lineClamp={1}>
+                Printing: {printAllCurrentProduct}
+              </Text>
+            ) : (
+              <Text
+                size="xs"
+                fw={700}
+                mt="xs"
+                c={
+                  printAllErrors.length > 0
+                    ? "orange.3"
+                    : "green.3"
+                }
+              >
+                {printAllCancelled
+                  ? "Print All was canceled"
+                  : printAllErrors.length > 0
+                    ? `Done with ${printAllErrors.length} error(s)`
+                    : "All items printed successfully!"}
+              </Text>
+            )}
+          </Paper>
+
+          {printAllErrors.length > 0 ? (
+            <Paper radius="md" p="md" withBorder bg="rgba(239, 68, 68, 0.06)">
+              <Text size="xs" fw={800} c="red.4" mb="xs" tt="uppercase">
+                Errors ({printAllErrors.length})
+              </Text>
+              <Stack gap={4} mah={200} style={{ overflowY: "auto" }}>
+                {printAllErrors.map((error, index) => (
+                  <Text key={`${error}-${index}`} size="xs" c="red.3">
+                    • {error}
+                  </Text>
+                ))}
+              </Stack>
+            </Paper>
+          ) : null}
+        </Stack>
+      </Modal>
     </OperationsPage>
   );
 });
