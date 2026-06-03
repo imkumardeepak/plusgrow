@@ -465,6 +465,21 @@ export interface DirectOutwardPickDto {
   customerName?: string | null;
 }
 
+export interface BulkDirectOutwardPickItemDto {
+  productId: number;
+  quantity: number;
+  skuCode?: string;
+  locationCode: string;
+  mrp?: number | null;
+  importDate?: string | null;
+}
+
+export interface BulkDirectOutwardPickDto {
+  items: BulkDirectOutwardPickItemDto[];
+  remark: string;
+  customerName?: string | null;
+}
+
 export interface DispatchOutwardOrderDto {
   cartonId?: string | null;
 }
@@ -1327,6 +1342,12 @@ export const outwardOrdersApi = {
 
   directPick: async (data: DirectOutwardPickDto): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>('/outwardorders/direct-pick', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  bulkDirectPick: async (data: BulkDirectOutwardPickDto): Promise<OutwardOrder[]> => {
+    const response = await api.post<ApiResponse<OutwardOrder[]>>('/outwardorders/bulk-direct-pick', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

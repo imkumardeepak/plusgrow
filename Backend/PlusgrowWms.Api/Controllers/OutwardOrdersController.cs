@@ -371,6 +371,108 @@ public class OutwardOrdersController : BaseController
         return Success(response, "Direct outward picked successfully and moved to packing");
     }
 
+    [HttpPost("bulk-direct-pick")]
+    public async Task<ActionResult<ApiResponse<List<OutwardOrderDto>>>> BulkDirectPick([FromBody] BulkDirectOutwardPickDto dto)
+    {
+        if (dto.Items == null || dto.Items.Count == 0)
+            return BadRequest<List<OutwardOrderDto>>("At least one item is required");
+
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<List<OutwardOrderDto>>("Remark is required for direct outward picking");
+
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var orderNumber = await GenerateDirectOrderNumberAsync();
+        var salesOrder = new SalesOrder
+        {
+            OrderNumber = orderNumber,
+            OrderDate = now.Date,
+            CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? "Direct Outward" : dto.CustomerName.Trim(),
+            Status = "Packed",
+            Notes = $"Direct outward pick. Remark: {dto.Remark.Trim()}",
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+
+        var createdOrders = new List<OutwardOrder>();
+
+        // Pre-fetch all products
+        var productIds = dto.Items.Select(x => x.ProductId).Distinct().ToList();
+        var products = await _context.Products.Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
+
+        foreach (var item in dto.Items)
+        {
+            if (item.ProductId <= 0)
+                return BadRequest<List<OutwardOrderDto>>("Product is required for all items");
+
+            var pickQty = item.Quantity <= 0 ? 1 : item.Quantity;
+
+            if (string.IsNullOrWhiteSpace(item.LocationCode))
+                return BadRequest<List<OutwardOrderDto>>("Location scan is required for all items");
+
+            if (!products.TryGetValue(item.ProductId, out var product))
+                return BadRequest<List<OutwardOrderDto>>($"Selected product ID {item.ProductId} does not exist");
+
+            var expectedSku = product.Sku?.Trim();
+            var expectedAlias = product.Alias?.Trim();
+            if (!string.IsNullOrWhiteSpace(item.SkuCode))
+            {
+                var scanned = item.SkuCode.Trim();
+                var matchesSku = !string.IsNullOrWhiteSpace(expectedSku) && string.Equals(expectedSku, scanned, StringComparison.OrdinalIgnoreCase);
+                var matchesAlias = !string.IsNullOrWhiteSpace(expectedAlias) && string.Equals(expectedAlias, scanned, StringComparison.OrdinalIgnoreCase);
+                if (!matchesSku && !matchesAlias)
+                {
+                    return BadRequest<List<OutwardOrderDto>>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
+                }
+            }
+
+            var resolvedLocationCode = await ResolveLocationCodeAsync(item.LocationCode.Trim());
+            if (string.IsNullOrWhiteSpace(resolvedLocationCode))
+                return BadRequest<List<OutwardOrderDto>>($"Scanned location {item.LocationCode.Trim()} was not found");
+
+            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty);
+            if (!reduceLocationResult.Success)
+                return BadRequest<List<OutwardOrderDto>>(reduceLocationResult.Message!);
+
+            var order = new OutwardOrder
+            {
+                SalesOrder = salesOrder,
+                ProductId = product.Id,
+                Product = product,
+                Quantity = pickQty,
+                Mrp = item.Mrp ?? product.Mrp,
+                PickedQuantity = pickQty,
+                Status = "Packed",
+                Notes = salesOrder.Notes,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            order.CartonId = BuildCartonId(order);
+            createdOrders.Add(order);
+        }
+
+        _context.SalesOrders.Add(salesOrder);
+        _context.OutwardOrders.AddRange(createdOrders);
+        await _context.SaveChangesAsync();
+
+        var responses = createdOrders.Select(MapOrder).ToList();
+        
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "outward.bulk-direct-picked",
+            Title = "Bulk direct outward picked",
+            Message = $"{orderNumber} picked with {createdOrders.Count} items.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["orderNumber"] = orderNumber,
+                ["itemCount"] = createdOrders.Count,
+                ["remark"] = dto.Remark.Trim(),
+            },
+        });
+
+        return Success(responses, $"Direct outward picked successfully with {createdOrders.Count} items");
+    }
+
     [HttpPost("{id}/dispatch")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DispatchOrder(int id, [FromBody] DispatchOutwardOrderDto dto)
     {

@@ -18,6 +18,7 @@ import {
   ScanLine,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { useMediaQuery } from "@mantine/hooks";
 
@@ -484,30 +485,31 @@ export const Picking = memo(function Picking() {
     const customer = directPickCustomer === "Self" ? null : directPickCustomer;
 
     setIsDirectPicking(true);
-    let successCount = 0;
 
     try {
+      // Validate locations
       for (const item of directPickItems) {
         if (!item.locationCode) {
           throw new Error(`Location missing for ${item.product.name}`);
         }
+      }
 
-        const created = await outwardOrdersApi.directPick({
+      const createdOrders = await outwardOrdersApi.bulkDirectPick({
+        remark: "Direct Pick",
+        customerName: customer,
+        items: directPickItems.map((item) => ({
           productId: item.product.id,
           quantity: item.quantity,
           skuCode: item.skuCode,
           locationCode: item.locationCode,
           mrp: item.mrp,
           importDate: item.importDate,
-          remark: "Direct Pick",
-          customerName: customer,
-        });
+        })),
+      });
 
-        setOrders((current) => [created, ...current]);
-        successCount++;
-      }
+      setOrders((current) => [...createdOrders, ...current]);
 
-      toast.success(`${successCount} item(s) direct picked successfully`);
+      toast.success(`${createdOrders.length} item(s) direct picked successfully`);
       setDirectPickItems([]);
       setDirectPickCustomer("Self");
     } catch (error: any) {
@@ -574,15 +576,31 @@ export const Picking = memo(function Picking() {
               size="lg"
               autoFocus
               rightSection={
-                <ActionIcon
-                  onClick={() => void handleDirectPickScan()}
-                  loading={isDirectProductLoading}
-                  variant="filled"
-                  color="brand"
-                >
-                  <ScanLine size={16} />
-                </ActionIcon>
+                <div className="flex items-center gap-1 pr-1">
+                  {directPickSkuInput && (
+                    <ActionIcon
+                      onClick={() => {
+                        setDirectPickSkuInput("");
+                        directSkuInputRef.current?.focus();
+                      }}
+                      variant="transparent"
+                      color="gray"
+                      size="sm"
+                    >
+                      <X size={14} />
+                    </ActionIcon>
+                  )}
+                  <ActionIcon
+                    onClick={() => void handleDirectPickScan()}
+                    loading={isDirectProductLoading}
+                    variant="filled"
+                    color="brand"
+                  >
+                    <ScanLine size={16} />
+                  </ActionIcon>
+                </div>
               }
+              rightSectionWidth={directPickSkuInput ? 70 : 40}
             />
           </div>
 
@@ -595,7 +613,6 @@ export const Picking = memo(function Picking() {
                 <Table striped highlightOnHover verticalSpacing="sm" className="text-sm">
                   <thead>
                     <tr>
-                      <th>Product</th>
                       <th>SKU/Alias</th>
                       <th>Location</th>
                       <th>Quantity</th>
@@ -605,9 +622,6 @@ export const Picking = memo(function Picking() {
                   <tbody>
                     {directPickItems.map((item) => (
                       <tr key={item.id}>
-                        <td className="max-w-[200px] truncate" title={item.product.name}>
-                          {item.product.name}
-                        </td>
                         <td>
                           <Badge variant="outline">{item.skuCode}</Badge>
                         </td>
@@ -915,20 +929,34 @@ export const Picking = memo(function Picking() {
                     <div className="space-y-2">
                       {/* Location Input */}
                       <div className="flex gap-2">
-                        <input
-                          ref={locationInputRef}
-                          value={locationScanCode}
-                          onChange={(e) => setLocationScanCode(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !isLocationLocked) {
-                              e.preventDefault();
-                              handleLocationSubmit();
-                            }
-                          }}
-                          placeholder="Scan location first"
-                          disabled={isLocationLocked}
-                          className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                        />
+                        <div className="relative flex-1">
+                          <input
+                            ref={locationInputRef}
+                            value={locationScanCode}
+                            onChange={(e) => setLocationScanCode(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !isLocationLocked) {
+                                e.preventDefault();
+                                handleLocationSubmit();
+                              }
+                            }}
+                            placeholder="Scan location first"
+                            disabled={isLocationLocked}
+                            className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-2.5 pr-8 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                          />
+                          {locationScanCode && !isLocationLocked && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLocationScanCode("");
+                                locationInputRef.current?.focus();
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                         {isLocationLocked ? (
                           <Button
                             size="xs"
@@ -951,24 +979,38 @@ export const Picking = memo(function Picking() {
 
                       {/* SKU or Alias Input */}
                       <div className="flex gap-2">
-                        <input
-                          ref={scanInputRef}
-                          value={scanCode}
-                          onChange={(e) => setScanCode(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleScanSubmit();
+                        <div className="relative flex-1">
+                          <input
+                            ref={scanInputRef}
+                            value={scanCode}
+                            onChange={(e) => setScanCode(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void handleScanSubmit();
+                              }
+                            }}
+                            placeholder={
+                              isLocationLocked
+                                ? `Scan ${activeItem.skuCode}${activeItem.alias ? ` or ${activeItem.alias}` : ""}`
+                                : "Set location first"
                             }
-                          }}
-                          placeholder={
-                            isLocationLocked
-                              ? `Scan ${activeItem.skuCode}${activeItem.alias ? ` or ${activeItem.alias}` : ""}`
-                              : "Set location first"
-                          }
-                          disabled={!isLocationLocked || isFullyPicked}
-                          className="h-9 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
-                        />
+                            disabled={!isLocationLocked || isFullyPicked}
+                            className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-2.5 pr-8 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                          />
+                          {scanCode && isLocationLocked && !isFullyPicked && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScanCode("");
+                                scanInputRef.current?.focus();
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                         <Button
                           onClick={() => void handleScanSubmit()}
                           loading={isPicking}
