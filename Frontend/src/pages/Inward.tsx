@@ -112,6 +112,7 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   partyName: "",
   productId: 0,
   billedQty: 0,
+  mrp: null,
 });
 
 export const Inward = memo(function Inward() {
@@ -371,6 +372,7 @@ export const Inward = memo(function Inward() {
       products.map((product) => ({
         value: product.id,
         label: `${product.sku || "NO-SKU"} - ${product.name}`,
+        mrp: product.mrp ?? null,
       })),
     [products],
   );
@@ -653,6 +655,7 @@ export const Inward = memo(function Inward() {
       batchNumber: row.invoiceNumber,
       note: stickerNote.trim(),
       quantity,
+      mrp: row.mrp ?? null,
     }),
     [importerId, manufacturerId, stickerNote, stickerSize, stickerType],
   );
@@ -827,6 +830,7 @@ export const Inward = memo(function Inward() {
       partyName: row.partyName,
       productId: row.productId,
       billedQty: row.billedQty,
+      mrp: row.mrp ?? null,
     });
     setInvoiceLines([]);
     setInvoiceUploadSkippedRows([]);
@@ -854,7 +858,9 @@ export const Inward = memo(function Inward() {
     }
 
     const existing = invoiceLines.find(
-      (line) => line.productId === invoiceForm.productId,
+      (line) =>
+        line.productId === invoiceForm.productId &&
+        Number(line.mrp || 0) === Number(invoiceForm.mrp || 0),
     );
     if (existing) {
       setInvoiceLines((current) =>
@@ -871,6 +877,7 @@ export const Inward = memo(function Inward() {
           id: `line-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           productId: invoiceForm.productId,
           billedQty: invoiceForm.billedQty,
+          mrp: invoiceForm.mrp ?? null,
         },
       ]);
     }
@@ -879,25 +886,27 @@ export const Inward = memo(function Inward() {
       ...prev,
       productId: 0,
       billedQty: 0,
+      mrp: null,
     }));
     setProductSearch("");
   };
 
   const mergeInvoiceLines = (nextLines: InvoiceLineDraft[]) => {
     setInvoiceLines((current) => {
-      const lineMap = new Map<number, InvoiceLineDraft>();
+      const lineMap = new Map<string, InvoiceLineDraft>();
 
       [...current, ...nextLines].forEach((line) => {
-        const existing = lineMap.get(line.productId);
+        const key = `${line.productId}:${Number(line.mrp || 0).toFixed(2)}`;
+        const existing = lineMap.get(key);
         if (existing) {
-          lineMap.set(line.productId, {
+          lineMap.set(key, {
             ...existing,
             billedQty: existing.billedQty + line.billedQty,
           });
           return;
         }
 
-        lineMap.set(line.productId, line);
+        lineMap.set(key, line);
       });
 
       return Array.from(lineMap.values());
@@ -910,9 +919,10 @@ export const Inward = memo(function Inward() {
       {
         "SKU Code": "SKU-001",
         "Qnty": 10,
+        MRP: 100,
       },
     ]);
-    worksheet["!cols"] = [{ wch: 24 }, { wch: 12 }];
+    worksheet["!cols"] = [{ wch: 24 }, { wch: 12 }, { wch: 12 }];
     XLSX.utils.book_append_sheet(workbook, worksheet, "Product Lines");
     XLSX.writeFile(workbook, "Third_Party_Inward_Product_Lines.xlsx");
   };
@@ -991,10 +1001,12 @@ export const Inward = memo(function Inward() {
           "Billed Qty",
           "BilledQty",
         ]);
+        const mrpText = getUploadCell(row, ["MRP", "Mrp"]);
 
         if (!skuCode && !quantityText) continue;
 
         const quantity = Number(quantityText);
+        const mrp = mrpText ? Number(mrpText.replace(/,/g, "")) : null;
         if (!skuCode) {
           skippedRows.push({
             rowNumber,
@@ -1031,6 +1043,7 @@ export const Inward = memo(function Inward() {
             id: `line-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
             productId: lookup.product.id,
             billedQty: quantity,
+            mrp: Number.isFinite(mrp) ? mrp : lookup.product.mrp ?? null,
           });
         } catch {
           skippedRows.push({
@@ -1102,6 +1115,7 @@ export const Inward = memo(function Inward() {
               partyName: invoiceForm.partyName,
               productId: line.productId,
               billedQty: line.billedQty,
+              mrp: line.mrp ?? null,
             }),
           ),
         );
@@ -1589,6 +1603,19 @@ export const Inward = memo(function Inward() {
                   sortAccessor: (row) => row.billedQty,
                   render: (row) => <Text size="xs">{row.billedQty}</Text>,
                   width: 90,
+                },
+                {
+                  key: "mrp",
+                  header: "MRP",
+                  align: "right",
+                  sortable: true,
+                  sortAccessor: (row) => row.mrp ?? 0,
+                  render: (row) => (
+                    <Text size="xs" fw={700}>
+                      {row.mrp ? `Rs ${Number(row.mrp).toFixed(2)}` : "-"}
+                    </Text>
+                  ),
+                  width: 100,
                 },
                 {
                   key: "remainingQty",

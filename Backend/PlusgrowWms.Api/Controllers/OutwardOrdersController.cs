@@ -152,6 +152,7 @@ public class OutwardOrdersController : BaseController
             SalesOrder = salesOrder,
             ProductId = item.ProductId,
             Quantity = item.Quantity,
+            Mrp = item.Mrp ?? products[item.ProductId].Mrp,
             PickedQuantity = 0,
             Status = "Open",
             Notes = normalizedNotes,
@@ -205,8 +206,9 @@ public class OutwardOrdersController : BaseController
         if (order.Status == "Dispatched")
             return BadRequest<OutwardOrderDto>("Dispatched orders cannot be picked");
 
-        var pickQty = dto.Quantity <= 0 ? 1 : dto.Quantity;
-        var nextPicked = Math.Min(order.Quantity, order.PickedQuantity + pickQty);
+        var requestedPickQty = dto.Quantity <= 0 ? 1 : dto.Quantity;
+        var pickQty = Math.Min(requestedPickQty, Math.Max(order.Quantity - order.PickedQuantity, 0));
+        var nextPicked = order.PickedQuantity + pickQty;
         if (nextPicked == order.PickedQuantity)
             return BadRequest<OutwardOrderDto>("Order is already fully picked");
 
@@ -221,6 +223,11 @@ public class OutwardOrdersController : BaseController
             {
                 return BadRequest<OutwardOrderDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
             }
+        }
+
+        if (dto.Mrp.HasValue && order.Mrp.HasValue && decimal.Round(dto.Mrp.Value, 2) != decimal.Round(order.Mrp.Value, 2))
+        {
+            return BadRequest<OutwardOrderDto>($"MRP mismatch. Sticker MRP Rs.{dto.Mrp.Value:N2} does not match sales order MRP Rs.{order.Mrp.Value:N2}");
         }
 
         if (string.IsNullOrWhiteSpace(dto.LocationCode))
@@ -327,6 +334,7 @@ public class OutwardOrdersController : BaseController
             ProductId = product.Id,
             Product = product,
             Quantity = pickQty,
+            Mrp = dto.Mrp ?? product.Mrp,
             PickedQuantity = pickQty,
             Status = "Packed",
             Notes = salesOrder.Notes,
@@ -655,6 +663,7 @@ public class OutwardOrdersController : BaseController
             ProductName = row.Product?.Name ?? string.Empty,
             Alias = row.Product?.Alias,
             Quantity = row.Quantity,
+            Mrp = row.Mrp,
             PickedQuantity = row.PickedQuantity,
             PendingQuantity = Math.Max(row.Quantity - row.PickedQuantity, 0),
             Status = row.Status,

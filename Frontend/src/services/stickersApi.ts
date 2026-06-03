@@ -17,6 +17,7 @@ export interface StickerPreviewPayload {
   batchNumber: string;
   note: string;
   quantity: number;
+  mrp?: number | null;
 }
 
 export interface StickerPrintPayload {

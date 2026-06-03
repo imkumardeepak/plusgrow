@@ -23,6 +23,7 @@ export type InvoiceLineDraft = {
   id: string;
   productId: number;
   billedQty: number;
+  mrp?: number | null;
 };
 
 export type SelectOption = {
@@ -40,7 +41,7 @@ interface InwardInvoiceModalProps {
   invoicePartyOptions: SelectOption[];
   invoiceManufacturerSearch: string;
   invoicePartySearch: string;
-  productOptions: Array<{ value: number; label: string }>;
+  productOptions: Array<{ value: number; label: string; mrp?: number | null }>;
   productSearch: string;
   skippedRowCount: number;
   isInvoiceLineUploading: boolean;
@@ -201,7 +202,7 @@ export function InwardInvoiceModal({
                   <Text size="11px" fw={800} c="dimmed" tt="uppercase">
                     {editingInvoice ? "Product Row" : "Product Lines"}
                   </Text>
-                  <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
                     <Select
                       label="Product"
                       placeholder="Select product"
@@ -214,12 +215,16 @@ export function InwardInvoiceModal({
                       value={
                         invoiceForm.productId ? String(invoiceForm.productId) : null
                       }
-                      onChange={(value) =>
+                      onChange={(value) => {
+                        const product = productOptions.find(
+                          (option) => String(option.value) === value,
+                        );
                         onInvoiceFormChange((prev) => ({
                           ...prev,
                           productId: value ? Number(value) : 0,
-                        }))
-                      }
+                          mrp: product?.mrp ?? null,
+                        }));
+                      }}
                       searchable
                       styles={selectStyles}
                     />
@@ -232,6 +237,21 @@ export function InwardInvoiceModal({
                         onInvoiceFormChange((prev) => ({
                           ...prev,
                           billedQty: Number(event.target.value),
+                        }))
+                      }
+                    />
+                    <Input
+                      label="MRP"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={invoiceForm.mrp ?? ""}
+                      onChange={(event) =>
+                        onInvoiceFormChange((prev) => ({
+                          ...prev,
+                          mrp: event.target.value
+                            ? Number(event.target.value)
+                            : null,
                         }))
                       }
                     />
@@ -344,7 +364,8 @@ export function InwardInvoiceModal({
                                     {index + 1}. {getProductLabel(line.productId)}
                                   </Text>
                                   <Text size="11px" c="dimmed">
-                                    Billed Qty: {line.billedQty}
+                                    Billed Qty: {line.billedQty} · MRP:{" "}
+                                    {line.mrp ? `Rs ${Number(line.mrp).toFixed(2)}` : "-"}
                                   </Text>
                                 </Box>
                                 <Button

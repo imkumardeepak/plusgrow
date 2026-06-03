@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlusgrowWms.Api.Data;
@@ -12,9 +13,11 @@ using PlusgrowWms.Api.Data;
 namespace PlusgrowWms.Api.Migrations
 {
     [DbContext(typeof(PlusgrowDbContext))]
-    partial class PlusgrowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603052122_AddMrpToSalesOrderItems")]
+    partial class AddMrpToSalesOrderItems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -370,10 +373,6 @@ namespace PlusgrowWms.Api.Migrations
                     b.Property<bool>("LocationAllotted")
                         .HasColumnType("boolean")
                         .HasColumnName("location_allotted");
-
-                    b.Property<decimal?>("Mrp")
-                        .HasColumnType("numeric")
-                        .HasColumnName("mrp");
 
                     b.Property<int>("PoInvoiceHeaderId")
                         .HasColumnType("integer")

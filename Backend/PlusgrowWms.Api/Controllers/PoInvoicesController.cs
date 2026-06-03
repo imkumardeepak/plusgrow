@@ -169,6 +169,7 @@ public class PoInvoicesController : BaseController
             PoInvoiceHeaderId = header.Id,
             ProductId = dto.ProductId,
             BilledQty = dto.BilledQty,
+            Mrp = dto.Mrp,
             Printed = false,
             RemainingAllocation = dto.BilledQty,
             LocationAllotted = false,
@@ -236,6 +237,7 @@ public class PoInvoicesController : BaseController
         entity.PoInvoiceHeaderId = header.Id;
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
+        entity.Mrp = dto.Mrp;
 
         if (previousProductId != dto.ProductId)
         {
@@ -381,6 +383,7 @@ public class PoInvoicesController : BaseController
                     var partNo = row.Cell(headerMap["partno"]).GetString().Trim();
                     var itemName = row.Cell(headerMap["itemname"]).GetString().Trim();
                     var billedQtyText = row.Cell(headerMap["billedqty"]).GetString().Trim();
+                    var mrp = ReadDecimalCell(row.Cell(headerMap["mrp"]));
 
                     if (string.IsNullOrWhiteSpace(invoiceNumber) && string.IsNullOrWhiteSpace(partyName) && string.IsNullOrWhiteSpace(partNo) && string.IsNullOrWhiteSpace(itemName))
                         continue;
@@ -431,24 +434,12 @@ public class PoInvoicesController : BaseController
                             continue;
                         }
 
-                        if (!decimal.TryParse(row.Cell(headerMap["mrp"]).GetString(), out decimal mrpVal))
-                        {
-                            try
-                            {
-                                mrpVal = (decimal)row.Cell(headerMap["mrp"]).GetDouble();
-                            }
-                            catch
-                            {
-                                mrpVal = 0;
-                            }
-                        }
-
                         product = new Product
                         {
                             Name = itemName,
                             Sku = string.IsNullOrWhiteSpace(partNo) ? null : partNo,
                             ManufacturerId = null,
-                            Mrp = mrpVal,
+                            Mrp = mrp,
                             BestBeforeMonths = 84,
                             UnitType = "pcs",
                             CountryOfOrigin = "India",
@@ -458,6 +449,11 @@ public class PoInvoicesController : BaseController
 
                         _context.Products.Add(product);
                         await _context.SaveChangesAsync();
+                    }
+                    else if (mrp > 0)
+                    {
+                        product.Mrp = mrp;
+                        product.CalculateUssp();
                     }
 
                     if (product.ManufacturerId == null && !string.IsNullOrWhiteSpace(partyName))
@@ -474,6 +470,7 @@ public class PoInvoicesController : BaseController
                         PoInvoiceHeaderId = header.Id,
                         ProductId = product.Id,
                         BilledQty = billedQty,
+                        Mrp = mrp,
                         Printed = false,
                         RemainingAllocation = billedQty,
                         LocationAllotted = false,
@@ -592,7 +589,7 @@ public class PoInvoicesController : BaseController
             ProductId = invoice.ProductId,
             SkuCode = invoice.Product?.Sku ?? string.Empty,
             ProductName = invoice.Product?.Name ?? string.Empty,
-            Mrp = invoice.Product?.Mrp,
+            Mrp = invoice.Mrp ?? invoice.Product?.Mrp,
             BilledQty = invoice.BilledQty,
             Printed = invoice.Printed,
             RemainingAllocation = invoice.RemainingAllocation,
@@ -631,6 +628,22 @@ public class PoInvoicesController : BaseController
     private static DateTime NormalizeInvoiceDate(DateTime value)
     {
         return DateTime.SpecifyKind(value.Date, DateTimeKind.Unspecified);
+    }
+
+    private static decimal ReadDecimalCell(IXLCell cell)
+    {
+        var text = cell.GetString().Trim();
+        if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+
+        try
+        {
+            return (decimal)cell.GetDouble();
+        }
+        catch
+        {
+            return 0m;
+        }
     }
 
     private async Task<PoInvoiceHeader> GetOrCreateInvoiceHeaderAsync(string invoiceNumber, DateTime invoiceDate, string partyName, int? currentHeaderId = null)

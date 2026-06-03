@@ -25,6 +25,9 @@ public class PoInvoice
     [Column("billed_qty")]
     public int BilledQty { get; set; }
 
+    [Column("mrp")]
+    public decimal? Mrp { get; set; }
+
     [Column("printed")]
     public bool Printed { get; set; }
 

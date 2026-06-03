@@ -25,6 +25,9 @@ public class OutwardOrder
     [Column("quantity")]
     public int Quantity { get; set; }
 
+    [Column("mrp")]
+    public decimal? Mrp { get; set; }
+
     [Column("picked_quantity")]
     public int PickedQuantity { get; set; }
 

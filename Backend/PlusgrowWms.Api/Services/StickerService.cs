@@ -88,6 +88,7 @@ public class StickerService : IStickerService
             selectedManufacturer?.Country,
             importerParts.Country);
         var quantity = request.Quantity > 0 ? request.Quantity : 1;
+        var stickerMrp = request.Mrp ?? product.Mrp;
         var bestBeforeMonths = product.BestBeforeMonths > 0
             ? product.BestBeforeMonths
             : 1;
@@ -98,7 +99,7 @@ public class StickerService : IStickerService
             : "IMPORTED & MARKETED BY";
         var dmData = isSkuOnlySticker
             ? product.Sku ?? string.Empty
-            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}#{FormatRupee(product.Mrp, 2)}";
+            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}#{FormatRupee(stickerMrp, 2)}";
 
         var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
@@ -119,7 +120,7 @@ public class StickerService : IStickerService
             { "<DATEOFIMPORT>", request.MonthYear },
             { "<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA" },
             { "<NETQNTY>", product.NetQuantity ?? "0 ml" },
-            { "<MRP>", FormatRupee(product.Mrp, 2) },
+            { "<MRP>", FormatRupee(stickerMrp, 2) },
             { "<FACTOR>", FormatRupee(product.Ussp, 2) },
             { "<UNIT>", product.UnitType ?? "Pcs" },
             { "<BESTBEFORE>", bestBeforeMonths.ToString() },

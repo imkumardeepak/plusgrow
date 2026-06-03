@@ -11,6 +11,7 @@ public class StickerPreviewRequest
     public string BatchNumber { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
     public int Quantity { get; set; } = 1;
+    public decimal? Mrp { get; set; }
 }
 
 public class StickerTemplateDto

@@ -11,6 +11,7 @@ import { NumberInput, Stack, Group, Text, Textarea, TextInput } from "@mantine/c
 import {
   ArrowRight,
   ArrowLeft,
+  AlertTriangle,
   ClipboardList,
   MapPin,
   Package,
@@ -39,6 +40,35 @@ import {
 import { toast } from "../lib/toast";
 
 type ScanTone = "idle" | "success" | "error";
+
+type StickerScan = {
+  raw: string;
+  sku: string;
+  quantity: number;
+  importDate?: string | null;
+  batchNumber?: string | null;
+  mrp?: number | null;
+};
+
+const parseStickerScan = (value: string): StickerScan => {
+  const raw = value.trim();
+  const parts = raw.split("#").map((part) => part.trim()).filter(Boolean);
+  const mrpText = parts[4] || "";
+  const mrpMatch = mrpText.match(/[\d,.]+/);
+  const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
+
+  return {
+    raw,
+    sku: parts[0] || raw,
+    quantity: Math.max(Number(parts[1]) || 1, 1),
+    importDate: parts[2] || null,
+    batchNumber: parts[3] || null,
+    mrp: parsedMrp && Number.isFinite(parsedMrp) ? parsedMrp : null,
+  };
+};
+
+const formatMrp = (value?: number | null) =>
+  typeof value === "number" ? `Rs ${value.toFixed(2)}` : "-";
 
 type PickingOrderGroup = {
   salesOrderId: number;
@@ -252,22 +282,24 @@ export const Picking = memo(function Picking() {
   }, [activeGroup?.salesOrderId]);
 
   const handlePick = useCallback(
-    async (orderItem: OutwardOrder, scannedSku: string) => {
+    async (orderItem: OutwardOrder, scan: StickerScan) => {
       const normalizedLocation = locationScanCode.trim();
 
       try {
         setIsPicking(true);
         const updated = await outwardOrdersApi.pick(orderItem.id, {
-          quantity: 1,
-          skuCode: scannedSku,
+          quantity: scan.quantity,
+          skuCode: scan.sku,
           locationCode: normalizedLocation,
+          mrp: scan.mrp,
+          importDate: scan.importDate,
         });
         setOrders((current) =>
           current.map((row) => (row.id === updated.id ? updated : row)),
         );
         setSelectedSalesOrderId(updated.salesOrderId);
         setActiveItemId(updated.id);
-        setLastScanCode(scannedSku);
+        setLastScanCode(scan.raw);
         setLastLocationCode(normalizedLocation);
         setScanTone("success");
         const remaining = updated.pendingQuantity;
@@ -279,7 +311,7 @@ export const Picking = memo(function Picking() {
         toast.success(
           remaining === 0
             ? `${updated.orderNumber} ready for packing`
-            : `Picked 1 for ${updated.orderNumber}`,
+            : `Picked ${Math.min(scan.quantity, orderItem.pendingQuantity)} for ${updated.orderNumber}`,
         );
         if (remaining > 0) {
           setScanCode("");
@@ -287,7 +319,7 @@ export const Picking = memo(function Picking() {
         }
       } catch (error: any) {
         setScanTone("error");
-        setLastScanCode(scannedSku);
+        setLastScanCode(scan.raw);
         setLastScanMessage(error.message || "Pick failed.");
         toast.error(error.message || "Pick failed");
       } finally {
@@ -329,14 +361,13 @@ export const Picking = memo(function Picking() {
       return;
     }
 
-    // Split scanned data by '#' and use the first part (index 0)
-    const normalizedScan = scanCode.trim().split("#")[0].trim();
-    if (!normalizedScan) {
+    const parsedScan = parseStickerScan(scanCode);
+    if (!parsedScan.sku) {
       toast.error("Scan SKU or Alias");
       return;
     }
 
-    setLastScanCode(normalizedScan);
+    setLastScanCode(parsedScan.raw);
 
     if (isFullyPicked) {
       setScanTone("error");
@@ -345,7 +376,7 @@ export const Picking = memo(function Picking() {
       return;
     }
 
-    const scanVal = normalizedScan.toLowerCase();
+    const scanVal = parsedScan.sku.toLowerCase();
     const matchedItem =
       activeGroup.items.find(
         (item) =>
@@ -367,23 +398,39 @@ export const Picking = memo(function Picking() {
       return;
     }
 
+    if (
+      parsedScan.mrp !== null &&
+      matchedItem.mrp !== null &&
+      matchedItem.mrp !== undefined &&
+      Number(parsedScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
+    ) {
+      const message = `MRP mismatch. Sticker ${formatMrp(parsedScan.mrp)} vs sales order ${formatMrp(matchedItem.mrp)}.`;
+      setScanTone("error");
+      setLastScanMessage(message);
+      toast.error(message);
+      setScanCode("");
+      window.setTimeout(() => scanInputRef.current?.focus(), 0);
+      return;
+    }
+
     setActiveItemId(matchedItem.id);
-    await handlePick(matchedItem, normalizedScan);
+    await handlePick(matchedItem, parsedScan);
   };
 
   const resolveDirectProduct = useCallback(async () => {
-    const normalizedScan = directSkuCode.trim().split("#")[0].trim();
-    if (!normalizedScan) {
+    const parsedScan = parseStickerScan(directSkuCode);
+    if (!parsedScan.sku) {
       toast.error("Scan SKU or Alias");
       return null;
     }
 
     setIsDirectProductLoading(true);
     try {
-      const result = await productsApi.lookup(normalizedScan);
-      setDirectSkuCode(normalizedScan);
+      const result = await productsApi.lookup(parsedScan.sku);
+      setDirectSkuCode(parsedScan.raw);
       setDirectProduct(result.product);
       setDirectLookupResult(result);
+      setDirectQuantity(parsedScan.quantity);
       const firstLocation = result.locations.find((entry) => entry.quantity > 0);
       setDirectLocationCode(firstLocation?.locationCode || "");
       if (!firstLocation) {
@@ -427,8 +474,10 @@ export const Picking = memo(function Picking() {
       const created = await outwardOrdersApi.directPick({
         productId: resolvedProduct.id,
         quantity: directQuantity,
-        skuCode: directSkuCode.trim() || undefined,
+        skuCode: parseStickerScan(directSkuCode).sku || undefined,
         locationCode: directLocationCode.trim(),
+        mrp: parseStickerScan(directSkuCode).mrp,
+        importDate: parseStickerScan(directSkuCode).importDate,
         remark: directRemark.trim(),
         customerName: directCustomerName.trim() || null,
       });
@@ -785,6 +834,14 @@ export const Picking = memo(function Picking() {
                         {activeGroup.totalPickedQuantity} / {activeGroup.totalQuantity}
                       </p>
                     </div>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
+                        Sales MRP
+                      </p>
+                      <p className="mt-0.5 text-xs font-bold text-white">
+                        {formatMrp(activeItem.mrp)}
+                      </p>
+                    </div>
                   </div>
 
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
@@ -826,7 +883,7 @@ export const Picking = memo(function Picking() {
                             </Badge>
                           </div>
                           <p className="mt-1.5 text-[11px] text-neutral-400">
-                            Location: {getLocationSummary(item.productId)}
+                            Location: {getLocationSummary(item.productId)} · MRP: {formatMrp(item.mrp)}
                           </p>
                         </button>
                       );
@@ -938,6 +995,9 @@ export const Picking = memo(function Picking() {
                     Status
                   </p>
                   <p className="mt-1 text-xs font-semibold text-white">
+                    {scanTone === "error" ? (
+                      <AlertTriangle className="mr-1 inline h-3.5 w-3.5 text-red-300" />
+                    ) : null}
                     {lastScanMessage}
                   </p>
                   {lastScanCode && (

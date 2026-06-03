@@ -17,6 +17,7 @@ public class OutwardOrderDto
     public string ProductName { get; set; } = string.Empty;
     public string? Alias { get; set; }
     public int Quantity { get; set; }
+    public decimal? Mrp { get; set; }
     public int PickedQuantity { get; set; }
     public int PendingQuantity { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -49,6 +50,7 @@ public class CreateOutwardOrderItemDto
 {
     public int ProductId { get; set; }
     public int Quantity { get; set; }
+    public decimal? Mrp { get; set; }
 }
 
 public class UpdateOutwardPickingDto
@@ -56,6 +58,8 @@ public class UpdateOutwardPickingDto
     public int Quantity { get; set; } = 1;
     public string? SkuCode { get; set; }
     public string? LocationCode { get; set; }
+    public decimal? Mrp { get; set; }
+    public string? ImportDate { get; set; }
 }
 
 public class DirectOutwardPickDto
@@ -64,6 +68,8 @@ public class DirectOutwardPickDto
     public int Quantity { get; set; } = 1;
     public string? SkuCode { get; set; }
     public string LocationCode { get; set; } = string.Empty;
+    public decimal? Mrp { get; set; }
+    public string? ImportDate { get; set; }
     public string Remark { get; set; } = string.Empty;
     public string? CustomerName { get; set; }
 }

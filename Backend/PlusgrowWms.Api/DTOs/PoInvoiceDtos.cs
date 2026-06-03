@@ -38,6 +38,7 @@ public class CreatePoInvoiceDto
     public string PartyName { get; set; } = string.Empty;
     public int ProductId { get; set; }
     public int BilledQty { get; set; }
+    public decimal? Mrp { get; set; }
 }
 
 public class UpdatePoInvoiceDto : CreatePoInvoiceDto

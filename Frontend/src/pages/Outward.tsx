@@ -47,15 +47,21 @@ type OrderItemInput = {
   id: string;
   productId: number;
   quantity: number;
+  mrp: number | "";
+};
+
+type OrderForm = Omit<CreateOutwardOrderDto, "items"> & {
+  items: OrderItemInput[];
 };
 
 const createOrderItemInput = (): OrderItemInput => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   productId: 0,
   quantity: 1,
+  mrp: "",
 });
 
-const emptyOrderForm = (): CreateOutwardOrderDto & { items: OrderItemInput[] } => ({
+const emptyOrderForm = (): OrderForm => ({
   orderDate: new Date().toISOString().slice(0, 10),
   customerName: "",
   notes: "",
@@ -287,6 +293,19 @@ export const Outward = memo(function Outward() {
       width: 80,
     },
     {
+      key: "mrp",
+      header: "MRP",
+      align: "right",
+      sortable: true,
+      sortAccessor: (row) => row.mrp ?? 0,
+      render: (row) => (
+        <Text size="xs" fw={700}>
+          {row.mrp ? `Rs ${Number(row.mrp).toFixed(2)}` : "-"}
+        </Text>
+      ),
+      width: 100,
+    },
+    {
       key: "picked",
       header: "Picked",
       align: "right",
@@ -363,14 +382,16 @@ export const Outward = memo(function Outward() {
 
     const mergedItems = Array.from(
       orderForm.items.reduce((map, item) => {
-        const current = map.get(item.productId) || 0;
-        map.set(item.productId, current + item.quantity);
+        const key = `${item.productId}:${Number(item.mrp || 0).toFixed(2)}`;
+        const current = map.get(key);
+        map.set(key, {
+          productId: item.productId,
+          quantity: (current?.quantity || 0) + item.quantity,
+          mrp: item.mrp === "" ? null : Number(item.mrp),
+        });
         return map;
-      }, new Map<number, number>()),
-    ).map(([productId, quantity]) => ({
-      productId,
-      quantity,
-    })) satisfies CreateOutwardOrderItemDto[];
+      }, new Map<string, CreateOutwardOrderItemDto>()),
+    ).map(([, item]) => item) satisfies CreateOutwardOrderItemDto[];
 
     try {
       setIsSaving(true);
@@ -564,12 +585,14 @@ export const Outward = memo(function Outward() {
                   searchValue={productSearch}
                   onSearchChange={setProductSearch}
                   value={item.productId > 0 ? String(item.productId) : null}
-                  onChange={(value) =>
+                  onChange={(value) => {
+                    const product = products.find((row) => row.id === Number(value));
                     updateOrderItem(item.id, {
                       productId: value ? Number(value) : 0,
-                    })
-                  }
-                  className="md:col-span-8"
+                      mrp: product?.mrp ?? "",
+                    });
+                  }}
+                  className="md:col-span-6"
                 />
                 <NumberInput
                   label="Quantity"
@@ -578,6 +601,18 @@ export const Outward = memo(function Outward() {
                   onChange={(value) =>
                     updateOrderItem(item.id, {
                       quantity: typeof value === "number" ? value : 1,
+                    })
+                  }
+                  className="md:col-span-2"
+                />
+                <NumberInput
+                  label="MRP"
+                  min={0}
+                  decimalScale={2}
+                  value={item.mrp}
+                  onChange={(value) =>
+                    updateOrderItem(item.id, {
+                      mrp: typeof value === "number" ? value : "",
                     })
                   }
                   className="md:col-span-3"

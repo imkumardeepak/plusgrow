@@ -286,6 +286,7 @@ export interface CreatePoInvoiceDto {
   partyName: string;
   productId: number;
   billedQty: number;
+  mrp?: number | null;
 }
 
 export interface ProductQuantityRecord {
@@ -392,6 +393,7 @@ export interface OutwardOrder {
   productName: string;
   alias?: string;
   quantity: number;
+  mrp?: number | null;
   pickedQuantity: number;
   pendingQuantity: number;
   status: "Open" | "Picking" | "Packed" | "Dispatched";
@@ -431,6 +433,7 @@ export interface CreateOutwardOrderDto {
 export interface CreateOutwardOrderItemDto {
   productId: number;
   quantity: number;
+  mrp?: number | null;
 }
 
 export interface OutwardOrderFilters {
@@ -444,6 +447,8 @@ export interface UpdateOutwardPickingDto {
   quantity: number;
   skuCode?: string;
   locationCode?: string;
+  mrp?: number | null;
+  importDate?: string | null;
 }
 
 export interface DirectOutwardPickDto {
@@ -451,6 +456,8 @@ export interface DirectOutwardPickDto {
   quantity: number;
   skuCode?: string;
   locationCode: string;
+  mrp?: number | null;
+  importDate?: string | null;
   remark: string;
   customerName?: string | null;
 }
