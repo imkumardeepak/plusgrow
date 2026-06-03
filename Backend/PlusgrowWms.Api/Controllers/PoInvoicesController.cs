@@ -747,7 +747,8 @@ public class PoInvoicesController : BaseController
 
     private async Task UpsertProductQuantityAsync(int productId, int billedQty)
     {
-        var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
+        var quantityRow = _context.ProductQuantities.Local.FirstOrDefault(x => x.ProductId == productId)
+            ?? await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
 
         if (quantityRow == null)
         {
