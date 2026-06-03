@@ -261,8 +261,6 @@ export interface PoInvoice {
   mrp?: number;
   billedQty: number;
   printed: boolean;
-  status: "Pending" | "Printed" | "Canceled";
-  cancelRemark?: string | null;
   remainingAllocation: number;
   locationAllotted: boolean;
   createdAt: string;
@@ -273,6 +271,8 @@ export interface PoInvoiceHeaderSummary {
   invoiceNumber: string;
   invoiceDate: string;
   partyName: string;
+  status: "Active" | "Canceled";
+  cancelRemark?: string | null;
   totalBilledQty: number;
   totalRemainingAllocation: number;
   productCount: number;

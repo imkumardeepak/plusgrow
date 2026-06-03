@@ -95,8 +95,10 @@ type InvoiceUploadSkippedRow = {
 };
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
-const getInvoiceStatus = (row: PoInvoice) =>
-  row.status || (row.printed ? "Printed" : "Pending");
+const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
+  summary?.status === "Canceled";
+const getStickerStatus = (row: PoInvoice) =>
+  row.printed ? "Printed" : "Pending";
 const labelModeText: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
@@ -490,17 +492,19 @@ export const Inward = memo(function Inward() {
   );
 
   const invoiceStats = useMemo(() => {
-    const allItems = invoiceSummaries.flatMap((row) => row.items);
-    const activeItems = allItems.filter((row) => getInvoiceStatus(row) !== "Canceled");
-    const canceledCount = allItems.length - activeItems.length;
+    const activeSummaries = invoiceSummaries.filter(
+      (row) => !isInvoiceCanceled(row),
+    );
+    const activeItems = activeSummaries.flatMap((row) => row.items);
+    const canceledCount = invoiceSummaries.length - activeSummaries.length;
     const pendingPrint = activeItems.filter((row) => !row.printed).length;
     const printedCount = activeItems.length - pendingPrint;
     const totalBilled = activeItems.reduce((sum, row) => sum + row.billedQty, 0);
-    const totalRemaining = allItems.reduce(
+    const totalRemaining = activeItems.reduce(
       (sum, row) => sum + row.remainingAllocation,
       0,
     );
-    const allottedCount = allItems.filter((row) => row.locationAllotted).length;
+    const allottedCount = activeItems.filter((row) => row.locationAllotted).length;
 
     return {
       pendingPrint,
@@ -605,13 +609,9 @@ export const Inward = memo(function Inward() {
       header: "Status",
       sortable: true,
       sortAccessor: (row) =>
-        row.items.every((item) => getInvoiceStatus(item) === "Canceled")
-          ? "canceled"
-          : String(row.pendingCount),
+        isInvoiceCanceled(row) ? "canceled" : String(row.pendingCount),
       render: (row) => {
-        const isCanceled = row.items.every(
-          (item) => getInvoiceStatus(item) === "Canceled",
-        );
+        const isCanceled = isInvoiceCanceled(row);
         return (
           <Badge
             size="sm"
@@ -1296,7 +1296,10 @@ export const Inward = memo(function Inward() {
   };
 
   const openPrintForRow = (row: PoInvoice) => {
-    if (getInvoiceStatus(row) === "Canceled") {
+    const parentSummary = invoiceSummaries.find((summary) =>
+      summary.items.some((item) => item.id === row.id),
+    );
+    if (isInvoiceCanceled(parentSummary)) {
       toast.error("Canceled invoice rows cannot be printed");
       return;
     }
@@ -1720,9 +1723,7 @@ export const Inward = memo(function Inward() {
               color="red"
               disabled={
                 !selectedInvoiceSummary ||
-                selectedInvoiceSummary.items.every(
-                  (item) => getInvoiceStatus(item) === "Canceled",
-                )
+                isInvoiceCanceled(selectedInvoiceSummary)
               }
               onClick={() => {
                 setCancelInvoiceSummary(selectedInvoiceSummary);
@@ -1847,9 +1848,14 @@ export const Inward = memo(function Inward() {
                   key: "status",
                   header: "Sticker",
                   sortable: true,
-                  sortAccessor: (row) => getInvoiceStatus(row),
+                  sortAccessor: (row) =>
+                    isInvoiceCanceled(selectedInvoiceSummary)
+                      ? "Canceled"
+                      : getStickerStatus(row),
                   render: (row) => {
-                    const status = getInvoiceStatus(row);
+                    const status = isInvoiceCanceled(selectedInvoiceSummary)
+                      ? "Canceled"
+                      : getStickerStatus(row);
                     return (
                       <Stack gap={2}>
                         <Badge
@@ -1869,9 +1875,9 @@ export const Inward = memo(function Inward() {
                               ? "Printed"
                               : "Pending"}
                         </Badge>
-                        {status === "Canceled" && row.cancelRemark ? (
+                        {status === "Canceled" && selectedInvoiceSummary.cancelRemark ? (
                           <Text size="10px" c="dimmed" lineClamp={1}>
-                            {row.cancelRemark}
+                            {selectedInvoiceSummary.cancelRemark}
                           </Text>
                         ) : null}
                       </Stack>
@@ -1891,7 +1897,7 @@ export const Inward = memo(function Inward() {
                           radius="md"
                           variant="light"
                           color="cyan"
-                          disabled={getInvoiceStatus(row) === "Canceled"}
+                          disabled={isInvoiceCanceled(selectedInvoiceSummary)}
                           onClick={(e) => {
                             e.stopPropagation();
                             openPrintForRow(row);

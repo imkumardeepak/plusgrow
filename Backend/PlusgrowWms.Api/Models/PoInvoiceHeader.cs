@@ -23,6 +23,12 @@ public class PoInvoiceHeader
     [Column("party_name")]
     public string PartyName { get; set; } = string.Empty;
 
+    [Column("status")]
+    public string Status { get; set; } = "Active";
+
+    [Column("cancel_remark")]
+    public string? CancelRemark { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 

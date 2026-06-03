@@ -151,14 +151,18 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<PoInvoiceHeader>()
             .HasIndex(x => x.InvoiceDate);
 
+        modelBuilder.Entity<PoInvoiceHeader>()
+            .Property(x => x.Status)
+            .HasDefaultValue("Active");
+
+        modelBuilder.Entity<PoInvoiceHeader>()
+            .HasIndex(x => x.Status);
+
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => new { x.PoInvoiceHeaderId, x.ProductId });
 
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => x.Printed);
-
-        modelBuilder.Entity<PoInvoice>()
-            .HasIndex(x => x.Status);
 
         modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => x.LocationAllotted);

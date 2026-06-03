@@ -12,8 +12,6 @@ public class PoInvoiceDto
     public decimal? Mrp { get; set; }
     public int BilledQty { get; set; }
     public bool Printed { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public string? CancelRemark { get; set; }
     public int RemainingAllocation { get; set; }
     public bool LocationAllotted { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -25,6 +23,8 @@ public class PoInvoiceHeaderSummaryDto
     public string InvoiceNumber { get; set; } = string.Empty;
     public DateTime InvoiceDate { get; set; }
     public string PartyName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? CancelRemark { get; set; }
     public int TotalBilledQty { get; set; }
     public int TotalRemainingAllocation { get; set; }
     public int ProductCount { get; set; }
