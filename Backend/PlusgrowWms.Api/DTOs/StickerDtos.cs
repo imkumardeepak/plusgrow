@@ -8,6 +8,7 @@ public class StickerPreviewRequest
     public string Size { get; set; } = "50x50"; // 25x25, 38x38, 50x50, 60x60, 75x75
     public string Type { get; set; } = "Combined"; // Combined, Separate, Manufacture
     public string MonthYear { get; set; } = string.Empty;
+    public string InvoiceDate { get; set; } = string.Empty;
     public string BatchNumber { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
     public int Quantity { get; set; } = 1;

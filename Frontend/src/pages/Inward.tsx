@@ -685,6 +685,7 @@ export const Inward = memo(function Inward() {
       size: stickerSize,
       type: stickerType,
       monthYear: format(new Date(row.invoiceDate), "MMM/yyyy").toUpperCase(),
+      invoiceDate: format(new Date(row.invoiceDate), "dd/MM/yyyy"),
       batchNumber: row.invoiceNumber,
       note: stickerNote.trim(),
       quantity,

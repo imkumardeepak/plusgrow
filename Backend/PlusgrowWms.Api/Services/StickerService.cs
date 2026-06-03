@@ -99,46 +99,48 @@ public class StickerService : IStickerService
             : "IMPORTED & MARKETED BY";
         var dmData = isSkuOnlySticker
             ? product.Sku ?? string.Empty
-            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{FormatRupee(stickerMrp, 2)}";
+            : $"{product.Sku ?? string.Empty}#{quantity}#{(string.IsNullOrWhiteSpace(request.InvoiceDate) ? request.MonthYear : request.InvoiceDate)}#{FormatRupee(stickerMrp, 2)}";
 
         var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
         var compactItemLines = WrapText(stickerProductName, 25, 2);
         var noteLines = WrapText(product.Note, 30, 2);
 
-        var values = new Dictionary<string, string>
+        // Use a List of KeyValuePair to guarantee replacement order,
+        // since we must replace the composite QR code tags before their individual sub-components.
+        var values = new List<KeyValuePair<string, string>>
         {
-            { "<COMPANYHEADER>", companyHeader },
-            { "<COMPANYNAME>", DefaultCompanyName },
-            { "<COMPANYADDRESS1>", DefaultCompanyAddress1 },
-            { "<COMPANYADDRESS2>", DefaultCompanyAddress2 },
-            { "<COMPANYPHONE>", DefaultCompanyPhone },
-            { "<COMPANYEMAIL>", DefaultCompanyEmail },
-            { "<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name).ToUpperInvariant() },
-            { "<COUNTYOFIMPORT>", manufacturerCountry },
-            { "<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS" },
-            { "<DATEOFIMPORT>", request.MonthYear },
-            { "<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA" },
-            { "<NETQNTY>", product.NetQuantity ?? "0 ml" },
-            { "<MRP>", FormatRupee(stickerMrp, 2) },
-            { "<FACTOR>", FormatRupee(product.Ussp, 2) },
-            { "<UNIT>", product.UnitType ?? "Pcs" },
-            { "<BESTBEFORE>", bestBeforeMonths.ToString() },
-            { "<SKUCODE>", product.Sku ?? string.Empty },
-            { "<ITEMDESC1>", itemDescriptionLines[0] },
-            { "<ITEMDESC2>", itemDescriptionLines[1] },
-            { "<ITEMCODE1>", compactItemLines[0] },
-            { "<ITEMCODE2>", compactItemLines[1] },
-            { "<NOTE1>", noteLines[0] },
-            { "<NOTE2>", noteLines[1] },
-            { "<ADDRESS1>", importerParts.Line1 },
-            { "<ADDRESS2>", importerParts.Line2 },
-            { "<COUNTRY>", manufacturerCountry },
-            { "<QNTY>", quantity.ToString() },
-            { "<INVOICENUMBER>", request.BatchNumber },
-            { "42721-002#100#MAR/2026#INA0001", dmData },
-            { "84505C-0023#100#Mar/2026#INA0001", dmData },
-            { "<SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER>", dmData }
+            new("42721-002#100#MAR/2026#INA0001", dmData),
+            new("84505C-0023#100#Mar/2026#INA0001", dmData),
+            new("<SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER>", dmData),
+            new("<COMPANYHEADER>", companyHeader),
+            new("<COMPANYNAME>", DefaultCompanyName),
+            new("<COMPANYADDRESS1>", DefaultCompanyAddress1),
+            new("<COMPANYADDRESS2>", DefaultCompanyAddress2),
+            new("<COMPANYPHONE>", DefaultCompanyPhone),
+            new("<COMPANYEMAIL>", DefaultCompanyEmail),
+            new("<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name).ToUpperInvariant()),
+            new("<COUNTYOFIMPORT>", manufacturerCountry),
+            new("<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS"),
+            new("<DATEOFIMPORT>", request.MonthYear),
+            new("<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA"),
+            new("<NETQNTY>", product.NetQuantity ?? "0 ml"),
+            new("<MRP>", FormatRupee(stickerMrp, 2)),
+            new("<FACTOR>", FormatRupee(product.Ussp, 2)),
+            new("<UNIT>", product.UnitType ?? "Pcs"),
+            new("<BESTBEFORE>", bestBeforeMonths.ToString()),
+            new("<SKUCODE>", product.Sku ?? string.Empty),
+            new("<ITEMDESC1>", itemDescriptionLines[0]),
+            new("<ITEMDESC2>", itemDescriptionLines[1]),
+            new("<ITEMCODE1>", compactItemLines[0]),
+            new("<ITEMCODE2>", compactItemLines[1]),
+            new("<NOTE1>", noteLines[0]),
+            new("<NOTE2>", noteLines[1]),
+            new("<ADDRESS1>", importerParts.Line1),
+            new("<ADDRESS2>", importerParts.Line2),
+            new("<COUNTRY>", manufacturerCountry),
+            new("<QNTY>", quantity.ToString()),
+            new("<INVOICENUMBER>", request.BatchNumber)
         };
 
         foreach (var item in values)

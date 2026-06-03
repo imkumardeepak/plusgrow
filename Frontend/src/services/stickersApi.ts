@@ -14,6 +14,7 @@ export interface StickerPreviewPayload {
   size: string;
   type: 'Combined' | 'Separate' | 'Manufacture';
   monthYear: string;
+  invoiceDate?: string;
   batchNumber: string;
   note: string;
   quantity: number;
