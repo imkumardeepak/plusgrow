@@ -353,6 +353,18 @@ public class PoInvoicesController : BaseController
                 .Where(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber))
                 .ToList();
 
+            var incomingInvoiceNumbers = uploadInvoiceRows
+                .Select(x => x.InvoiceNumber)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var existingInvoiceNumbers = await _context.PoInvoiceHeaders
+                .Where(x => incomingInvoiceNumbers.Contains(x.InvoiceNumber) && x.Status != "Canceled")
+                .Select(x => x.InvoiceNumber)
+                .ToListAsync();
+
+            var existingInvoiceNumbersSet = new HashSet<string>(existingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
+
             foreach (var row in dataRows)
             {
                 try
@@ -371,6 +383,12 @@ public class PoInvoicesController : BaseController
                     if (string.IsNullOrWhiteSpace(invoiceNumber))
                     {
                         result.Errors.Add($"Row {row.RowNumber()}: Invoice No. is required.");
+                        continue;
+                    }
+
+                    if (existingInvoiceNumbersSet.Contains(invoiceNumber))
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Invoice {invoiceNumber} already exists. You cannot add new rows to an existing invoice via upload.");
                         continue;
                     }
 
