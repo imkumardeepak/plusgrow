@@ -25,6 +25,9 @@ public class SalesOrder
     [Column("notes")]
     public string? Notes { get; set; }
 
+    [Column("cancel_remark")]
+    public string? CancelRemark { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 

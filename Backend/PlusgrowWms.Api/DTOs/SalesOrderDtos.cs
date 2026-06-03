@@ -8,6 +8,7 @@ public class SalesOrderDto
     public string CustomerName { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public string? CancelRemark { get; set; }
     public int ItemCount { get; set; }
     public int TotalQuantity { get; set; }
     public int TotalPickedQuantity { get; set; }
@@ -16,6 +17,11 @@ public class SalesOrderDto
     public DateTime UpdatedAt { get; set; }
     public DateTime? DispatchedAt { get; set; }
     public List<OutwardOrderDto> Items { get; set; } = [];
+}
+
+public class CancelSalesOrderDto
+{
+    public string Remark { get; set; } = string.Empty;
 }
 
 public class SalesOrderFilterDto

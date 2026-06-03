@@ -10,6 +10,7 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  Textarea,
   TextInput,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
@@ -41,7 +42,7 @@ import {
 } from "../components/organisms/Operations/OperationsShell";
 import { toast } from "../lib/toast";
 
-type OutwardStatusFilter = "all" | "open" | "picking" | "packed" | "dispatched";
+type OutwardStatusFilter = "all" | "open" | "picking" | "packed" | "dispatched" | "canceled";
 
 type OrderItemInput = {
   id: string;
@@ -76,6 +77,8 @@ const statusTone = (status: SalesOrderRecord["status"]) => {
       return { color: "blue", label: "Packed" };
     case "Picking":
       return { color: "yellow", label: "Picking" };
+    case "Canceled":
+      return { color: "red", label: "Canceled" };
     default:
       return { color: "orange", label: "Open" };
   }
@@ -91,6 +94,9 @@ export const Outward = memo(function Outward() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<SalesOrderRecord | null>(null);
+  const [cancelGroup, setCancelGroup] = useState<SalesOrderRecord | null>(null);
+  const [cancelRemark, setCancelRemark] = useState("");
+  const [isCanceling, setIsCanceling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
   const [productSearch, setProductSearch] = useState("");
@@ -165,7 +171,8 @@ export const Outward = memo(function Outward() {
     const picking = orders.filter((row) => row.status === "Picking").length;
     const packed = orders.filter((row) => row.status === "Packed").length;
     const dispatched = orders.filter((row) => row.status === "Dispatched").length;
-    return { total, open, picking, packed, dispatched };
+    const canceled = orders.filter((row) => row.status === "Canceled").length;
+    return { total, open, picking, packed, dispatched, canceled };
   }, [orders]);
 
   const columns: DataTableColumn<SalesOrderRecord>[] = [
@@ -416,6 +423,30 @@ export const Outward = memo(function Outward() {
     }
   };
 
+  const handleCancelOrder = async () => {
+    if (!cancelGroup) return;
+
+    if (!cancelRemark.trim()) {
+      toast.error("Cancel reason is required");
+      return;
+    }
+
+    try {
+      setIsCanceling(true);
+      await outwardOrdersApi.cancelSalesOrder(cancelGroup.id, cancelRemark.trim());
+      toast.success(`${cancelGroup.orderNumber} canceled`);
+      setCancelGroup(null);
+      setCancelRemark("");
+      setIsDetailsOpen(false);
+      setSelectedGroup(null);
+      await loadOrders();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel sales order");
+    } finally {
+      setIsCanceling(false);
+    }
+  };
+
   return (
     <OperationsPage
       title="Outward Orders"
@@ -445,6 +476,9 @@ export const Outward = memo(function Outward() {
             <Badge size="sm" radius="md" variant="light" color="green">
               {metrics.dispatched} Dispatched
             </Badge>
+            <Badge size="sm" radius="md" variant="light" color="red">
+              {metrics.canceled} Canceled
+            </Badge>
             <SegmentedControl
               size="xs"
               radius="md"
@@ -456,6 +490,7 @@ export const Outward = memo(function Outward() {
                 { value: "picking", label: "Picking" },
                 { value: "packed", label: "Packed" },
                 { value: "dispatched", label: "Done" },
+                { value: "canceled", label: "Canceled" },
               ]}
             />
             <TextInput
@@ -641,6 +676,29 @@ export const Outward = memo(function Outward() {
         onClose={() => setIsDetailsOpen(false)}
         title={selectedGroup ? `Order ${selectedGroup.orderNumber}` : "Order Items"}
         size="xl"
+        footer={
+          <Group justify="space-between">
+            <Button
+              variant="outline"
+              color="red"
+              disabled={
+                !selectedGroup ||
+                selectedGroup.status === "Canceled" ||
+                selectedGroup.totalPickedQuantity > 0 ||
+                selectedGroup.status !== "Open"
+              }
+              onClick={() => {
+                setCancelGroup(selectedGroup);
+                setCancelRemark("");
+              }}
+            >
+              Cancel Sales Order
+            </Button>
+            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+              Close
+            </Button>
+          </Group>
+        }
       >
         {selectedGroup ? (
           <Stack gap="sm">
@@ -657,6 +715,11 @@ export const Outward = memo(function Outward() {
               <Text size="sm" fw={700}>
                 Qty: <Text component="span" fw={500}>{selectedGroup.totalPickedQuantity} / {selectedGroup.totalQuantity}</Text>
               </Text>
+              {selectedGroup.status === "Canceled" ? (
+                <Text size="sm" fw={700} c="red.3">
+                  Reason: <Text component="span" fw={500}>{selectedGroup.cancelRemark || "-"}</Text>
+                </Text>
+              ) : null}
             </SimpleGrid>
 
             <MantineDataTable
@@ -670,6 +733,54 @@ export const Outward = memo(function Outward() {
             />
           </Stack>
         ) : null}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(cancelGroup)}
+        onClose={() => {
+          setCancelGroup(null);
+          setCancelRemark("");
+        }}
+        title="Cancel Sales Order"
+        size="md"
+        footer={
+          <Group justify="flex-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCancelGroup(null);
+                setCancelRemark("");
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              color="red"
+              onClick={() => void handleCancelOrder()}
+              loading={isCanceling}
+            >
+              Cancel Sales Order
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            Cancel sales order{" "}
+            <Text component="span" fw={800} c="red.3">
+              {cancelGroup?.orderNumber}
+            </Text>
+            . Reason is required.
+          </Text>
+          <Textarea
+            label="Cancel Reason"
+            minRows={3}
+            autosize
+            value={cancelRemark}
+            onChange={(event) => setCancelRemark(event.currentTarget.value)}
+            placeholder="Enter reason for canceling this sales order"
+          />
+        </Stack>
       </Modal>
     </OperationsPage>
   );

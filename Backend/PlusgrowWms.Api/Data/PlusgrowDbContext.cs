@@ -146,8 +146,7 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.CreatedAt);
 
         modelBuilder.Entity<PoInvoiceHeader>()
-            .HasIndex(x => x.InvoiceNumber)
-            .IsUnique();
+            .HasIndex(x => x.InvoiceNumber);
 
         modelBuilder.Entity<PoInvoiceHeader>()
             .HasIndex(x => x.InvoiceDate);

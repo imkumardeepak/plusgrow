@@ -383,7 +383,7 @@ export interface OutwardOrder {
   id: number;
   orderNumber: string;
   salesOrderId: number;
-  salesOrderStatus: "Open" | "Picking" | "Packed" | "Dispatched";
+  salesOrderStatus: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
   salesOrderNotes?: string | null;
   salesOrderCreatedAt: string;
   salesOrderUpdatedAt: string;
@@ -398,7 +398,7 @@ export interface OutwardOrder {
   mrp?: number | null;
   pickedQuantity: number;
   pendingQuantity: number;
-  status: "Open" | "Picking" | "Packed" | "Dispatched";
+  status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
   cartonId?: string | null;
   notes?: string | null;
   createdAt: string;
@@ -411,8 +411,9 @@ export interface SalesOrderRecord {
   orderNumber: string;
   orderDate: string;
   customerName: string;
-  status: "Open" | "Picking" | "Packed" | "Dispatched";
+  status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
   notes?: string | null;
+  cancelRemark?: string | null;
   itemCount: number;
   totalQuantity: number;
   totalPickedQuantity: number;
@@ -440,7 +441,7 @@ export interface CreateOutwardOrderItemDto {
 
 export interface OutwardOrderFilters {
   search?: string;
-  status?: "all" | "open" | "picking" | "packed" | "dispatched";
+  status?: "all" | "open" | "picking" | "packed" | "dispatched" | "canceled" | "Canceled";
   page?: number;
   pageSize?: number;
 }
@@ -1337,6 +1338,12 @@ export const outwardOrdersApi = {
   dispatchSalesOrder: async (salesOrderId: number): Promise<DispatchSalesOrderResult> => {
     const response = await api.post<ApiResponse<DispatchSalesOrderResult>>(`/outwardorders/sales-orders/${salesOrderId}/dispatch`);
     if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  cancelSalesOrder: async (salesOrderId: number, remark: string): Promise<SalesOrderRecord> => {
+    const response = await api.post<ApiResponse<SalesOrderRecord>>(`/outwardorders/sales-orders/${salesOrderId}/cancel`, { remark });
+    if (!response.data.success) throw new Error(response.data.message || 'Error canceling sales order');
     return response.data.data!;
   },
 };

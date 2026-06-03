@@ -206,6 +206,9 @@ public class OutwardOrdersController : BaseController
         if (order.Status == "Dispatched")
             return BadRequest<OutwardOrderDto>("Dispatched orders cannot be picked");
 
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return BadRequest<OutwardOrderDto>("Canceled orders cannot be picked");
+
         var requestedPickQty = dto.Quantity <= 0 ? 1 : dto.Quantity;
         var pickQty = Math.Min(requestedPickQty, Math.Max(order.Quantity - order.PickedQuantity, 0));
         var nextPicked = order.PickedQuantity + pickQty;
@@ -375,6 +378,9 @@ public class OutwardOrdersController : BaseController
         if (order == null)
             return NotFound<OutwardOrderDto>("Outward order not found");
 
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return BadRequest<OutwardOrderDto>("Canceled orders cannot be dispatched");
+
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
         var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
@@ -421,6 +427,9 @@ public class OutwardOrdersController : BaseController
         if (salesOrder == null)
             return NotFound<DispatchSalesOrderResultDto>("Sales order not found");
 
+        if (salesOrder.Status == "Canceled")
+            return BadRequest<DispatchSalesOrderResultDto>("Canceled sales order cannot be dispatched");
+
         var orders = await _context.OutwardOrders
             .Include(x => x.Product)
             .Include(x => x.SalesOrder)
@@ -463,6 +472,45 @@ public class OutwardOrdersController : BaseController
         return Success(response, pendingOrders.Count > 1
             ? $"Sales order {salesOrder.OrderNumber} dispatched successfully"
             : "Sales order dispatched successfully");
+    }
+
+    [HttpPost("sales-orders/{salesOrderId}/cancel")]
+    public async Task<ActionResult<ApiResponse<SalesOrderDto>>> CancelSalesOrder(int salesOrderId, [FromBody] CancelSalesOrderDto dto)
+    {
+        var salesOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstOrDefaultAsync(x => x.Id == salesOrderId);
+
+        if (salesOrder == null)
+            return NotFound<SalesOrderDto>("Sales order not found");
+
+        if (salesOrder.Status == "Canceled")
+            return BadRequest<SalesOrderDto>("Sales order is already canceled");
+
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<SalesOrderDto>("Cancel remark is required");
+
+        if (salesOrder.Items.Any(item => item.PickedQuantity > 0 || item.Status != "Open"))
+            return BadRequest<SalesOrderDto>("Cannot cancel sales order after picking, packing, or dispatch has started");
+
+        salesOrder.Status = "Canceled";
+        salesOrder.CancelRemark = dto.Remark.Trim();
+        salesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        salesOrder.DispatchedAt = null;
+
+        foreach (var item in salesOrder.Items)
+        {
+            item.Status = "Canceled";
+            item.Notes = string.IsNullOrWhiteSpace(item.Notes)
+                ? $"Canceled: {dto.Remark.Trim()}"
+                : $"{item.Notes} | Canceled: {dto.Remark.Trim()}";
+            item.UpdatedAt = salesOrder.UpdatedAt;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Success(MapSalesOrder(salesOrder), $"Sales order {salesOrder.OrderNumber} canceled successfully");
     }
 
     private async Task<string> GenerateOrderNumberAsync()
@@ -563,6 +611,9 @@ public class OutwardOrdersController : BaseController
         if (order.Status == "Dispatched")
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} is already dispatched");
 
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} is canceled");
+
         if (order.PickedQuantity < order.Quantity)
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully picked before dispatch");
 
@@ -617,6 +668,15 @@ public class OutwardOrdersController : BaseController
 
         if (items.Count == 0)
             return;
+
+        if (items.All(item => item.Status == "Canceled"))
+        {
+            header.Status = "Canceled";
+            header.DispatchedAt = null;
+            header.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            _context.SalesOrders.Update(header);
+            return;
+        }
 
         if (items.All(item => item.Status == "Dispatched"))
         {
@@ -690,6 +750,7 @@ public class OutwardOrdersController : BaseController
             CustomerName = row.CustomerName,
             Status = row.Status,
             Notes = row.Notes,
+            CancelRemark = row.CancelRemark,
             ItemCount = items.Count,
             TotalQuantity = items.Sum(x => x.Quantity),
             TotalPickedQuantity = items.Sum(x => x.PickedQuantity),

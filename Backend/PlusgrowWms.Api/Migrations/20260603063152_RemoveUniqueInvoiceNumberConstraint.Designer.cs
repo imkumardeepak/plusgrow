@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlusgrowWms.Api.Data;
@@ -12,9 +13,11 @@ using PlusgrowWms.Api.Data;
 namespace PlusgrowWms.Api.Migrations
 {
     [DbContext(typeof(PlusgrowDbContext))]
-    partial class PlusgrowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603063152_RemoveUniqueInvoiceNumberConstraint")]
+    partial class RemoveUniqueInvoiceNumberConstraint
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -777,10 +780,6 @@ namespace PlusgrowWms.Api.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CancelRemark")
-                        .HasColumnType("text")
-                        .HasColumnName("cancel_remark");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone")

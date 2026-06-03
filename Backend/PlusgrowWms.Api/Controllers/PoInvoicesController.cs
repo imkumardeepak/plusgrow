@@ -355,36 +355,6 @@ public class PoInvoicesController : BaseController
                 .Where(x => !string.IsNullOrWhiteSpace(x.InvoiceNumber))
                 .ToList();
 
-            var uploadInvoiceNumbers = uploadInvoiceRows
-                .Select(x => x.InvoiceNumber)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (uploadInvoiceNumbers.Count > 0)
-            {
-                var activeExistingInvoiceNumbers = await _context.PoInvoiceHeaders
-                    .Include(x => x.Items)
-                    .Where(x => uploadInvoiceNumbers.Contains(x.InvoiceNumber))
-                    .Where(x => x.Items.Any(item => item.Status != "Canceled"))
-                    .Select(x => x.InvoiceNumber)
-                    .ToListAsync();
-
-                if (activeExistingInvoiceNumbers.Count > 0)
-                {
-                    var duplicateInvoiceSet = new HashSet<string>(activeExistingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
-                    var duplicateErrors = uploadInvoiceRows
-                        .Where(x => duplicateInvoiceSet.Contains(x.InvoiceNumber))
-                        .GroupBy(x => x.InvoiceNumber, StringComparer.OrdinalIgnoreCase)
-                        .Select(group =>
-                            $"Invoice {group.Key} already exists in inward. Re-upload is not allowed. Rows: {string.Join(", ", group.Select(x => x.RowNumber))}")
-                        .ToList();
-
-                    return BadRequest<ImportResultDto>(
-                        "Upload blocked. One or more invoice numbers already exist in inward.",
-                        duplicateErrors);
-                }
-            }
-
             foreach (var row in dataRows)
             {
                 try
@@ -440,27 +410,8 @@ public class PoInvoicesController : BaseController
 
                     if (product == null)
                     {
-                        if (string.IsNullOrWhiteSpace(itemName))
-                        {
-                            result.Errors.Add($"Row {row.RowNumber()}: Product name (Item Name) is required to create a new product.");
-                            continue;
-                        }
-
-                        product = new Product
-                        {
-                            Name = itemName,
-                            Sku = string.IsNullOrWhiteSpace(partNo) ? null : partNo,
-                            ManufacturerId = null,
-                            Mrp = mrp,
-                            BestBeforeMonths = 84,
-                            UnitType = "pcs",
-                            CountryOfOrigin = "India",
-                            Ownership = "Self"
-                        };
-                        product.CalculateUssp();
-
-                        _context.Products.Add(product);
-                        await _context.SaveChangesAsync();
+                        result.Errors.Add($"Row {row.RowNumber()}: Product not found in Product Master for SKU/Part No. '{partNo}' or Item Name '{itemName}'.");
+                        continue;
                     }
                     else if (mrp > 0)
                     {
@@ -468,11 +419,14 @@ public class PoInvoicesController : BaseController
                         product.CalculateUssp();
                     }
 
-                    if (product.ManufacturerId == null && !string.IsNullOrWhiteSpace(partyName))
+                    if (!string.IsNullOrWhiteSpace(partyName))
                     {
                         var manufacturer = await GetOrCreateManufacturerAsync(partyName, manufacturerCache);
-                        product.ManufacturerId = manufacturer.Id;
-                        product.Manufacturer = manufacturer;
+                        if (product.ManufacturerId != manufacturer.Id)
+                        {
+                            product.ManufacturerId = manufacturer.Id;
+                            product.Manufacturer = manufacturer;
+                        }
                     }
 
                     var header = await GetOrCreateInvoiceHeaderAsync(invoiceNumber, invoiceDate.Value, partyName);
