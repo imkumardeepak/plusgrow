@@ -12,6 +12,8 @@ public class PoInvoiceDto
     public decimal? Mrp { get; set; }
     public int BilledQty { get; set; }
     public bool Printed { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? CancelRemark { get; set; }
     public int RemainingAllocation { get; set; }
     public bool LocationAllotted { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -54,6 +56,11 @@ public class MarkPoInvoicesPrintedRequestDto
 public class MarkPoInvoicesPrintedResultDto
 {
     public int UpdatedCount { get; set; }
+}
+
+public class CancelPoInvoiceDto
+{
+    public string Remark { get; set; } = string.Empty;
 }
 
 public class PoInvoiceFilterDto

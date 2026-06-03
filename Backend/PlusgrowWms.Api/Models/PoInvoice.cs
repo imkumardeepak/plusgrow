@@ -31,6 +31,12 @@ public class PoInvoice
     [Column("printed")]
     public bool Printed { get; set; }
 
+    [Column("status")]
+    public string Status { get; set; } = "Pending";
+
+    [Column("cancel_remark")]
+    public string? CancelRemark { get; set; }
+
     [Column("remaining_allocation")]
     public int RemainingAllocation { get; set; }
 

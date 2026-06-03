@@ -19,6 +19,7 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  Textarea,
   TextInput,
   ThemeIcon,
   Tooltip,
@@ -81,7 +82,7 @@ import {
 } from "./Inward/components/InwardInvoiceModal";
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
-type InwardStatusFilter = "all" | "pending" | "printed";
+type InwardStatusFilter = "all" | "pending" | "printed" | "canceled";
 type StickerMode = "Combined" | "Separate" | "Manufacture";
 type InvoiceSummary = PoInvoiceHeaderSummary & {
   invoiceKey: string;
@@ -94,6 +95,8 @@ type InvoiceUploadSkippedRow = {
 };
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
+const getInvoiceStatus = (row: PoInvoice) =>
+  row.status || (row.printed ? "Printed" : "Pending");
 const labelModeText: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
@@ -157,10 +160,17 @@ export const Inward = memo(function Inward() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadSkippedErrors, setUploadSkippedErrors] = useState<string[]>([]);
+  const [isUploadSkippedModalOpen, setIsUploadSkippedModalOpen] =
+    useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [selectedInvoiceSummary, setSelectedInvoiceSummary] =
     useState<InvoiceSummary | null>(null);
+  const [cancelInvoiceSummary, setCancelInvoiceSummary] =
+    useState<InvoiceSummary | null>(null);
+  const [cancelRemark, setCancelRemark] = useState("");
+  const [isCancelingInvoice, setIsCancelingInvoice] = useState(false);
   const [selectedPrintRow, setSelectedPrintRow] = useState<PoInvoice | null>(
     null,
   );
@@ -481,9 +491,11 @@ export const Inward = memo(function Inward() {
 
   const invoiceStats = useMemo(() => {
     const allItems = invoiceSummaries.flatMap((row) => row.items);
-    const pendingPrint = allItems.filter((row) => !row.printed).length;
-    const printedCount = allItems.length - pendingPrint;
-    const totalBilled = allItems.reduce((sum, row) => sum + row.billedQty, 0);
+    const activeItems = allItems.filter((row) => getInvoiceStatus(row) !== "Canceled");
+    const canceledCount = allItems.length - activeItems.length;
+    const pendingPrint = activeItems.filter((row) => !row.printed).length;
+    const printedCount = activeItems.length - pendingPrint;
+    const totalBilled = activeItems.reduce((sum, row) => sum + row.billedQty, 0);
     const totalRemaining = allItems.reduce(
       (sum, row) => sum + row.remainingAllocation,
       0,
@@ -493,6 +505,7 @@ export const Inward = memo(function Inward() {
     return {
       pendingPrint,
       printedCount,
+      canceledCount,
       totalBilled,
       totalRemaining,
       allottedCount,
@@ -589,21 +602,31 @@ export const Inward = memo(function Inward() {
     },
     {
       key: "printed",
-      header: "Sticker Print",
+      header: "Status",
       sortable: true,
-      sortAccessor: (row) => row.pendingCount,
-      render: (row) => (
-        <Badge
-          size="sm"
-          radius="md"
-          variant="light"
-          color={row.pendingCount === 0 ? "green" : "orange"}
-        >
-          {row.pendingCount === 0
-            ? "Fully Printed"
-            : `${row.pendingCount} Pending`}
-        </Badge>
-      ),
+      sortAccessor: (row) =>
+        row.items.every((item) => getInvoiceStatus(item) === "Canceled")
+          ? "canceled"
+          : String(row.pendingCount),
+      render: (row) => {
+        const isCanceled = row.items.every(
+          (item) => getInvoiceStatus(item) === "Canceled",
+        );
+        return (
+          <Badge
+            size="sm"
+            radius="md"
+            variant="light"
+            color={isCanceled ? "red" : row.pendingCount === 0 ? "green" : "orange"}
+          >
+            {isCanceled
+              ? "Canceled"
+              : row.pendingCount === 0
+                ? "Fully Printed"
+                : `${row.pendingCount} Pending`}
+          </Badge>
+        );
+      },
       width: 130,
     },
   ];
@@ -942,6 +965,22 @@ export const Inward = memo(function Inward() {
     XLSX.writeFile(workbook, `Skipped_Inward_Lines_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`);
   };
 
+  const handleDownloadUploadSkippedRows = () => {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(
+      uploadSkippedErrors.map((error, index) => {
+        const rowMatch = error.match(/^Row\s+(\d+):\s*(.*)$/i);
+        return {
+          "Row #": rowMatch?.[1] || index + 1,
+          Reason: rowMatch?.[2] || error,
+        };
+      }),
+    );
+    worksheet["!cols"] = [{ wch: 8 }, { wch: 90 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Skipped Upload Rows");
+    XLSX.writeFile(workbook, `Skipped_PO_Upload_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`);
+  };
+
   const getUploadCell = (
     row: Record<string, unknown>,
     names: string[],
@@ -1158,6 +1197,37 @@ export const Inward = memo(function Inward() {
     }
   };
 
+  const handleCancelInvoice = async () => {
+    if (!cancelInvoiceSummary) return;
+
+    if (!cancelRemark.trim()) {
+      toast.error("Cancel reason is required");
+      return;
+    }
+
+    setIsCancelingInvoice(true);
+    try {
+      await poInvoicesApi.cancelInvoice(
+        cancelInvoiceSummary.id,
+        cancelRemark.trim(),
+      );
+      toast.success(`Invoice ${cancelInvoiceSummary.invoiceNumber} canceled`);
+      await loadInvoiceRows({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+      });
+      setCancelInvoiceSummary(null);
+      setCancelRemark("");
+      setSelectedInvoiceSummary(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to cancel invoice");
+    } finally {
+      setIsCancelingInvoice(false);
+    }
+  };
+
   const handleDownloadTemplate = () => {
     poInvoicesApi.downloadTemplate();
     toast.success("Template downloaded successfully");
@@ -1173,6 +1243,7 @@ export const Inward = memo(function Inward() {
     }
 
     setUploadFile(file);
+    setUploadSkippedErrors([]);
   };
 
   const handleUpload = async () => {
@@ -1181,12 +1252,16 @@ export const Inward = memo(function Inward() {
     setIsUploading(true);
     try {
       const result = await poInvoicesApi.uploadExcel(uploadFile);
+      const errors = result.errors || [];
+      setUploadSkippedErrors(errors);
       if (result.success) {
-        toast.success(`Imported ${result.importedCount} invoice rows`);
-        if (result.errors?.length) {
-          toast.warning(`${result.errors.length} rows had errors`, {
-            description: result.errors.slice(0, 3).join(" | "),
-          });
+        toast.success(
+          errors.length > 0
+            ? `Imported ${result.importedCount} rows, skipped ${errors.length}`
+            : `Imported ${result.importedCount} invoice rows`,
+        );
+        if (errors.length > 0) {
+          setIsUploadSkippedModalOpen(true);
         }
         setSearch("");
         setStatusFilter("all");
@@ -1199,13 +1274,17 @@ export const Inward = memo(function Inward() {
           fromDate: "",
           toDate: "",
         });
-        setIsUploadModalOpen(false);
+        setIsUploadModalOpen(errors.length > 0);
         setUploadFile(null);
       } else {
         toast.error("Invoice upload failed");
       }
     } catch (error: any) {
       const responseErrors = error.response?.data?.errors;
+      if (Array.isArray(responseErrors) && responseErrors.length > 0) {
+        setUploadSkippedErrors(responseErrors);
+        setIsUploadSkippedModalOpen(true);
+      }
       toast.error(error.message || "Failed to upload invoice file", {
         description: Array.isArray(responseErrors) && responseErrors.length > 0
           ? responseErrors.slice(0, 3).join(" | ")
@@ -1217,6 +1296,11 @@ export const Inward = memo(function Inward() {
   };
 
   const openPrintForRow = (row: PoInvoice) => {
+    if (getInvoiceStatus(row) === "Canceled") {
+      toast.error("Canceled invoice rows cannot be printed");
+      return;
+    }
+
     setSelectedPrintRow(row);
     setImporterId(null);
     setManufacturerSearch("");
@@ -1226,6 +1310,15 @@ export const Inward = memo(function Inward() {
   const closeUploadModal = () => {
     setIsUploadModalOpen(false);
     setUploadFile(null);
+    setUploadSkippedErrors([]);
+    setIsUploadSkippedModalOpen(false);
+  };
+
+  const handleReuploadFromSkippedRows = () => {
+    setIsUploadSkippedModalOpen(false);
+    setUploadFile(null);
+    setUploadSkippedErrors([]);
+    setIsUploadModalOpen(true);
   };
 
   return (
@@ -1258,6 +1351,7 @@ export const Inward = memo(function Inward() {
                   { value: "all", label: "All" },
                   { value: "pending", label: "Pending" },
                   { value: "printed", label: "Printed" },
+                  { value: "canceled", label: "Canceled" },
                 ]}
               />
             </Box>
@@ -1325,6 +1419,9 @@ export const Inward = memo(function Inward() {
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="green">
                 {invoiceStats.printedCount} Printed
+              </Badge>
+              <Badge size="sm" radius="md" variant="light" color="red">
+                {invoiceStats.canceledCount} Canceled
               </Badge>
               <Badge size="sm" radius="md" variant="light" color="cyan">
                 {invoiceStats.totalRemaining} Remaining
@@ -1499,6 +1596,39 @@ export const Inward = memo(function Inward() {
                   Select Excel file to import PO invoice data.
                 </Text>
               )}
+              {uploadSkippedErrors.length > 0 ? (
+                <Paper radius="md" p="sm" withBorder bg="rgba(251, 146, 60, 0.08)">
+                  <Group justify="space-between" align="center">
+                    <Stack gap={2}>
+                      <Text size="xs" fw={800} c="orange.3">
+                        {uploadSkippedErrors.length} rows skipped in last upload
+                      </Text>
+                      <Text size="11px" c="dimmed">
+                        Open skipped rows to see exact row numbers and reasons.
+                      </Text>
+                    </Stack>
+                    <Group gap="xs">
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={() => setIsUploadSkippedModalOpen(true)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        leftIcon={<Download size={13} />}
+                        onClick={handleDownloadUploadSkippedRows}
+                      >
+                        Download
+                      </Button>
+                    </Group>
+                  </Group>
+                </Paper>
+              ) : null}
             </Stack>
           </Paper>
 
@@ -1525,10 +1655,90 @@ export const Inward = memo(function Inward() {
       </Modal>
 
       <Modal
+        isOpen={isUploadSkippedModalOpen}
+        onClose={() => setIsUploadSkippedModalOpen(false)}
+        title="Skipped Upload Rows"
+        size="xl"
+        footer={
+          <Group justify="flex-end">
+            <Button
+              variant="outline"
+              leftIcon={<Download size={14} />}
+              onClick={handleDownloadUploadSkippedRows}
+              disabled={uploadSkippedErrors.length === 0}
+            >
+              Download
+            </Button>
+            <Button variant="outline" onClick={handleReuploadFromSkippedRows}>
+              Cancel & Re-upload
+            </Button>
+            <Button onClick={() => setIsUploadSkippedModalOpen(false)}>
+              Close
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            These rows were not imported. Fix them in Excel and upload again.
+          </Text>
+          <Stack gap="xs" mah={420} style={{ overflowY: "auto" }}>
+            {uploadSkippedErrors.map((error, index) => {
+              const rowMatch = error.match(/^Row\s+(\d+):\s*(.*)$/i);
+              return (
+                <Paper
+                  key={`${error}-${index}`}
+                  radius="md"
+                  p="sm"
+                  withBorder
+                  bg="rgba(239, 68, 68, 0.08)"
+                >
+                  <Group align="flex-start" wrap="nowrap">
+                    <Badge color="red" variant="light">
+                      Row {rowMatch?.[1] || index + 1}
+                    </Badge>
+                    <Text size="sm" fw={600}>
+                      {rowMatch?.[2] || error}
+                    </Text>
+                  </Group>
+                </Paper>
+              );
+            })}
+          </Stack>
+        </Stack>
+      </Modal>
+
+      <Modal
         isOpen={Boolean(selectedInvoiceSummary)}
         onClose={() => setSelectedInvoiceSummary(null)}
         title="Invoice Items"
         size="xxl"
+        footer={
+          <Group justify="space-between">
+            <Button
+              variant="outline"
+              color="red"
+              disabled={
+                !selectedInvoiceSummary ||
+                selectedInvoiceSummary.items.every(
+                  (item) => getInvoiceStatus(item) === "Canceled",
+                )
+              }
+              onClick={() => {
+                setCancelInvoiceSummary(selectedInvoiceSummary);
+                setCancelRemark("");
+              }}
+            >
+              Cancel Invoice
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedInvoiceSummary(null)}
+            >
+              Close
+            </Button>
+          </Group>
+        }
       >
         {selectedInvoiceSummary ? (
           <Stack gap="md">
@@ -1637,16 +1847,36 @@ export const Inward = memo(function Inward() {
                   key: "status",
                   header: "Sticker",
                   sortable: true,
-                  sortAccessor: (row) => (row.printed ? "1" : "0"),
-                  render: (row) => (
-                    <Badge
-                      size="sm"
-                      variant="light"
-                      color={row.printed ? "green" : "orange"}
-                    >
-                      {row.printed ? "Printed" : "Pending"}
-                    </Badge>
-                  ),
+                  sortAccessor: (row) => getInvoiceStatus(row),
+                  render: (row) => {
+                    const status = getInvoiceStatus(row);
+                    return (
+                      <Stack gap={2}>
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color={
+                            status === "Canceled"
+                              ? "red"
+                              : row.printed
+                                ? "green"
+                                : "orange"
+                          }
+                        >
+                          {status === "Canceled"
+                            ? "Canceled"
+                            : row.printed
+                              ? "Printed"
+                              : "Pending"}
+                        </Badge>
+                        {status === "Canceled" && row.cancelRemark ? (
+                          <Text size="10px" c="dimmed" lineClamp={1}>
+                            {row.cancelRemark}
+                          </Text>
+                        ) : null}
+                      </Stack>
+                    );
+                  },
                   width: 110,
                 },
                 {
@@ -1661,6 +1891,7 @@ export const Inward = memo(function Inward() {
                           radius="md"
                           variant="light"
                           color="cyan"
+                          disabled={getInvoiceStatus(row) === "Canceled"}
                           onClick={(e) => {
                             e.stopPropagation();
                             openPrintForRow(row);
@@ -1686,6 +1917,54 @@ export const Inward = memo(function Inward() {
             />
           </Stack>
         ) : null}
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(cancelInvoiceSummary)}
+        onClose={() => {
+          setCancelInvoiceSummary(null);
+          setCancelRemark("");
+        }}
+        title="Cancel PO Invoice"
+        size="md"
+        footer={
+          <Group justify="flex-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCancelInvoiceSummary(null);
+                setCancelRemark("");
+              }}
+            >
+              Close
+            </Button>
+            <Button
+              color="red"
+              onClick={() => void handleCancelInvoice()}
+              loading={isCancelingInvoice}
+            >
+              Cancel Invoice
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="sm">
+          <Text size="sm" c="dimmed">
+            This will cancel every row under invoice{" "}
+            <Text component="span" fw={800} c="red.3">
+              {cancelInvoiceSummary?.invoiceNumber}
+            </Text>
+            . Reason is required.
+          </Text>
+          <Textarea
+            label="Cancel Reason"
+            minRows={3}
+            autosize
+            value={cancelRemark}
+            onChange={(event) => setCancelRemark(event.currentTarget.value)}
+            placeholder="Enter reason for canceling this PO invoice"
+          />
+        </Stack>
       </Modal>
 
       <Modal

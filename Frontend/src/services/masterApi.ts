@@ -243,7 +243,7 @@ export interface MarkPoInvoicesPrintedResult {
 
 export interface PoInvoiceFilters {
   search?: string;
-  status?: "all" | "pending" | "printed";
+  status?: "all" | "pending" | "printed" | "canceled";
   fromDate?: string;
   toDate?: string;
   page?: number;
@@ -261,6 +261,8 @@ export interface PoInvoice {
   mrp?: number;
   billedQty: number;
   printed: boolean;
+  status: "Pending" | "Printed" | "Canceled";
+  cancelRemark?: string | null;
   remainingAllocation: number;
   locationAllotted: boolean;
   createdAt: string;
@@ -1181,6 +1183,12 @@ export const poInvoicesApi = {
       invoiceIds,
     });
     if (!response.data.success) throw new Error(response.data.message || 'Error marking invoice rows as printed');
+    return response.data.data!;
+  },
+
+  cancelInvoice: async (headerId: number, remark: string): Promise<PoInvoiceHeaderSummary> => {
+    const response = await api.post<ApiResponse<PoInvoiceHeaderSummary>>(`/poinvoices/headers/${headerId}/cancel`, { remark });
+    if (!response.data.success) throw new Error(response.data.message || 'Error canceling invoice');
     return response.data.data!;
   },
 };

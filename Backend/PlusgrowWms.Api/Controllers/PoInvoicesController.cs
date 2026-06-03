@@ -54,11 +54,15 @@ public class PoInvoicesController : BaseController
             var status = filter.Status.Trim().ToLowerInvariant();
             if (status == "pending")
             {
-                query = query.Where(x => !x.Printed);
+                query = query.Where(x => x.Status != "Canceled" && !x.Printed);
             }
             else if (status == "printed")
             {
-                query = query.Where(x => x.Printed);
+                query = query.Where(x => x.Status != "Canceled" && x.Printed);
+            }
+            else if (status == "canceled")
+            {
+                query = query.Where(x => x.Status == "Canceled");
             }
         }
 
@@ -114,11 +118,15 @@ public class PoInvoicesController : BaseController
             var status = filter.Status.Trim().ToLowerInvariant();
             if (status == "pending")
             {
-                query = query.Where(x => x.Items.Any(item => !item.Printed) || !x.Items.Any());
+                query = query.Where(x => x.Items.Any(item => item.Status != "Canceled" && !item.Printed) || !x.Items.Any());
             }
             else if (status == "printed")
             {
-                query = query.Where(x => x.Items.Any() && x.Items.All(item => item.Printed));
+                query = query.Where(x => x.Items.Any() && x.Items.Where(item => item.Status != "Canceled").All(item => item.Printed));
+            }
+            else if (status == "canceled")
+            {
+                query = query.Where(x => x.Items.Any(item => item.Status == "Canceled"));
             }
         }
 
@@ -171,6 +179,7 @@ public class PoInvoicesController : BaseController
             BilledQty = dto.BilledQty,
             Mrp = dto.Mrp,
             Printed = false,
+            Status = "Pending",
             RemainingAllocation = dto.BilledQty,
             LocationAllotted = false,
         };
@@ -238,6 +247,7 @@ public class PoInvoicesController : BaseController
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
         entity.Mrp = dto.Mrp;
+        entity.Status = entity.Printed ? "Printed" : "Pending";
 
         if (previousProductId != dto.ProductId)
         {
@@ -472,6 +482,7 @@ public class PoInvoicesController : BaseController
                         BilledQty = billedQty,
                         Mrp = mrp,
                         Printed = false,
+                        Status = "Pending",
                         RemainingAllocation = billedQty,
                         LocationAllotted = false,
                     };
@@ -545,6 +556,7 @@ public class PoInvoicesController : BaseController
         foreach (var invoice in invoices)
         {
             invoice.Printed = true;
+            invoice.Status = "Printed";
         }
 
         await _context.SaveChangesAsync();
@@ -553,6 +565,49 @@ public class PoInvoicesController : BaseController
         {
             UpdatedCount = invoices.Count,
         }, "Invoice rows marked as printed successfully");
+    }
+
+    [HttpPost("headers/{headerId}/cancel")]
+    public async Task<ActionResult<ApiResponse<PoInvoiceHeaderSummaryDto>>> CancelPoInvoiceHeader(int headerId, [FromBody] CancelPoInvoiceDto dto)
+    {
+        var header = await _context.PoInvoiceHeaders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstOrDefaultAsync(x => x.Id == headerId);
+
+        if (header == null)
+            return NotFound<PoInvoiceHeaderSummaryDto>("PO invoice not found");
+
+        if (header.Items.Count == 0)
+            return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice has no rows to cancel");
+
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<PoInvoiceHeaderSummaryDto>("Cancel remark is required");
+
+        if (header.Items.All(item => item.Status == "Canceled"))
+            return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice is already canceled");
+
+        var hasProcessedRows = header.Items.Any(item =>
+            item.Status != "Canceled" &&
+            (item.Printed || Math.Max(item.BilledQty - item.RemainingAllocation, 0) > 0));
+
+        if (hasProcessedRows)
+            return BadRequest<PoInvoiceHeaderSummaryDto>("Cannot cancel invoice after sticker printing or location allocation");
+
+        foreach (var item in header.Items.Where(item => item.Status != "Canceled"))
+        {
+            item.Status = "Canceled";
+            item.CancelRemark = dto.Remark.Trim();
+            item.Printed = false;
+            item.RemainingAllocation = 0;
+            item.LocationAllotted = false;
+
+            await UpsertProductQuantityAsync(item.ProductId, -item.BilledQty);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Success(MapHeaderSummary(header), $"PO invoice {header.InvoiceNumber} canceled successfully");
     }
 
     private async Task<string> GenerateInvoiceNumberAsync()
@@ -592,6 +647,8 @@ public class PoInvoicesController : BaseController
             Mrp = invoice.Mrp ?? invoice.Product?.Mrp,
             BilledQty = invoice.BilledQty,
             Printed = invoice.Printed,
+            Status = invoice.Status,
+            CancelRemark = invoice.CancelRemark,
             RemainingAllocation = invoice.RemainingAllocation,
             LocationAllotted = invoice.LocationAllotted,
             CreatedAt = invoice.CreatedAt,
@@ -611,11 +668,11 @@ public class PoInvoicesController : BaseController
             InvoiceNumber = header.InvoiceNumber,
             InvoiceDate = header.InvoiceDate,
             PartyName = header.PartyName,
-            TotalBilledQty = items.Sum(item => item.BilledQty),
-            TotalRemainingAllocation = items.Sum(item => item.RemainingAllocation),
+            TotalBilledQty = items.Where(item => item.Status != "Canceled").Sum(item => item.BilledQty),
+            TotalRemainingAllocation = items.Where(item => item.Status != "Canceled").Sum(item => item.RemainingAllocation),
             ProductCount = items.Count,
-            PrintedCount = items.Count(item => item.Printed),
-            PendingCount = items.Count(item => !item.Printed),
+            PrintedCount = items.Count(item => item.Status != "Canceled" && item.Printed),
+            PendingCount = items.Count(item => item.Status != "Canceled" && !item.Printed),
             Items = items,
         };
     }

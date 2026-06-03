@@ -99,7 +99,7 @@ public class StickerService : IStickerService
             : "IMPORTED & MARKETED BY";
         var dmData = isSkuOnlySticker
             ? product.Sku ?? string.Empty
-            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{request.BatchNumber}#{FormatRupee(stickerMrp, 2)}";
+            : $"{product.Sku ?? string.Empty}#{quantity}#{request.MonthYear}#{FormatRupee(stickerMrp, 2)}";
 
         var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);

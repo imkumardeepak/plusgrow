@@ -92,6 +92,8 @@ export interface MantineDataTableProps<T> {
   sortState?: SortState;
   /** Callback when sort changes (optional) */
   onSortChange?: (sort: SortState | null) => void;
+  /** Optional custom table footer row(s) inside <tfoot> */
+  tableFooter?: React.ReactNode;
 }
 
 function MantineDataTableInner<T>({
@@ -116,6 +118,7 @@ function MantineDataTableInner<T>({
   onRowClick,
   sortState: controlledSortState,
   onSortChange,
+  tableFooter,
 }: MantineDataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [internalSortState, setInternalSortState] = useState<SortState | null>(

@@ -53,7 +53,7 @@ type StickerScan = {
 const parseStickerScan = (value: string): StickerScan => {
   const raw = value.trim();
   const parts = raw.split("#").map((part) => part.trim()).filter(Boolean);
-  const mrpText = parts[4] || "";
+  const mrpText = parts[4] || parts[3] || "";
   const mrpMatch = mrpText.match(/[\d,.]+/);
   const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
 
@@ -62,7 +62,7 @@ const parseStickerScan = (value: string): StickerScan => {
     sku: parts[0] || raw,
     quantity: Math.max(Number(parts[1]) || 1, 1),
     importDate: parts[2] || null,
-    batchNumber: parts[3] || null,
+    batchNumber: parts[4] ? parts[3] : null,
     mrp: parsedMrp && Number.isFinite(parsedMrp) ? parsedMrp : null,
   };
 };

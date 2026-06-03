@@ -159,6 +159,9 @@ public class PlusgrowDbContext : DbContext
             .HasIndex(x => x.Printed);
 
         modelBuilder.Entity<PoInvoice>()
+            .HasIndex(x => x.Status);
+
+        modelBuilder.Entity<PoInvoice>()
             .HasIndex(x => x.LocationAllotted);
 
         modelBuilder.Entity<PoInvoice>()
