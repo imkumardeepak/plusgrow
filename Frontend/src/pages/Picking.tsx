@@ -300,7 +300,7 @@ export const Picking = memo(function Picking() {
       try {
         setIsPicking(true);
         const updated = await outwardOrdersApi.pick(orderItem.id, {
-          quantity: scan.quantity,
+          quantity: 1, // Default to 1 instead of scan.quantity
           skuCode: scan.sku,
           locationCode: normalizedLocation,
           mrp: scan.mrp,
@@ -323,7 +323,7 @@ export const Picking = memo(function Picking() {
         toast.success(
           remaining === 0
             ? `${updated.orderNumber} ready for packing`
-            : `Picked ${Math.min(scan.quantity, orderItem.pendingQuantity)} for ${updated.orderNumber}`,
+            : `Picked 1 for ${updated.orderNumber}`,
         );
         if (remaining > 0) {
           setScanCode("");
@@ -451,7 +451,7 @@ export const Picking = memo(function Picking() {
 
         if (existingIndex >= 0) {
           const updated = [...current];
-          updated[existingIndex].quantity += parsedScan.quantity;
+          updated[existingIndex].quantity += 1; // Default to 1
           return updated;
         }
 
@@ -460,7 +460,7 @@ export const Picking = memo(function Picking() {
           product: result.product,
           skuCode: result.product.sku || result.product.alias || parsedScan.sku,
           locationCode: locCode,
-          quantity: parsedScan.quantity,
+          quantity: 1, // Default to 1
           mrp: parsedScan.mrp,
           importDate: parsedScan.importDate,
           lookupResult: result
