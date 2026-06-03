@@ -453,23 +453,17 @@ public class PoInvoicesController : BaseController
             await _context.SaveChangesAsync();
             await DeleteOrphanHeadersAsync();
 
-            if (result.ImportedCount == 0)
-            {
-                return BadRequest<ImportResultDto>(
-                    "Upload did not create any inward rows.",
-                    result.Errors.Count > 0
-                        ? result.Errors
-                        : new List<string> { "No valid inward rows were found in the uploaded file." });
-            }
-
             result.Success = true;
+
             if (result.ImportedCount > 0)
             {
                 await SendNotificationAsync(new RealtimeNotificationDto
                 {
                     Type = "po_invoice.imported",
                     Title = "Invoices imported",
-                    Message = $"{result.ImportedCount} invoice rows were imported.",
+                    Message = result.Errors.Count > 0
+                        ? $"{result.ImportedCount} invoice rows imported, {result.Errors.Count} skipped."
+                        : $"{result.ImportedCount} invoice rows were imported.",
                     Severity = "success",
                     Data = new Dictionary<string, object?>
                     {
@@ -479,7 +473,11 @@ public class PoInvoicesController : BaseController
                 });
             }
 
-            return Success(result, $"Imported {result.ImportedCount} invoice rows successfully");
+            var message = result.ImportedCount > 0
+                ? $"Imported {result.ImportedCount} invoice rows successfully"
+                : "No rows were imported. Check skipped rows for details.";
+
+            return Success(result, message);
         }
         catch (Exception ex)
         {

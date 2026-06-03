@@ -1265,11 +1265,19 @@ export const Inward = memo(function Inward() {
       const errors = result.errors || [];
       setUploadSkippedErrors(errors);
       if (result.success) {
-        toast.success(
-          errors.length > 0
-            ? `Imported ${result.importedCount} rows, skipped ${errors.length}`
-            : `Imported ${result.importedCount} invoice rows`,
-        );
+        if (result.importedCount > 0) {
+          toast.success(
+            errors.length > 0
+              ? `Imported ${result.importedCount} rows, skipped ${errors.length}`
+              : `Imported ${result.importedCount} invoice rows`,
+          );
+        } else if (errors.length > 0) {
+          toast.warning(
+            `No rows imported. ${errors.length} rows skipped.`,
+          );
+        } else {
+          toast.warning("No valid rows found in uploaded file");
+        }
         if (errors.length > 0) {
           setIsUploadSkippedModalOpen(true);
         }
