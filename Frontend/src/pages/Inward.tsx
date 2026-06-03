@@ -399,55 +399,53 @@ export const Inward = memo(function Inward() {
   );
 
   const invoiceManufacturerOptions = useMemo(() => {
-    const options = manufacturers.map((item) => ({
-      value: item.name,
-      label: item.name,
-    }));
+    const seen = new Map<string, { value: string; label: string }>();
+    for (const item of manufacturers) {
+      const key = item.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, { value: item.name, label: item.name });
+      }
+    }
 
     if (
       invoiceForm.partyName &&
-      !options.some(
-        (item) =>
-          item.value.trim().toLowerCase() ===
-          invoiceForm.partyName.trim().toLowerCase(),
-      )
+      !seen.has(invoiceForm.partyName.trim().toLowerCase())
     ) {
       return [
         {
           value: invoiceForm.partyName,
           label: invoiceForm.partyName,
         },
-        ...options,
+        ...Array.from(seen.values()),
       ];
     }
 
-    return options;
+    return Array.from(seen.values());
   }, [invoiceForm.partyName, manufacturers]);
 
   const invoicePartyOptions = useMemo(() => {
-    const options = parties.map((item) => ({
-      value: item.name,
-      label: item.name,
-    }));
+    const seen = new Map<string, { value: string; label: string }>();
+    for (const item of parties) {
+      const key = item.name.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, { value: item.name, label: item.name });
+      }
+    }
 
     if (
       invoiceForm.partyName &&
-      !options.some(
-        (item) =>
-          item.value.trim().toLowerCase() ===
-          invoiceForm.partyName.trim().toLowerCase(),
-      )
+      !seen.has(invoiceForm.partyName.trim().toLowerCase())
     ) {
       return [
         {
           value: invoiceForm.partyName,
           label: invoiceForm.partyName,
         },
-        ...options,
+        ...Array.from(seen.values()),
       ];
     }
 
-    return options;
+    return Array.from(seen.values());
   }, [invoiceForm.partyName, parties]);
 
   const handleInwardEntryModeChange = (value: string | null) => {
@@ -2200,7 +2198,7 @@ export const Inward = memo(function Inward() {
                     <Tag size={48} style={{ marginBottom: 12 }} />
                     <Text fw={700} size="lg" mb="xs" c={selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0 ? "red.4" : undefined}>
                       {selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0
-                        ? "Missing Product Data" 
+                        ? "Missing Product Data"
                         : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">
