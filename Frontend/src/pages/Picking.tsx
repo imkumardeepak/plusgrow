@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { NumberInput, Select, Stack, Group, Text, Textarea, TextInput } from "@mantine/core";
+import { NumberInput, Stack, Group, Text, Textarea, TextInput } from "@mantine/core";
 import {
   ArrowRight,
   ArrowLeft,
@@ -30,6 +30,7 @@ import {
 import {
   OutwardOrder,
   Product,
+  ProductLookupResult,
   outwardOrdersApi,
   productAllottedLocationsApi,
   ProductAllottedLocationRecord,
@@ -54,7 +55,6 @@ type PickingOrderGroup = {
 export const Picking = memo(function Picking() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
     [],
   );
@@ -74,8 +74,10 @@ export const Picking = memo(function Picking() {
   const [isPicking, setIsPicking] = useState(false);
   const [isDirectPicking, setIsDirectPicking] = useState(false);
   const [isDirectPickModalOpen, setIsDirectPickModalOpen] = useState(false);
-  const [directProductSearch, setDirectProductSearch] = useState("");
-  const [directProductId, setDirectProductId] = useState<number | null>(null);
+  const [isDirectProductLoading, setIsDirectProductLoading] = useState(false);
+  const [directProduct, setDirectProduct] = useState<Product | null>(null);
+  const [directLookupResult, setDirectLookupResult] =
+    useState<ProductLookupResult | null>(null);
   const [directSkuCode, setDirectSkuCode] = useState("");
   const [directLocationCode, setDirectLocationCode] = useState("");
   const [directQuantity, setDirectQuantity] = useState(1);
@@ -101,34 +103,9 @@ export const Picking = memo(function Picking() {
     }
   }, []);
 
-  const loadProducts = useCallback(async () => {
-    try {
-      const data = await productsApi.search(directProductSearch);
-      setProducts(data);
-    } catch {
-      toast.error("Failed to load product lookup");
-    }
-  }, [directProductSearch]);
-
   useEffect(() => {
     void loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadProducts();
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [loadProducts]);
-
-  const productOptions = useMemo(
-    () =>
-      products.map((product) => ({
-        value: String(product.id),
-        label: `${product.sku || "NO-SKU"}${product.alias ? ` / ${product.alias}` : ""} - ${product.name}`,
-      })),
-    [products],
-  );
 
   const openOrders = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -385,9 +362,39 @@ export const Picking = memo(function Picking() {
     await handlePick(matchedItem, normalizedScan);
   };
 
+  const resolveDirectProduct = useCallback(async () => {
+    const normalizedScan = directSkuCode.trim().split("#")[0].trim();
+    if (!normalizedScan) {
+      toast.error("Scan SKU or Alias");
+      return null;
+    }
+
+    setIsDirectProductLoading(true);
+    try {
+      const result = await productsApi.lookup(normalizedScan);
+      setDirectSkuCode(normalizedScan);
+      setDirectProduct(result.product);
+      setDirectLookupResult(result);
+      const firstLocation = result.locations.find((entry) => entry.quantity > 0);
+      setDirectLocationCode(firstLocation?.locationCode || "");
+      if (!firstLocation) {
+        toast.error("No allotted location stock found for this product");
+      }
+      return result.product;
+    } catch (error: any) {
+      setDirectProduct(null);
+      setDirectLookupResult(null);
+      setDirectLocationCode("");
+      toast.error(error.message || "Product not found for SKU/Alias");
+      return null;
+    } finally {
+      setIsDirectProductLoading(false);
+    }
+  }, [directSkuCode]);
+
   const handleDirectPickSubmit = async () => {
-    if (!directProductId) {
-      toast.error("Select product first");
+    const resolvedProduct = directProduct ?? (await resolveDirectProduct());
+    if (!resolvedProduct) {
       return;
     }
 
@@ -409,7 +416,7 @@ export const Picking = memo(function Picking() {
     try {
       setIsDirectPicking(true);
       const created = await outwardOrdersApi.directPick({
-        productId: directProductId,
+        productId: resolvedProduct.id,
         quantity: directQuantity,
         skuCode: directSkuCode.trim() || undefined,
         locationCode: directLocationCode.trim(),
@@ -419,7 +426,8 @@ export const Picking = memo(function Picking() {
       setOrders((current) => [created, ...current]);
       setSelectedSalesOrderId(created.salesOrderId);
       setActiveItemId(created.id);
-      setDirectProductId(null);
+      setDirectProduct(null);
+      setDirectLookupResult(null);
       setDirectSkuCode("");
       setDirectLocationCode("");
       setDirectQuantity(1);
@@ -434,6 +442,21 @@ export const Picking = memo(function Picking() {
     }
   };
 
+  const resetDirectPickForm = () => {
+    setDirectProduct(null);
+    setDirectLookupResult(null);
+    setDirectSkuCode("");
+    setDirectLocationCode("");
+    setDirectQuantity(1);
+    setDirectRemark("");
+    setDirectCustomerName("");
+  };
+
+  const closeDirectPickModal = () => {
+    setIsDirectPickModalOpen(false);
+    resetDirectPickForm();
+  };
+
   return (
     <OperationsPage
       title="Picking"
@@ -443,7 +466,7 @@ export const Picking = memo(function Picking() {
     >
       <Modal
         isOpen={isDirectPickModalOpen}
-        onClose={() => setIsDirectPickModalOpen(false)}
+        onClose={closeDirectPickModal}
         title="Direct Outward Pick"
         size="xl"
       >
@@ -452,33 +475,66 @@ export const Picking = memo(function Picking() {
             Use this when there is no sales order. Pick stock with a mandatory remark, then continue packing.
           </Text>
           <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Product"
-              placeholder="Search SKU, alias or product"
-              searchable
-              data={productOptions}
-              searchValue={directProductSearch}
-              onSearchChange={setDirectProductSearch}
-              value={directProductId ? String(directProductId) : null}
-              onChange={(value) => {
-                const productId = value ? Number(value) : null;
-                const selected = products.find((product) => product.id === productId);
-                setDirectProductId(productId);
-                setDirectSkuCode(selected?.sku || selected?.alias || "");
-              }}
-            />
             <TextInput
               label="SKU / Alias Scan"
-              placeholder="Optional SKU or alias scan"
+              placeholder="Scan SKU or alias"
               value={directSkuCode}
-              onChange={(event) => setDirectSkuCode(event.currentTarget.value)}
+              onChange={(event) => {
+                setDirectSkuCode(event.currentTarget.value);
+                setDirectProduct(null);
+                setDirectLookupResult(null);
+                setDirectLocationCode("");
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void resolveDirectProduct();
+                }
+              }}
+              rightSection={
+                <button
+                  type="button"
+                  onClick={() => void resolveDirectProduct()}
+                  className="rounded-md px-2 py-1 text-[10px] font-bold uppercase text-brand-300 hover:bg-white/10"
+                  disabled={isDirectProductLoading}
+                >
+                  {isDirectProductLoading ? "..." : "Fetch"}
+                </button>
+              }
+              rightSectionWidth={58}
             />
             <TextInput
               label="Location / Bin"
-              placeholder="Scan location"
+              placeholder="Auto fetched from allotted stock"
               value={directLocationCode}
               onChange={(event) => setDirectLocationCode(event.currentTarget.value)}
             />
+            {directProduct ? (
+              <div className="md:col-span-2 rounded-xl border border-brand-500/20 bg-brand-500/10 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-white">
+                      {directProduct.name}
+                    </p>
+                    <p className="mt-1 font-mono text-[11px] text-brand-300">
+                      {directProduct.sku || "NO-SKU"}
+                      {directProduct.alias ? ` / ${directProduct.alias}` : ""}
+                    </p>
+                  </div>
+                  <span className="rounded-md bg-white/10 px-2 py-1 text-[11px] font-semibold text-white">
+                    Stock {directLookupResult?.currentStock ?? 0}
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] text-neutral-300">
+                  Location:{" "}
+                  {directLookupResult?.locations.length
+                    ? directLookupResult.locations
+                        .map((entry) => `${entry.locationCode} (${entry.quantity})`)
+                        .join(", ")
+                    : "No allotted stock"}
+                </p>
+              </div>
+            ) : null}
             <NumberInput
               label="Quantity"
               min={1}
