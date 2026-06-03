@@ -362,14 +362,16 @@ public class PoInvoicesController : BaseController
 
             if (uploadInvoiceNumbers.Count > 0)
             {
-                var existingInvoiceNumbers = await _context.PoInvoiceHeaders
+                var activeExistingInvoiceNumbers = await _context.PoInvoiceHeaders
+                    .Include(x => x.Items)
                     .Where(x => uploadInvoiceNumbers.Contains(x.InvoiceNumber))
+                    .Where(x => x.Items.Any(item => item.Status != "Canceled"))
                     .Select(x => x.InvoiceNumber)
                     .ToListAsync();
 
-                if (existingInvoiceNumbers.Count > 0)
+                if (activeExistingInvoiceNumbers.Count > 0)
                 {
-                    var duplicateInvoiceSet = new HashSet<string>(existingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
+                    var duplicateInvoiceSet = new HashSet<string>(activeExistingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
                     var duplicateErrors = uploadInvoiceRows
                         .Where(x => duplicateInvoiceSet.Contains(x.InvoiceNumber))
                         .GroupBy(x => x.InvoiceNumber, StringComparer.OrdinalIgnoreCase)
@@ -710,6 +712,7 @@ public class PoInvoicesController : BaseController
         var normalizedPartyName = partyName.Trim();
 
         var existingHeader = await _context.PoInvoiceHeaders
+            .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.InvoiceNumber == normalizedInvoiceNumber);
 
         if (existingHeader == null)
@@ -724,6 +727,18 @@ public class PoInvoicesController : BaseController
             _context.PoInvoiceHeaders.Add(nextHeader);
             await _context.SaveChangesAsync();
             return nextHeader;
+        }
+
+        var isFullyCanceledHeader =
+            existingHeader.Items.Count > 0 &&
+            existingHeader.Items.All(item => item.Status == "Canceled");
+
+        if (isFullyCanceledHeader)
+        {
+            existingHeader.InvoiceDate = normalizedInvoiceDate;
+            existingHeader.PartyName = normalizedPartyName;
+            await _context.SaveChangesAsync();
+            return existingHeader;
         }
 
         var headerMismatch =
