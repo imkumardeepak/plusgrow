@@ -483,10 +483,8 @@ export const Inward = memo(function Inward() {
   const handleImporterChange = useCallback(
     (value: string | null) => {
       setImporterId(value);
-      const importer = importers.find((item) => String(item.id) === value);
-      setImporterSearch(importer?.name ?? "");
     },
-    [importers],
+    [],
   );
 
   const findImporterByName = useCallback(
@@ -726,7 +724,6 @@ export const Inward = memo(function Inward() {
     }
 
     setImporterId(defaultImporter ? String(defaultImporter.id) : null);
-    setImporterSearch(defaultImporter?.name ?? "");
   }, [defaultImporter, selectedPrintRow?.id, stickerSize, stickerType]);
 
   const buildStickerPayload = useCallback(
@@ -2225,10 +2222,6 @@ export const Inward = memo(function Inward() {
                       placeholder="Select importer from importer master"
                       value={importerId}
                       onChange={handleImporterChange}
-                      searchable
-                      searchValue={importerSearch}
-                      onSearchChange={setImporterSearch}
-                      clearable
                       data={importerOptions}
                       description={
                         selectedImporter
