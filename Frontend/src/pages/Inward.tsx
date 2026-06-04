@@ -478,6 +478,17 @@ export const Inward = memo(function Inward() {
     [importerId, importers],
   );
 
+  const defaultImporter = importers[0] ?? null;
+
+  const handleImporterChange = useCallback(
+    (value: string | null) => {
+      setImporterId(value);
+      const importer = importers.find((item) => String(item.id) === value);
+      setImporterSearch(importer?.name ?? "");
+    },
+    [importers],
+  );
+
   const findImporterByName = useCallback(
     (name?: string | null) => {
       const normalized = name?.trim().toLowerCase();
@@ -708,9 +719,15 @@ export const Inward = memo(function Inward() {
   }, [selectedPrintRow, selectedProduct]);
 
   useEffect(() => {
-    setImporterId(null);
-    setImporterSearch("");
-  }, [selectedPrintRow?.id, stickerSize, stickerType]);
+    if (!selectedPrintRow || stickerSize === "25x25" || stickerType === "Manufacture") {
+      setImporterId(null);
+      setImporterSearch("");
+      return;
+    }
+
+    setImporterId(defaultImporter ? String(defaultImporter.id) : null);
+    setImporterSearch(defaultImporter?.name ?? "");
+  }, [defaultImporter, selectedPrintRow?.id, stickerSize, stickerType]);
 
   const buildStickerPayload = useCallback(
     (row: PoInvoice, quantity: number) => ({
@@ -1465,13 +1482,10 @@ export const Inward = memo(function Inward() {
     }
     const printerAddress = `${config.printerIp.trim()}:${config.printerPort}`;
 
-    let invoiceImporterId: number | null = null;
-    if (printAllSize !== "25x25") {
-      try {
-        invoiceImporterId = await resolveImporterId(selectedInvoiceSummary.partyName);
-      } catch {
-        invoiceImporterId = null;
-      }
+    const invoiceImporterId = printAllSize !== "25x25" ? defaultImporter?.id ?? null : null;
+    if (printAllSize !== "25x25" && !invoiceImporterId) {
+      toast.error("Importer master has no records. Please add an importer before printing Imported & Marketed By stickers.");
+      return;
     }
 
     const template = templates.find(
@@ -2210,7 +2224,7 @@ export const Inward = memo(function Inward() {
                       radius="md"
                       placeholder="Select importer from importer master"
                       value={importerId}
-                      onChange={setImporterId}
+                      onChange={handleImporterChange}
                       searchable
                       searchValue={importerSearch}
                       onSearchChange={setImporterSearch}
