@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
+  Download,
   FileText,
   Plus,
   RefreshCw,

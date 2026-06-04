@@ -22,18 +22,14 @@ import {
   Text,
   Textarea,
   TextInput,
-  ThemeIcon,
   Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
   ArrowDownToLine,
-  CheckCircle2,
   Download,
   Eye,
-  FileSpreadsheet,
   FileText,
-  Loader2,
   Layers,
   Plus,
   Printer,
@@ -83,6 +79,10 @@ import {
   InwardEntryMode,
   InvoiceLineDraft,
 } from "./Inward/components/InwardInvoiceModal";
+import {
+  InwardSkippedRowsModal,
+  InwardUploadModal,
+} from "./Inward/components/InwardUploadModals";
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
 type InwardStatusFilter = "all" | "pending" | "printed" | "canceled";
@@ -1824,186 +1824,26 @@ export const Inward = memo(function Inward() {
         getProductLabel={getProductLabel}
       />
 
-      <Modal
+      <InwardUploadModal
         isOpen={isUploadModalOpen}
+        uploadFile={uploadFile}
+        uploadSkippedErrors={uploadSkippedErrors}
+        isUploading={isUploading}
         onClose={closeUploadModal}
-        title="Import PO Invoices from Excel"
-        size="lg"
-      >
-        <Stack gap="lg">
-          <Paper radius="lg" p="md" withBorder bg="transparent">
-            <Group justify="space-between" align="flex-start">
-              <Group gap="sm" wrap="nowrap">
-                <ThemeIcon
-                  size={42}
-                  radius="lg"
-                  variant="light"
-                  color="cyan"
-                  style={{
-                    background: "rgba(30, 192, 243, 0.12)",
-                    border: "1px solid rgba(30, 192, 243, 0.18)",
-                  }}
-                >
-                  <FileSpreadsheet size={20} />
-                </ThemeIcon>
-                <Stack gap={2}>
-                  <Text fw={700}>PO Invoice Import Template</Text>
-                  <Text size="sm" c="dimmed">
-                    Download template first. SKU or product name must match an
-                    existing product.
-                  </Text>
-                </Stack>
-              </Group>
-              <Button
-                variant="outline"
-                leftIcon={<Download size={16} />}
-                onClick={handleDownloadTemplate}
-              >
-                Download Template
-              </Button>
-            </Group>
-          </Paper>
+        onDownloadTemplate={handleDownloadTemplate}
+        onFileSelect={handleFileSelect}
+        onOpenSkippedRows={() => setIsUploadSkippedModalOpen(true)}
+        onDownloadSkippedRows={handleDownloadUploadSkippedRows}
+        onUpload={handleUpload}
+      />
 
-          <Paper radius="lg" p="md" withBorder bg="transparent">
-            <Stack gap="sm">
-              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                Excel File
-              </Text>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileSelect}
-              />
-
-              {uploadFile ? (
-                <Group gap="sm" wrap="nowrap">
-                  <CheckCircle2
-                    size={18}
-                    color="var(--mantine-color-green-4)"
-                  />
-                  <Stack gap={2}>
-                    <Text fw={600}>{uploadFile.name}</Text>
-                    <Text size="sm" c="dimmed">
-                      {(uploadFile.size / 1024).toFixed(1)} KB ready
-                    </Text>
-                  </Stack>
-                </Group>
-              ) : (
-                <Text size="sm" c="dimmed">
-                  Select Excel file to import PO invoice data.
-                </Text>
-              )}
-              {uploadSkippedErrors.length > 0 ? (
-                <Paper radius="md" p="sm" withBorder bg="rgba(251, 146, 60, 0.08)">
-                  <Group justify="space-between" align="center">
-                    <Stack gap={2}>
-                      <Text size="xs" fw={800} c="orange.3">
-                        {uploadSkippedErrors.length} rows skipped in last upload
-                      </Text>
-                      <Text size="11px" c="dimmed">
-                        Open skipped rows to see exact row numbers and reasons.
-                      </Text>
-                    </Stack>
-                    <Group gap="xs">
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="outline"
-                        onClick={() => setIsUploadSkippedModalOpen(true)}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="ghost"
-                        leftIcon={<Download size={13} />}
-                        onClick={handleDownloadUploadSkippedRows}
-                      >
-                        Download
-                      </Button>
-                    </Group>
-                  </Group>
-                </Paper>
-              ) : null}
-            </Stack>
-          </Paper>
-
-          <Group justify="flex-end">
-            <Button variant="outline" onClick={closeUploadModal}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={!uploadFile}
-              loading={isUploading}
-              leftIcon={
-                isUploading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Upload size={16} />
-                )
-              }
-            >
-              Import Invoices
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
+      <InwardSkippedRowsModal
         isOpen={isUploadSkippedModalOpen}
+        uploadSkippedErrors={uploadSkippedErrors}
         onClose={() => setIsUploadSkippedModalOpen(false)}
-        title="Skipped Upload Rows"
-        size="xl"
-        footer={
-          <Group justify="flex-end">
-            <Button
-              variant="outline"
-              leftIcon={<Download size={14} />}
-              onClick={handleDownloadUploadSkippedRows}
-              disabled={uploadSkippedErrors.length === 0}
-            >
-              Download
-            </Button>
-            <Button variant="outline" onClick={handleReuploadFromSkippedRows}>
-              Cancel & Re-upload
-            </Button>
-            <Button onClick={() => setIsUploadSkippedModalOpen(false)}>
-              Close
-            </Button>
-          </Group>
-        }
-      >
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            These rows were not imported. Fix them in Excel and upload again.
-          </Text>
-          <Stack gap="xs" mah={420} style={{ overflowY: "auto" }}>
-            {uploadSkippedErrors.map((error, index) => {
-              const rowMatch = error.match(/^Row\s+(\d+):\s*(.*)$/i);
-              return (
-                <Paper
-                  key={`${error}-${index}`}
-                  radius="md"
-                  p="sm"
-                  withBorder
-                  bg="rgba(239, 68, 68, 0.08)"
-                >
-                  <Group align="flex-start" wrap="nowrap">
-                    <Badge color="red" variant="light">
-                      Row {rowMatch?.[1] || index + 1}
-                    </Badge>
-                    <Text size="sm" fw={600}>
-                      {rowMatch?.[2] || error}
-                    </Text>
-                  </Group>
-                </Paper>
-              );
-            })}
-          </Stack>
-        </Stack>
-      </Modal>
+        onDownloadSkippedRows={handleDownloadUploadSkippedRows}
+        onReupload={handleReuploadFromSkippedRows}
+      />
 
       <Modal
         isOpen={Boolean(selectedInvoiceSummary)}
