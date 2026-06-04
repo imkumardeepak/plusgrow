@@ -79,13 +79,25 @@ public class StickerService : IStickerService
         }
 
         var zpl = await File.ReadAllTextAsync(templatePath);
+        var isImportedLabel =
+            string.Equals(request.Type, "Combined", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase);
         var selectedManufacturer = manufacturer ?? product.Manufacturer;
-        var addressSource = selectedManufacturer?.Address ?? importer?.Address;
+        var selectedImporter = importer;
+        var sourceName = isImportedLabel
+            ? FirstFilled(selectedImporter?.Name, selectedManufacturer?.Name)
+            : FirstFilled(selectedManufacturer?.Name);
+        var sourceAddress = isImportedLabel
+            ? FirstFilled(selectedImporter?.Address, selectedManufacturer?.Address)
+            : FirstFilled(selectedManufacturer?.Address);
+        var sourceCountry = isImportedLabel
+            ? selectedManufacturer?.Country
+            : selectedManufacturer?.Country;
         var importerParts = SplitAddress(
-            addressSource,
-            selectedManufacturer?.Country);
+            sourceAddress,
+            sourceCountry);
         var manufacturerCountry = FirstFilled(
-            selectedManufacturer?.Country,
+            sourceCountry,
             importerParts.Country);
         var quantity = request.Quantity > 0 ? request.Quantity : 1;
         var stickerMrp = request.Mrp ?? product.Mrp;
@@ -119,7 +131,7 @@ public class StickerService : IStickerService
             new("<COMPANYADDRESS2>", DefaultCompanyAddress2),
             new("<COMPANYPHONE>", DefaultCompanyPhone),
             new("<COMPANYEMAIL>", DefaultCompanyEmail),
-            new("<MANUFACTURE>", FirstFilled(selectedManufacturer?.Name, importer?.Name).ToUpperInvariant()),
+            new("<MANUFACTURE>", sourceName.ToUpperInvariant()),
             new("<COUNTYOFIMPORT>", manufacturerCountry),
             new("<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS"),
             new("<DATEOFIMPORT>", request.MonthYear),

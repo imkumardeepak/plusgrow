@@ -336,10 +336,6 @@ export const Inward = memo(function Inward() {
   }, [loadData]);
 
   useEffect(() => {
-    setImporterId(null);
-  }, [stickerType]);
-
-  useEffect(() => {
     if (stickerSize === "25x25" && stickerType !== "Combined") {
       setStickerType("Combined");
     }
@@ -401,15 +397,6 @@ export const Inward = memo(function Inward() {
         mrp: product.mrp ?? null,
       })),
     [products],
-  );
-
-  const manufacturerOptions = useMemo(
-    () =>
-      manufacturers.map((item) => ({
-        value: String(item.id),
-        label: item.name,
-      })),
-    [manufacturers],
   );
 
   const invoiceManufacturerOptions = useMemo(() => {
@@ -484,6 +471,45 @@ export const Inward = memo(function Inward() {
         label: item.name,
       })),
     [importers],
+  );
+
+  const findImporterByName = useCallback(
+    (name?: string | null) => {
+      const normalized = name?.trim().toLowerCase();
+      if (!normalized) return null;
+
+      return (
+        importers.find((item) => item.name.trim().toLowerCase() === normalized) ??
+        null
+      );
+    },
+    [importers],
+  );
+
+  const resolveImporterId = useCallback(
+    async (name?: string | null) => {
+      const localMatch = findImporterByName(name);
+      if (localMatch) return localMatch.id;
+
+      const normalized = name?.trim();
+      if (!normalized) return null;
+
+      const result = await importersApi.getPaged({
+        search: normalized,
+        page: 1,
+        pageSize: 25,
+        sortBy: "name",
+        sortDirection: "asc",
+      });
+      setImporters(result.data);
+
+      return (
+        result.data.find(
+          (item) => item.name.trim().toLowerCase() === normalized.toLowerCase(),
+        )?.id ?? null
+      );
+    },
+    [findImporterByName],
   );
 
   const printerConfig = useMemo(
@@ -676,12 +702,43 @@ export const Inward = memo(function Inward() {
     );
   }, [selectedPrintRow, selectedProduct]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const syncImporterFromInvoice = async () => {
+      if (!selectedPrintRow || stickerSize === "25x25") {
+        if (isMounted) setImporterId(null);
+        return;
+      }
+
+      if (stickerType === "Manufacture") {
+        if (isMounted) setImporterId(null);
+        return;
+      }
+
+      setImporterSearch(selectedPrintRow.partyName);
+      const resolvedId = await resolveImporterId(selectedPrintRow.partyName);
+      if (isMounted) {
+        setImporterId(resolvedId ? String(resolvedId) : null);
+      }
+    };
+
+    void syncImporterFromInvoice();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [resolveImporterId, selectedPrintRow, stickerSize, stickerType]);
+
   const buildStickerPayload = useCallback(
     (row: PoInvoice, quantity: number) => ({
       productId: row.productId,
-      manufacturerId: manufacturerId ? Number(manufacturerId) : undefined,
+      manufacturerId:
+        stickerType === "Manufacture" && manufacturerId
+          ? Number(manufacturerId)
+          : undefined,
       importerId:
-        stickerType === "Separate" && importerId
+        stickerType !== "Manufacture" && importerId
           ? Number(importerId)
           : undefined,
       size: stickerSize,
@@ -1416,6 +1473,15 @@ export const Inward = memo(function Inward() {
     }
     const printerAddress = `${config.printerIp.trim()}:${config.printerPort}`;
 
+    let invoiceImporterId: number | null = null;
+    if (printAllSize !== "25x25") {
+      try {
+        invoiceImporterId = await resolveImporterId(selectedInvoiceSummary.partyName);
+      } catch {
+        invoiceImporterId = null;
+      }
+    }
+
     const template = templates.find(
       (t) => t.size === printAllSize && t.type === "Combined",
     );
@@ -1470,7 +1536,7 @@ export const Inward = memo(function Inward() {
 
         const payload = {
           productId: row.productId,
-          manufacturerId: product.manufacturerId ?? undefined,
+          importerId: invoiceImporterId ?? undefined,
           size: printAllSize,
           type: "Combined" as const,
           monthYear: format(
@@ -2291,22 +2357,21 @@ export const Inward = memo(function Inward() {
                       </Text>
                     </Box>
                   )}
-                  {stickerSize !== "25x25" ? (
-                    <Select
-                      label="Manufacturer"
-                      size="xs"
-                      radius="md"
-                      placeholder="Select manufacturer"
-                      value={manufacturerId}
-                      onChange={setManufacturerId}
-                      searchable
-                      searchValue={manufacturerSearch}
-                      onSearchChange={setManufacturerSearch}
-                      clearable
-                      data={manufacturerOptions}
-                    />
+                  {stickerSize !== "25x25" && stickerType === "Manufacture" ? (
+                    <Box>
+                      <Text size="10px" fw={800} c="dimmed">
+                        MANUFACTURER
+                      </Text>
+                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
+                        {selectedProduct?.manufacturer?.name ||
+                          manufacturers.find(
+                            (item) => String(item.id) === manufacturerId,
+                          )?.name ||
+                          "Mapped from product"}
+                      </Text>
+                    </Box>
                   ) : null}
-                  {stickerSize !== "25x25" && stickerType === "Separate" ? (
+                  {stickerSize !== "25x25" && stickerType !== "Manufacture" ? (
                     <Select
                       label="Importer"
                       size="xs"
