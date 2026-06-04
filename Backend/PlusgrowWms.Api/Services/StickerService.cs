@@ -84,18 +84,11 @@ public class StickerService : IStickerService
             string.Equals(request.Type, "Separate", StringComparison.OrdinalIgnoreCase);
         var selectedManufacturer = manufacturer ?? product.Manufacturer;
         var selectedImporter = importer;
-        var sourceName = isImportedLabel
-            ? FirstFilled(selectedImporter?.Name, selectedManufacturer?.Name)
-            : FirstFilled(selectedManufacturer?.Name);
-        var sourceAddress = isImportedLabel
-            ? FirstFilled(selectedImporter?.Address, selectedManufacturer?.Address)
-            : FirstFilled(selectedManufacturer?.Address);
-        var sourceCountry = isImportedLabel
-            ? selectedManufacturer?.Country
-            : selectedManufacturer?.Country;
-        var importerParts = SplitAddress(
-            sourceAddress,
-            sourceCountry);
+        var sourceName = FirstFilled(selectedManufacturer?.Name);
+        var sourceAddress = FirstFilled(selectedManufacturer?.Address);
+        var sourceCountry = selectedManufacturer?.Country;
+        var importerParts = SplitAddress(sourceAddress, sourceCountry);
+        var companyDetails = GetCompanyDetails(request.Type, selectedImporter);
         var manufacturerCountry = FirstFilled(
             sourceCountry,
             importerParts.Country);
@@ -126,11 +119,11 @@ public class StickerService : IStickerService
             new("84505C-0023#100#Mar/2026#INA0001", dmData),
             new("<SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER>", dmData),
             new("<COMPANYHEADER>", companyHeader),
-            new("<COMPANYNAME>", DefaultCompanyName),
-            new("<COMPANYADDRESS1>", DefaultCompanyAddress1),
-            new("<COMPANYADDRESS2>", DefaultCompanyAddress2),
-            new("<COMPANYPHONE>", DefaultCompanyPhone),
-            new("<COMPANYEMAIL>", DefaultCompanyEmail),
+            new("<COMPANYNAME>", companyDetails.Name),
+            new("<COMPANYADDRESS1>", companyDetails.Address1),
+            new("<COMPANYADDRESS2>", companyDetails.Address2),
+            new("<COMPANYPHONE>", companyDetails.Phone),
+            new("<COMPANYEMAIL>", companyDetails.Email),
             new("<MANUFACTURE>", sourceName.ToUpperInvariant()),
             new("<COUNTYOFIMPORT>", manufacturerCountry),
             new("<COMMIDITY>", product.Commodity?.Name ?? "LUBRICANT PREPARATIONS"),
@@ -288,6 +281,33 @@ public class StickerService : IStickerService
             line2,
             FirstFilled(countryOverride)
         );
+    }
+
+    private static (string Name, string Address1, string Address2, string Phone, string Email) GetCompanyDetails(
+        string stickerType,
+        Importer? importer)
+    {
+        var useImporterCompany =
+            string.Equals(stickerType, "Combined", StringComparison.OrdinalIgnoreCase) &&
+            importer != null;
+
+        if (!useImporterCompany)
+        {
+            return (
+                DefaultCompanyName,
+                DefaultCompanyAddress1,
+                DefaultCompanyAddress2,
+                DefaultCompanyPhone,
+                DefaultCompanyEmail);
+        }
+
+        var addressLines = WrapText(importer!.Address, 34, 2);
+        return (
+            FirstFilled(importer.Name, DefaultCompanyName).ToUpperInvariant(),
+            FirstFilled(addressLines[0], DefaultCompanyAddress1).ToUpperInvariant(),
+            FirstFilled(addressLines[1], DefaultCompanyAddress2).ToUpperInvariant(),
+            FirstFilled(importer.Phone, DefaultCompanyPhone),
+            FirstFilled(importer.Email, DefaultCompanyEmail).ToUpperInvariant());
     }
 
     private static string[] WrapText(string? value, int maxLength, int maxLines)

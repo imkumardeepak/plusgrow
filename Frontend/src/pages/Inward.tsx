@@ -473,6 +473,11 @@ export const Inward = memo(function Inward() {
     [importers],
   );
 
+  const selectedImporter = useMemo(
+    () => importers.find((item) => String(item.id) === importerId) ?? null,
+    [importerId, importers],
+  );
+
   const findImporterByName = useCallback(
     (name?: string | null) => {
       const normalized = name?.trim().toLowerCase();
@@ -703,32 +708,9 @@ export const Inward = memo(function Inward() {
   }, [selectedPrintRow, selectedProduct]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const syncImporterFromInvoice = async () => {
-      if (!selectedPrintRow || stickerSize === "25x25") {
-        if (isMounted) setImporterId(null);
-        return;
-      }
-
-      if (stickerType === "Manufacture") {
-        if (isMounted) setImporterId(null);
-        return;
-      }
-
-      setImporterSearch(selectedPrintRow.partyName);
-      const resolvedId = await resolveImporterId(selectedPrintRow.partyName);
-      if (isMounted) {
-        setImporterId(resolvedId ? String(resolvedId) : null);
-      }
-    };
-
-    void syncImporterFromInvoice();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [resolveImporterId, selectedPrintRow, stickerSize, stickerType]);
+    setImporterId(null);
+    setImporterSearch("");
+  }, [selectedPrintRow?.id, stickerSize, stickerType]);
 
   const buildStickerPayload = useCallback(
     (row: PoInvoice, quantity: number) => ({
@@ -764,6 +746,11 @@ export const Inward = memo(function Inward() {
       stickerSize,
     );
     if (validationErrors.length > 0) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    if (stickerSize !== "25x25" && stickerType !== "Manufacture" && !importerId) {
       setPreviewUrl(null);
       return;
     }
@@ -821,6 +808,11 @@ export const Inward = memo(function Inward() {
     );
     if (validationErrors.length > 0) {
       toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
+      return;
+    }
+
+    if (stickerSize !== "25x25" && stickerType !== "Manufacture" && !importerId) {
+      toast.error("Please select an importer from importer master for Imported & Marketed By sticker");
       return;
     }
 
@@ -2213,10 +2205,10 @@ export const Inward = memo(function Inward() {
                   ) : null}
                   {stickerSize !== "25x25" && stickerType !== "Manufacture" ? (
                     <Select
-                      label="Importer"
+                      label="Importer / Marketing Company"
                       size="xs"
                       radius="md"
-                      placeholder="Select importer"
+                      placeholder="Select importer from importer master"
                       value={importerId}
                       onChange={setImporterId}
                       searchable
@@ -2224,6 +2216,11 @@ export const Inward = memo(function Inward() {
                       onSearchChange={setImporterSearch}
                       clearable
                       data={importerOptions}
+                      description={
+                        selectedImporter
+                          ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
+                          : "This importer fills company name, address, phone and email on Imported & Marketed By stickers."
+                      }
                     />
                   ) : null}
                 </SimpleGrid>
