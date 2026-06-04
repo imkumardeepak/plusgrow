@@ -25,6 +25,7 @@ import {
   Upload,
   ScanBarcode,
 } from "lucide-react";
+import { exportToExcel, formatExcelDate } from "../hooks/useExcelExport";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
@@ -290,6 +291,27 @@ export const Bins = memo(function Bins() {
                 >
                   <RefreshCw size={14} />
                 </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={14} />}
+                  onClick={() => {
+                    exportToExcel({
+                      fileName: "Bins_Export",
+                      sheets: [{
+                        sheetName: "Bins",
+                        data: filteredBins,
+                        columns: [
+                          { header: "Bin Code", accessor: (row) => row.binCode },
+                          { header: "Created At", accessor: (row) => formatExcelDate(row.createdAt) },
+                        ],
+                      }],
+                    });
+                    toast.success("Bins exported successfully");
+                  }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"

@@ -41,6 +41,7 @@ import {
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
 import { toast } from "../lib/toast";
+import { exportToExcel, formatExcelDate, formatExcelNumber } from "../hooks/useExcelExport";
 
 type OutwardStatusFilter = "all" | "open" | "picking" | "packed" | "dispatched" | "canceled";
 
@@ -98,6 +99,7 @@ export const Outward = memo(function Outward() {
   const [cancelRemark, setCancelRemark] = useState("");
   const [isCanceling, setIsCanceling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
   const [productSearch, setProductSearch] = useState("");
 
@@ -447,6 +449,35 @@ export const Outward = memo(function Outward() {
     }
   };
 
+  const handleExportExcel = () => {
+    setIsExporting(true);
+    try {
+      exportToExcel({
+        fileName: "Sales_Orders",
+        sheets: [{
+          sheetName: "Sales Orders",
+          data: filteredGroups,
+          columns: [
+            { header: "Order No.", accessor: (row) => row.orderNumber },
+            { header: "Order Date", accessor: (row) => formatExcelDate(row.orderDate) },
+            { header: "Customer", accessor: (row) => row.customerName },
+            { header: "Item Count", accessor: (row) => row.itemCount, format: "number" },
+            { header: "Order Qty", accessor: (row) => row.totalQuantity, format: "number" },
+            { header: "Picked Qty", accessor: (row) => row.totalPickedQuantity, format: "number" },
+            { header: "Pending Qty", accessor: (row) => row.pendingQuantity, format: "number" },
+            { header: "Status", accessor: (row) => row.status },
+            { header: "Notes", accessor: (row) => row.notes || "" },
+          ],
+        }],
+      });
+      toast.success("Sales orders exported successfully");
+    } catch {
+      toast.error("Failed to export Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <OperationsPage
       title="Outward Orders"
@@ -513,6 +544,15 @@ export const Outward = memo(function Outward() {
             >
               <RefreshCw size={14} />
             </ActionIcon>
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<Download className="h-3.5 w-3.5" />}
+              onClick={handleExportExcel}
+              loading={isExporting}
+            >
+              Export Excel
+            </Button>
             <Button
               size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}

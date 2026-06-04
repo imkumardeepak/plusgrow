@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import {
   Building2,
+  Download,
   Edit2,
   Loader2,
   Mail,
@@ -22,6 +23,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
+import { exportToExcel, formatExcelDate } from "../hooks/useExcelExport";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
@@ -300,6 +302,30 @@ export const Importers = memo(function Importers() {
                 >
                   <RefreshCw size={14} />
                 </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={14} />}
+                  onClick={() => {
+                    exportToExcel({
+                      fileName: "Importers_Export",
+                      sheets: [{
+                        sheetName: "Importers",
+                        data: filteredImporters,
+                        columns: [
+                          { header: "Name", accessor: (row) => row.name },
+                          { header: "Address", accessor: (row) => row.address || "" },
+                          { header: "Phone", accessor: (row) => row.phone || "" },
+                          { header: "Email", accessor: (row) => row.email || "" },
+                          { header: "Created At", accessor: (row) => formatExcelDate(row.created_at) },
+                        ],
+                      }],
+                    });
+                    toast.success("Importers exported successfully");
+                  }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   onClick={openCreateModal}

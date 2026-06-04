@@ -43,6 +43,7 @@ import {
   Upload,
 } from "lucide-react";
 import { toast } from "../lib/toast";
+import { exportToExcel, formatExcelDate, formatExcelNumber } from "../hooks/useExcelExport";
 
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
@@ -139,6 +140,7 @@ export const Inward = memo(function Inward() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRowsLoading, setIsRowsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("all");
@@ -1208,6 +1210,36 @@ export const Inward = memo(function Inward() {
     }
   };
 
+  const handleExportExcel = () => {
+    setIsExporting(true);
+    try {
+      exportToExcel({
+        fileName: "Inward_Invoices",
+        sheets: [{
+          sheetName: "Invoices",
+          data: invoiceSummaries,
+          columns: [
+            { header: "Invoice Number", accessor: (row) => row.invoiceNumber },
+            { header: "Invoice Date", accessor: (row) => formatExcelDate(row.invoiceDate) },
+            { header: "Party Name", accessor: (row) => row.partyName },
+            { header: "Status", accessor: (row) => row.status },
+            { header: "Cancel Remark", accessor: (row) => row.cancelRemark || "" },
+            { header: "Product Count", accessor: (row) => row.productCount, format: "number" },
+            { header: "Total Billed Qty", accessor: (row) => row.totalBilledQty, format: "number" },
+            { header: "Printed Count", accessor: (row) => row.printedCount, format: "number" },
+            { header: "Pending Count", accessor: (row) => row.pendingCount, format: "number" },
+            { header: "Total Remaining Alloc", accessor: (row) => row.totalRemainingAllocation, format: "number" },
+          ],
+        }],
+      });
+      toast.success("Inward invoices exported successfully");
+    } catch {
+      toast.error("Failed to export Excel");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleCancelInvoice = async () => {
     if (!cancelInvoiceSummary) return;
 
@@ -1649,6 +1681,15 @@ export const Inward = memo(function Inward() {
               >
                 <RefreshCw size={14} />
               </ActionIcon>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                onClick={handleExportExcel}
+                loading={isExporting}
+              >
+                Export Excel
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

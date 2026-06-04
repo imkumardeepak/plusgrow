@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import {
   Building,
+  Download,
   Edit2,
   Handshake,
   Globe,
@@ -22,6 +23,7 @@ import {
   Phone,
   Mail,
 } from "lucide-react";
+import { exportToExcel, formatExcelDate } from "../hooks/useExcelExport";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
@@ -306,6 +308,31 @@ export const Parties = memo(function Parties() {
                 >
                   <RefreshCw size={14} />
                 </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={14} />}
+                  onClick={() => {
+                    exportToExcel({
+                      fileName: "Parties_Export",
+                      sheets: [{
+                        sheetName: "Parties",
+                        data: filteredParties,
+                        columns: [
+                          { header: "Name", accessor: (row) => row.name },
+                          { header: "Email", accessor: (row) => row.email },
+                          { header: "Phone", accessor: (row) => row.phone || "" },
+                          { header: "Country", accessor: (row) => row.country || "" },
+                          { header: "Address", accessor: (row) => row.address || "" },
+                          { header: "Created At", accessor: (row) => formatExcelDate(row.created_at) },
+                        ],
+                      }],
+                    });
+                    toast.success("Parties exported successfully");
+                  }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   onClick={openCreateModal}

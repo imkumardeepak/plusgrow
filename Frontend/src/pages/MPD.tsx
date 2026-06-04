@@ -63,6 +63,8 @@ import {
   commoditiesApi,
   importersApi,
   partiesApi,
+  productQuantitiesApi,
+  productAllottedLocationsApi,
   Product,
   Manufacturer,
   Commodity,
@@ -72,6 +74,7 @@ import {
   ProductUploadResult,
   validateProductForSticker,
 } from "../services/masterApi";
+import { exportToExcel, formatExcelDate, formatExcelNumber } from "../hooks/useExcelExport";
 import { stickersApi, StickerTemplate } from "../services/stickersApi";
 import {
   stickerPrinterConfigsApi,
@@ -151,6 +154,7 @@ export const MPD = memo(function MPD() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const refreshTableData = useCallback(async () => {
     try {
@@ -524,6 +528,96 @@ export const MPD = memo(function MPD() {
     toast.success("Template downloaded successfully");
   };
 
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const [quantities, allottedLocations] = await Promise.all([
+        productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
+      ]);
+
+      const qtyMap = new Map<number, number>();
+      for (const q of quantities) {
+        qtyMap.set(q.productId, q.currentQuantity);
+      }
+
+      const locationMap = new Map<number, Record<string, number>>();
+      for (const loc of allottedLocations) {
+        locationMap.set(loc.productId, loc.locationJson || {});
+      }
+
+      type LocationRow = { sku: string; productName: string; locationCode: string; quantity: number };
+
+      const locationBreakdown: LocationRow[] = [];
+      const enrichedProducts = filteredProducts.map((p) => {
+        const locJson = locationMap.get(p.id) || {};
+        const locationParts = Object.entries(locJson)
+          .filter(([, qty]) => qty > 0)
+          .map(([code, qty]) => `${code}: ${qty}`);
+
+        const entries = Object.entries(locJson).filter(([, qty]) => qty > 0);
+        if (entries.length === 0) {
+          locationBreakdown.push({ sku: p.sku || "", productName: p.name, locationCode: "No location", quantity: 0 });
+        } else {
+          for (const [code, qty] of entries) {
+            locationBreakdown.push({ sku: p.sku || "", productName: p.name, locationCode: code, quantity: qty });
+          }
+        }
+
+        return {
+          ...p,
+          stockQty: qtyMap.get(p.id) || 0,
+          locationSummary: locationParts.join(" | ") || "No location",
+        };
+      });
+
+      exportToExcel({
+        fileName: "Products_Export",
+        sheets: [
+          {
+            sheetName: "Products",
+            data: enrichedProducts,
+            columns: [
+              { header: "SKU Code", accessor: (row) => row.sku || "" },
+              { header: "Alias", accessor: (row) => row.alias || "" },
+              { header: "Product Name", accessor: (row) => row.name },
+              { header: "Commodity", accessor: (row) => row.commodity?.name || "" },
+              { header: "Manufacturer", accessor: (row) => row.manufacturer?.name || "" },
+              { header: "Country of Origin", accessor: (row) => row.countryOfOrigin || "" },
+              { header: "Unit Type", accessor: (row) => row.unitType || "" },
+              { header: "MRP", accessor: (row) => formatExcelNumber(row.mrp), format: "currency" },
+              { header: "USSP", accessor: (row) => formatExcelNumber(row.ussp), format: "currency" },
+              { header: "Net Quantity", accessor: (row) => row.netQuantity || "" },
+              { header: "Factor", accessor: (row) => row.factor || "" },
+              { header: "Best Before (Months)", accessor: (row) => row.bestBeforeMonths || 0 },
+              { header: "Weight", accessor: (row) => formatExcelNumber(row.weight), format: "number" },
+              { header: "Ownership", accessor: (row) => row.ownership || "" },
+              { header: "Stock Quantity", accessor: (row) => row.stockQty, format: "number" },
+              { header: "Location Details", accessor: (row) => row.locationSummary, width: 40 },
+              { header: "Note", accessor: (row) => row.note || "" },
+            ],
+          },
+          {
+            sheetName: "Location Breakdown",
+            data: locationBreakdown,
+            columns: [
+              { header: "SKU Code", accessor: (row) => row.sku },
+              { header: "Product Name", accessor: (row) => row.productName },
+              { header: "Location Code", accessor: (row) => row.locationCode },
+              { header: "Quantity at Location", accessor: (row) => row.quantity, format: "number" },
+            ],
+          },
+        ],
+      });
+
+      toast.success("Products exported with stock & location details");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to export products");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -663,8 +757,7 @@ export const MPD = memo(function MPD() {
           ff="monospace"
           c="blue.4"
           fw={700}
-          lineClamp={1}
-          style={{ cursor: "pointer", textDecoration: "underline" }}
+          style={{ cursor: "pointer", textDecoration: "underline", wordBreak: "break-all" }}
           onClick={(event) => {
             event.stopPropagation();
             openEditModal(row);
@@ -673,7 +766,7 @@ export const MPD = memo(function MPD() {
           {row.sku || "N/A"}
         </Text>
       ),
-      width: 120,
+      width: 150,
     },
     {
       key: "alias",
@@ -899,6 +992,15 @@ export const MPD = memo(function MPD() {
             icon={Package}
             action={
               <Group gap="xs" wrap="nowrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={16} />}
+                  onClick={() => void handleExportExcel()}
+                  loading={isExporting}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"

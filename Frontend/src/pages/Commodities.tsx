@@ -21,6 +21,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { exportToExcel } from "../hooks/useExcelExport";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
@@ -305,6 +306,26 @@ export const Commodities = memo(function Commodities() {
                 >
                   <RefreshCw size={14} />
                 </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={14} />}
+                  onClick={() => {
+                    exportToExcel({
+                      fileName: "Commodities_Export",
+                      sheets: [{
+                        sheetName: "Commodities",
+                        data: filteredCommodities,
+                        columns: [
+                          { header: "Commodity Name", accessor: (row) => row.name },
+                        ],
+                      }],
+                    });
+                    toast.success("Commodities exported successfully");
+                  }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"

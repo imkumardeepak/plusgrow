@@ -31,6 +31,7 @@ import {
   X,
   ArrowRight,
 } from "lucide-react";
+import { exportToExcel, formatExcelDate } from "../hooks/useExcelExport";
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
@@ -549,6 +550,31 @@ export const Locations = memo(function Locations() {
                 >
                   <RefreshCw size={14} />
                 </ActionIcon>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Download size={14} />}
+                  onClick={() => {
+                    exportToExcel({
+                      fileName: "Locations_Export",
+                      sheets: [{
+                        sheetName: "Locations",
+                        data: filteredLocations,
+                        columns: [
+                          { header: "Location Code", accessor: (row) => row.locationCode },
+                          { header: "Aisle", accessor: (row) => row.aisle },
+                          { header: "Rack", accessor: (row) => row.rack },
+                          { header: "Shelf", accessor: (row) => row.shelf },
+                          { header: "Bins", accessor: (row) => (row.bins && row.bins.length > 0) ? row.bins.join(", ") : "" },
+                          { header: "Created At", accessor: (row) => formatExcelDate(row.createdAt) },
+                        ],
+                      }],
+                    });
+                    toast.success("Locations exported successfully");
+                  }}
+                >
+                  Export Excel
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
