@@ -364,19 +364,6 @@ export const PartyDashboard = memo(function PartyDashboard() {
       width: 100,
     },
     {
-      key: "weight",
-      header: "Weight",
-      align: "right",
-      sortable: true,
-      sortAccessor: (row) => row.weight || 0,
-      render: (row) => (
-        <Text size="xs" fw={700}>
-          {row.weight ? Number(row.weight).toFixed(2) : "0.00"}
-        </Text>
-      ),
-      width: 90,
-    },
-    {
       key: "mrp",
       header: "MRP",
       align: "right",
@@ -416,7 +403,7 @@ export const PartyDashboard = memo(function PartyDashboard() {
     },
     {
       key: "stock",
-      header: "Stock",
+      header: "Stock Qty",
       align: "right",
       sortable: true,
       sortAccessor: (row) => row.currentQuantity,
