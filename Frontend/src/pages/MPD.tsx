@@ -888,18 +888,6 @@ export const MPD = memo(function MPD() {
       width: 150,
     },
     {
-      key: "ownership",
-      header: "Ownership",
-      sortable: true,
-      sortAccessor: (row) => row.ownership,
-      render: (row) => (
-        <Badge size="xs" variant="light" color={row.ownership?.toUpperCase() === "SELF" ? "blue" : "orange"}>
-          {row.ownership || "N/A"}
-        </Badge>
-      ),
-      width: 100,
-    },
-    {
       key: "stockQty",
       header: "Stock Qty",
       align: "right",
