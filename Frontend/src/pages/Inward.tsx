@@ -709,7 +709,7 @@ export const Inward = memo(function Inward() {
   }, [selectedPrintRow, selectedProduct]);
 
   useEffect(() => {
-    if (!selectedPrintRow || stickerSize === "25x25" || stickerType === "Manufacture") {
+    if (!selectedPrintRow || stickerSize === "25x25") {
       setImporterId(null);
       setImporterSearch("");
       return;
@@ -726,7 +726,7 @@ export const Inward = memo(function Inward() {
           ? Number(manufacturerId)
           : undefined,
       importerId:
-        stickerType !== "Manufacture" && importerId
+        stickerSize !== "25x25" && importerId
           ? Number(importerId)
           : undefined,
       size: stickerSize,
@@ -756,7 +756,7 @@ export const Inward = memo(function Inward() {
       return;
     }
 
-    if (stickerSize !== "25x25" && stickerType !== "Manufacture" && !importerId) {
+    if (stickerSize !== "25x25" && !importerId) {
       setPreviewUrl(null);
       return;
     }
@@ -817,7 +817,7 @@ export const Inward = memo(function Inward() {
       return;
     }
 
-    if (stickerSize !== "25x25" && stickerType !== "Manufacture" && !importerId) {
+    if (stickerSize !== "25x25" && !importerId) {
       toast.error("Please select an importer from importer master for Imported & Marketed By sticker");
       return;
     }
