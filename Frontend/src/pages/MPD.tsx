@@ -36,6 +36,7 @@ import {
   Globe,
   IndianRupee,
   Loader2,
+  MapPin,
   Package,
   Plus,
   Printer,
@@ -108,6 +109,11 @@ export const MPD = memo(function MPD() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [productStockById, setProductStockById] = useState<Record<number, number>>({});
+  const [productLocationsById, setProductLocationsById] = useState<
+    Record<number, Record<string, number>>
+  >({});
+  const [locationProduct, setLocationProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<CreateProductDto>({
     name: "",
     sku: "",
@@ -159,8 +165,22 @@ export const MPD = memo(function MPD() {
 
   const refreshTableData = useCallback(async () => {
     try {
-      const productsData = await productsApi.getAll();
+      const [productsData, quantitiesData, locationsData] = await Promise.all([
+        productsApi.getAll(),
+        productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
+      ]);
       setProducts(productsData);
+      setProductStockById(
+        Object.fromEntries(
+          quantitiesData.map((item) => [item.productId, item.currentQuantity]),
+        ),
+      );
+      setProductLocationsById(
+        Object.fromEntries(
+          locationsData.map((item) => [item.productId, item.locationJson || {}]),
+        ),
+      );
     } catch (error: any) {
       console.error("Failed to auto-refresh product list:", error);
     }
@@ -201,6 +221,8 @@ export const MPD = memo(function MPD() {
         configData,
         importerData,
         partiesData,
+        quantitiesData,
+        locationsData,
       ] = await Promise.all([
         productsApi.getAll(),
         manufacturersApi.getAll(),
@@ -209,6 +231,8 @@ export const MPD = memo(function MPD() {
         stickerPrinterConfigsApi.getAll(),
         importersApi.getAll(),
         partiesApi.getAll(),
+        productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
       ]);
       setProducts(productsData);
       setManufacturers(manufacturersData);
@@ -217,6 +241,16 @@ export const MPD = memo(function MPD() {
       setPrinterConfigs(configData);
       setImporters(importerData);
       setParties(partiesData);
+      setProductStockById(
+        Object.fromEntries(
+          quantitiesData.map((item) => [item.productId, item.currentQuantity]),
+        ),
+      );
+      setProductLocationsById(
+        Object.fromEntries(
+          locationsData.map((item) => [item.productId, item.locationJson || {}]),
+        ),
+      );
     } catch (error: any) {
       toast.error(error.message || "Failed to load data");
     } finally {
@@ -736,6 +770,13 @@ export const MPD = memo(function MPD() {
     [stickerSize, stickerType, templates],
   );
 
+  const locationEntries = useMemo(() => {
+    if (!locationProduct) return [];
+    return Object.entries(productLocationsById[locationProduct.id] || {})
+      .filter(([, quantity]) => Number(quantity) > 0)
+      .sort(([left], [right]) => left.localeCompare(right));
+  }, [locationProduct, productLocationsById]);
+
   const mappedProducts = products.filter(
     (item) => item.manufacturerId || item.commodityId,
   ).length;
@@ -858,17 +899,20 @@ export const MPD = memo(function MPD() {
       width: 100,
     },
     {
-      key: "weight",
-      header: "Weight",
+      key: "stockQty",
+      header: "Stock Qty",
       align: "right",
       sortable: true,
-      sortAccessor: (row) => row.weight,
-      render: (row) => (
-        <Text size="xs" fw={700}>
-          {Number(row.weight || 0).toFixed(2)}
-        </Text>
-      ),
-      width: 90,
+      sortAccessor: (row) => productStockById[row.id] ?? 0,
+      render: (row) => {
+        const stockQty = productStockById[row.id] ?? 0;
+        return (
+          <Text size="xs" fw={800} c={stockQty > 0 ? "green.3" : "dimmed"}>
+            {stockQty}
+          </Text>
+        );
+      },
+      width: 100,
     },
     {
       key: "mrp",
@@ -1173,8 +1217,24 @@ export const MPD = memo(function MPD() {
         title={isEditing ? "Edit Product" : "New Product"}
         size="xxl"
         headerActions={
-          isEditing ? (
-            <>
+          <>
+            <Tooltip label={isEditing ? "View product locations" : "Save product first to view locations"}>
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="teal"
+                disabled={!isEditing}
+                onClick={() => {
+                  if (isEditing) setLocationProduct(isEditing);
+                }}
+                aria-label="View product locations"
+              >
+                <MapPin size={18} />
+              </ActionIcon>
+            </Tooltip>
+            {isEditing ? (
+              <>
               <Tooltip label="Print sticker">
                 <ActionIcon
                   size="md"
@@ -1197,8 +1257,9 @@ export const MPD = memo(function MPD() {
                   <Trash2 size={18} />
                 </ActionIcon>
               </Tooltip>
-            </>
-          ) : null
+              </>
+            ) : null}
+          </>
         }
       >
         <form onSubmit={handleSubmit}>
@@ -1462,6 +1523,64 @@ export const MPD = memo(function MPD() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(locationProduct)}
+        onClose={() => setLocationProduct(null)}
+        title="Product Locations"
+        size="lg"
+      >
+        {locationProduct ? (
+          <Stack gap="md">
+            <Paper radius="md" p="sm" withBorder bg="transparent">
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={2}>
+                  <Text size="xs" fw={800} ff="monospace" c="cyan.3">
+                    {locationProduct.sku || "NO-SKU"}
+                  </Text>
+                  <Text size="sm" fw={700}>{locationProduct.name}</Text>
+                </Stack>
+                <Badge variant="light" color="green">
+                  Stock Qty: {productStockById[locationProduct.id] ?? 0}
+                </Badge>
+              </Group>
+            </Paper>
+
+            {locationEntries.length > 0 ? (
+              <Table striped highlightOnHover withTableBorder withColumnBorders>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Location</Table.Th>
+                    <Table.Th style={{ textAlign: "right" }}>Quantity</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {locationEntries.map(([locationCode, quantity]) => (
+                    <Table.Tr key={locationCode}>
+                      <Table.Td>
+                        <Text size="sm" fw={700}>{locationCode}</Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>
+                        <Text size="sm" fw={800} c="green.3">
+                          {quantity}
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            ) : (
+              <Paper radius="md" p="lg" withBorder bg="transparent" ta="center">
+                <MapPin size={34} style={{ marginBottom: 8, opacity: 0.6 }} />
+                <Text fw={700}>No location allotted</Text>
+                <Text size="sm" c="dimmed">
+                  This product does not have any location-wise stock yet.
+                </Text>
+              </Paper>
+            )}
+          </Stack>
+        ) : null}
       </Modal>
 
       <Modal
