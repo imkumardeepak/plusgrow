@@ -2202,20 +2202,6 @@ export const Inward = memo(function Inward() {
                       </Text>
                     </Box>
                   )}
-                  {stickerSize !== "25x25" && stickerType === "Manufacture" ? (
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        MANUFACTURER
-                      </Text>
-                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
-                        {selectedProduct?.manufacturer?.name ||
-                          manufacturers.find(
-                            (item) => String(item.id) === manufacturerId,
-                          )?.name ||
-                          "Mapped from product"}
-                      </Text>
-                    </Box>
-                  ) : null}
                   {stickerSize !== "25x25" ? (
                     <Select
                       label="Marketing Company"
