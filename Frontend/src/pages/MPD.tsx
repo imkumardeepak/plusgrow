@@ -796,7 +796,8 @@ export const MPD = memo(function MPD() {
         (item.sku || "").toLowerCase().includes(query) ||
         (item.alias || "").toLowerCase().includes(query) ||
         (item.manufacturer?.name || "").toLowerCase().includes(query) ||
-        (item.commodity?.name || "").toLowerCase().includes(query);
+        (item.commodity?.name || "").toLowerCase().includes(query) ||
+        (item.ownership || "").toLowerCase().includes(query);
 
       const matchesFilter =
         filterMode === "all" ||
