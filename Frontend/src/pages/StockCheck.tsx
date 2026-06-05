@@ -12,6 +12,7 @@ import {
   RefreshCw,
   ScanLine,
   Search,
+  History,
   Tag,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -34,6 +35,7 @@ import {
   productQuantitiesApi,
   Product,
   ProductQuantityRecord,
+  ProductStockMovementRecord,
   productsApi,
 } from "../services/masterApi";
 import { ProductFormModal } from "../components/organisms/ProductFormModal";
@@ -50,6 +52,7 @@ type ProductLookupResult = {
   quantityRow: ProductQuantityRecord | null;
   allottedLocation: ProductAllottedLocationRecord | null;
   invoices: PoInvoice[];
+  movements: ProductStockMovementRecord[];
   locations: LocationStock[];
   totalPoQuantity: number;
   totalLocationStock: number;
@@ -166,10 +169,13 @@ export const StockCheck = memo(function StockCheck() {
 
     try {
       setIsSearching(true);
-      const invoiceRows = await poInvoicesApi.getAll({
-        search: sku,
-        pageSize: 100,
-      });
+      const [invoiceRows, movementRows] = await Promise.all([
+        poInvoicesApi.getAll({
+          search: sku,
+          pageSize: 100,
+        }),
+        productQuantitiesApi.getMovements(sku),
+      ]);
       const resolvedSku = product?.sku 
         ? normalizeSku(product.sku) 
         : (quantityRow?.skuCode ? normalizeSku(quantityRow.skuCode) : sku);
@@ -179,6 +185,19 @@ export const StockCheck = memo(function StockCheck() {
           const dateDiff =
             new Date(second.invoiceDate).getTime() -
             new Date(first.invoiceDate).getTime();
+
+          return dateDiff || second.id - first.id;
+        });
+      const movements = movementRows
+        .filter((row) =>
+          resolvedProductId
+            ? row.productId === resolvedProductId
+            : normalizeSku(row.skuCode) === resolvedSku,
+        )
+        .sort((first, second) => {
+          const dateDiff =
+            new Date(second.createdAt).getTime() -
+            new Date(first.createdAt).getTime();
 
           return dateDiff || second.id - first.id;
         });
@@ -196,12 +215,13 @@ export const StockCheck = memo(function StockCheck() {
         quantityRow,
         allottedLocation,
         invoices,
+        movements,
         locations,
         totalPoQuantity: invoices.reduce((sum, row) => sum + Number(row.billedQty || 0), 0),
         totalLocationStock: locations.reduce((sum, row) => sum + row.quantity, 0),
       });
 
-      if (!product && !quantityRow && !allottedLocation && invoices.length === 0) {
+      if (!product && !quantityRow && !allottedLocation && invoices.length === 0 && movements.length === 0) {
         toast.error("No product details found for this SKU");
       }
     } catch (error: any) {
@@ -355,6 +375,12 @@ export const StockCheck = memo(function StockCheck() {
                   label="Location Master"
                   value={`${lookupResult.locations.length} allotted locations`}
                   href={masterHref("/warehouse-map", lookupResult.locations[0]?.locationCode || lookupResult.sku)}
+                />
+                <ReferenceLink
+                  icon={History}
+                  label="Stock Adjustments"
+                  value={`${lookupResult.movements.length} movement rows`}
+                  href={masterHref("/stock-movement", lookupResult.sku)}
                 />
               </Stack>
             </Paper>
@@ -570,6 +596,70 @@ export const StockCheck = memo(function StockCheck() {
                             </Table.Td>
                             <Table.Td>{formatMoney(invoice.mrp)}</Table.Td>
                             <Table.Td>{invoice.billedQty}</Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={History} label="Stock Adjustment / Movement History" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">
+                    {lookupResult.movements.length} rows
+                  </Badge>
+                </Group>
+                {lookupResult.movements.length === 0 ? (
+                  <EmptyInline message="No stock adjustment or movement history found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto">
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Date</Table.Th>
+                          <Table.Th>Type</Table.Th>
+                          <Table.Th>Change</Table.Th>
+                          <Table.Th>Before</Table.Th>
+                          <Table.Th>After</Table.Th>
+                          <Table.Th>Reason</Table.Th>
+                          <Table.Th>By</Table.Th>
+                          <Table.Th>Notes</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lookupResult.movements.map((movement) => (
+                          <Table.Tr key={movement.id}>
+                            <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
+                            <Table.Td>
+                              <Badge
+                                size="sm"
+                                radius="md"
+                                variant={movement.quantityChange >= 0 ? "success" : "warning"}
+                              >
+                                {movement.movementType || (movement.quantityChange >= 0 ? "increase" : "decrease")}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text
+                                size="12px"
+                                fw={900}
+                                ff="monospace"
+                                c={movement.quantityChange >= 0 ? "green.3" : "orange.3"}
+                              >
+                                {movement.quantityChange > 0 ? "+" : ""}{movement.quantityChange}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>{movement.quantityBefore}</Table.Td>
+                            <Table.Td>{movement.quantityAfter}</Table.Td>
+                            <Table.Td>{movement.reason}</Table.Td>
+                            <Table.Td>{movement.performedByName || "-"}</Table.Td>
+                            <Table.Td>
+                              <Text size="12px" maw={280} lineClamp={2}>
+                                {movement.notes || "-"}
+                              </Text>
+                            </Table.Td>
                           </Table.Tr>
                         ))}
                       </Table.Tbody>
