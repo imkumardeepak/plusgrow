@@ -641,6 +641,29 @@ export const Inward = memo(function Inward() {
       },
       width: 130,
     },
+    {
+      key: "actions",
+      header: "Products",
+      align: "right",
+      render: (row) => (
+        <Tooltip label="View products">
+          <ActionIcon
+            size="sm"
+            radius="md"
+            variant="light"
+            color="cyan"
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedInvoiceSummary(row);
+            }}
+            aria-label="View invoice products"
+          >
+            <Eye size={15} />
+          </ActionIcon>
+        </Tooltip>
+      ),
+      width: 90,
+    },
   ];
 
   useEffect(() => {
@@ -1182,19 +1205,17 @@ export const Inward = memo(function Inward() {
         await poInvoicesApi.update(editingInvoice.id, invoiceForm);
         toast.success("PO invoice updated");
       } else {
-        await Promise.all(
-          invoiceLines.map((line) =>
-            poInvoicesApi.create({
-              invoiceNumber: invoiceForm.invoiceNumber,
-              invoiceDate: invoiceForm.invoiceDate,
-              partyName: invoiceForm.partyName,
-              productId: line.productId,
-              billedQty: line.billedQty,
-              mrp: line.mrp ?? null,
-            }),
-          ),
-        );
-        toast.success(`${invoiceLines.length} invoice rows created`);
+        await poInvoicesApi.createWithItems({
+          invoiceNumber: invoiceForm.invoiceNumber,
+          invoiceDate: invoiceForm.invoiceDate,
+          partyName: invoiceForm.partyName,
+          items: invoiceLines.map((line) => ({
+            productId: line.productId,
+            billedQty: line.billedQty,
+            mrp: line.mrp ?? null,
+          })),
+        });
+        toast.success(`PO invoice created with ${invoiceLines.length} product${invoiceLines.length === 1 ? "" : "s"}`);
       }
       await loadInvoiceRows({
         search,

@@ -43,6 +43,21 @@ public class CreatePoInvoiceDto
     public decimal? Mrp { get; set; }
 }
 
+public class CreatePoInvoiceItemDto
+{
+    public int ProductId { get; set; }
+    public int BilledQty { get; set; }
+    public decimal? Mrp { get; set; }
+}
+
+public class CreatePoInvoiceWithItemsDto
+{
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime InvoiceDate { get; set; }
+    public string PartyName { get; set; } = string.Empty;
+    public List<CreatePoInvoiceItemDto> Items { get; set; } = new();
+}
+
 public class UpdatePoInvoiceDto : CreatePoInvoiceDto
 {
     public int Id { get; set; }

@@ -211,6 +211,87 @@ public class PoInvoicesController : BaseController
         return Success(response, "PO invoice created successfully");
     }
 
+    [HttpPost("with-items")]
+    public async Task<ActionResult<ApiResponse<PoInvoiceHeaderSummaryDto>>> CreatePoInvoiceWithItems([FromBody] CreatePoInvoiceWithItemsDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.InvoiceNumber))
+            return BadRequest<PoInvoiceHeaderSummaryDto>("Invoice number is required");
+
+        if (string.IsNullOrWhiteSpace(dto.PartyName))
+            return BadRequest<PoInvoiceHeaderSummaryDto>("Party / Supplier is required");
+
+        var validItems = dto.Items
+            .Where(item => item.ProductId > 0 && item.BilledQty > 0)
+            .ToList();
+
+        if (validItems.Count == 0)
+            return BadRequest<PoInvoiceHeaderSummaryDto>("At least one product row is required");
+
+        var productIds = validItems.Select(item => item.ProductId).Distinct().ToList();
+        var existingProductIds = await _context.Products
+            .Where(product => productIds.Contains(product.Id))
+            .Select(product => product.Id)
+            .ToListAsync();
+
+        var missingProductIds = productIds.Except(existingProductIds).ToList();
+        if (missingProductIds.Count > 0)
+            return BadRequest<PoInvoiceHeaderSummaryDto>($"Selected product does not exist: {string.Join(", ", missingProductIds)}");
+
+        PoInvoiceHeader header;
+        try
+        {
+            header = await GetOrCreateInvoiceHeaderAsync(dto.InvoiceNumber, dto.InvoiceDate, dto.PartyName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest<PoInvoiceHeaderSummaryDto>(ex.Message);
+        }
+
+        if (await _context.PoInvoices.AnyAsync(item => item.PoInvoiceHeaderId == header.Id))
+            return BadRequest<PoInvoiceHeaderSummaryDto>($"Invoice {header.InvoiceNumber} already exists. Open it and edit product rows instead of creating again.");
+
+        foreach (var item in validItems)
+        {
+            _context.PoInvoices.Add(new PoInvoice
+            {
+                PoInvoiceHeaderId = header.Id,
+                ProductId = item.ProductId,
+                BilledQty = item.BilledQty,
+                Mrp = item.Mrp,
+                Printed = false,
+                RemainingAllocation = item.BilledQty,
+                LocationAllotted = false,
+            });
+
+            await UpsertProductQuantityAsync(item.ProductId, item.BilledQty);
+        }
+
+        await _context.SaveChangesAsync();
+
+        var createdHeader = await _context.PoInvoiceHeaders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstAsync(x => x.Id == header.Id);
+        var response = MapHeaderSummary(createdHeader);
+
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "po_invoice.created",
+            Title = "New inward / PO added",
+            Message = $"{response.InvoiceNumber} for {response.PartyName} was added with {response.ProductCount} product(s).",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["invoiceHeaderId"] = response.Id,
+                ["invoiceNumber"] = response.InvoiceNumber,
+                ["productCount"] = response.ProductCount,
+                ["totalBilledQty"] = response.TotalBilledQty,
+            },
+        });
+
+        return Success(response, "PO invoice created successfully");
+    }
+
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<PoInvoiceDto>>> UpdatePoInvoice(int id, [FromBody] UpdatePoInvoiceDto dto)
     {

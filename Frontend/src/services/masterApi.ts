@@ -291,6 +291,17 @@ export interface CreatePoInvoiceDto {
   mrp?: number | null;
 }
 
+export interface CreatePoInvoiceWithItemsDto {
+  invoiceNumber: string;
+  invoiceDate: string;
+  partyName: string;
+  items: Array<{
+    productId: number;
+    billedQty: number;
+    mrp?: number | null;
+  }>;
+}
+
 export interface ProductQuantityRecord {
   id: number;
   productId: number;
@@ -1145,6 +1156,12 @@ export const poInvoicesApi = {
 
   create: async (data: CreatePoInvoiceDto): Promise<PoInvoice> => {
     const response = await api.post<ApiResponse<PoInvoice>>('/poinvoices', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  createWithItems: async (data: CreatePoInvoiceWithItemsDto): Promise<PoInvoiceHeaderSummary> => {
+    const response = await api.post<ApiResponse<PoInvoiceHeaderSummary>>('/poinvoices/with-items', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
