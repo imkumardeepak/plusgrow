@@ -58,7 +58,7 @@ export const navigationGroups: NavGroup[] = [
     items: [
       {
         id: "importers",
-        label: "Importers",
+        label: "Legal Meta",
         icon: Building,
         href: "/importers",
       },
@@ -70,7 +70,7 @@ export const navigationGroups: NavGroup[] = [
       },
       {
         id: "parties",
-        label: "Parties",
+        label: "Ownership",
         icon: Handshake,
         href: "/parties",
       },

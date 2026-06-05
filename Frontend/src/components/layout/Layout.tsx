@@ -62,7 +62,7 @@ const navGroups: NavGroup[] = [
   {
     label: "Master Data",
     items: [
-      { to: "/importers", icon: Building, label: "Importers" },
+      { to: "/importers", icon: Building, label: "Legal Meta" },
       { to: "/manufacturers", icon: Factory, label: "Manufacturers" },
       { to: "/commodities", icon: Layers, label: "Commodities" },
       { to: "/bins", icon: Box, label: "Bin Master" },

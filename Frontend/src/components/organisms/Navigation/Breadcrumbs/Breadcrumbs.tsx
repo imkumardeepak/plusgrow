@@ -24,8 +24,9 @@ export interface BreadcrumbsProps {
 
 const routeLabels: Record<string, string> = {
   "/": "Dashboard",
-  "/importers": "Importers",
+  "/importers": "Legal Meta",
   "/manufacturers": "Manufacturers",
+  "/parties": "Ownership",
   "/commodities": "Commodities",
   "/bins": "Bin Master",
   "/locations": "Location Master",
