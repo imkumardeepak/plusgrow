@@ -2216,10 +2216,10 @@ export const Inward = memo(function Inward() {
                   ) : null}
                   {stickerSize !== "25x25" && stickerType !== "Manufacture" ? (
                     <Select
-                      label="Importer / Marketing Company"
+                      label="Marketing Company"
                       size="xs"
                       radius="md"
-                      placeholder="Select importer from importer master"
+                      placeholder="Select Marketing Company from importer master"
                       value={importerId}
                       onChange={handleImporterChange}
                       data={importerOptions}
