@@ -2216,7 +2216,7 @@ export const Inward = memo(function Inward() {
                       </Text>
                     </Box>
                   ) : null}
-                  {stickerSize !== "25x25" && stickerType !== "Manufacture" ? (
+                  {stickerSize !== "25x25" ? (
                     <Select
                       label="Marketing Company"
                       size="xs"
@@ -2228,7 +2228,7 @@ export const Inward = memo(function Inward() {
                       description={
                         selectedImporter
                           ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
-                          : "This importer fills company name, address, phone and email on Imported & Marketed By stickers."
+                          : "This company fills marketed by name, address, phone and email on stickers."
                       }
                     />
                   ) : null}
