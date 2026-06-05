@@ -185,12 +185,18 @@ export function InwardInvoiceModal({
                       : onManufacturerSearchChange
                   }
                   value={invoiceForm.partyName || null}
-                  onChange={(value) =>
+                  onChange={(value) => {
                     onInvoiceFormChange((prev) => ({
                       ...prev,
                       partyName: value || "",
-                    }))
-                  }
+                      productId: 0,
+                      mrp: null,
+                    }));
+                    onProductSearchChange("");
+                    if (!isThirdParty && !editingInvoice) {
+                      onInvoiceLinesChange([]);
+                    }
+                  }}
                   searchable
                   clearable
                   styles={selectStyles}

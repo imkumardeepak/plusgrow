@@ -391,13 +391,41 @@ export const Inward = memo(function Inward() {
   }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
 
   const productOptions = useMemo(
-    () =>
-      products.map((product) => ({
+    () => {
+      const selectedManufacturerName =
+        inwardEntryMode === "manufacturer"
+          ? invoiceForm.partyName.trim().toLowerCase()
+          : "";
+
+      const selectedManufacturer = selectedManufacturerName
+        ? manufacturers.find(
+            (item) => item.name.trim().toLowerCase() === selectedManufacturerName,
+          )
+        : null;
+
+      return products
+        .filter((product) => {
+          if (!selectedManufacturerName) return true;
+
+          const productManufacturerName = product.manufacturer?.name
+            ?.trim()
+            .toLowerCase();
+
+          return (
+            productManufacturerName === selectedManufacturerName ||
+            Boolean(
+              selectedManufacturer &&
+                product.manufacturerId === selectedManufacturer.id,
+            )
+          );
+        })
+        .map((product) => ({
         value: product.id,
         label: `${product.sku || "NO-SKU"} - ${product.name}`,
         mrp: product.mrp ?? null,
-      })),
-    [products],
+      }));
+    },
+    [inwardEntryMode, invoiceForm.partyName, manufacturers, products],
   );
 
   const invoiceManufacturerOptions = useMemo(() => {
