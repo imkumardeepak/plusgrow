@@ -708,11 +708,6 @@ export const MPD = memo(function MPD() {
     [importers],
   );
 
-  const selectedImporter = useMemo(
-    () => importers.find((item) => String(item.id) === printImporterId) ?? null,
-    [importers, printImporterId],
-  );
-
   const ownershipOptions = useMemo(
     () => [
       { value: "Self", label: "Self" },
@@ -1646,11 +1641,6 @@ export const MPD = memo(function MPD() {
                       value={printImporterId}
                       onChange={setPrintImporterId}
                       data={importerOptions}
-                      description={
-                        selectedImporter
-                          ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
-                          : "This company fills marketed by name, address, phone and email on stickers."
-                      }
                     />
                   ) : stickerSize !== "25x25" ? (
                     <Box>

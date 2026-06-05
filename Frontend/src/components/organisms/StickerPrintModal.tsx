@@ -116,11 +116,6 @@ export function StickerPrintModal({
     [importers],
   );
 
-  const selectedImporter = useMemo(
-    () => importers.find((item) => String(item.id) === printImporterId) ?? null,
-    [importers, printImporterId],
-  );
-
   const printerConfig = useMemo(
     () => printerConfigs.find((config) => config.stickerSize === stickerSize && config.isActive) ?? null,
     [printerConfigs, stickerSize],
@@ -305,11 +300,6 @@ export function StickerPrintModal({
                     value={printImporterId}
                     onChange={setPrintImporterId}
                     data={importerOptions}
-                    description={
-                      selectedImporter
-                        ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
-                        : "This company fills marketed by name, address, phone and email on stickers."
-                    }
                   />
                 ) : stickerSize !== "25x25" ? (
                   <Box>

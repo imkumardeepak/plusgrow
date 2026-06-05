@@ -474,11 +474,6 @@ export const Inward = memo(function Inward() {
     [importers],
   );
 
-  const selectedImporter = useMemo(
-    () => importers.find((item) => String(item.id) === importerId) ?? null,
-    [importerId, importers],
-  );
-
   const defaultImporter = useMemo(
     () => findMarketingCompanyForProduct(selectedProduct, importers),
     [importers, selectedProduct],
@@ -2184,11 +2179,6 @@ export const Inward = memo(function Inward() {
                       value={importerId}
                       onChange={handleImporterChange}
                       data={importerOptions}
-                      description={
-                        selectedImporter
-                          ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
-                          : "This company fills marketed by name, address, phone and email on stickers."
-                      }
                     />
                   ) : null}
                 </SimpleGrid>
