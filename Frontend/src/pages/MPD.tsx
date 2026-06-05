@@ -80,6 +80,7 @@ import {
   stickerPrinterConfigsApi,
   StickerPrinterConfig,
 } from "../services/stickerPrinterConfigsApi";
+import { findMarketingCompanyForProduct } from "../utils/stickerMarketingCompany";
 
 type ProductFilterMode = "all" | "mapped" | "unpriced";
 type StickerMode = "Combined" | "Separate" | "Manufacture";
@@ -178,6 +179,16 @@ export const MPD = memo(function MPD() {
       setStickerType("Combined");
     }
   }, [stickerSize, stickerType]);
+
+  useEffect(() => {
+    if (!selectedPrintProduct || stickerSize === "25x25") {
+      setPrintImporterId(null);
+      return;
+    }
+
+    const marketingCompany = findMarketingCompanyForProduct(selectedPrintProduct, importers);
+    setPrintImporterId(marketingCompany ? String(marketingCompany.id) : null);
+  }, [importers, selectedPrintProduct, stickerSize]);
 
   const loadData = async () => {
     try {
@@ -396,7 +407,8 @@ export const MPD = memo(function MPD() {
     setPrintManufacturerId(
       product.manufacturerId ? String(product.manufacturerId) : null,
     );
-    setPrintImporterId(null);
+    const marketingCompany = findMarketingCompanyForProduct(product, importers);
+    setPrintImporterId(marketingCompany ? String(marketingCompany.id) : null);
     setImportDate(new Date());
     setPrintQuantity(1);
     setPreviewUrl(null);
@@ -422,7 +434,7 @@ export const MPD = memo(function MPD() {
         ? Number(printManufacturerId)
         : undefined,
       importerId:
-        stickerType === "Separate" && printImporterId
+        stickerSize !== "25x25" && printImporterId
           ? Number(printImporterId)
           : undefined,
       size: stickerSize,
@@ -452,6 +464,11 @@ export const MPD = memo(function MPD() {
       stickerSize,
     );
     if (validationErrors.length > 0) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    if (stickerSize !== "25x25" && !printImporterId) {
       setPreviewUrl(null);
       return;
     }
@@ -494,6 +511,11 @@ export const MPD = memo(function MPD() {
     );
     if (validationErrors.length > 0) {
       toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
+      return;
+    }
+
+    if (stickerSize !== "25x25" && !printImporterId) {
+      toast.error("Please select Marketing Company");
       return;
     }
 
@@ -684,6 +706,11 @@ export const MPD = memo(function MPD() {
         label: item.name,
       })),
     [importers],
+  );
+
+  const selectedImporter = useMemo(
+    () => importers.find((item) => String(item.id) === printImporterId) ?? null,
+    [importers, printImporterId],
   );
 
   const ownershipOptions = useMemo(
@@ -1612,28 +1639,18 @@ export const MPD = memo(function MPD() {
                   )}
                   {stickerSize !== "25x25" ? (
                     <Select
-                      label="Manufacturer"
+                      label="Marketing Company"
                       size="xs"
                       radius="md"
-                      placeholder="Select manufacturer"
-                      value={printManufacturerId}
-                      onChange={setPrintManufacturerId}
-                      searchable
-                      clearable
-                      data={manufacturerOptions}
-                    />
-                  ) : null}
-                  {stickerSize !== "25x25" && stickerType === "Separate" ? (
-                    <Select
-                      label="Importer"
-                      size="xs"
-                      radius="md"
-                      placeholder="Select importer"
+                      placeholder="Select Marketing Company from importer master"
                       value={printImporterId}
                       onChange={setPrintImporterId}
-                      searchable
-                      clearable
                       data={importerOptions}
+                      description={
+                        selectedImporter
+                          ? `${selectedImporter.phone || "No phone"} • ${selectedImporter.email || "No email"}`
+                          : "This company fills marketed by name, address, phone and email on stickers."
+                      }
                     />
                   ) : stickerSize !== "25x25" ? (
                     <Box>

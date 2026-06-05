@@ -74,6 +74,7 @@ import {
   StickerPrinterConfig,
   stickerPrinterConfigsApi,
 } from "../services/stickerPrinterConfigsApi";
+import { findMarketingCompanyForProduct } from "../utils/stickerMarketingCompany";
 import {
   InwardInvoiceModal,
   InwardEntryMode,
@@ -122,34 +123,6 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   billedQty: 0,
   mrp: null,
 });
-
-const normalizeCompanyName = (value?: string | null) =>
-  (value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-
-const findMarketingCompanyForProduct = (
-  product: Product | null,
-  importers: Importer[],
-) => {
-  const ownership = product?.ownership?.trim();
-  if (!ownership) return importers[0] ?? null;
-
-  const normalizedOwnership = normalizeCompanyName(ownership);
-  const isSelf = normalizedOwnership === "self";
-  const targetName = isSelf ? "plusgrow" : normalizedOwnership;
-
-  return (
-    importers.find((item) => normalizeCompanyName(item.name) === targetName) ??
-    importers.find((item) => {
-      const importerName = normalizeCompanyName(item.name);
-      return importerName.includes(targetName) || targetName.includes(importerName);
-    }) ??
-    importers[0] ??
-    null
-  );
-};
 
 export const Inward = memo(function Inward() {
   const isLargeScreen = useMediaQuery("(min-width: 90em)");
