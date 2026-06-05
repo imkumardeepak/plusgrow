@@ -288,7 +288,8 @@ public class StickerService : IStickerService
         Importer? importer)
     {
         var useImporterCompany =
-            string.Equals(stickerType, "Combined", StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(stickerType, "Combined", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(stickerType, "Separate", StringComparison.OrdinalIgnoreCase)) &&
             importer != null;
 
         if (!useImporterCompany)
