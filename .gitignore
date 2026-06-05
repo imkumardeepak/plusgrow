@@ -45,6 +45,7 @@ node_modules/
 Frontend/node_modules/
 Backend/PlusgrowWms.Api/bin/
 Backend/PlusgrowWms.Api/obj/
+Backend/PlusgrowWms.Api/publish/
 
 # Logs
 *.log
