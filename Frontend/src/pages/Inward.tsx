@@ -123,6 +123,34 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   mrp: null,
 });
 
+const normalizeCompanyName = (value?: string | null) =>
+  (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+
+const findMarketingCompanyForProduct = (
+  product: Product | null,
+  importers: Importer[],
+) => {
+  const ownership = product?.ownership?.trim();
+  if (!ownership) return importers[0] ?? null;
+
+  const normalizedOwnership = normalizeCompanyName(ownership);
+  const isSelf = normalizedOwnership === "self";
+  const targetName = isSelf ? "plusgrow" : normalizedOwnership;
+
+  return (
+    importers.find((item) => normalizeCompanyName(item.name) === targetName) ??
+    importers.find((item) => {
+      const importerName = normalizeCompanyName(item.name);
+      return importerName.includes(targetName) || targetName.includes(importerName);
+    }) ??
+    importers[0] ??
+    null
+  );
+};
+
 export const Inward = memo(function Inward() {
   const isLargeScreen = useMediaQuery("(min-width: 90em)");
   const [searchParams] = useSearchParams();
@@ -478,52 +506,16 @@ export const Inward = memo(function Inward() {
     [importerId, importers],
   );
 
-  const defaultImporter = importers[0] ?? null;
+  const defaultImporter = useMemo(
+    () => findMarketingCompanyForProduct(selectedProduct, importers),
+    [importers, selectedProduct],
+  );
 
   const handleImporterChange = useCallback(
     (value: string | null) => {
       setImporterId(value);
     },
     [],
-  );
-
-  const findImporterByName = useCallback(
-    (name?: string | null) => {
-      const normalized = name?.trim().toLowerCase();
-      if (!normalized) return null;
-
-      return (
-        importers.find((item) => item.name.trim().toLowerCase() === normalized) ??
-        null
-      );
-    },
-    [importers],
-  );
-
-  const resolveImporterId = useCallback(
-    async (name?: string | null) => {
-      const localMatch = findImporterByName(name);
-      if (localMatch) return localMatch.id;
-
-      const normalized = name?.trim();
-      if (!normalized) return null;
-
-      const result = await importersApi.getPaged({
-        search: normalized,
-        page: 1,
-        pageSize: 25,
-        sortBy: "name",
-        sortDirection: "asc",
-      });
-      setImporters(result.data);
-
-      return (
-        result.data.find(
-          (item) => item.name.trim().toLowerCase() === normalized.toLowerCase(),
-        )?.id ?? null
-      );
-    },
-    [findImporterByName],
   );
 
   const printerConfig = useMemo(
@@ -724,7 +716,7 @@ export const Inward = memo(function Inward() {
     }
 
     setImporterId(defaultImporter ? String(defaultImporter.id) : null);
-  }, [defaultImporter, selectedPrintRow?.id, stickerSize, stickerType]);
+  }, [defaultImporter, selectedPrintRow?.id, selectedProduct?.ownership, stickerSize, stickerType]);
 
   const buildStickerPayload = useCallback(
     (row: PoInvoice, quantity: number) => ({
@@ -1479,8 +1471,7 @@ export const Inward = memo(function Inward() {
     }
     const printerAddress = `${config.printerIp.trim()}:${config.printerPort}`;
 
-    const invoiceImporterId = printAllSize !== "25x25" ? defaultImporter?.id ?? null : null;
-    if (printAllSize !== "25x25" && !invoiceImporterId) {
+    if (printAllSize !== "25x25" && importers.length === 0) {
       toast.error("Importer master has no records. Please add an importer before printing Imported & Marketed By stickers.");
       return;
     }
@@ -1537,9 +1528,20 @@ export const Inward = memo(function Inward() {
           continue;
         }
 
+        const rowMarketingCompany = printAllSize !== "25x25"
+          ? findMarketingCompanyForProduct(product, importers)
+          : null;
+        if (printAllSize !== "25x25" && !rowMarketingCompany) {
+          setPrintAllErrors((prev) => [
+            ...prev,
+            `${row.skuCode}: Marketing company not found for ownership ${product.ownership || "-"}`,
+          ]);
+          continue;
+        }
+
         const payload = {
           productId: row.productId,
-          importerId: invoiceImporterId ?? undefined,
+          importerId: rowMarketingCompany?.id ?? undefined,
           size: printAllSize,
           type: "Combined" as const,
           monthYear: format(
