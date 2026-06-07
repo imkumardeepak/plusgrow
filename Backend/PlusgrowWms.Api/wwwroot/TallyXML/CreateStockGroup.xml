@@ -1,0 +1,26 @@
+﻿<ENVELOPE>
+	<HEADER>
+		<TALLYREQUEST>Import Data</TALLYREQUEST>
+	</HEADER>
+	<BODY>
+		<IMPORTDATA>
+			<REQUESTDESC>
+				<REPORTNAME>All Masters</REPORTNAME>
+			</REQUESTDESC>
+			<REQUESTDATA>
+				<TALLYMESSAGE
+								xmlns:UDF="TallyUDF">
+					<STOCKGROUP NAME="" ACTION="CREATE">
+						<NAME.LIST>
+							<NAME>
+								<newstockgroup>
+							</NAME>
+						</NAME.LIST>
+						<PARENT/>
+						<ISADDABLE>Yes</ISADDABLE>
+					</STOCKGROUP>
+				</TALLYMESSAGE>
+			</REQUESTDATA>
+		</IMPORTDATA>
+	</BODY>
+</ENVELOPE>

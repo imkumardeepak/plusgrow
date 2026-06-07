@@ -1,0 +1,77 @@
+﻿<ENVELOPE>
+	<HEADER>
+		<TALLYREQUEST>Import Data</TALLYREQUEST>
+	</HEADER>
+	<BODY>
+		<IMPORTDATA>
+			<REQUESTDESC>
+				<REPORTNAME>All Masters</REPORTNAME>
+			</REQUESTDESC>
+			<REQUESTDATA>
+				<TALLYMESSAGE xmlns:UDF="TallyUDF">
+					<STOCKITEM Action="Create">
+						<NAME>
+							<itemname>
+						</NAME>
+						<PARENT>
+							<itemgroup>
+						</PARENT>
+						<BASEUNITS>
+							<itemunit>
+						</BASEUNITS>
+						<OPENINGBALANCE>
+							<itemopeningqnty>
+								<itemunit>
+						</OPENINGBALANCE>
+						<OPENINGRATE>
+							<itemopeningrate>
+								/<itemunit>
+						</OPENINGRATE>
+						<GSTAPPLICABLE>&#4; Applicable</GSTAPPLICABLE>
+						<GSTDETAILS.LIST>
+							<APPLICABLEFROM>20200401</APPLICABLEFROM>
+							<CALCULATIONTYPE>On Value</CALCULATIONTYPE>
+							<HSNCODE>
+								<itemhsncode>
+							</HSNCODE>
+							<TAXABILITY>Taxable</TAXABILITY>
+							<STATEWISEDETAILS.LIST>
+								<STATENAME>&#4; Any</STATENAME>
+								<RATEDETAILS.LIST>
+									<GSTRATEDUTYHEAD>Central Tax</GSTRATEDUTYHEAD>
+									<GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+									<GSTRATE> 9</GSTRATE>
+								</RATEDETAILS.LIST>
+								<RATEDETAILS.LIST>
+									<GSTRATEDUTYHEAD>State Tax</GSTRATEDUTYHEAD>
+									<GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+									<GSTRATE> 9</GSTRATE>
+								</RATEDETAILS.LIST>
+								<RATEDETAILS.LIST>
+									<GSTRATEDUTYHEAD>Integrated Tax</GSTRATEDUTYHEAD>
+									<GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+									<GSTRATE> 18</GSTRATE>
+								</RATEDETAILS.LIST>
+								<RATEDETAILS.LIST>
+									<GSTRATEDUTYHEAD>Cess</GSTRATEDUTYHEAD>
+									<GSTRATEVALUATIONTYPE>Based on Value</GSTRATEVALUATIONTYPE>
+								</RATEDETAILS.LIST>
+							</STATEWISEDETAILS.LIST>
+						</GSTDETAILS.LIST>
+						<LANGUAGENAME.LIST>
+							<NAME.LIST TYPE="String">
+								<NAME>
+									<itemname>
+								</NAME>
+								<NAME>
+									<itemalias>
+								</NAME>
+							</NAME.LIST>
+							<LANGUAGEID> 1033</LANGUAGEID>
+						</LANGUAGENAME.LIST>
+					</STOCKITEM>
+				</TALLYMESSAGE>
+			</REQUESTDATA>
+		</IMPORTDATA>
+	</BODY>
+</ENVELOPE>
