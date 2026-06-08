@@ -63,6 +63,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<ProductAllottedLocation> ProductAllottedLocations => Set<ProductAllottedLocation>();
     public DbSet<StickerPrinterConfig> StickerPrinterConfigs => Set<StickerPrinterConfig>();
     public DbSet<PackingCarton> PackingCartons => Set<PackingCarton>();
+    public DbSet<StockCheckReport> StockCheckReports => Set<StockCheckReport>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -260,6 +261,25 @@ public class PlusgrowDbContext : DbContext
             .WithMany()
             .HasForeignKey(c => c.OutwardOrderId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<StockCheckReport>()
+            .HasIndex(x => x.CheckType);
+
+        modelBuilder.Entity<StockCheckReport>()
+            .HasIndex(x => x.CreatedAt);
+
+        modelBuilder.Entity<StockCheckReport>()
+            .HasIndex(x => x.Status);
+
+        modelBuilder.Entity<StockCheckReport>()
+            .HasOne(x => x.PerformedByUser)
+            .WithMany()
+            .HasForeignKey(x => x.PerformedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<StockCheckReport>()
+            .Property(x => x.Status)
+            .HasDefaultValue("COMPLETED");
     }
 
     private void NormalizeDateTimeKinds()

@@ -67,11 +67,14 @@ import {
   ProductStockMovementRecord,
   productsApi,
   CreateStockAdjustmentDto,
+  stockCheckReportsApi,
+  StockCheckReport,
+  StockCheckReportItem,
 } from "../services/masterApi";
 import { ProductFormModal } from "../components/organisms/ProductFormModal";
 import { StickerPrintModal } from "../components/organisms/StickerPrintModal";
 
-type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product";
+type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
 
 type ScannedItem = {
   sku: string;
@@ -123,6 +126,41 @@ const getLocationJson = (row: ProductAllottedLocationRecord | null) => {
   );
 };
 
+const saveStockCheckReport = async (
+  checkType: string,
+  referenceName: string,
+  scannedItems: ScannedItem[],
+) => {
+  const totalSystem = scannedItems.reduce((s, i) => s + i.systemQty, 0);
+  const totalScanned = scannedItems.reduce((s, i) => s + i.scannedQty, 0);
+  const itemsWithVariance = scannedItems.filter((i) => i.scannedQty !== i.systemQty).length;
+
+  const items: StockCheckReportItem[] = scannedItems.map((i) => ({
+    sku: i.sku,
+    productName: i.productName,
+    systemQty: i.systemQty,
+    scannedQty: i.scannedQty,
+    variance: i.scannedQty - i.systemQty,
+    isUnexpected: i.isUnexpected,
+  }));
+
+  try {
+    await stockCheckReportsApi.create({
+      checkType,
+      referenceName,
+      totalSystemQty: totalSystem,
+      totalScannedQty: totalScanned,
+      totalVariance: totalScanned - totalSystem,
+      itemsChecked: scannedItems.length,
+      itemsWithVariance,
+      itemsJson: JSON.stringify(items),
+    });
+  } catch {
+    // Report saving is best-effort, don't block the main save flow
+    console.warn("Failed to save stock check report");
+  }
+};
+
 export const StockCheck = memo(function StockCheck() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("hub");
   const isMobile = useMediaQuery("(max-width: 48em)");
@@ -136,6 +174,7 @@ export const StockCheck = memo(function StockCheck() {
       {activeMode === "location" && <LocationCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "manufacturer" && <ManufacturerCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "product" && <ProductCheckMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "history" && <StockCheckHistoryMode onBack={handleBack} isMobile={!!isMobile} />}
     </>
   );
 });
@@ -190,6 +229,15 @@ function StockCheckHub({
       description: "Select a product and scan all matching items. Unexpected products will be flagged for verification.",
       color: "rgba(16, 185, 129, 0.8)",
       gradient: "linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+    },
+    {
+      mode: "history",
+      icon: History,
+      title: "Report History",
+      description: "View past stock check reports. Filter by type, date, and search. Review variance summaries.",
+      color: "rgba(168, 85, 247, 0.8)",
+      gradient: "linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+      small: true,
     },
   ];
 

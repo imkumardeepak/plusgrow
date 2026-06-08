@@ -1501,3 +1501,85 @@ export const usersApi = {
     await api.delete(`/users/${id}`);
   },
 };
+
+// Stock Check Reports
+export interface StockCheckReportItem {
+  sku: string;
+  productName: string;
+  systemQty: number;
+  scannedQty: number;
+  variance: number;
+  isUnexpected: boolean;
+}
+
+export interface StockCheckReport {
+  id: number;
+  checkType: string;
+  referenceName: string;
+  totalSystemQty: number;
+  totalScannedQty: number;
+  totalVariance: number;
+  itemsChecked: number;
+  itemsWithVariance: number;
+  itemsJson: string;
+  status: string;
+  notes?: string | null;
+  performedByName?: string | null;
+  performedByUserId?: number | null;
+  createdAt: string;
+}
+
+export interface CreateStockCheckReportDto {
+  checkType: string;
+  referenceName: string;
+  totalSystemQty: number;
+  totalScannedQty: number;
+  totalVariance: number;
+  itemsChecked: number;
+  itemsWithVariance: number;
+  itemsJson: string;
+  notes?: string | null;
+}
+
+export interface StockCheckReportFilters {
+  checkType?: string;
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export const stockCheckReportsApi = {
+  getAll: async (filters?: StockCheckReportFilters): Promise<PagedResult<StockCheckReport>> => {
+    const response = await api.get<ApiResponse<StockCheckReport[]>>('/stockcheckreports', {
+      params: {
+        checkType: filters?.checkType || undefined,
+        search: filters?.search || undefined,
+        fromDate: filters?.fromDate || undefined,
+        toDate: filters?.toDate || undefined,
+        page: filters?.page,
+        pageSize: filters?.pageSize,
+      },
+    });
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(filters?.page, filters?.pageSize),
+    };
+  },
+
+  getById: async (id: number): Promise<StockCheckReport | null> => {
+    const response = await api.get<ApiResponse<StockCheckReport>>(`/stockcheckreports/${id}`);
+    return response.data.data || null;
+  },
+
+  create: async (data: CreateStockCheckReportDto): Promise<StockCheckReport> => {
+    const response = await api.post<ApiResponse<StockCheckReport>>('/stockcheckreports', data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error saving stock check report');
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/stockcheckreports/${id}`);
+  },
+};
