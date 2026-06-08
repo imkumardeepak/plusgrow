@@ -280,7 +280,10 @@ export const MPD = memo(function MPD() {
         (filterMode === "unpriced" && Number(p.mrp || 0) <= 0);
 
       return matchesSearch && matchesFilter;
-    });
+    }).map((p) => ({
+      ...p,
+      stockQty: productStockById[p.id] ?? 0
+    }));
 
     productsApi.downloadUpdateTemplate(productsToUpdate, updateFields);
     toast.success("Template downloaded successfully");
@@ -1067,18 +1070,6 @@ export const MPD = memo(function MPD() {
                 <Badge size="sm" radius="md" variant="light" color="gray">
                   {products.length} products
                 </Badge>
-                <Badge size="sm" radius="md" variant="light" color="cyan">
-                  {mappedProducts} mapped
-                </Badge>
-                <Badge size="sm" radius="md" variant="light" color="green">
-                  {withPricing} priced
-                </Badge>
-                <Badge size="sm" radius="md" variant="light" color="orange">
-                  {unpricedProducts} no MRP
-                </Badge>
-                <Badge size="sm" radius="md" variant="light" color="blue">
-                  {manufacturers.length + commodities.length} masters
-                </Badge>
                 <ActionIcon
                   size="sm"
                   radius="md"
@@ -1148,7 +1139,7 @@ export const MPD = memo(function MPD() {
             data={[
               "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
               "Commodity Name", "Country of Origin", "Unit Type",
-              "Net Qnty", "Factor", "Best Before (Months)", "Ownership", "Note"
+              "Net Qnty", "Factor", "Best Before (Months)", "Ownership", "Note", "Stock Quantity"
             ]}
             value={updateFields}
             onChange={setUpdateFields}
@@ -1224,28 +1215,28 @@ export const MPD = memo(function MPD() {
             </Tooltip>
             {isEditing ? (
               <>
-              <Tooltip label="Print sticker">
-                <ActionIcon
-                  size="md"
-                  radius="md"
-                  variant="light"
-                  color="cyan"
-                  onClick={() => handleOpenPrintModal(isEditing)}
-                >
-                  <Printer size={18} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Delete product">
-                <ActionIcon
-                  size="md"
-                  radius="md"
-                  variant="light"
-                  color="red"
-                  onClick={() => setDeleteTarget(isEditing)}
-                >
-                  <Trash2 size={18} />
-                </ActionIcon>
-              </Tooltip>
+                <Tooltip label="Print sticker">
+                  <ActionIcon
+                    size="md"
+                    radius="md"
+                    variant="light"
+                    color="cyan"
+                    onClick={() => handleOpenPrintModal(isEditing)}
+                  >
+                    <Printer size={18} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Delete product">
+                  <ActionIcon
+                    size="md"
+                    radius="md"
+                    variant="light"
+                    color="red"
+                    onClick={() => setDeleteTarget(isEditing)}
+                  >
+                    <Trash2 size={18} />
+                  </ActionIcon>
+                </Tooltip>
               </>
             ) : null}
           </>
@@ -1878,7 +1869,7 @@ export const MPD = memo(function MPD() {
                     <Tag size={48} style={{ marginBottom: 12 }} />
                     <Text fw={700} size="lg" mb="xs" c={selectedPrintProduct && validateProductForSticker(selectedPrintProduct, stickerSize).length > 0 ? "red.4" : undefined}>
                       {selectedPrintProduct && validateProductForSticker(selectedPrintProduct, stickerSize).length > 0
-                        ? "Missing Product Data" 
+                        ? "Missing Product Data"
                         : "No preview"}
                     </Text>
                     <Text size="sm" c="dimmed">

@@ -144,6 +144,14 @@ const theme = createTheme({
       "#06131f",
     ],
   },
+  components: {
+    TextInput: { defaultProps: { clearable: true } },
+    NumberInput: { defaultProps: { clearable: true } },
+    Select: { defaultProps: { clearable: true } },
+    MultiSelect: { defaultProps: { clearable: true } },
+    PasswordInput: { defaultProps: { clearable: true } },
+    Textarea: { defaultProps: { clearable: true } },
+  },
 });
 
 export default function App() {

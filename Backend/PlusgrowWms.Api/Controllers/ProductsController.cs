@@ -620,6 +620,76 @@ public class ProductsController : BaseController
                         }
                     }
 
+                    if (headers.ContainsKey("Stock Quantity"))
+                    {
+                        var stockStr = row.Cell(headers["Stock Quantity"]).GetString()?.Trim();
+                        if (int.TryParse(stockStr, out int stockQnty) && stockQnty >= 0)
+                        {
+                            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                            
+                            var productQuantity = await _context.ProductQuantities.FirstOrDefaultAsync(q => q.ProductId == product.Id);
+                            int quantityBefore = productQuantity?.CurrentQuantity ?? 0;
+                            int quantityChange = stockQnty - quantityBefore;
+
+                            if (quantityChange != 0)
+                            {
+                                if (productQuantity != null)
+                                {
+                                    productQuantity.CurrentQuantity = stockQnty;
+                                    productQuantity.UpdatedAt = now;
+                                }
+                                else
+                                {
+                                    _context.ProductQuantities.Add(new ProductQuantity
+                                    {
+                                        ProductId = product.Id,
+                                        CurrentQuantity = stockQnty,
+                                        UpdatedAt = now
+                                    });
+                                }
+
+                                var productLocation = await _context.ProductAllottedLocations.FirstOrDefaultAsync(l => l.ProductId == product.Id);
+                                if (productLocation != null)
+                                {
+                                    productLocation.LocationJson ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                                    int currentLocQty = 0;
+                                    productLocation.LocationJson.TryGetValue(Location.DefaultLocationCode, out currentLocQty);
+                                    
+                                    int newLocQty = currentLocQty + quantityChange;
+                                    if (newLocQty < 0) newLocQty = 0; // Prevent negative stock in 0-0-0
+                                    
+                                    productLocation.LocationJson[Location.DefaultLocationCode] = newLocQty;
+                                    productLocation.UpdatedAt = now;
+                                    _context.Entry(productLocation).Property(x => x.LocationJson).IsModified = true;
+                                }
+                                else
+                                {
+                                    _context.ProductAllottedLocations.Add(new ProductAllottedLocation
+                                    {
+                                        ProductId = product.Id,
+                                        LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                                        {
+                                            [Location.DefaultLocationCode] = stockQnty
+                                        },
+                                        UpdatedAt = now
+                                    });
+                                }
+
+                                _context.ProductStockMovements.Add(new ProductStockMovement
+                                {
+                                    ProductId = product.Id,
+                                    QuantityChange = quantityChange,
+                                    QuantityBefore = quantityBefore,
+                                    QuantityAfter = stockQnty,
+                                    Reason = "Excel Bulk Update",
+                                    MovementType = "Bulk Update",
+                                    Notes = "Updated via Excel upload",
+                                    CreatedAt = now
+                                });
+                            }
+                        }
+                    }
+
                     result.ImportedCount++;
                 }
                 catch (Exception ex)

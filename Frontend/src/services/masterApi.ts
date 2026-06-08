@@ -58,6 +58,7 @@ export interface Product {
   bestBeforeMonths: number;
   note?: string | null;
   createdAt: string;
+  stockQty?: number;
 }
 
 export function validateProductForSticker(
@@ -942,6 +943,7 @@ export const productsApi = {
           case 'Best Before (Months)': row['Best Before (Months)'] = product.bestBeforeMonths ?? ''; break;
           case 'Ownership': row['Ownership'] = product.ownership ?? ''; break;
           case 'Note': row['Note'] = product.note ?? ''; break;
+          case 'Stock Quantity': row['Stock Quantity'] = product.stockQty ?? ''; break;
         }
       });
 

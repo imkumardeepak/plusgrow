@@ -94,6 +94,28 @@ public class StickerService : IStickerService
             importerParts.Country);
         var quantity = request.Quantity > 0 ? request.Quantity : 1;
         var stickerMrp = request.Mrp ?? product.Mrp;
+        
+        decimal? stickerUssp = product.Ussp;
+        if (request.Mrp.HasValue)
+        {
+            if (request.Mrp.Value > 0 && !string.IsNullOrWhiteSpace(product.Factor))
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(product.Factor, @"\d+(\.\d+)?");
+                if (match.Success && decimal.TryParse(match.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out decimal factorValue) && factorValue > 0)
+                {
+                    stickerUssp = request.Mrp.Value / factorValue;
+                }
+                else
+                {
+                    stickerUssp = 0;
+                }
+            }
+            else
+            {
+                stickerUssp = 0;
+            }
+        }
+
         var bestBeforeMonths = product.BestBeforeMonths > 0
             ? product.BestBeforeMonths
             : 1;
@@ -131,7 +153,7 @@ public class StickerService : IStickerService
             new("<COUNTRYOFORIGIN>", product.CountryOfOrigin ?? "INDIA"),
             new("<NETQNTY>", product.NetQuantity ?? "0 ml"),
             new("<MRP>", FormatRupee(stickerMrp, 2)),
-            new("<FACTOR>", FormatRupee(product.Ussp, 2)),
+            new("<FACTOR>", FormatRupee(stickerUssp, 2)),
             new("<UNIT>", product.UnitType ?? "Pcs"),
             new("<BESTBEFORE>", bestBeforeMonths.ToString()),
             new("<SKUCODE>", product.Sku ?? string.Empty),
