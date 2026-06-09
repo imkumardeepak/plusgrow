@@ -75,6 +75,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<PackingCarton> PackingCartons => Set<PackingCarton>();
     public DbSet<StockCheckReport> StockCheckReports => Set<StockCheckReport>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<PoInvoiceLocation> PoInvoiceLocations => Set<PoInvoiceLocation>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

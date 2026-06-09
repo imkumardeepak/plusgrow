@@ -188,7 +188,7 @@ public class ProductAllottedLocationsController : BaseController
         allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
 
-        await ReduceInvoiceRemainingAllocation(product.Id, dto.Quantity);
+        await ReduceInvoiceRemainingAllocation(product.Id, dto.Quantity, locationCode);
         await _context.SaveChangesAsync();
 
         var totalAllocatedAfter = allocationRow.LocationJson.Values.Sum();
@@ -365,7 +365,7 @@ public class ProductAllottedLocationsController : BaseController
         };
     }
 
-    private async Task ReduceInvoiceRemainingAllocation(int productId, int assignedQuantity)
+    private async Task ReduceInvoiceRemainingAllocation(int productId, int assignedQuantity, string locationCode)
     {
         var remainingToAllocate = assignedQuantity;
         var invoices = await _context.PoInvoices
@@ -383,6 +383,25 @@ public class ProductAllottedLocationsController : BaseController
             var reduceBy = Math.Min(invoice.RemainingAllocation, remainingToAllocate);
             invoice.RemainingAllocation -= reduceBy;
             invoice.LocationAllotted = invoice.RemainingAllocation <= 0;
+
+            var invoiceLocation = await _context.PoInvoiceLocations
+                .FirstOrDefaultAsync(x => x.PoInvoiceId == invoice.Id && x.LocationCode == locationCode);
+
+            if (invoiceLocation == null)
+            {
+                invoiceLocation = new PoInvoiceLocation
+                {
+                    PoInvoiceId = invoice.Id,
+                    LocationCode = locationCode,
+                    Quantity = reduceBy
+                };
+                _context.PoInvoiceLocations.Add(invoiceLocation);
+            }
+            else
+            {
+                invoiceLocation.Quantity += reduceBy;
+            }
+
             remainingToAllocate -= reduceBy;
         }
     }

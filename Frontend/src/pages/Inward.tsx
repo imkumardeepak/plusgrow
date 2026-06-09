@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import {
@@ -125,6 +125,7 @@ const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
 });
 
 export const Inward = memo(function Inward() {
+  const navigate = useNavigate();
   const isLargeScreen = useMediaQuery("(min-width: 90em)");
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
@@ -1759,6 +1760,14 @@ export const Inward = memo(function Inward() {
                 loading={isExporting}
               >
                 Export Excel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate('/mrp-tracking')}
+                leftIcon={<FileText className="h-3.5 w-3.5" />}
+              >
+                MRP Tracking
               </Button>
               <Button
                 variant="outline"

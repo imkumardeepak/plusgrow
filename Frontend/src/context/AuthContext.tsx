@@ -138,7 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (
       roleName === 'Admin' &&
       action === 'view' &&
-      (pageKey === 'role-master' || pageKey === 'user-master')
+      (pageKey === 'role-master' || pageKey === 'user-master' || pageKey === 'audit-logs')
     ) {
       return true;
     }

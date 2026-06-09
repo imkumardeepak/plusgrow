@@ -46,6 +46,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const RoleMaster = lazy(() => import("./pages/RoleMaster"));
 const UserMaster = lazy(() => import("./pages/UserMaster"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const MrpTracking = lazy(() => import("./pages/MrpTracking"));
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -250,6 +251,7 @@ export default function App() {
                       path="bin-movement"
                       element={pageElement(["locations", "bins"], <BinMovement />)}
                     />
+                    <Route path="mrp-tracking" element={pageElement("inward", <MrpTracking />)} />
                     <Route path="mpd" element={pageElement("mpd", <MPD />)} />
                     <Route
                       path="sticker-printer-config"
