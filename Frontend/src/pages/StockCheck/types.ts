@@ -1,4 +1,4 @@
-export type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product";
+export type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
 
 export type ScannedItem = {
   sku: string;
@@ -52,3 +52,40 @@ export const getLocationJson = (
     {}
   );
 };
+
+export const saveStockCheckReport = async (
+  checkType: string,
+  referenceName: string,
+  scannedItems: ScannedItem[],
+) => {
+  const totalSystem = scannedItems.reduce((s, i) => s + i.systemQty, 0);
+  const totalScanned = scannedItems.reduce((s, i) => s + i.scannedQty, 0);
+  const itemsWithVariance = scannedItems.filter((i) => i.scannedQty !== i.systemQty).length;
+
+  const items: import("../../services/masterApi").StockCheckReportItem[] = scannedItems.map((i) => ({
+    sku: i.sku,
+    productName: i.productName,
+    systemQty: i.systemQty,
+    scannedQty: i.scannedQty,
+    variance: i.scannedQty - i.systemQty,
+    isUnexpected: i.isUnexpected,
+  }));
+
+  try {
+    const { stockCheckReportsApi } = await import("../../services/masterApi");
+    await stockCheckReportsApi.create({
+      checkType,
+      referenceName,
+      totalSystemQty: totalSystem,
+      totalScannedQty: totalScanned,
+      totalVariance: totalScanned - totalSystem,
+      itemsChecked: scannedItems.length,
+      itemsWithVariance,
+      itemsJson: JSON.stringify(items),
+    });
+  } catch {
+    // Report saving is best-effort, don't block the main save flow
+    console.warn("Failed to save stock check report");
+  }
+};
+

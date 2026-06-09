@@ -126,40 +126,6 @@ const getLocationJson = (row: ProductAllottedLocationRecord | null) => {
   );
 };
 
-const saveStockCheckReport = async (
-  checkType: string,
-  referenceName: string,
-  scannedItems: ScannedItem[],
-) => {
-  const totalSystem = scannedItems.reduce((s, i) => s + i.systemQty, 0);
-  const totalScanned = scannedItems.reduce((s, i) => s + i.scannedQty, 0);
-  const itemsWithVariance = scannedItems.filter((i) => i.scannedQty !== i.systemQty).length;
-
-  const items: StockCheckReportItem[] = scannedItems.map((i) => ({
-    sku: i.sku,
-    productName: i.productName,
-    systemQty: i.systemQty,
-    scannedQty: i.scannedQty,
-    variance: i.scannedQty - i.systemQty,
-    isUnexpected: i.isUnexpected,
-  }));
-
-  try {
-    await stockCheckReportsApi.create({
-      checkType,
-      referenceName,
-      totalSystemQty: totalSystem,
-      totalScannedQty: totalScanned,
-      totalVariance: totalScanned - totalSystem,
-      itemsChecked: scannedItems.length,
-      itemsWithVariance,
-      itemsJson: JSON.stringify(items),
-    });
-  } catch {
-    // Report saving is best-effort, don't block the main save flow
-    console.warn("Failed to save stock check report");
-  }
-};
 
 export const StockCheck = memo(function StockCheck() {
   const [activeMode, setActiveMode] = useState<ActiveMode>("hub");
@@ -541,6 +507,7 @@ function ScanInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         leftSection={icon}
+        clearable
         styles={{
           input: {
             textTransform: "uppercase",
@@ -1611,6 +1578,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
                   size={isMobile ? "md" : "sm"}
                   placeholder="Search manufacturer..."
                   searchable
+                  clearable
                   data={manufacturers.map((m) => ({ value: String(m.id), label: m.name }))}
                   value={selectedMfrId}
                   onChange={setSelectedMfrId}
@@ -1944,9 +1912,10 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
                   size={isMobile ? "md" : "sm"}
                   placeholder="Search product SKU or name..."
                   searchable
+                  clearable
                   data={products.map((p) => ({
                     value: String(p.id),
-                    label: `${normalizeSku(p.sku)} — ${p.name}`,
+                    label: p.alias ? `${normalizeSku(p.sku)} — ${p.name} (${p.alias})` : `${normalizeSku(p.sku)} — ${p.name}`,
                   }))}
                   value={selectedProductId}
                   onChange={setSelectedProductId}

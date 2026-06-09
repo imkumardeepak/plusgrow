@@ -37,7 +37,7 @@ import {
 } from "../../../services/masterApi";
 
 import type { ScannedItem } from "../types";
-import { normalizeSku, getLocationJson } from "../types";
+import { normalizeSku, getLocationJson, saveStockCheckReport } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -172,19 +172,8 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
+      await saveStockCheckReport("Product", selectedProduct?.name || "Unknown", scannedItems);
 
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: "STOCK-CHECK",
-          quantityChange: variance,
-          reason: "Stock Check - Product Audit",
-          notes: `Product: ${item.productName}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
       toast.success("Product stock check saved");
       setSelectedProductId(null);
       setScannedItems([]);
@@ -240,7 +229,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
                   searchable
                   data={products.map((p) => ({
                     value: String(p.id),
-                    label: `${normalizeSku(p.sku)} — ${p.name}`,
+                    label: p.alias ? `${normalizeSku(p.sku)} — ${p.name} (${p.alias})` : `${normalizeSku(p.sku)} — ${p.name}`,
                   }))}
                   value={selectedProductId}
                   onChange={setSelectedProductId}
@@ -394,7 +383,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will adjust stock for <strong>{selectedProduct?.name}</strong> and any unexpected products based on scanned counts.
+            This will save a stock check report for <strong>{selectedProduct?.name}</strong> and any unexpected products based on scanned counts.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>

@@ -55,6 +55,7 @@ export function ScanInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         leftSection={icon}
+        clearable
         styles={{
           input: {
             textTransform: "uppercase",

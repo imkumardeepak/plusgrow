@@ -37,7 +37,7 @@ import {
 } from "../../../services/masterApi";
 
 import type { ScannedItem } from "../types";
-import { normalizeSku } from "../types";
+import { normalizeSku, saveStockCheckReport } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -152,19 +152,8 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
+      await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems);
 
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: "STOCK-CHECK",
-          quantityChange: variance,
-          reason: "Stock Check - Manufacturer Audit",
-          notes: `Manufacturer: ${selectedMfr?.name}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
       toast.success("Manufacturer stock check saved");
       setSelectedMfrId(null);
       setScannedItems([]);
@@ -317,7 +306,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will adjust stock quantities for <strong>{selectedMfr?.name}</strong> products based on scanned counts.
+            This will save a stock check report for <strong>{selectedMfr?.name}</strong> products based on scanned counts.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>

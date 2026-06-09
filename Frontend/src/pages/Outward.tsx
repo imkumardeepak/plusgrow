@@ -141,7 +141,7 @@ export const Outward = memo(function Outward() {
     () =>
       products.map((product) => ({
         value: String(product.id),
-        label: `${product.sku || "NO-SKU"} - ${product.name}`,
+        label: product.alias ? `${product.sku || "NO-SKU"} - ${product.name} (${product.alias})` : `${product.sku || "NO-SKU"} - ${product.name}`,
       })),
     [products],
   );

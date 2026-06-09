@@ -419,7 +419,7 @@ export const PartyDashboard = memo(function PartyDashboard() {
   const stockCheckOptions = useMemo(() => {
     return summary.products.map((product) => ({
       value: product.productId.toString(),
-      label: `${product.skuCode || "N/A"} - ${product.productName}`,
+      label: product.alias ? `${product.skuCode || "N/A"} - ${product.productName} (${product.alias})` : `${product.skuCode || "N/A"} - ${product.productName}`,
     }));
   }, [summary.products]);
 

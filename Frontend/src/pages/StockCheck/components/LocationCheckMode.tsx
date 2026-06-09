@@ -36,7 +36,7 @@ import {
 } from "../../../services/masterApi";
 
 import type { ScannedItem } from "../types";
-import { normalizeSku, getLocationJson } from "../types";
+import { normalizeSku, getLocationJson, saveStockCheckReport } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -166,38 +166,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     try {
       const upperLoc = normalizeSku(locationCode);
 
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
-
-        const allottedRow = allottedLocations.find((r) => r.productId === item.productId);
-
-        if (allottedRow) {
-          const locJson = { ...getLocationJson(allottedRow) };
-          locJson[upperLoc] = item.scannedQty;
-          if (item.scannedQty === 0) {
-            delete locJson[upperLoc];
-          }
-          await productAllottedLocationsApi.update(allottedRow.id, {
-            productId: allottedRow.productId,
-            locationJson: locJson,
-          });
-        } else if (item.scannedQty > 0) {
-          await productAllottedLocationsApi.create({
-            productId: item.productId,
-            locationJson: { [upperLoc]: item.scannedQty },
-          });
-        }
-
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: upperLoc,
-          quantityChange: variance,
-          reason: "Stock Check - Location Audit",
-          notes: `Stock check at ${upperLoc}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
+      await saveStockCheckReport("Location", upperLoc, scannedItems);
 
       toast.success("Stock check saved successfully");
       setIsLocationLocked(false);
@@ -342,7 +311,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will update actual stock quantities at <strong>{locationCode}</strong>. Items with variance will have their stock adjusted.
+            This will save a stock check report for <strong>{locationCode}</strong> based on scanned counts.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
