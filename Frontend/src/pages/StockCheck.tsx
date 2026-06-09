@@ -2278,4 +2278,27 @@ function EmptyInline({ message }: { message: string }) {
   );
 }
 
+function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
+  return (
+    <OperationsPage
+      title="Report History"
+      description="View past stock check reports. Filter by type, date, and search."
+      icon={History}
+      actions={
+        <Button variant="outline" leftIcon={<ArrowLeft size={16} />} onClick={onBack}>
+          Back to Hub
+        </Button>
+      }
+    >
+      <OperationsPanel title="History" icon={History} description="Coming soon.">
+        <OperationsEmptyState
+          icon={History}
+          title="History Not Available"
+          description="The history mode is currently under construction."
+        />
+      </OperationsPanel>
+    </OperationsPage>
+  );
+}
+
 export default StockCheck;

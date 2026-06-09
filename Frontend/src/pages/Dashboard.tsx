@@ -42,6 +42,7 @@ import {
   IconStack2,
   IconTruckDelivery,
   IconArrowsLeftRight,
+  IconClipboardCheck,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -343,7 +344,7 @@ export const Dashboard = memo(function Dashboard() {
           icon: IconPackage,
           color: "teal",
           href: "/picking",
-          visible: hasPermission("picking", "view"),
+          visible: hasPermission("picking", "view") || isPickingRole,
         },
         {
           key: "packing",
@@ -381,8 +382,17 @@ export const Dashboard = memo(function Dashboard() {
           href: "/product-query",
           visible: true, // Everyone has dashboard permission
         },
+        {
+          key: "stock-check",
+          title: "Stock Check",
+          description: "Scan locations and verify product stock counts.",
+          icon: IconClipboardCheck,
+          color: "violet",
+          href: "/stock-check",
+          visible: true, // Show to everyone on mobile dashboard, or filter by role if needed
+        },
       ].filter((item) => item.visible),
-    [hasPermission],
+    [hasPermission, isPickingRole],
   );
 
   if (isPartyRole) {

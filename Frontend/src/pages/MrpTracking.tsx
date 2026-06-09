@@ -87,7 +87,7 @@ export default function MrpTracking() {
       title="MRP / Batch Tracking"
       description="Track inwarded product quantities and their specific locations based on MRP and invoices."
       icon={FileText}
-      headerAction={
+      actions={
         <Button
           variant="outline"
           leftIcon={<ArrowLeft size={16} />}
@@ -129,10 +129,11 @@ export default function MrpTracking() {
         }
       >
         <MantineDataTable
-          records={data}
+          data={data}
           columns={columns}
           isLoading={isLoading}
           rowKey={(row) => row.id}
+          emptyIcon={FileText}
           emptyTitle="No tracking data"
           emptyDescription="No location allocations found for the given criteria."
           itemLabel="allocations"

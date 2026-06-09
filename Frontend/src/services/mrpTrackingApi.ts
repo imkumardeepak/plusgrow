@@ -1,4 +1,4 @@
-import { api } from '../lib/api';
+import api from './authApi';
 
 export interface MrpTrackingResult {
   id: number;
@@ -17,8 +17,8 @@ export const mrpTrackingApi = {
   getTrackingReport: async (search?: string) => {
     const params = new URLSearchParams();
     if (search) params.append('search', search);
-    
-    const response = await api.get(`/api/mrp-tracking?${params.toString()}`);
+
+    const response = await api.get(`/mrp-tracking?${params.toString()}`);
     return response.data?.data as MrpTrackingResult[];
   }
 };
