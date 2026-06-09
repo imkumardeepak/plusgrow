@@ -1067,9 +1067,7 @@ export const MPD = memo(function MPD() {
                 >
                   Bulk Update via Excel
                 </Button>
-                <Badge size="sm" radius="md" variant="light" color="gray">
-                  {products.length} products
-                </Badge>
+
                 <ActionIcon
                   size="sm"
                   radius="md"

@@ -154,6 +154,7 @@ public class StickerService : IStickerService
             new("<NETQNTY>", product.NetQuantity ?? "0 ml"),
             new("<MRP>", FormatRupee(stickerMrp, 2)),
             new("<FACTOR>", FormatRupee(stickerUssp, 2)),
+            new("<USSP>", FormatRupee(stickerUssp, 2)),
             new("<UNIT>", product.UnitType ?? "Pcs"),
             new("<BESTBEFORE>", bestBeforeMonths.ToString()),
             new("<SKUCODE>", product.Sku ?? string.Empty),

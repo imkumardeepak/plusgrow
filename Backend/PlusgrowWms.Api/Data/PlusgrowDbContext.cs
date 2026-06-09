@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using PlusgrowWms.Api.Models;
@@ -6,8 +9,11 @@ namespace PlusgrowWms.Api.Data;
 
 public class PlusgrowDbContext : DbContext
 {
-    public PlusgrowDbContext(DbContextOptions<PlusgrowDbContext> options) : base(options)
+    private readonly IHttpContextAccessor? _httpContextAccessor;
+
+    public PlusgrowDbContext(DbContextOptions<PlusgrowDbContext> options, IHttpContextAccessor? httpContextAccessor = null) : base(options)
     {
+        _httpContextAccessor = httpContextAccessor;
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -20,6 +26,7 @@ public class PlusgrowDbContext : DbContext
     {
         NormalizeDateTimeKinds();
         NormalizeStringsToUppercase();
+        ProcessAuditLogs();
         return base.SaveChanges();
     }
 
@@ -27,6 +34,7 @@ public class PlusgrowDbContext : DbContext
     {
         NormalizeDateTimeKinds();
         NormalizeStringsToUppercase();
+        ProcessAuditLogs();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -34,6 +42,7 @@ public class PlusgrowDbContext : DbContext
     {
         NormalizeDateTimeKinds();
         NormalizeStringsToUppercase();
+        ProcessAuditLogs();
         return base.SaveChangesAsync(cancellationToken);
     }
 
@@ -41,6 +50,7 @@ public class PlusgrowDbContext : DbContext
     {
         NormalizeDateTimeKinds();
         NormalizeStringsToUppercase();
+        ProcessAuditLogs();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
@@ -64,6 +74,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<StickerPrinterConfig> StickerPrinterConfigs => Set<StickerPrinterConfig>();
     public DbSet<PackingCarton> PackingCartons => Set<PackingCarton>();
     public DbSet<StockCheckReport> StockCheckReports => Set<StockCheckReport>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -280,6 +291,15 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<StockCheckReport>()
             .Property(x => x.Status)
             .HasDefaultValue("COMPLETED");
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(x => x.Action);
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(x => x.EntityType);
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(x => x.Timestamp);
     }
 
     private void NormalizeDateTimeKinds()
@@ -349,6 +369,83 @@ public class PlusgrowDbContext : DbContext
                     }
                 }
             }
+        }
+    }
+
+    private void ProcessAuditLogs()
+    {
+        var auditEntries = new List<AuditLog>();
+        var userIdClaim = _httpContextAccessor?.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        int? userId = int.TryParse(userIdClaim, out var parsed) ? parsed : null;
+        var username = _httpContextAccessor?.HttpContext?.User.FindFirst(ClaimTypes.GivenName)?.Value 
+            ?? _httpContextAccessor?.HttpContext?.User.Identity?.Name 
+            ?? "System";
+
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.Entity is not AuditLog && 
+                       (e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted))
+            .ToList();
+
+        foreach (var entry in entries)
+        {
+            var auditLog = new AuditLog
+            {
+                UserId = userId,
+                Username = username,
+                EntityType = entry.Entity.GetType().Name,
+                Timestamp = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                Action = entry.State.ToString()
+            };
+
+            var primaryKey = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+            if (primaryKey != null)
+            {
+                auditLog.EntityId = primaryKey.CurrentValue?.ToString();
+            }
+
+            var oldValues = new Dictionary<string, object?>();
+            var newValues = new Dictionary<string, object?>();
+
+            foreach (var property in entry.Properties)
+            {
+                if (property.IsTemporary) continue; // Skip temporary properties for Inserts
+
+                string propertyName = property.Metadata.Name;
+
+                switch (entry.State)
+                {
+                    case EntityState.Added:
+                        newValues[propertyName] = property.CurrentValue;
+                        break;
+
+                    case EntityState.Deleted:
+                        oldValues[propertyName] = property.OriginalValue;
+                        break;
+
+                    case EntityState.Modified:
+                        if (property.IsModified)
+                        {
+                            oldValues[propertyName] = property.OriginalValue;
+                            newValues[propertyName] = property.CurrentValue;
+                        }
+                        break;
+                }
+            }
+
+            if (entry.State == EntityState.Modified && oldValues.Count == 0 && newValues.Count == 0)
+            {
+                continue; // No actual property changes
+            }
+
+            if (oldValues.Count > 0) auditLog.OldValues = JsonSerializer.Serialize(oldValues);
+            if (newValues.Count > 0) auditLog.NewValues = JsonSerializer.Serialize(newValues);
+
+            auditEntries.Add(auditLog);
+        }
+
+        if (auditEntries.Any())
+        {
+            AuditLogs.AddRange(auditEntries);
         }
     }
 }

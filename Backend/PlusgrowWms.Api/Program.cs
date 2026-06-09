@@ -57,7 +57,11 @@ builder.Services.AddScoped<ICommodityRepository, CommodityRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<IBinRepository, BinRepository>();
 
+// Add HttpContextAccessor for user info extraction
+builder.Services.AddHttpContextAccessor();
+
 // Add services
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
 builder.Services.AddScoped<IStickerService, StickerService>();

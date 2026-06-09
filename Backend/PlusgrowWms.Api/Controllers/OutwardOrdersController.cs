@@ -7,6 +7,7 @@ using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
 using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
+using PlusgrowWms.Api.Services;
 
 namespace PlusgrowWms.Api.Controllers;
 
@@ -14,11 +15,13 @@ public class OutwardOrdersController : BaseController
 {
     private readonly PlusgrowDbContext _context;
     private readonly IHubContext<NotificationHub> _notificationHub;
+    private readonly IAuditLogService _auditLogService;
 
-    public OutwardOrdersController(PlusgrowDbContext context, IHubContext<NotificationHub> notificationHub)
+    public OutwardOrdersController(PlusgrowDbContext context, IHubContext<NotificationHub> notificationHub, IAuditLogService auditLogService)
     {
         _context = context;
         _notificationHub = notificationHub;
+        _auditLogService = auditLogService;
     }
 
     [HttpGet("sales-orders")]
@@ -611,6 +614,15 @@ public class OutwardOrdersController : BaseController
         }
 
         await _context.SaveChangesAsync();
+
+        await _auditLogService.LogCustomActionAsync(
+            "CancelSalesOrder",
+            "SalesOrder",
+            salesOrder.Id.ToString(),
+            $"Canceled order {salesOrder.OrderNumber} with remark: {dto.Remark.Trim()}",
+            null,
+            new { Remark = dto.Remark.Trim(), OrderNumber = salesOrder.OrderNumber }
+        );
 
         return Success(MapSalesOrder(salesOrder), $"Sales order {salesOrder.OrderNumber} canceled successfully");
     }

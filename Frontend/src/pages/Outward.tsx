@@ -278,6 +278,17 @@ export const Outward = memo(function Outward() {
       },
       width: 140,
     },
+    {
+      key: "remarks",
+      header: "Remarks",
+      sortable: false,
+      render: (row) => (
+        <Text size={isLargeScreen ? "xs" : "10px"} c={row.status === "Canceled" ? "red.4" : "dimmed"} lineClamp={2} title={row.status === "Canceled" ? row.cancelRemark ?? "" : row.notes ?? ""}>
+          {row.status === "Canceled" ? row.cancelRemark : row.notes || "-"}
+        </Text>
+      ),
+      width: 180,
+    },
   ];
 
   const detailColumns: DataTableColumn<SalesOrderRecord["items"][number]>[] = [

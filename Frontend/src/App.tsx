@@ -45,6 +45,7 @@ const WarehouseMap = lazy(() => import("./pages/WarehouseMap"));
 const Profile = lazy(() => import("./pages/Profile"));
 const RoleMaster = lazy(() => import("./pages/RoleMaster"));
 const UserMaster = lazy(() => import("./pages/UserMaster"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -284,6 +285,10 @@ export default function App() {
                     <Route
                       path="user-master"
                       element={pageElement("user-master", <UserMaster />)}
+                    />
+                    <Route
+                      path="audit-logs"
+                      element={pageElement("audit-logs", <AuditLogs />)}
                     />
                     <Route
                       path="profile"

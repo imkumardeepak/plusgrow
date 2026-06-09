@@ -14,12 +14,14 @@ public class ProductsController : BaseController
     private readonly PlusgrowDbContext _context;
     private readonly IProductService _productService;
     private readonly ILogger<ProductsController> _logger;
+    private readonly IAuditLogService _auditLogService;
 
-    public ProductsController(PlusgrowDbContext context, IProductService productService, ILogger<ProductsController> logger)
+    public ProductsController(PlusgrowDbContext context, IProductService productService, ILogger<ProductsController> logger, IAuditLogService auditLogService)
     {
         _context = context;
         _productService = productService;
         _logger = logger;
+        _auditLogService = auditLogService;
     }
 
     [HttpGet]
@@ -702,6 +704,15 @@ public class ProductsController : BaseController
             result.Success = true;
 
             _logger.LogInformation("Excel update completed. Updated {Count} products", result.ImportedCount);
+
+            await _auditLogService.LogCustomActionAsync(
+                "BulkStockUpload",
+                "Product",
+                null,
+                $"Bulk updated {result.ImportedCount} products via Excel",
+                null,
+                new { ImportedCount = result.ImportedCount, SkippedCount = result.SkippedRows.Count }
+            );
 
             return Success(result, $"Successfully updated {result.ImportedCount} products");
         }

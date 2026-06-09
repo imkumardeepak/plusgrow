@@ -20,6 +20,7 @@ import {
   UserCog,
   Warehouse,
   Handshake,
+  Activity,
 } from "lucide-react";
 
 export interface NavItem {
@@ -215,6 +216,12 @@ export const navigationGroups: NavGroup[] = [
         label: "User Master",
         icon: UserCog,
         href: "/user-master",
+      },
+      {
+        id: "audit-logs",
+        label: "Audit Logs",
+        icon: Activity,
+        href: "/audit-logs",
       },
     ],
   },
