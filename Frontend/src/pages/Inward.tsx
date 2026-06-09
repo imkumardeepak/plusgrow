@@ -399,8 +399,8 @@ export const Inward = memo(function Inward() {
 
       const selectedManufacturer = selectedManufacturerName
         ? manufacturers.find(
-            (item) => item.name.trim().toLowerCase() === selectedManufacturerName,
-          )
+          (item) => item.name.trim().toLowerCase() === selectedManufacturerName,
+        )
         : null;
 
       return products
@@ -415,15 +415,15 @@ export const Inward = memo(function Inward() {
             productManufacturerName === selectedManufacturerName ||
             Boolean(
               selectedManufacturer &&
-                product.manufacturerId === selectedManufacturer.id,
+              product.manufacturerId === selectedManufacturer.id,
             )
           );
         })
         .map((product) => ({
-        value: product.id,
-        label: `${product.sku || "NO-SKU"} - ${product.name}`,
-        mrp: product.mrp ?? null,
-      }));
+          value: product.id,
+          label: `${product.sku || "NO-SKU"} - ${product.name}`,
+          mrp: product.mrp ?? null,
+        }));
     },
     [inwardEntryMode, invoiceForm.partyName, manufacturers, products],
   );
@@ -1723,24 +1723,6 @@ export const Inward = memo(function Inward() {
             <Group gap="xs" wrap="nowrap">
               <Badge size="sm" radius="md" variant="light" color="gray">
                 {poInvoices.length} Rows
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="orange">
-                {invoiceStats.pendingPrint} Pending
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="green">
-                {invoiceStats.printedCount} Printed
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="red">
-                {invoiceStats.canceledCount} Canceled
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="cyan">
-                {invoiceStats.totalRemaining} Remaining
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="blue">
-                {invoiceStats.totalBilled} Billed
-              </Badge>
-              <Badge size="sm" radius="md" variant="light" color="teal">
-                {invoiceStats.allottedCount} Allotted
               </Badge>
               <TextInput
                 size="xs"

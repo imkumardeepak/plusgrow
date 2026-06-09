@@ -264,12 +264,19 @@ export const Outward = memo(function Outward() {
       render: (row) => {
         const tone = statusTone(row.status);
         return (
-          <Badge size="sm" radius="md" variant="light" color={tone.color}>
-            {tone.label}
-          </Badge>
+          <Stack gap={2} align="flex-start">
+            <Badge size="sm" radius="md" variant="light" color={tone.color}>
+              {tone.label}
+            </Badge>
+            {row.status === "Canceled" && row.cancelRemark && (
+              <Text size="10px" c="dimmed" lineClamp={2} title={row.cancelRemark}>
+                {row.cancelRemark}
+              </Text>
+            )}
+          </Stack>
         );
       },
-      width: 110,
+      width: 140,
     },
   ];
 
@@ -495,21 +502,6 @@ export const Outward = memo(function Outward() {
           <Group gap="xs" wrap="nowrap">
             <Badge size="sm" radius="md" variant="light" color="gray">
               {metrics.total} Orders
-            </Badge>
-            <Badge size="sm" radius="md" variant="light" color="orange">
-              {metrics.open} Open
-            </Badge>
-            <Badge size="sm" radius="md" variant="light" color="yellow">
-              {metrics.picking} Picking
-            </Badge>
-            <Badge size="sm" radius="md" variant="light" color="blue">
-              {metrics.packed} Packed
-            </Badge>
-            <Badge size="sm" radius="md" variant="light" color="green">
-              {metrics.dispatched} Dispatched
-            </Badge>
-            <Badge size="sm" radius="md" variant="light" color="red">
-              {metrics.canceled} Canceled
             </Badge>
             <SegmentedControl
               size="xs"
