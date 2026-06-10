@@ -25,7 +25,7 @@ export function StockCheckReportItemsModal({
   }, [report]);
 
   return (
-    <Modal opened={!!report} onClose={onClose} title="Stock Check Items" centered size="lg">
+    <Modal opened={!!report} onClose={onClose} title="Stock Check Items" centered size="90vw">
       {report && (
         <Stack gap="sm">
           <Group justify="space-between" gap="xs">
@@ -53,8 +53,8 @@ export function StockCheckReportItemsModal({
               description="This report does not contain item details."
             />
           ) : (
-            <ScrollArea type="auto">
-              <Table striped highlightOnHover withTableBorder withColumnBorders miw={620}>
+            <ScrollArea type="auto" h="70vh">
+              <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>SKU</Table.Th>
@@ -68,15 +68,23 @@ export function StockCheckReportItemsModal({
                   {reportItems.map((item) => (
                     <Table.Tr key={item.sku}>
                       <Table.Td>
-                        <Text size="12px" fw={800} ff="monospace">
+                        <Text size="13px" fw={800} ff="monospace">
                           {item.sku}
                         </Text>
                       </Table.Td>
-                      <Table.Td style={{ textAlign: "right" }}>{item.systemQty}</Table.Td>
-                      <Table.Td style={{ textAlign: "right" }}>{item.scannedQty}</Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>
+                        <Text size="13px" fw={700} ff="monospace">
+                          {item.systemQty}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>
+                        <Text size="13px" fw={800} ff="monospace">
+                          {item.scannedQty}
+                        </Text>
+                      </Table.Td>
                       <Table.Td style={{ textAlign: "right" }}>
                         <Text
-                          size="12px"
+                          size="13px"
                           fw={900}
                           ff="monospace"
                           c={item.variance === 0 ? "green.4" : item.variance > 0 ? "yellow.4" : "red.4"}
