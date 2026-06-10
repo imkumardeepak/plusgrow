@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Eye, History, RefreshCw, Search } from "lucide-react";
+import { Eye, History, RefreshCw, Search } from "lucide-react";
 import { format } from "date-fns";
-import { ActionIcon, Badge as MBadge, Box, Group, ScrollArea, Select, Stack, Table, Text, TextInput, Tooltip } from "@mantine/core";
+import { ActionIcon, Badge as MBadge, Box, Group, Paper, ScrollArea, Select, Stack, Table, Text, TextInput, Tooltip } from "@mantine/core";
 
 import { Button } from "../../../components/atoms/Button";
 import { toast } from "../../../lib/toast";
@@ -43,31 +43,52 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
       title="Report History"
       description="View past stock check reports. Filter by type, date, and search."
       icon={History}
-      actions={
-        <Button variant="outline" leftIcon={<ArrowLeft size={16} />} onClick={onBack}>
-          Back to Hub
-        </Button>
-      }
+      hideHeader
     >
-      <ModeHeader title="Report History" icon={History} onBack={onBack} isMobile={isMobile} />
+      <ModeHeader
+        title="Report History"
+        icon={History}
+        onBack={onBack}
+        isMobile={isMobile}
+        actions={
+          <Button
+            size="xs"
+            variant="outline"
+            loading={isLoading}
+            onClick={() => void loadReports()}
+            leftIcon={<RefreshCw size={14} />}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
-      <OperationsPanel title="History" icon={History} description="Saved stock check snapshots.">
+      <OperationsPanel title="History" icon={History} description="Saved stock check snapshots." hideHeader>
         <Stack gap="sm">
-          <Group gap="xs" align="end">
-            <Box style={{ flex: 1, minWidth: 180 }}>
+          <Paper
+            radius="md"
+            p="xs"
+            withBorder
+            style={{
+              background: "linear-gradient(135deg, rgba(14,165,233,0.08), rgba(15,23,42,0.58))",
+              borderColor: "rgba(14,165,233,0.16)",
+            }}
+          >
+            <Group gap="xs" align="end" wrap={isMobile ? "wrap" : "nowrap"}>
+              <Box style={{ flex: 1, minWidth: isMobile ? "100%" : 220 }}>
               <Text size="10px" fw={800} c="dimmed" mb={4}>SEARCH</Text>
               <TextInput
-                size={isMobile ? "md" : "sm"}
+                size="sm"
                 placeholder="Reference, user, notes..."
                 value={search}
                 onChange={(event) => setSearch(event.currentTarget.value)}
                 leftSection={<Search size={14} />}
               />
-            </Box>
-            <Box style={{ width: isMobile ? "100%" : 180 }}>
+              </Box>
+              <Box style={{ width: isMobile ? "calc(100% - 92px)" : 180 }}>
               <Text size="10px" fw={800} c="dimmed" mb={4}>CHECK TYPE</Text>
               <Select
-                size={isMobile ? "md" : "sm"}
+                size="sm"
                 clearable
                 placeholder="All types"
                 value={checkType}
@@ -78,17 +99,13 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
                   { value: "PRODUCT", label: "Product" },
                 ]}
               />
-            </Box>
-            <Button
-              size={isMobile ? "md" : "sm"}
-              variant="outline"
-              loading={isLoading}
-              onClick={() => void loadReports()}
-              leftIcon={<RefreshCw size={15} />}
-            >
-              Refresh
-            </Button>
-          </Group>
+              </Box>
+              <Paper radius="md" px="sm" py={7} withBorder style={{ minWidth: 78, background: "rgba(15,23,42,0.6)", borderColor: "rgba(255,255,255,0.08)" }}>
+                <Text size="9px" fw={800} c="dimmed" ta="center">REPORTS</Text>
+                <Text size="sm" fw={900} c="cyan.3" ta="center">{reports.length}</Text>
+              </Paper>
+            </Group>
+          </Paper>
 
           {reports.length === 0 ? (
             <OperationsEmptyState
@@ -96,6 +113,36 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
               title="No Reports Found"
               description="Paused and completed stock checks will appear here."
             />
+          ) : isMobile ? (
+            <Stack gap="xs">
+              {reports.map((report) => (
+                <Paper key={report.id} radius="md" p="xs" withBorder style={{ background: "rgba(15,23,42,0.58)", borderColor: "rgba(255,255,255,0.08)" }}>
+                  <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Box className="min-w-0" style={{ flex: 1 }}>
+                      <Group gap={6} wrap="nowrap" mb={3}>
+                        <MBadge size="xs" variant="light" color="cyan">{report.checkType}</MBadge>
+                        <MBadge size="xs" variant="light" color={report.status === "COMPLETED" ? "green" : report.status === "PAUSED" ? "yellow" : "blue"}>
+                          {report.status}
+                        </MBadge>
+                      </Group>
+                      <Text size="12px" fw={800} c="white" truncate>{report.referenceName}</Text>
+                      <Text size="10px" c="dimmed" truncate>{format(new Date(report.createdAt), "dd MMM HH:mm")} · {report.performedByName || "-"}</Text>
+                    </Box>
+                    <Group gap="xs" wrap="nowrap">
+                      <Box ta="right">
+                        <Text size="9px" c="dimmed" fw={800}>VAR</Text>
+                        <Text size="13px" fw={900} ff="monospace" c={report.totalVariance === 0 ? "green.4" : report.totalVariance > 0 ? "yellow.4" : "red.4"}>
+                          {report.totalVariance > 0 ? "+" : ""}{report.totalVariance}
+                        </Text>
+                      </Box>
+                      <ActionIcon variant="subtle" color="cyan" onClick={() => setSelectedReport(report)}>
+                        <Eye size={15} />
+                      </ActionIcon>
+                    </Group>
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
           ) : (
             <ScrollArea type="auto">
               <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
