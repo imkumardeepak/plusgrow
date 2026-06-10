@@ -70,7 +70,6 @@ if (Test-Path $FrontendDir) {
     
     # Force Path injection for Node.js just in case Jenkins missed it
     $env:PATH = "D:\Program Files\nodejs;C:\Program Files\nodejs;" + $env:PATH
-    $env:NODE_ENV = "production"
     
     Write-Host "Installing NPM dependencies..."
     npm.cmd install
