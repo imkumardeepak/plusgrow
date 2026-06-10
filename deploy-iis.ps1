@@ -1,7 +1,9 @@
 param (
-    [string]$BackendDeployPath = "C:\inetpub\wwwroot\plusgrow-api",
-    [string]$FrontendDeployPath = "C:\inetpub\wwwroot\plusgrow-app",
-    [string]$AppPoolName = "PlusGrowApiAppPool"
+    [string]$BackendDeployPath = "D:\LiveRunning\Backend",
+    [string]$FrontendDeployPath = "D:\LiveRunning\Frontend",
+    [string]$BackendBackupPath = "D:\Backup_Website\Backend",
+    [string]$FrontendBackupPath = "D:\Backup_Website\Frontend",
+    [string]$AppPoolName = "DefaultAppPool"
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,9 +23,38 @@ try {
     Write-Host "⚠️ Could not stop App Pool (it might not exist yet or need admin privileges). Continuing..." -ForegroundColor Yellow
 }
 
-Write-Host "`n2. Building and Publishing Backend (ASP.NET Core)..."
+Write-Host "`n2. Backing up existing live folders..."
+try {
+    if (Test-Path $BackendDeployPath) {
+        if (-not (Test-Path $BackendBackupPath)) {
+            New-Item -ItemType Directory -Force -Path $BackendBackupPath | Out-Null
+        }
+        # Clean old backup
+        Remove-Item -Path "$BackendBackupPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path "$BackendDeployPath\*" -Destination $BackendBackupPath -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "✅ Backend backed up to $BackendBackupPath" -ForegroundColor Green
+    }
+
+    if (Test-Path $FrontendDeployPath) {
+        if (-not (Test-Path $FrontendBackupPath)) {
+            New-Item -ItemType Directory -Force -Path $FrontendBackupPath | Out-Null
+        }
+        # Clean old backup
+        Remove-Item -Path "$FrontendBackupPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path "$FrontendDeployPath\*" -Destination $FrontendBackupPath -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "✅ Frontend backed up to $FrontendBackupPath" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "⚠️ Could not complete backup. Continuing..." -ForegroundColor Yellow
+}
+
+Write-Host "`n3. Building and Publishing Backend (ASP.NET Core)..."
 $BackendProject = "Backend/PlusgrowWms.Api/PlusgrowWms.Api.csproj"
 if (Test-Path $BackendProject) {
+    # Clean the old files first in the deploy path
+    if (Test-Path $BackendDeployPath) {
+        Remove-Item -Path "$BackendDeployPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+    }
     # We publish directly to the IIS folder
     dotnet publish $BackendProject -c Release -o $BackendDeployPath
     Write-Host "✅ Backend published successfully to $BackendDeployPath" -ForegroundColor Green
@@ -32,7 +63,7 @@ if (Test-Path $BackendProject) {
     exit 1
 }
 
-Write-Host "`n3. Building Frontend (React/Vite)..."
+Write-Host "`n4. Building Frontend (React/Vite)..."
 $FrontendDir = "Frontend"
 if (Test-Path $FrontendDir) {
     Push-Location $FrontendDir
@@ -59,7 +90,7 @@ if (Test-Path $FrontendDir) {
     exit 1
 }
 
-Write-Host "`n4. Starting IIS App Pool ($AppPoolName)..."
+Write-Host "`n5. Starting IIS App Pool ($AppPoolName)..."
 try {
     Start-WebAppPool -Name $AppPoolName
     Write-Host "✅ App Pool started." -ForegroundColor Green

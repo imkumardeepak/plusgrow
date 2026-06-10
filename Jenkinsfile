@@ -3,9 +3,11 @@ pipeline {
 
     environment {
         // You can change these variables directly here or in the deploy-iis.ps1 script
-        BACKEND_DEPLOY_PATH = 'C:\\inetpub\\wwwroot\\plusgrow-api'
-        FRONTEND_DEPLOY_PATH = 'C:\\inetpub\\wwwroot\\plusgrow-app'
-        APP_POOL_NAME = 'PlusGrowApiAppPool'
+        BACKEND_DEPLOY_PATH = 'D:\\LiveRunning\\Backend'
+        FRONTEND_DEPLOY_PATH = 'D:\\LiveRunning\\Frontend'
+        BACKEND_BACKUP_PATH = 'D:\\Backup_Website\\Backend'
+        FRONTEND_BACKUP_PATH = 'D:\\Backup_Website\\Frontend'
+        APP_POOL_NAME = 'DefaultAppPool'
     }
 
     stages {
@@ -15,7 +17,7 @@ pipeline {
                     echo "Starting Deployment to IIS..."
                     // Execute the PowerShell script that handles the build and copy
                     powershell '''
-                        .\\deploy-iis.ps1 -BackendDeployPath $env:BACKEND_DEPLOY_PATH -FrontendDeployPath $env:FRONTEND_DEPLOY_PATH -AppPoolName $env:APP_POOL_NAME
+                        .\\deploy-iis.ps1 -BackendDeployPath $env:BACKEND_DEPLOY_PATH -FrontendDeployPath $env:FRONTEND_DEPLOY_PATH -BackendBackupPath $env:BACKEND_BACKUP_PATH -FrontendBackupPath $env:FRONTEND_BACKUP_PATH -AppPoolName $env:APP_POOL_NAME
                     '''
                 }
             }
