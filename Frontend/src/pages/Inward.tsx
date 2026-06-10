@@ -423,6 +423,8 @@ export const Inward = memo(function Inward() {
         .map((product) => ({
           value: product.id,
           label: `${product.sku || "NO-SKU"} - ${product.name}`,
+          sku: product.sku || "",
+          alias: product.alias || "",
           mrp: product.mrp ?? null,
         }));
     },

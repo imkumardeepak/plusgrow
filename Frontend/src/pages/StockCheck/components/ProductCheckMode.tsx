@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ClipboardCheck, MapPin, Package, Save, ScanLine, Trash2 } from "lucide-react";
-import { Badge as MBadge, Box, Group, Modal, Paper, Select, SimpleGrid, Stack, Text } from "@mantine/core";
+import { Badge as MBadge, Box, Group, Modal, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
 
 import { Button } from "../../../components/atoms/Button";
 import { toast } from "../../../lib/toast";
@@ -22,6 +22,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   const [checkId, setCheckId] = useState(() => createStockCheckId("Product"));
   const [reportId, setReportId] = useState<number | undefined>();
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
+  const [productLookupInput, setProductLookupInput] = useState("");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -40,6 +41,22 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     setSessionStatus(value ? "running" : "idle");
     setScanInput("");
     setScannedItems([]);
+  };
+
+  const handleProductLookupScan = (value: string) => {
+    const sku = normalizeSku(value.split("#")[0]);
+    const product = products.find(
+      (p) => normalizeSku(p.sku) === sku || normalizeSku(p.alias) === sku,
+    );
+
+    if (!product) {
+      toast.error(`Product ${sku} not found by SKU/Alias`);
+      setProductLookupInput("");
+      return;
+    }
+
+    setProductLookupInput("");
+    handleProductChange(String(product.id));
   };
 
   const loadData = useCallback(async () => {
@@ -275,24 +292,17 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
               <Paper radius="lg" p="sm" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}>
                 <Text size="xs" c="dimmed">Step 1: Select a product to begin counting.</Text>
               </Paper>
-              <Box>
-                <Text size="10px" fw={800} c="dimmed" mb={4}>SELECT PRODUCT</Text>
-                <Select
-                  size={isMobile ? "md" : "sm"}
-                  placeholder="Search product SKU or name..."
-                  searchable
-                  clearable
-                  data={products.map((p) => ({
-                    value: String(p.id),
-                    label: p.alias ? `${normalizeSku(p.sku)} — ${p.name} (${p.alias})` : `${normalizeSku(p.sku)} — ${p.name}`,
-                  }))}
-                  value={selectedProductId}
-                  onChange={handleProductChange}
-                  disabled={isLoading}
-                  nothingFoundMessage="No products found"
-                  maxDropdownHeight={300}
-                />
-              </Box>
+              <ScanInput
+                label="Scan SKU / Alias"
+                placeholder="Scan product SKU or alias..."
+                value={productLookupInput}
+                onChange={setProductLookupInput}
+                onScan={handleProductLookupScan}
+                icon={<ScanLine size={15} />}
+                disabled={isLoading}
+                autoFocus
+                isMobile={isMobile}
+              />
             </Stack>
           ) : (
             <Stack gap="md">

@@ -10,7 +10,7 @@ import {
   Tabs,
   Text,
 } from "@mantine/core";
-import { Download, Loader2, Plus, Upload } from "lucide-react";
+import { Download, Loader2, Plus, ScanLine, Upload } from "lucide-react";
 
 import { Button } from "../../../components/atoms/Button";
 import { Input } from "../../../components/atoms/Input";
@@ -41,7 +41,7 @@ interface InwardInvoiceModalProps {
   invoicePartyOptions: SelectOption[];
   invoiceManufacturerSearch: string;
   invoicePartySearch: string;
-  productOptions: Array<{ value: number; label: string; mrp?: number | null }>;
+  productOptions: Array<{ value: number; label: string; sku?: string; alias?: string; mrp?: number | null }>;
   productSearch: string;
   skippedRowCount: number;
   isInvoiceLineUploading: boolean;
@@ -103,6 +103,32 @@ export function InwardInvoiceModal({
   getProductLabel,
 }: InwardInvoiceModalProps) {
   const isThirdParty = inwardEntryMode === "thirdParty";
+
+  const normalizeProductCode = (value?: string | null) =>
+    (value || "").trim().toUpperCase();
+
+  const selectProductByCode = (value: string) => {
+    const normalized = normalizeProductCode(value.split("#")[0]);
+    if (!normalized) {
+      onInvoiceFormChange((prev) => ({ ...prev, productId: 0, mrp: null }));
+      return;
+    }
+
+    const product = productOptions.find(
+      (option) =>
+        normalizeProductCode(option.sku) === normalized ||
+        normalizeProductCode(option.alias) === normalized,
+    );
+
+    if (!product) return;
+
+    onProductSearchChange(product.sku || normalized);
+    onInvoiceFormChange((prev) => ({
+      ...prev,
+      productId: product.value,
+      mrp: product.mrp ?? null,
+    }));
+  };
 
   return (
     <Modal
@@ -209,31 +235,34 @@ export function InwardInvoiceModal({
                     {editingInvoice ? "Product Row" : "Product Lines"}
                   </Text>
                   <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
-                    <Select
-                      label="Product"
-                      placeholder="Select product"
-                      data={productOptions.map((option) => ({
-                        value: String(option.value),
-                        label: option.label,
-                      }))}
-                      searchValue={productSearch}
-                      onSearchChange={onProductSearchChange}
-                      value={
-                        invoiceForm.productId ? String(invoiceForm.productId) : null
-                      }
-                      onChange={(value) => {
-                        const product = productOptions.find(
-                          (option) => String(option.value) === value,
-                        );
-                        onInvoiceFormChange((prev) => ({
-                          ...prev,
-                          productId: value ? Number(value) : 0,
-                          mrp: product?.mrp ?? null,
-                        }));
-                      }}
-                      searchable
-                      styles={selectStyles}
-                    />
+                    <Stack gap={4}>
+                      <Input
+                        label="Scan SKU / Alias"
+                        placeholder="Scan or type SKU/Alias"
+                        value={productSearch}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          onProductSearchChange(value);
+                          selectProductByCode(value);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            selectProductByCode(productSearch);
+                          }
+                        }}
+                        leftIcon={<ScanLine size={14} />}
+                      />
+                      {invoiceForm.productId ? (
+                        <Text size="10px" fw={800} c="green.3" ff="monospace" truncate>
+                          {getProductLabel(invoiceForm.productId)}
+                        </Text>
+                      ) : (
+                        <Text size="10px" c="dimmed">
+                          Exact SKU or alias will auto select product
+                        </Text>
+                      )}
+                    </Stack>
                     <Input
                       label="Billed Qty."
                       type="number"
