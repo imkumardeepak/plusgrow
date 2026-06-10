@@ -313,12 +313,12 @@ function StockCheckHub({
         </Paper>
       )}
 
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing={isMobile ? "xs" : "md"}>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} spacing={isMobile ? "xs" : "sm"}>
         {cards.map((card) => (
           <Paper
             key={card.mode}
-            radius={isMobile ? "md" : "xl"}
-            p={isMobile ? "xs" : "lg"}
+            radius="md"
+            p={isMobile ? "xs" : "sm"}
             withBorder
             onClick={() => onSelectMode(card.mode)}
             style={{
@@ -330,67 +330,36 @@ function StockCheckHub({
             }}
             className="hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
           >
-            {isMobile ? (
-              <Group gap="sm" wrap="nowrap" align="center">
-                <ThemeIcon
-                  size={34}
-                  radius="md"
-                  style={{
-                    background: card.color.replace("0.8", "0.2"),
-                    border: `1px solid ${card.color.replace("0.8", "0.35")}`,
-                    color: card.color.replace("0.8", "1"),
-                  }}
-                >
-                  <card.icon size={17} />
-                </ThemeIcon>
-                <Box className="min-w-0" style={{ flex: 1 }}>
-                  <Group gap={6} wrap="nowrap">
-                    <Text fw={800} size="sm" c="white" truncate>
-                      {card.title}
-                    </Text>
-                    {card.small && (
-                      <MBadge size="xs" variant="light" color="indigo" radius="sm">
-                        Quick
-                      </MBadge>
-                    )}
-                  </Group>
-                  <Text size="10px" c="dimmed" truncate style={{ lineHeight: 1.25 }}>
-                    {card.description}
-                  </Text>
-                </Box>
-                <ChevronRight size={16} color="rgba(255,255,255,0.35)" />
-              </Group>
-            ) : (
-              <Stack gap="sm">
-                <Group justify="space-between" align="flex-start">
-                  <ThemeIcon
-                    size={48}
-                    radius="xl"
-                    style={{
-                      background: card.color.replace("0.8", "0.2"),
-                      border: `1px solid ${card.color.replace("0.8", "0.35")}`,
-                      color: card.color.replace("0.8", "1"),
-                    }}
-                  >
-                    <card.icon size={24} />
-                  </ThemeIcon>
-                  <ChevronRight size={18} color="rgba(255,255,255,0.3)" />
-                </Group>
-                <Box>
-                  <Text fw={800} size="md" c="white" mb={4}>
+            <Group gap="sm" wrap="nowrap" align="center">
+              <ThemeIcon
+                size={isMobile ? 34 : 38}
+                radius="md"
+                style={{
+                  background: card.color.replace("0.8", "0.2"),
+                  border: `1px solid ${card.color.replace("0.8", "0.35")}`,
+                  color: card.color.replace("0.8", "1"),
+                  flexShrink: 0,
+                }}
+              >
+                <card.icon size={isMobile ? 17 : 19} />
+              </ThemeIcon>
+              <Box className="min-w-0" style={{ flex: 1 }}>
+                <Group gap={6} wrap="nowrap">
+                  <Text fw={800} size={isMobile ? "sm" : "13px"} c="white" truncate>
                     {card.title}
                   </Text>
-                  <Text size="xs" c="dimmed" style={{ lineHeight: 1.55 }}>
-                    {card.description}
-                  </Text>
-                </Box>
-                {card.small && (
-                  <MBadge size="xs" variant="light" color="indigo" radius="md">
-                    Quick Lookup
-                  </MBadge>
-                )}
-              </Stack>
-            )}
+                  {card.small && (
+                    <MBadge size="xs" variant="light" color="indigo" radius="sm">
+                      Quick
+                    </MBadge>
+                  )}
+                </Group>
+                <Text size={isMobile ? "10px" : "11px"} c="dimmed" truncate style={{ lineHeight: 1.25 }}>
+                  {card.description}
+                </Text>
+              </Box>
+              <ChevronRight size={16} color="rgba(255,255,255,0.35)" />
+            </Group>
           </Paper>
         ))}
       </SimpleGrid>
