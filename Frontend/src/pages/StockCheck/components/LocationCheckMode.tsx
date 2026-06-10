@@ -1,42 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  ClipboardCheck,
-  MapPin,
-  Package,
-  Save,
-  ScanLine,
-  Trash2,
-} from "lucide-react";
-import {
-  Badge as MBadge,
-  Box,
-  Group,
-  Modal,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { CheckCircle2, ClipboardCheck, MapPin, Package, Save, ScanLine, Trash2 } from "lucide-react";
+import { Badge as MBadge, Box, Group, Modal, Paper, SimpleGrid, Stack, Text } from "@mantine/core";
 
 import { Button } from "../../../components/atoms/Button";
 import { toast } from "../../../lib/toast";
-import {
-  OperationsPage,
-  OperationsPanel,
-  OperationsEmptyState,
-} from "../../../components/organisms/Operations/OperationsShell";
-import {
-  productAllottedLocationsApi,
-  ProductAllottedLocationRecord,
-  productQuantitiesApi,
-  Product,
-  ProductQuantityRecord,
-  productsApi,
-} from "../../../services/masterApi";
-
-import type { ScannedItem } from "../types";
-import { normalizeSku, getLocationJson, saveStockCheckReport } from "../types";
+import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
+import { productAllottedLocationsApi, ProductAllottedLocationRecord, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
+import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
+import { clearStockCheckDraft, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -49,6 +20,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const [locationCode, setLocationCode] = useState("");
   const [isLocationLocked, setIsLocationLocked] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,6 +47,32 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const draft = readStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+    if (!draft?.referenceCode) return;
+
+    setLocationCode(draft.referenceCode);
+    setIsLocationLocked(!!draft.isLocked);
+    setSessionStatus(draft.sessionStatus);
+    setScanInput(draft.scanInput || "");
+    setScannedItems(draft.scannedItems || []);
+  }, []);
+
+  useEffect(() => {
+    if (!isLocationLocked || !locationCode) {
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+      return;
+    }
+
+    writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location, {
+      referenceCode: normalizeSku(locationCode),
+      isLocked: isLocationLocked,
+      sessionStatus,
+      scanInput,
+      scannedItems,
+    });
+  }, [isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
 
   const systemItemsAtLocation = useMemo(() => {
     if (!isLocationLocked || !locationCode) return [];
@@ -107,21 +105,35 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     }
   }, [isLocationLocked, systemItemsAtLocation]);
 
+  useEffect(() => {
+    if (isLocationLocked && sessionStatus === "running") {
+      setTimeout(() => scanInputRef.current?.focus(), 10);
+    }
+  }, [isLocationLocked, sessionStatus]);
+
   const handleLocationScan = (val: string) => {
     const upper = normalizeSku(val);
     setLocationCode(upper);
     setIsLocationLocked(true);
+    setSessionStatus("running");
     setScannedItems([]);
     toast.success(`Location ${upper} loaded`);
     setTimeout(() => scanInputRef.current?.focus(), 100);
   };
 
   const handleProductScan = (val: string) => {
+    if (sessionStatus !== "running") {
+      toast.warning("Start the stock check before scanning products");
+      return;
+    }
+
     const sku = normalizeSku(val.split("#")[0]);
     setScanInput("");
 
     setScannedItems((prev) => {
-      const existing = prev.find((item) => item.sku === sku || item.alias === sku);
+      const existing = prev.find(
+        (item) => item.sku === sku || item.alias === sku,
+      );
 
       if (existing) {
         return prev.map((item) =>
@@ -134,7 +146,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
       );
 
       if (product) {
-        toast.warning(`${product.name} — unexpected at this location`);
+        toast.warning(`${normalizeSku(product.sku)} — unexpected at this location`);
         return [
           ...prev,
           {
@@ -160,16 +172,32 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     setScannedItems((prev) => prev.filter((item) => item.sku !== sku));
   };
 
+  const persistReport = async (status: StockCheckReportStatus) => {
+    const upperLoc = normalizeSku(locationCode);
+    await saveStockCheckReport("Location", upperLoc, scannedItems, status);
+  };
+
+  const handlePause = async () => {
+    setIsSaving(true);
+    try {
+      await persistReport("PAUSED");
+      setSessionStatus("paused");
+      toast.success("Location stock check paused");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause stock check");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      const upperLoc = normalizeSku(locationCode);
-
-      await saveStockCheckReport("Location", upperLoc, scannedItems);
-
-      toast.success("Stock check saved successfully");
+      await persistReport("COMPLETED");
+      toast.success("Stock check report completed");
       setIsLocationLocked(false);
+      setSessionStatus("idle");
       setLocationCode("");
       setScannedItems([]);
       setScanInput("");
@@ -199,7 +227,12 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setIsLocationLocked(false); setScannedItems([]); setScanInput(""); }}
+                onClick={() => {
+                  setIsLocationLocked(false);
+                  setSessionStatus("idle");
+                  setScannedItems([]);
+                  setScanInput("");
+                }}
               >
                 Change
               </Button>
@@ -217,8 +250,17 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
         >
           {!isLocationLocked ? (
             <Stack gap="md">
-              <Paper radius="lg" p="sm" style={{ background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.15)" }}>
-                <Text size="xs" c="dimmed">Step 1: Scan or enter a location barcode to begin stock check at that location.</Text>
+              <Paper
+                radius="lg"
+                p="sm"
+                style={{
+                  background: "rgba(14,165,233,0.08)",
+                  border: "1px solid rgba(14,165,233,0.15)",
+                }}
+              >
+                <Text size="xs" c="dimmed">
+                  Step 1: Scan or enter a location barcode to begin stock check at that location.
+                </Text>
               </Paper>
               <ScanInput
                 label="Location Code"
@@ -233,10 +275,19 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
             </Stack>
           ) : (
             <Stack gap="md">
-              <Paper radius="lg" p="sm" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}>
+              <Paper
+                radius="lg"
+                p="sm"
+                style={{
+                  background: "rgba(16,185,129,0.08)",
+                  border: "1px solid rgba(16,185,129,0.15)",
+                }}
+              >
                 <Group gap="xs" wrap="nowrap">
                   <CheckCircle2 size={16} color="var(--mantine-color-green-4)" />
-                  <Text size="xs" c="dimmed">Location locked. Scan products (SKU/Alias) one by one.</Text>
+                  <Text size="xs" c="dimmed">
+                    Location locked. Scan products (SKU/Alias) one by one.
+                  </Text>
                 </Group>
               </Paper>
 
@@ -247,10 +298,37 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
                 onChange={setScanInput}
                 onScan={handleProductScan}
                 icon={<Package size={15} />}
+                disabled={sessionStatus !== "running"}
                 autoFocus
                 id="location-product-scan"
                 isMobile={isMobile}
+                inputRef={scanInputRef}
               />
+
+              <Group gap="xs">
+                {sessionStatus === "running" ? (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    variant="outline"
+                    fullWidth
+                    loading={isSaving}
+                    onClick={handlePause}
+                  >
+                    Pause
+                  </Button>
+                ) : (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth
+                    onClick={() => {
+                      setSessionStatus("running");
+                      setTimeout(() => scanInputRef.current?.focus(), 10);
+                    }}
+                  >
+                    {sessionStatus === "paused" ? "Resume" : "Start"}
+                  </Button>
+                )}
+              </Group>
 
               <Paper radius="lg" p="xs" withBorder bg="transparent">
                 <Text size="10px" fw={800} c="dimmed" mb={4}>SCAN SUMMARY</Text>
@@ -266,16 +344,18 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
                 </SimpleGrid>
               </Paper>
 
-              <Button
-                size={isMobile ? "md" : "sm"}
-                fullWidth
-                disabled={!hasVariance && scannedItems.every(i => i.scannedQty === 0)}
-                loading={isSaving}
-                onClick={() => setShowConfirm(true)}
-                leftIcon={<Save size={16} />}
-              >
-                Save Stock Check
-              </Button>
+              <Group gap="xs">
+                <Button
+                  size={isMobile ? "md" : "sm"}
+                  fullWidth
+                  disabled={!hasVariance && scannedItems.every(i => i.scannedQty === 0)}
+                  loading={isSaving}
+                  onClick={() => setShowConfirm(true)}
+                  leftIcon={<Save size={16} />}
+                >
+                  Complete Stock Check
+                </Button>
+              </Group>
               <Button
                 variant="subtle"
                 size="xs"
@@ -301,17 +381,27 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
           contentClassName="overflow-y-auto scrollbar-thin"
         >
           {!isLocationLocked ? (
-            <OperationsEmptyState icon={MapPin} title="Scan Location First" description="Scan a location barcode to load expected products and start scanning." />
+            <OperationsEmptyState
+              icon={MapPin}
+              title="Scan Location First"
+              description="Scan a location barcode to load expected products and start scanning."
+            />
           ) : (
             <VarianceTable items={scannedItems} isMobile={isMobile} onRemove={handleRemoveItem} />
           )}
         </OperationsPanel>
       </div>
 
-      <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
+      <Modal
+        opened={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        title="Confirm Stock Check Save"
+        centered
+        size="sm"
+      >
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will save a stock check report for <strong>{locationCode}</strong> based on scanned counts.
+            This will save a completed stock check report for <strong>{locationCode}</strong>. Inventory quantities will not be adjusted here.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
@@ -320,7 +410,9 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
             </Paper>
             <Paper radius="md" p="xs" withBorder>
               <Text size="9px" fw={800} c="dimmed">TOTAL VARIANCE</Text>
-              <Text fw={700} c="yellow.4">{scannedItems.reduce((s, i) => s + (i.scannedQty - i.systemQty), 0)}</Text>
+              <Text fw={700} c="yellow.4">
+                {scannedItems.reduce((s, i) => s + (i.scannedQty - i.systemQty), 0)}
+              </Text>
             </Paper>
           </SimpleGrid>
           <Group justify="flex-end" gap="xs">

@@ -72,7 +72,6 @@ export function VarianceTable({
           <Table.Thead>
             <Table.Tr>
               <Table.Th>SKU</Table.Th>
-              <Table.Th>Product</Table.Th>
               <Table.Th style={{ textAlign: "right" }}>System</Table.Th>
               <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
               <Table.Th style={{ textAlign: "right" }}>Variance</Table.Th>
@@ -94,9 +93,6 @@ export function VarianceTable({
                         <MBadge size="xs" color="orange" variant="light">NEW</MBadge>
                       )}
                     </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="12px" fw={600} lineClamp={1}>{item.productName}</Text>
                   </Table.Td>
                   <Table.Td style={{ textAlign: "right" }}>
                     <Text size="12px" fw={700} ff="monospace">{item.systemQty}</Text>

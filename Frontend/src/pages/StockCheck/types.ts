@@ -1,5 +1,9 @@
 export type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
 
+export type CheckSessionStatus = "idle" | "running" | "paused";
+
+export type StockCheckReportStatus = "PAUSED" | "COMPLETED";
+
 export type ScannedItem = {
   sku: string;
   productName: string;
@@ -8,6 +12,16 @@ export type ScannedItem = {
   systemQty: number;
   isUnexpected: boolean;
   alias?: string;
+};
+
+export type StockCheckDraft = {
+  referenceId?: string | null;
+  referenceCode?: string;
+  isLocked?: boolean;
+  sessionStatus: CheckSessionStatus;
+  scanInput: string;
+  scannedItems: ScannedItem[];
+  updatedAt: string;
 };
 
 export type LocationStock = {
@@ -53,10 +67,40 @@ export const getLocationJson = (
   );
 };
 
+export const STOCK_CHECK_DRAFT_KEYS = {
+  location: "plusgrow.stockCheck.locationDraft",
+  manufacturer: "plusgrow.stockCheck.manufacturerDraft",
+  product: "plusgrow.stockCheck.productDraft",
+} as const;
+
+export const readStockCheckDraft = (key: string): StockCheckDraft | null => {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as StockCheckDraft) : null;
+  } catch {
+    return null;
+  }
+};
+
+export const writeStockCheckDraft = (key: string, draft: Omit<StockCheckDraft, "updatedAt">) => {
+  window.localStorage.setItem(
+    key,
+    JSON.stringify({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+};
+
+export const clearStockCheckDraft = (key: string) => {
+  window.localStorage.removeItem(key);
+};
+
 export const saveStockCheckReport = async (
   checkType: string,
   referenceName: string,
   scannedItems: ScannedItem[],
+  status: StockCheckReportStatus,
 ) => {
   const totalSystem = scannedItems.reduce((s, i) => s + i.systemQty, 0);
   const totalScanned = scannedItems.reduce((s, i) => s + i.scannedQty, 0);
@@ -71,21 +115,16 @@ export const saveStockCheckReport = async (
     isUnexpected: i.isUnexpected,
   }));
 
-  try {
-    const { stockCheckReportsApi } = await import("../../services/masterApi");
-    await stockCheckReportsApi.create({
-      checkType,
-      referenceName,
-      totalSystemQty: totalSystem,
-      totalScannedQty: totalScanned,
-      totalVariance: totalScanned - totalSystem,
-      itemsChecked: scannedItems.length,
-      itemsWithVariance,
-      itemsJson: JSON.stringify(items),
-    });
-  } catch {
-    // Report saving is best-effort, don't block the main save flow
-    console.warn("Failed to save stock check report");
-  }
+  const { stockCheckReportsApi } = await import("../../services/masterApi");
+  await stockCheckReportsApi.create({
+    checkType,
+    referenceName,
+    totalSystemQty: totalSystem,
+    totalScannedQty: totalScanned,
+    totalVariance: totalScanned - totalSystem,
+    itemsChecked: scannedItems.length,
+    itemsWithVariance,
+    itemsJson: JSON.stringify(items),
+    status,
+  });
 };
-

@@ -12,6 +12,7 @@ export function ScanInput({
   autoFocus,
   id,
   isMobile,
+  inputRef,
 }: {
   label: string;
   placeholder: string;
@@ -23,14 +24,16 @@ export function ScanInput({
   autoFocus?: boolean;
   id?: string;
   isMobile: boolean;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }) {
-  const ref = useRef<HTMLInputElement>(null);
+  const internalRef = useRef<HTMLInputElement>(null);
+  const ref = inputRef ?? internalRef;
 
   useEffect(() => {
     if (autoFocus) {
       setTimeout(() => ref.current?.focus(), 50);
     }
-  }, [autoFocus]);
+  }, [autoFocus, ref]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && value.trim()) {

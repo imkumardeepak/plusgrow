@@ -1,43 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  ClipboardCheck,
-  Factory,
-  Package,
-  Save,
-  ScanLine,
-  Trash2,
-} from "lucide-react";
-import {
-  Badge as MBadge,
-  Box,
-  Group,
-  Modal,
-  Paper,
-  Select,
-  SimpleGrid,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { CheckCircle2, ClipboardCheck, Factory, Package, Save, ScanLine, Trash2 } from "lucide-react";
+import { Badge as MBadge, Box, Group, Modal, Paper, Select, SimpleGrid, Stack, Text } from "@mantine/core";
 
 import { Button } from "../../../components/atoms/Button";
 import { toast } from "../../../lib/toast";
-import {
-  OperationsPage,
-  OperationsPanel,
-  OperationsEmptyState,
-} from "../../../components/organisms/Operations/OperationsShell";
-import {
-  Manufacturer,
-  manufacturersApi,
-  productQuantitiesApi,
-  Product,
-  ProductQuantityRecord,
-  productsApi,
-} from "../../../services/masterApi";
-
-import type { ScannedItem } from "../types";
-import { normalizeSku, saveStockCheckReport } from "../types";
+import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
+import { Manufacturer, manufacturersApi, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
+import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
+import { clearStockCheckDraft, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -49,12 +19,20 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedMfrId, setSelectedMfrId] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleManufacturerChange = (value: string | null) => {
+    setSelectedMfrId(value);
+    setSessionStatus(value ? "running" : "idle");
+    setScanInput("");
+    setScannedItems([]);
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -76,6 +54,30 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
 
   useEffect(() => { void loadData(); }, [loadData]);
 
+  useEffect(() => {
+    const draft = readStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+    if (!draft?.referenceId) return;
+
+    setSelectedMfrId(draft.referenceId);
+    setSessionStatus(draft.sessionStatus);
+    setScanInput(draft.scanInput || "");
+    setScannedItems(draft.scannedItems || []);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMfrId) {
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+      return;
+    }
+
+    writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer, {
+      referenceId: selectedMfrId,
+      sessionStatus,
+      scanInput,
+      scannedItems,
+    });
+  }, [scanInput, scannedItems, selectedMfrId, sessionStatus]);
+
   const mfrProducts = useMemo(() => {
     if (!selectedMfrId) return [];
     const mfrIdNum = Number(selectedMfrId);
@@ -83,7 +85,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   }, [selectedMfrId, products]);
 
   useEffect(() => {
-    if (selectedMfrId && mfrProducts.length > 0) {
+    if (selectedMfrId && mfrProducts.length > 0 && scannedItems.length === 0) {
       const items: ScannedItem[] = mfrProducts.map((p) => {
         const qRow = quantityRows.find((q) => q.productId === p.id);
         return {
@@ -97,13 +99,25 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
         };
       });
       setScannedItems(items.sort((a, b) => a.sku.localeCompare(b.sku)));
+      setSessionStatus("running");
       setTimeout(() => scanInputRef.current?.focus(), 100);
     }
-  }, [selectedMfrId, mfrProducts, quantityRows]);
+  }, [selectedMfrId, mfrProducts, quantityRows, scannedItems.length]);
+
+  useEffect(() => {
+    if (selectedMfrId && sessionStatus === "running") {
+      setTimeout(() => scanInputRef.current?.focus(), 10);
+    }
+  }, [selectedMfrId, sessionStatus]);
 
   const selectedMfr = manufacturers.find((m) => m.id === Number(selectedMfrId));
 
   const handleProductScan = (val: string) => {
+    if (sessionStatus !== "running") {
+      toast.warning("Start the stock check before scanning products");
+      return;
+    }
+
     const sku = normalizeSku(val.split("#")[0]);
     setScanInput("");
 
@@ -123,8 +137,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
       if (product) {
         const isDiffMfr = product.manufacturerId !== Number(selectedMfrId);
         if (isDiffMfr) {
-          const otherMfr = manufacturers.find((m) => m.id === product.manufacturerId);
-          toast.warning(`${product.name} belongs to ${otherMfr?.name || "different manufacturer"}`);
+          toast.warning(`${normalizeSku(product.sku)} belongs to a different manufacturer`);
         }
         const qRow = quantityRows.find((q) => q.productId === product.id);
         return [
@@ -148,14 +161,31 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     setTimeout(() => scanInputRef.current?.focus(), 10);
   };
 
+  const persistReport = async (status: StockCheckReportStatus) => {
+    await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status);
+  };
+
+  const handlePause = async () => {
+    setIsSaving(true);
+    try {
+      await persistReport("PAUSED");
+      setSessionStatus("paused");
+      toast.success("Manufacturer stock check paused");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems);
-
-      toast.success("Manufacturer stock check saved");
+      await persistReport("COMPLETED");
+      toast.success("Manufacturer stock check completed");
       setSelectedMfrId(null);
+      setSessionStatus("idle");
       setScannedItems([]);
       setScanInput("");
       await loadData();
@@ -181,7 +211,11 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
               <MBadge size={isMobile ? "sm" : "md"} radius="md" variant="light" color="yellow">
                 {selectedMfr.name}
               </MBadge>
-              <Button variant="subtle" size="xs" onClick={() => { setSelectedMfrId(null); setScannedItems([]); setScanInput(""); }}>
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={() => { setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
+              >
                 Change
               </Button>
             </Group>
@@ -207,9 +241,10 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
                   size={isMobile ? "md" : "sm"}
                   placeholder="Search manufacturer..."
                   searchable
+                  clearable
                   data={manufacturers.map((m) => ({ value: String(m.id), label: m.name }))}
                   value={selectedMfrId}
-                  onChange={setSelectedMfrId}
+                  onChange={handleManufacturerChange}
                   disabled={isLoading}
                   nothingFoundMessage="No manufacturers found"
                 />
@@ -220,7 +255,9 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
               <Paper radius="lg" p="sm" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}>
                 <Group gap="xs" wrap="nowrap">
                   <CheckCircle2 size={16} color="var(--mantine-color-green-4)" />
-                  <Text size="xs" c="dimmed">{mfrProducts.length} products loaded. Scan SKU/Alias to count.</Text>
+                  <Text size="xs" c="dimmed">
+                    {mfrProducts.length} products loaded. Scan SKU/Alias to count.
+                  </Text>
                 </Group>
               </Paper>
 
@@ -231,9 +268,36 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
                 onChange={setScanInput}
                 onScan={handleProductScan}
                 icon={<Package size={15} />}
+                disabled={sessionStatus !== "running"}
                 autoFocus
                 isMobile={isMobile}
+                inputRef={scanInputRef}
               />
+
+              <Group gap="xs">
+                {sessionStatus === "running" ? (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    variant="outline"
+                    fullWidth
+                    loading={isSaving}
+                    onClick={handlePause}
+                  >
+                    Pause
+                  </Button>
+                ) : (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth
+                    onClick={() => {
+                      setSessionStatus("running");
+                      setTimeout(() => scanInputRef.current?.focus(), 10);
+                    }}
+                  >
+                    {sessionStatus === "paused" ? "Resume" : "Start"}
+                  </Button>
+                )}
+              </Group>
 
               <Paper radius="lg" p="xs" withBorder bg="transparent">
                 <Text size="10px" fw={800} c="dimmed" mb={4}>SCAN SUMMARY</Text>
@@ -257,7 +321,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
                 onClick={() => setShowConfirm(true)}
                 leftIcon={<Save size={16} />}
               >
-                Save Stock Check
+                Complete Stock Check
               </Button>
               <Button
                 variant="subtle"
@@ -296,9 +360,15 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
           contentClassName="overflow-y-auto scrollbar-thin"
         >
           {!selectedMfrId ? (
-            <OperationsEmptyState icon={Factory} title="Select Manufacturer" description="Choose a manufacturer to load their product list and begin scanning." />
+            <OperationsEmptyState
+              icon={Factory}
+              title="Select Manufacturer"
+              description="Choose a manufacturer to load their product list and begin scanning."
+            />
           ) : (
-            <VarianceTable items={scannedItems} isMobile={isMobile} onRemove={(sku) => setScannedItems((prev) => prev.filter((i) => i.sku !== sku))} />
+            <VarianceTable items={scannedItems} isMobile={isMobile} onRemove={(sku) => {
+              setScannedItems((prev) => prev.filter((i) => i.sku !== sku));
+            }} />
           )}
         </OperationsPanel>
       </div>
@@ -306,7 +376,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will save a stock check report for <strong>{selectedMfr?.name}</strong> products based on scanned counts.
+            This will save a completed stock check report for <strong>{selectedMfr?.name}</strong>. Inventory quantities will not be adjusted here.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
