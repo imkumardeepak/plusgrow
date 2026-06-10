@@ -67,10 +67,14 @@ Write-Host "`n4. Building Frontend (React/Vite)..."
 $FrontendDir = "Frontend"
 if (Test-Path $FrontendDir) {
     Push-Location $FrontendDir
+    
+    # Force Path injection for Node.js just in case Jenkins missed it
+    $env:PATH = "D:\Program Files\nodejs;C:\Program Files\nodejs;" + $env:PATH
+    
     Write-Host "Installing NPM dependencies..."
-    npm install
+    npm.cmd install
     Write-Host "Building production bundle..."
-    npm run build
+    npm.cmd run build
     Pop-Location
     
     Write-Host "Copying frontend files to IIS..."
