@@ -5,6 +5,7 @@ import {
   Box,
   Group,
   Paper,
+  ScrollArea,
   Select,
   SimpleGrid,
   Stack,
@@ -13,6 +14,7 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCw, ScanLine, Trash2 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
@@ -47,6 +49,7 @@ const extractTokens = (raw: string) => {
 };
 
 export const InwardVerify = memo(function InwardVerify() {
+  const isMobile = useMediaQuery("(max-width: 48em)");
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedInvoiceKey, setSelectedInvoiceKey] = useState<string | null>(null);
@@ -207,13 +210,13 @@ export const InwardVerify = memo(function InwardVerify() {
       hideHeader
     >
       <Stack gap="sm">
-        <Paper radius="md" p="sm" withBorder style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}>
-          <Group justify="space-between" gap="sm" wrap="wrap">
+        <Paper radius="md" p={isMobile ? "xs" : "sm"} withBorder style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}>
+          <Group justify="space-between" gap="xs" wrap="nowrap">
             <Group gap="xs" wrap="nowrap">
-              <ClipboardCheck size={20} color="var(--mantine-color-cyan-4)" />
-              <Box>
-                <Text fw={900} size="md" c="white">Inward Verify</Text>
-                <Text size="11px" c="dimmed">Select invoice and scan every printed sticker</Text>
+              <ClipboardCheck size={isMobile ? 18 : 20} color="var(--mantine-color-cyan-4)" />
+              <Box className="min-w-0">
+                <Text fw={900} size={isMobile ? "sm" : "md"} c="white">Inward Verify</Text>
+                {!isMobile && <Text size="11px" c="dimmed">Select invoice and scan every printed sticker</Text>}
               </Box>
             </Group>
             <Button size="xs" variant="outline" leftIcon={<RefreshCw size={14} />} loading={isLoading} onClick={() => void loadData()}>
@@ -223,10 +226,10 @@ export const InwardVerify = memo(function InwardVerify() {
         </Paper>
 
         <SimpleGrid cols={{ base: 1, lg: 12 }} spacing="sm">
-          <OperationsPanel title="Scanner" icon={ScanLine} className="lg:col-span-4" contentClassName="space-y-3">
+          <OperationsPanel title="Scanner" icon={ScanLine} className="lg:col-span-4" contentClassName={isMobile ? "space-y-2" : "space-y-3"} hideHeader={!!isMobile}>
             <Select
               label="Invoice Number"
-              size="sm"
+              size={isMobile ? "xs" : "sm"}
               searchable
               clearable
               placeholder="Select printed invoice..."
@@ -246,7 +249,7 @@ export const InwardVerify = memo(function InwardVerify() {
                       <Text size="sm" fw={900} c="cyan.3" truncate>{selectedInvoice.invoiceNumber}</Text>
                       <Text size="10px" c="dimmed" truncate>{selectedInvoice.partyName}</Text>
                     </Box>
-                    <Badge size="lg" variant="light" color={isCorrect ? "green" : hasDifference ? "orange" : "cyan"}>
+                    <Badge size={isMobile ? "sm" : "lg"} variant="light" color={isCorrect ? "green" : hasDifference ? "orange" : "cyan"}>
                       {isCorrect ? "CORRECT" : hasDifference ? "DIFFERENCE" : "SCANNING"}
                     </Badge>
                   </Group>
@@ -254,8 +257,8 @@ export const InwardVerify = memo(function InwardVerify() {
 
                 <TextInput
                   ref={inputRef}
-                  label="Scan Sticker QR / Barcode"
-                  size="md"
+                  label="Scan Sticker"
+                  size={isMobile ? "sm" : "md"}
                   placeholder="Scan sticker..."
                   value={scanInput}
                   onChange={(event) => setScanInput(event.currentTarget.value)}
@@ -265,7 +268,7 @@ export const InwardVerify = memo(function InwardVerify() {
                   leftSection={<ScanLine size={16} />}
                   autoFocus
                 />
-                <Button fullWidth onClick={handleScan} leftIcon={<ScanLine size={15} />}>Add Scan</Button>
+                <Button size={isMobile ? "sm" : "md"} fullWidth onClick={handleScan} leftIcon={<ScanLine size={15} />}>Add Scan</Button>
 
                 <SimpleGrid cols={3} spacing="xs">
                   <Paper radius="md" p="xs" withBorder bg="transparent">
@@ -291,14 +294,14 @@ export const InwardVerify = memo(function InwardVerify() {
             )}
           </OperationsPanel>
 
-          <OperationsPanel title="Verification Result" icon={ClipboardCheck} className="lg:col-span-8" contentClassName="space-y-3">
+          <OperationsPanel title="Verification Result" icon={ClipboardCheck} className="lg:col-span-8" contentClassName={isMobile ? "space-y-2" : "space-y-3"} hideHeader={!!isMobile}>
             {!selectedInvoice ? (
               <OperationsEmptyState icon={ScanLine} title="No Invoice Selected" description="After selecting an invoice, expected product quantities will appear here." />
             ) : (
               <>
                 <Paper
                   radius="md"
-                  p="sm"
+                  p={isMobile ? "xs" : "sm"}
                   withBorder
                   style={{
                     background: isCorrect ? "rgba(34,197,94,0.08)" : hasDifference ? "rgba(245,158,11,0.08)" : "rgba(14,165,233,0.08)",
@@ -308,48 +311,71 @@ export const InwardVerify = memo(function InwardVerify() {
                   <Group gap="xs" wrap="nowrap">
                     {isCorrect ? <CheckCircle2 size={20} color="var(--mantine-color-green-4)" /> : <AlertTriangle size={20} color="var(--mantine-color-yellow-4)" />}
                     <Box>
-                      <Text fw={900} c={isCorrect ? "green.3" : hasDifference ? "yellow.3" : "cyan.3"}>
+                      <Text size={isMobile ? "sm" : "md"} fw={900} c={isCorrect ? "green.3" : hasDifference ? "yellow.3" : "cyan.3"}>
                         {isCorrect ? "All stickers match invoice quantity" : hasDifference ? "Difference found" : "Start scanning stickers"}
                       </Text>
-                      <Text size="xs" c="dimmed">
+                      <Text size="11px" c="dimmed">
                         Expected {totalExpected}, scanned {totalScanned}, extra {extraCount}
                       </Text>
                     </Box>
                   </Group>
                 </Paper>
 
-                <Table striped highlightOnHover withTableBorder withColumnBorders miw={720}>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>SKU</Table.Th>
-                      <Table.Th>Product</Table.Th>
-                      <Table.Th style={{ textAlign: "right" }}>Invoice Qty</Table.Th>
-                      <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
-                      <Table.Th style={{ textAlign: "right" }}>Difference</Table.Th>
-                      <Table.Th>Status</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
+                {isMobile ? (
+                  <Stack gap="xs">
                     {lines.map((line) => (
-                      <Table.Tr key={line.id}>
-                        <Table.Td><Text size="12px" fw={800} ff="monospace">{line.skuCode}</Text></Table.Td>
-                        <Table.Td><Text size="12px" lineClamp={1}>{line.productName}</Text></Table.Td>
-                        <Table.Td style={{ textAlign: "right" }}>{line.expectedQty}</Table.Td>
-                        <Table.Td style={{ textAlign: "right" }}>{line.scannedQty}</Table.Td>
-                        <Table.Td style={{ textAlign: "right" }}>
-                          <Text fw={900} ff="monospace" c={line.difference === 0 ? "green.4" : line.difference > 0 ? "yellow.4" : "red.4"}>
-                            {line.difference > 0 ? "+" : ""}{line.difference}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge size="xs" variant="light" color={line.difference === 0 ? "green" : line.difference > 0 ? "yellow" : "red"}>
-                            {line.difference === 0 ? "Correct" : line.difference > 0 ? "More" : "Less"}
-                          </Badge>
-                        </Table.Td>
-                      </Table.Tr>
+                      <Paper key={line.id} radius="md" p="xs" withBorder style={{ background: "rgba(15,23,42,0.58)", borderColor: line.difference === 0 ? "rgba(34,197,94,0.16)" : "rgba(245,158,11,0.24)" }}>
+                        <Group justify="space-between" gap="xs" wrap="nowrap">
+                          <Box className="min-w-0" style={{ flex: 1 }}>
+                            <Group gap={6} wrap="nowrap">
+                              <Text size="12px" fw={900} ff="monospace" c="cyan.3" truncate>{line.skuCode}</Text>
+                              <Badge size="xs" variant="light" color={line.difference === 0 ? "green" : line.difference > 0 ? "yellow" : "red"}>
+                                {line.difference === 0 ? "OK" : line.difference > 0 ? "More" : "Less"}
+                              </Badge>
+                            </Group>
+                            <Text size="10px" c="dimmed" truncate>{line.productName}</Text>
+                          </Box>
+                          <Group gap="xs" wrap="nowrap">
+                            <Box ta="center"><Text size="9px" c="dimmed" fw={800}>INV</Text><Text size="sm" fw={900}>{line.expectedQty}</Text></Box>
+                            <Box ta="center"><Text size="9px" c="dimmed" fw={800}>SCAN</Text><Text size="sm" fw={900}>{line.scannedQty}</Text></Box>
+                            <Box ta="center"><Text size="9px" c="dimmed" fw={800}>DIFF</Text><Text size="sm" fw={900} ff="monospace" c={line.difference === 0 ? "green.4" : line.difference > 0 ? "yellow.4" : "red.4"}>{line.difference > 0 ? "+" : ""}{line.difference}</Text></Box>
+                          </Group>
+                        </Group>
+                      </Paper>
                     ))}
-                  </Table.Tbody>
-                </Table>
+                  </Stack>
+                ) : (
+                  <ScrollArea type="auto">
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={720}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>SKU</Table.Th>
+                          <Table.Th>Product</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Invoice Qty</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Difference</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lines.map((line) => (
+                          <Table.Tr key={line.id}>
+                            <Table.Td><Text size="12px" fw={800} ff="monospace">{line.skuCode}</Text></Table.Td>
+                            <Table.Td><Text size="12px" lineClamp={1}>{line.productName}</Text></Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>{line.expectedQty}</Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>{line.scannedQty}</Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <Text fw={900} ff="monospace" c={line.difference === 0 ? "green.4" : line.difference > 0 ? "yellow.4" : "red.4"}>{line.difference > 0 ? "+" : ""}{line.difference}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge size="xs" variant="light" color={line.difference === 0 ? "green" : line.difference > 0 ? "yellow" : "red"}>{line.difference === 0 ? "Correct" : line.difference > 0 ? "More" : "Less"}</Badge>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
 
                 {scanEvents.length > 0 ? (
                   <Paper radius="md" p="xs" withBorder bg="transparent">
