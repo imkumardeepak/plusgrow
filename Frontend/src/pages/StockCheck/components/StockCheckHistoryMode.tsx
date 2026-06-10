@@ -62,6 +62,7 @@ export function StockCheckHistoryMode({
     const type = report.checkType.toUpperCase();
     const draft = {
       checkId: meta.checkId,
+      reportId: report.id,
       referenceId: meta.referenceId,
       referenceCode: meta.referenceCode || report.referenceName,
       isLocked: type === "LOCATION" ? true : undefined,

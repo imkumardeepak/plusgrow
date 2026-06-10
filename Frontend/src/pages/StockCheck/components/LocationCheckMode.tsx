@@ -20,6 +20,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const [locationCode, setLocationCode] = useState("");
   const [checkId, setCheckId] = useState(() => createStockCheckId("Location"));
+  const [reportId, setReportId] = useState<number | undefined>();
   const [isLocationLocked, setIsLocationLocked] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
@@ -55,6 +56,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
     setLocationCode(draft.referenceCode);
     setCheckId(draft.checkId || createStockCheckId("Location"));
+    setReportId(draft.reportId);
     setIsLocationLocked(!!draft.isLocked);
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
@@ -69,13 +71,14 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location, {
       checkId,
+      reportId,
       referenceCode: normalizeSku(locationCode),
       isLocked: isLocationLocked,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [checkId, isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
+  }, [checkId, reportId, isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
 
   const systemItemsAtLocation = useMemo(() => {
     if (!isLocationLocked || !locationCode) return [];
@@ -117,6 +120,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   const handleLocationScan = (val: string) => {
     const upper = normalizeSku(val);
     setCheckId(createStockCheckId("Location"));
+    setReportId(undefined);
     setLocationCode(upper);
     setIsLocationLocked(true);
     setSessionStatus("running");
@@ -178,8 +182,9 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const persistReport = async (status: StockCheckReportStatus) => {
     const upperLoc = normalizeSku(locationCode);
-    await saveStockCheckReport("Location", upperLoc, scannedItems, status, {
+    return saveStockCheckReport("Location", upperLoc, scannedItems, status, {
       checkId,
+      reportId,
       referenceCode: upperLoc,
     });
   };
@@ -187,7 +192,8 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   const handlePause = async () => {
     setIsSaving(true);
     try {
-      await persistReport("PAUSED");
+      const saved = await persistReport("PAUSED");
+      setReportId(saved.id);
       setSessionStatus("paused");
       toast.success("Location stock check paused");
     } catch (error: any) {
@@ -202,6 +208,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     setIsSaving(true);
     try {
       await persistReport("COMPLETED");
+      setReportId(undefined);
       toast.success("Stock check report completed");
       setIsLocationLocked(false);
       setSessionStatus("idle");
@@ -239,6 +246,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
                 size="xs"
                 onClick={() => {
                   setCheckId(createStockCheckId("Location"));
+                  setReportId(undefined);
                   setIsLocationLocked(false);
                   setSessionStatus("idle");
                   setScannedItems([]);

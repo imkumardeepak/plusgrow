@@ -20,6 +20,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
 
   const [selectedMfrId, setSelectedMfrId] = useState<string | null>(null);
   const [checkId, setCheckId] = useState(() => createStockCheckId("Manufacturer"));
+  const [reportId, setReportId] = useState<number | undefined>();
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -31,6 +32,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   const handleManufacturerChange = (value: string | null) => {
     setSelectedMfrId(value);
     setCheckId(createStockCheckId("Manufacturer"));
+    setReportId(undefined);
     setSessionStatus(value ? "running" : "idle");
     setScanInput("");
     setScannedItems([]);
@@ -62,6 +64,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
 
     setSelectedMfrId(draft.referenceId);
     setCheckId(draft.checkId || createStockCheckId("Manufacturer"));
+    setReportId(draft.reportId);
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
     setScannedItems(draft.scannedItems || []);
@@ -75,12 +78,13 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer, {
       checkId,
+      reportId,
       referenceId: selectedMfrId,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [checkId, scanInput, scannedItems, selectedMfrId, sessionStatus]);
+  }, [checkId, reportId, scanInput, scannedItems, selectedMfrId, sessionStatus]);
 
   const mfrProducts = useMemo(() => {
     if (!selectedMfrId) return [];
@@ -166,8 +170,9 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   };
 
   const persistReport = async (status: StockCheckReportStatus) => {
-    await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status, {
+    return saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status, {
       checkId,
+      reportId,
       referenceId: selectedMfrId,
     });
   };
@@ -175,7 +180,8 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   const handlePause = async () => {
     setIsSaving(true);
     try {
-      await persistReport("PAUSED");
+      const saved = await persistReport("PAUSED");
+      setReportId(saved.id);
       setSessionStatus("paused");
       toast.success("Manufacturer stock check paused");
     } catch (error: any) {
@@ -190,8 +196,10 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     setIsSaving(true);
     try {
       await persistReport("COMPLETED");
+      setReportId(undefined);
       toast.success("Manufacturer stock check completed");
       setCheckId(createStockCheckId("Manufacturer"));
+      setReportId(undefined);
       setSelectedMfrId(null);
       setSessionStatus("idle");
       setScannedItems([]);
@@ -225,7 +233,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setCheckId(createStockCheckId("Manufacturer")); setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setCheckId(createStockCheckId("Manufacturer")); setReportId(undefined); setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>

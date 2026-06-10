@@ -16,6 +16,7 @@ export type ScannedItem = {
 
 export type StockCheckDraft = {
   checkId?: string;
+  reportId?: number;
   referenceId?: string | null;
   referenceCode?: string;
   isLocked?: boolean;
@@ -27,6 +28,7 @@ export type StockCheckDraft = {
 
 export type StockCheckResumeMeta = {
   checkId: string;
+  reportId?: number;
   checkType: string;
   referenceId?: string | null;
   referenceCode?: string;
@@ -126,6 +128,7 @@ export const saveStockCheckReport = async (
   scannedItems: ScannedItem[],
   status: StockCheckReportStatus,
   meta?: Omit<StockCheckResumeMeta, "checkType" | "referenceName" | "scannedItems"> & {
+    reportId?: number;
     referenceId?: string | null;
     referenceCode?: string;
   },
@@ -144,7 +147,7 @@ export const saveStockCheckReport = async (
   }));
 
   const { stockCheckReportsApi } = await import("../../services/masterApi");
-  await stockCheckReportsApi.create({
+  const payload = {
     checkType,
     referenceName,
     totalSystemQty: totalSystem,
@@ -156,11 +159,16 @@ export const saveStockCheckReport = async (
     status,
     notes: JSON.stringify({
       checkId: meta?.checkId || createStockCheckId(checkType),
+      reportId: meta?.reportId,
       checkType,
       referenceId: meta?.referenceId,
       referenceCode: meta?.referenceCode,
       referenceName,
       scannedItems,
     } satisfies StockCheckResumeMeta),
-  });
+  };
+
+  return meta?.reportId
+    ? stockCheckReportsApi.update(meta.reportId, payload)
+    : stockCheckReportsApi.create(payload);
 };

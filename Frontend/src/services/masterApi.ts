@@ -1582,6 +1582,12 @@ export const stockCheckReportsApi = {
     return response.data.data!;
   },
 
+  update: async (id: number, data: CreateStockCheckReportDto): Promise<StockCheckReport> => {
+    const response = await api.put<ApiResponse<StockCheckReport>>(`/stockcheckreports/${id}`, data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating stock check report');
+    return response.data.data!;
+  },
+
   delete: async (id: number): Promise<void> => {
     await api.delete(`/stockcheckreports/${id}`);
   },

@@ -31,3 +31,7 @@ public class CreateStockCheckReportDto
     public string? Status { get; set; }
     public string? Notes { get; set; }
 }
+
+public class UpdateStockCheckReportDto : CreateStockCheckReportDto
+{
+}

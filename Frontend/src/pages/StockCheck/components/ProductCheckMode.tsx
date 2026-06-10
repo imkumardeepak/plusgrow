@@ -20,6 +20,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [checkId, setCheckId] = useState(() => createStockCheckId("Product"));
+  const [reportId, setReportId] = useState<number | undefined>();
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -35,6 +36,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   const handleProductChange = (value: string | null) => {
     setSelectedProductId(value);
     setCheckId(createStockCheckId("Product"));
+    setReportId(undefined);
     setSessionStatus(value ? "running" : "idle");
     setScanInput("");
     setScannedItems([]);
@@ -66,6 +68,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
 
     setSelectedProductId(draft.referenceId);
     setCheckId(draft.checkId || createStockCheckId("Product"));
+    setReportId(draft.reportId);
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
     setScannedItems(draft.scannedItems || []);
@@ -79,12 +82,13 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product, {
       checkId,
+      reportId,
       referenceId: selectedProductId,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [checkId, scanInput, scannedItems, selectedProductId, sessionStatus]);
+  }, [checkId, reportId, scanInput, scannedItems, selectedProductId, sessionStatus]);
 
   const selectedProduct = products.find((p) => p.id === Number(selectedProductId));
 
@@ -187,8 +191,9 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   };
 
   const persistReport = async (status: StockCheckReportStatus) => {
-    await saveStockCheckReport("Product", normalizeSku(selectedProduct?.sku) || "Unknown", scannedItems, status, {
+    return saveStockCheckReport("Product", normalizeSku(selectedProduct?.sku) || "Unknown", scannedItems, status, {
       checkId,
+      reportId,
       referenceId: selectedProductId,
     });
   };
@@ -196,7 +201,8 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   const handlePause = async () => {
     setIsSaving(true);
     try {
-      await persistReport("PAUSED");
+      const saved = await persistReport("PAUSED");
+      setReportId(saved.id);
       setSessionStatus("paused");
       toast.success("Product stock check paused");
     } catch (error: any) {
@@ -211,8 +217,10 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     setIsSaving(true);
     try {
       await persistReport("COMPLETED");
+      setReportId(undefined);
       toast.success("Product stock check completed");
       setCheckId(createStockCheckId("Product"));
+      setReportId(undefined);
       setSelectedProductId(null);
       setSessionStatus("idle");
       setScannedItems([]);
@@ -246,7 +254,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setCheckId(createStockCheckId("Product")); setSelectedProductId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setCheckId(createStockCheckId("Product")); setReportId(undefined); setSelectedProductId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>

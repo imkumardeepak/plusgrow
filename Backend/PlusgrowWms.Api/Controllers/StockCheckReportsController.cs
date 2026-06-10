@@ -135,6 +135,45 @@ public class StockCheckReportsController : BaseController
         return Success(MapToDto(entity), "Stock check report saved successfully");
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ApiResponse<StockCheckReportDto>>> UpdateReport(int id, [FromBody] UpdateStockCheckReportDto dto)
+    {
+        var entity = await _context.StockCheckReports.FindAsync(id);
+        if (entity == null)
+            return NotFound<StockCheckReportDto>("Stock check report not found");
+
+        if (string.IsNullOrWhiteSpace(dto.CheckType))
+            return BadRequest<StockCheckReportDto>("Check type is required");
+
+        if (string.IsNullOrWhiteSpace(dto.ReferenceName))
+            return BadRequest<StockCheckReportDto>("Reference name is required");
+
+        var status = string.IsNullOrWhiteSpace(dto.Status)
+            ? entity.Status
+            : dto.Status.Trim().ToUpper();
+
+        if (status is not ("IN_PROGRESS" or "PAUSED" or "COMPLETED"))
+            return BadRequest<StockCheckReportDto>("Invalid stock check status");
+
+        entity.CheckType = dto.CheckType.Trim().ToUpper();
+        entity.ReferenceName = dto.ReferenceName.Trim();
+        entity.TotalSystemQty = dto.TotalSystemQty;
+        entity.TotalScannedQty = dto.TotalScannedQty;
+        entity.TotalVariance = dto.TotalVariance;
+        entity.ItemsChecked = dto.ItemsChecked;
+        entity.ItemsWithVariance = dto.ItemsWithVariance;
+        entity.ItemsJson = dto.ItemsJson;
+        entity.Status = status;
+        entity.Notes = dto.Notes?.Trim();
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Stock check report updated: {Id} {CheckType} - {ReferenceName} status {Status}",
+            entity.Id, entity.CheckType, entity.ReferenceName, entity.Status);
+
+        return Success(MapToDto(entity), "Stock check report updated successfully");
+    }
+
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse>> DeleteReport(int id)
     {
