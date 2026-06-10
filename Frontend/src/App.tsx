@@ -21,6 +21,7 @@ import { PageLoader } from "./components/molecules/PageLoader/PageLoader";
 const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inward = lazy(() => import("./pages/Inward"));
+const InwardVerify = lazy(() => import("./pages/InwardVerify"));
 const PutAway = lazy(() => import("./pages/PutAway"));
 const Outward = lazy(() => import("./pages/Outward"));
 const Picking = lazy(() => import("./pages/Picking"));
@@ -198,6 +199,10 @@ export default function App() {
                     <Route
                       path="inward"
                       element={pageElement("inward", <Inward />)}
+                    />
+                    <Route
+                      path="inward-verify"
+                      element={pageElement("inward", <InwardVerify />)}
                     />
                     <Route
                       path="sticker"

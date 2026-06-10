@@ -15,6 +15,7 @@ import {
   Printer,
   ScanLine,
   ShieldCheck,
+  QrCode,
   Truck,
   User,
   UserCog,
@@ -111,6 +112,12 @@ export const navigationGroups: NavGroup[] = [
         label: "Purchase Invoices",
         icon: ArrowDownToLine,
         href: "/inward",
+      },
+      {
+        id: "inward-verify",
+        label: "Inward Verify",
+        icon: QrCode,
+        href: "/inward-verify",
       },
       {
         id: "putaway",
