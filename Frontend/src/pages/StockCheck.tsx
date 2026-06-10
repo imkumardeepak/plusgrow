@@ -209,6 +209,9 @@ export const StockCheck = memo(function StockCheck() {
   const isMobile = useMediaQuery("(max-width: 48em)");
 
   const handleBack = useCallback(() => setActiveMode("hub"), []);
+  const handleResumePausedCheck = useCallback((mode: Extract<ActiveMode, "location" | "manufacturer" | "product">) => {
+    setActiveMode(mode);
+  }, []);
 
   return (
     <>
@@ -217,7 +220,7 @@ export const StockCheck = memo(function StockCheck() {
       {activeMode === "location" && <LocationCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "manufacturer" && <ManufacturerCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "product" && <ProductCheckMode onBack={handleBack} isMobile={!!isMobile} />}
-      {activeMode === "history" && <StockCheckHistoryMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "history" && <StockCheckHistoryMode onBack={handleBack} isMobile={!!isMobile} onResume={handleResumePausedCheck} />}
     </>
   );
 });

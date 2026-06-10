@@ -7,7 +7,7 @@ import { toast } from "../../../lib/toast";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
 import { productAllottedLocationsApi, ProductAllottedLocationRecord, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
 import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
-import { clearStockCheckDraft, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
+import { clearStockCheckDraft, createStockCheckId, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -19,6 +19,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [checkId, setCheckId] = useState(() => createStockCheckId("Product"));
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -33,6 +34,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
 
   const handleProductChange = (value: string | null) => {
     setSelectedProductId(value);
+    setCheckId(createStockCheckId("Product"));
     setSessionStatus(value ? "running" : "idle");
     setScanInput("");
     setScannedItems([]);
@@ -63,6 +65,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     if (!draft?.referenceId) return;
 
     setSelectedProductId(draft.referenceId);
+    setCheckId(draft.checkId || createStockCheckId("Product"));
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
     setScannedItems(draft.scannedItems || []);
@@ -75,12 +78,13 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     }
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product, {
+      checkId,
       referenceId: selectedProductId,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [scanInput, scannedItems, selectedProductId, sessionStatus]);
+  }, [checkId, scanInput, scannedItems, selectedProductId, sessionStatus]);
 
   const selectedProduct = products.find((p) => p.id === Number(selectedProductId));
 
@@ -183,7 +187,10 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
   };
 
   const persistReport = async (status: StockCheckReportStatus) => {
-    await saveStockCheckReport("Product", normalizeSku(selectedProduct?.sku) || "Unknown", scannedItems, status);
+    await saveStockCheckReport("Product", normalizeSku(selectedProduct?.sku) || "Unknown", scannedItems, status, {
+      checkId,
+      referenceId: selectedProductId,
+    });
   };
 
   const handlePause = async () => {
@@ -205,6 +212,7 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     try {
       await persistReport("COMPLETED");
       toast.success("Product stock check completed");
+      setCheckId(createStockCheckId("Product"));
       setSelectedProductId(null);
       setSessionStatus("idle");
       setScannedItems([]);
@@ -229,13 +237,16 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
         actions={
           selectedProduct ? (
             <Group gap="xs">
+              <MBadge size="xs" radius="sm" variant="light" color="gray">
+                {checkId}
+              </MBadge>
               <MBadge size={isMobile ? "sm" : "md"} radius="md" variant="light" color="green">
                 {normalizeSku(selectedProduct.sku)}
               </MBadge>
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setSelectedProductId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setCheckId(createStockCheckId("Product")); setSelectedProductId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>

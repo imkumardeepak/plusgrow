@@ -7,7 +7,7 @@ import { toast } from "../../../lib/toast";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
 import { Manufacturer, manufacturersApi, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
 import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
-import { clearStockCheckDraft, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
+import { clearStockCheckDraft, createStockCheckId, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -19,6 +19,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedMfrId, setSelectedMfrId] = useState<string | null>(null);
+  const [checkId, setCheckId] = useState(() => createStockCheckId("Manufacturer"));
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -29,6 +30,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
 
   const handleManufacturerChange = (value: string | null) => {
     setSelectedMfrId(value);
+    setCheckId(createStockCheckId("Manufacturer"));
     setSessionStatus(value ? "running" : "idle");
     setScanInput("");
     setScannedItems([]);
@@ -59,6 +61,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     if (!draft?.referenceId) return;
 
     setSelectedMfrId(draft.referenceId);
+    setCheckId(draft.checkId || createStockCheckId("Manufacturer"));
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
     setScannedItems(draft.scannedItems || []);
@@ -71,12 +74,13 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     }
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer, {
+      checkId,
       referenceId: selectedMfrId,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [scanInput, scannedItems, selectedMfrId, sessionStatus]);
+  }, [checkId, scanInput, scannedItems, selectedMfrId, sessionStatus]);
 
   const mfrProducts = useMemo(() => {
     if (!selectedMfrId) return [];
@@ -162,7 +166,10 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
   };
 
   const persistReport = async (status: StockCheckReportStatus) => {
-    await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status);
+    await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status, {
+      checkId,
+      referenceId: selectedMfrId,
+    });
   };
 
   const handlePause = async () => {
@@ -184,6 +191,7 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
     try {
       await persistReport("COMPLETED");
       toast.success("Manufacturer stock check completed");
+      setCheckId(createStockCheckId("Manufacturer"));
       setSelectedMfrId(null);
       setSessionStatus("idle");
       setScannedItems([]);
@@ -208,13 +216,16 @@ export function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void
         actions={
           selectedMfr ? (
             <Group gap="xs">
+              <MBadge size="xs" radius="sm" variant="light" color="gray">
+                {checkId}
+              </MBadge>
               <MBadge size={isMobile ? "sm" : "md"} radius="md" variant="light" color="yellow">
                 {selectedMfr.name}
               </MBadge>
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setCheckId(createStockCheckId("Manufacturer")); setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>

@@ -9,8 +9,17 @@ import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../
 import { stockCheckReportsApi, StockCheckReport } from "../../../services/masterApi";
 import { ModeHeader } from "./ModeHeader";
 import { StockCheckReportItemsModal } from "./StockCheckReportItemsModal";
+import { clearStockCheckDraft, parseStockCheckResumeMeta, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 
-export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
+export function StockCheckHistoryMode({
+  onBack,
+  isMobile,
+  onResume,
+}: {
+  onBack: () => void;
+  isMobile: boolean;
+  onResume: (mode: "location" | "manufacturer" | "product") => void;
+}) {
   const [reports, setReports] = useState<StockCheckReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [checkType, setCheckType] = useState<string | null>(null);
@@ -37,6 +46,59 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
   useEffect(() => {
     void loadReports();
   }, [loadReports]);
+
+  const resumePausedReport = (report: StockCheckReport) => {
+    if (report.status !== "PAUSED") {
+      setSelectedReport(report);
+      return;
+    }
+
+    const meta = parseStockCheckResumeMeta(report.notes);
+    if (!meta) {
+      toast.error("This paused report was saved before resume support. Please start a new check.");
+      return;
+    }
+
+    const type = report.checkType.toUpperCase();
+    const draft = {
+      checkId: meta.checkId,
+      referenceId: meta.referenceId,
+      referenceCode: meta.referenceCode || report.referenceName,
+      isLocked: type === "LOCATION" ? true : undefined,
+      sessionStatus: "paused" as const,
+      scanInput: "",
+      scannedItems: meta.scannedItems,
+    };
+
+    if (type === "LOCATION") {
+      writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location, draft);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product);
+      toast.success(`Resuming ${meta.checkId}`);
+      onResume("location");
+      return;
+    }
+
+    if (type === "MANUFACTURER" && meta.referenceId) {
+      writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer, draft);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product);
+      toast.success(`Resuming ${meta.checkId}`);
+      onResume("manufacturer");
+      return;
+    }
+
+    if (type === "PRODUCT" && meta.referenceId) {
+      writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product, draft);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+      toast.success(`Resuming ${meta.checkId}`);
+      onResume("product");
+      return;
+    }
+
+    toast.error("Could not resume this paused report. Missing reference details.");
+  };
 
   return (
     <OperationsPage
@@ -116,17 +178,19 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
           ) : isMobile ? (
             <Stack gap="xs">
               {reports.map((report) => (
-                <Paper key={report.id} radius="md" p="xs" withBorder style={{ background: "rgba(15,23,42,0.58)", borderColor: "rgba(255,255,255,0.08)" }}>
+                <Paper key={report.id} radius="md" p="xs" withBorder onClick={() => resumePausedReport(report)} style={{ background: "rgba(15,23,42,0.58)", borderColor: report.status === "PAUSED" ? "rgba(250,204,21,0.28)" : "rgba(255,255,255,0.08)", cursor: "pointer" }}>
                   <Group justify="space-between" gap="xs" wrap="nowrap">
                     <Box className="min-w-0" style={{ flex: 1 }}>
                       <Group gap={6} wrap="nowrap" mb={3}>
                         <MBadge size="xs" variant="light" color="cyan">{report.checkType}</MBadge>
                         <MBadge size="xs" variant="light" color={report.status === "COMPLETED" ? "green" : report.status === "PAUSED" ? "yellow" : "blue"}>
-                          {report.status}
+                          {report.status === "PAUSED" ? "RESUME" : report.status}
                         </MBadge>
                       </Group>
                       <Text size="12px" fw={800} c="white" truncate>{report.referenceName}</Text>
-                      <Text size="10px" c="dimmed" truncate>{format(new Date(report.createdAt), "dd MMM HH:mm")} · {report.performedByName || "-"}</Text>
+                      <Text size="10px" c="dimmed" truncate>
+                        {parseStockCheckResumeMeta(report.notes)?.checkId || `RPT-${report.id}`} · {format(new Date(report.createdAt), "dd MMM HH:mm")} · {report.performedByName || "-"}
+                      </Text>
                     </Box>
                     <Group gap="xs" wrap="nowrap">
                       <Box ta="right">
@@ -135,7 +199,7 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
                           {report.totalVariance > 0 ? "+" : ""}{report.totalVariance}
                         </Text>
                       </Box>
-                      <ActionIcon variant="subtle" color="cyan" onClick={() => setSelectedReport(report)}>
+                      <ActionIcon variant="subtle" color="cyan" onClick={(event) => { event.stopPropagation(); resumePausedReport(report); }}>
                         <Eye size={15} />
                       </ActionIcon>
                     </Group>
@@ -162,13 +226,16 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
                 </Table.Thead>
                 <Table.Tbody>
                   {reports.map((report) => (
-                    <Table.Tr key={report.id}>
+                    <Table.Tr key={report.id} onClick={() => resumePausedReport(report)} style={{ cursor: "pointer" }}>
                       <Table.Td>{format(new Date(report.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
                       <Table.Td>
                         <MBadge size="xs" variant="light" color="cyan">{report.checkType}</MBadge>
                       </Table.Td>
                       <Table.Td>
                         <Text size="12px" fw={700}>{report.referenceName}</Text>
+                        <Text size="10px" c="dimmed" ff="monospace">
+                          {parseStockCheckResumeMeta(report.notes)?.checkId || `RPT-${report.id}`}
+                        </Text>
                       </Table.Td>
                       <Table.Td>
                         <MBadge
@@ -176,7 +243,7 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
                           variant="light"
                           color={report.status === "COMPLETED" ? "green" : report.status === "PAUSED" ? "yellow" : "blue"}
                         >
-                          {report.status}
+                          {report.status === "PAUSED" ? "RESUME" : report.status}
                         </MBadge>
                       </Table.Td>
                       <Table.Td style={{ textAlign: "right" }}>{report.totalSystemQty}</Table.Td>
@@ -198,7 +265,7 @@ export function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void
                           <ActionIcon
                             variant="subtle"
                             color="cyan"
-                            onClick={() => setSelectedReport(report)}
+                            onClick={(event) => { event.stopPropagation(); resumePausedReport(report); }}
                           >
                             <Eye size={15} />
                           </ActionIcon>

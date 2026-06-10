@@ -15,6 +15,7 @@ export type ScannedItem = {
 };
 
 export type StockCheckDraft = {
+  checkId?: string;
   referenceId?: string | null;
   referenceCode?: string;
   isLocked?: boolean;
@@ -22,6 +23,29 @@ export type StockCheckDraft = {
   scanInput: string;
   scannedItems: ScannedItem[];
   updatedAt: string;
+};
+
+export type StockCheckResumeMeta = {
+  checkId: string;
+  checkType: string;
+  referenceId?: string | null;
+  referenceCode?: string;
+  referenceName: string;
+  scannedItems: ScannedItem[];
+};
+
+export const createStockCheckId = (type: string) =>
+  `${type.toUpperCase().slice(0, 3)}-${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+export const parseStockCheckResumeMeta = (notes?: string | null): StockCheckResumeMeta | null => {
+  if (!notes) return null;
+  try {
+    const parsed = JSON.parse(notes) as Partial<StockCheckResumeMeta>;
+    if (!parsed.checkId || !parsed.checkType || !Array.isArray(parsed.scannedItems)) return null;
+    return parsed as StockCheckResumeMeta;
+  } catch {
+    return null;
+  }
 };
 
 export type LocationStock = {
@@ -101,6 +125,10 @@ export const saveStockCheckReport = async (
   referenceName: string,
   scannedItems: ScannedItem[],
   status: StockCheckReportStatus,
+  meta?: Omit<StockCheckResumeMeta, "checkType" | "referenceName" | "scannedItems"> & {
+    referenceId?: string | null;
+    referenceCode?: string;
+  },
 ) => {
   const totalSystem = scannedItems.reduce((s, i) => s + i.systemQty, 0);
   const totalScanned = scannedItems.reduce((s, i) => s + i.scannedQty, 0);
@@ -126,5 +154,13 @@ export const saveStockCheckReport = async (
     itemsWithVariance,
     itemsJson: JSON.stringify(items),
     status,
+    notes: JSON.stringify({
+      checkId: meta?.checkId || createStockCheckId(checkType),
+      checkType,
+      referenceId: meta?.referenceId,
+      referenceCode: meta?.referenceCode,
+      referenceName,
+      scannedItems,
+    } satisfies StockCheckResumeMeta),
   });
 };

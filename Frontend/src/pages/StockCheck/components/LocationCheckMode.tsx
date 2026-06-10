@@ -7,7 +7,7 @@ import { toast } from "../../../lib/toast";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
 import { productAllottedLocationsApi, ProductAllottedLocationRecord, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
 import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
-import { clearStockCheckDraft, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
+import { clearStockCheckDraft, createStockCheckId, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { ScanInput } from "./ScanInput";
 import { VarianceTable } from "./VarianceTable";
@@ -19,6 +19,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   const [isLoading, setIsLoading] = useState(true);
 
   const [locationCode, setLocationCode] = useState("");
+  const [checkId, setCheckId] = useState(() => createStockCheckId("Location"));
   const [isLocationLocked, setIsLocationLocked] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
@@ -53,6 +54,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     if (!draft?.referenceCode) return;
 
     setLocationCode(draft.referenceCode);
+    setCheckId(draft.checkId || createStockCheckId("Location"));
     setIsLocationLocked(!!draft.isLocked);
     setSessionStatus(draft.sessionStatus);
     setScanInput(draft.scanInput || "");
@@ -66,13 +68,14 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
     }
 
     writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location, {
+      checkId,
       referenceCode: normalizeSku(locationCode),
       isLocked: isLocationLocked,
       sessionStatus,
       scanInput,
       scannedItems,
     });
-  }, [isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
+  }, [checkId, isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
 
   const systemItemsAtLocation = useMemo(() => {
     if (!isLocationLocked || !locationCode) return [];
@@ -113,6 +116,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const handleLocationScan = (val: string) => {
     const upper = normalizeSku(val);
+    setCheckId(createStockCheckId("Location"));
     setLocationCode(upper);
     setIsLocationLocked(true);
     setSessionStatus("running");
@@ -174,7 +178,10 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const persistReport = async (status: StockCheckReportStatus) => {
     const upperLoc = normalizeSku(locationCode);
-    await saveStockCheckReport("Location", upperLoc, scannedItems, status);
+    await saveStockCheckReport("Location", upperLoc, scannedItems, status, {
+      checkId,
+      referenceCode: upperLoc,
+    });
   };
 
   const handlePause = async () => {
@@ -221,6 +228,9 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
         actions={
           isLocationLocked ? (
             <Group gap="xs">
+              <MBadge size="xs" radius="sm" variant="light" color="gray">
+                {checkId}
+              </MBadge>
               <MBadge size={isMobile ? "sm" : "md"} radius="md" variant="light" color="cyan">
                 {locationCode}
               </MBadge>
@@ -228,6 +238,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
                 variant="subtle"
                 size="xs"
                 onClick={() => {
+                  setCheckId(createStockCheckId("Location"));
                   setIsLocationLocked(false);
                   setSessionStatus("idle");
                   setScannedItems([]);
