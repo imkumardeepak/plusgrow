@@ -1540,6 +1540,7 @@ export interface CreateStockCheckReportDto {
   itemsChecked: number;
   itemsWithVariance: number;
   itemsJson: string;
+  status?: string;
   notes?: string | null;
 }
 

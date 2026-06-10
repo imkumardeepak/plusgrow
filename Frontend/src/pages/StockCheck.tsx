@@ -66,7 +66,6 @@ import {
   ProductQuantityRecord,
   ProductStockMovementRecord,
   productsApi,
-  CreateStockAdjustmentDto,
   stockCheckReportsApi,
   StockCheckReport,
   StockCheckReportItem,
@@ -75,6 +74,17 @@ import { ProductFormModal } from "../components/organisms/ProductFormModal";
 import { StickerPrintModal } from "../components/organisms/StickerPrintModal";
 
 type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
+type CheckSessionStatus = "idle" | "running" | "paused";
+type StockCheckReportStatus = "PAUSED" | "COMPLETED";
+type StockCheckDraft = {
+  referenceId?: string | null;
+  referenceCode?: string;
+  isLocked?: boolean;
+  sessionStatus: CheckSessionStatus;
+  scanInput: string;
+  scannedItems: ScannedItem[];
+  updatedAt: string;
+};
 
 type ScannedItem = {
   sku: string;
@@ -124,6 +134,67 @@ const getLocationJson = (row: ProductAllottedLocationRecord | null) => {
     (row as unknown as { LocationJson?: Record<string, number> }).LocationJson ||
     {}
   );
+};
+
+const STOCK_CHECK_DRAFT_KEYS = {
+  location: "plusgrow.stockCheck.locationDraft",
+  manufacturer: "plusgrow.stockCheck.manufacturerDraft",
+  product: "plusgrow.stockCheck.productDraft",
+} as const;
+
+const readStockCheckDraft = (key: string): StockCheckDraft | null => {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as StockCheckDraft) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStockCheckDraft = (key: string, draft: Omit<StockCheckDraft, "updatedAt">) => {
+  window.localStorage.setItem(
+    key,
+    JSON.stringify({
+      ...draft,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+};
+
+const clearStockCheckDraft = (key: string) => {
+  window.localStorage.removeItem(key);
+};
+
+const saveStockCheckReport = async (
+  checkType: string,
+  referenceName: string,
+  scannedItems: ScannedItem[],
+  status: StockCheckReportStatus,
+) => {
+  const totalSystem = scannedItems.reduce((sum, item) => sum + item.systemQty, 0);
+  const totalScanned = scannedItems.reduce((sum, item) => sum + item.scannedQty, 0);
+  const itemsWithVariance = scannedItems.filter((item) => item.scannedQty !== item.systemQty).length;
+
+  const items: StockCheckReportItem[] = scannedItems.map((item) => ({
+    sku: item.sku,
+    productName: item.productName,
+    systemQty: item.systemQty,
+    scannedQty: item.scannedQty,
+    variance: item.scannedQty - item.systemQty,
+    isUnexpected: item.isUnexpected,
+  }));
+
+  await stockCheckReportsApi.create({
+    checkType,
+    referenceName,
+    totalSystemQty: totalSystem,
+    totalScannedQty: totalScanned,
+    totalVariance: totalScanned - totalSystem,
+    itemsChecked: scannedItems.length,
+    itemsWithVariance,
+    itemsJson: JSON.stringify(items),
+    status,
+  });
 };
 
 
@@ -1039,6 +1110,7 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
 
   const [locationCode, setLocationCode] = useState("");
   const [isLocationLocked, setIsLocationLocked] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -1065,6 +1137,32 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const draft = readStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+    if (!draft?.referenceCode) return;
+
+    setLocationCode(draft.referenceCode);
+    setIsLocationLocked(!!draft.isLocked);
+    setSessionStatus(draft.sessionStatus);
+    setScanInput(draft.scanInput || "");
+    setScannedItems(draft.scannedItems || []);
+  }, []);
+
+  useEffect(() => {
+    if (!isLocationLocked || !locationCode) {
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location);
+      return;
+    }
+
+    writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.location, {
+      referenceCode: normalizeSku(locationCode),
+      isLocked: isLocationLocked,
+      sessionStatus,
+      scanInput,
+      scannedItems,
+    });
+  }, [isLocationLocked, locationCode, scanInput, scannedItems, sessionStatus]);
 
   const systemItemsAtLocation = useMemo(() => {
     if (!isLocationLocked || !locationCode) return [];
@@ -1101,12 +1199,18 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
     const upper = normalizeSku(val);
     setLocationCode(upper);
     setIsLocationLocked(true);
+    setSessionStatus("idle");
     setScannedItems([]);
     toast.success(`Location ${upper} loaded`);
     setTimeout(() => scanInputRef.current?.focus(), 100);
   };
 
   const handleProductScan = (val: string) => {
+    if (sessionStatus !== "running") {
+      toast.warning("Start the stock check before scanning products");
+      return;
+    }
+
     const sku = normalizeSku(val.split("#")[0]);
     setScanInput("");
 
@@ -1152,49 +1256,32 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
     setScannedItems((prev) => prev.filter((item) => item.sku !== sku));
   };
 
+  const persistReport = async (status: StockCheckReportStatus) => {
+    const upperLoc = normalizeSku(locationCode);
+    await saveStockCheckReport("Location", upperLoc, scannedItems, status);
+  };
+
+  const handlePause = async () => {
+    setIsSaving(true);
+    try {
+      await persistReport("PAUSED");
+      setSessionStatus("paused");
+      toast.success("Location stock check paused");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause stock check");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      const upperLoc = normalizeSku(locationCode);
-
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
-
-        const allottedRow = allottedLocations.find((r) => r.productId === item.productId);
-
-        if (allottedRow) {
-          const locJson = { ...getLocationJson(allottedRow) };
-          locJson[upperLoc] = item.scannedQty;
-
-          if (item.scannedQty === 0) {
-            delete locJson[upperLoc];
-          }
-
-          await productAllottedLocationsApi.update(allottedRow.id, {
-            productId: allottedRow.productId,
-            locationJson: locJson,
-          });
-        } else if (item.scannedQty > 0) {
-          await productAllottedLocationsApi.create({
-            productId: item.productId,
-            locationJson: { [upperLoc]: item.scannedQty },
-          });
-        }
-
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: upperLoc,
-          quantityChange: variance,
-          reason: "Stock Check - Location Audit",
-          notes: `Stock check at ${upperLoc}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
-
-      toast.success("Stock check saved successfully");
+      await persistReport("COMPLETED");
+      toast.success("Stock check report completed");
       setIsLocationLocked(false);
+      setSessionStatus("idle");
       setLocationCode("");
       setScannedItems([]);
       setScanInput("");
@@ -1226,6 +1313,7 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
                 size="xs"
                 onClick={() => {
                   setIsLocationLocked(false);
+                  setSessionStatus("idle");
                   setScannedItems([]);
                   setScanInput("");
                 }}
@@ -1287,6 +1375,31 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
                 </Group>
               </Paper>
 
+              <Group gap="xs">
+                {sessionStatus === "running" ? (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    variant="outline"
+                    fullWidth
+                    loading={isSaving}
+                    onClick={handlePause}
+                  >
+                    Pause
+                  </Button>
+                ) : (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth
+                    onClick={() => {
+                      setSessionStatus("running");
+                      setTimeout(() => scanInputRef.current?.focus(), 10);
+                    }}
+                  >
+                    {sessionStatus === "paused" ? "Resume" : "Start"}
+                  </Button>
+                )}
+              </Group>
+
               <ScanInput
                 label="Scan Product"
                 placeholder="Scan SKU or Alias..."
@@ -1294,6 +1407,7 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
                 onChange={setScanInput}
                 onScan={handleProductScan}
                 icon={<Package size={15} />}
+                disabled={sessionStatus !== "running"}
                 autoFocus
                 id="location-product-scan"
                 isMobile={isMobile}
@@ -1322,7 +1436,7 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
                   onClick={() => setShowConfirm(true)}
                   leftIcon={<Save size={16} />}
                 >
-                  Save Stock Check
+                  Complete Stock Check
                 </Button>
               </Group>
               <Button
@@ -1370,7 +1484,7 @@ function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile:
       >
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will update actual stock quantities at <strong>{locationCode}</strong>. Items with variance will have their stock adjusted.
+            This will save a completed stock check report for <strong>{locationCode}</strong>. Inventory quantities will not be adjusted here.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
@@ -1405,12 +1519,20 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedMfrId, setSelectedMfrId] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleManufacturerChange = (value: string | null) => {
+    setSelectedMfrId(value);
+    setSessionStatus("idle");
+    setScanInput("");
+    setScannedItems([]);
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -1432,6 +1554,30 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
 
   useEffect(() => { void loadData(); }, [loadData]);
 
+  useEffect(() => {
+    const draft = readStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+    if (!draft?.referenceId) return;
+
+    setSelectedMfrId(draft.referenceId);
+    setSessionStatus(draft.sessionStatus);
+    setScanInput(draft.scanInput || "");
+    setScannedItems(draft.scannedItems || []);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedMfrId) {
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer);
+      return;
+    }
+
+    writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.manufacturer, {
+      referenceId: selectedMfrId,
+      sessionStatus,
+      scanInput,
+      scannedItems,
+    });
+  }, [scanInput, scannedItems, selectedMfrId, sessionStatus]);
+
   const mfrProducts = useMemo(() => {
     if (!selectedMfrId) return [];
     const mfrIdNum = Number(selectedMfrId);
@@ -1439,7 +1585,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
   }, [selectedMfrId, products]);
 
   useEffect(() => {
-    if (selectedMfrId && mfrProducts.length > 0) {
+    if (selectedMfrId && mfrProducts.length > 0 && scannedItems.length === 0) {
       const items: ScannedItem[] = mfrProducts.map((p) => {
         const qRow = quantityRows.find((q) => q.productId === p.id);
         return {
@@ -1453,13 +1599,19 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
         };
       });
       setScannedItems(items.sort((a, b) => a.sku.localeCompare(b.sku)));
+      setSessionStatus("idle");
       setTimeout(() => scanInputRef.current?.focus(), 100);
     }
-  }, [selectedMfrId, mfrProducts, quantityRows]);
+  }, [selectedMfrId, mfrProducts, quantityRows, scannedItems.length]);
 
   const selectedMfr = manufacturers.find((m) => m.id === Number(selectedMfrId));
 
   const handleProductScan = (val: string) => {
+    if (sessionStatus !== "running") {
+      toast.warning("Start the stock check before scanning products");
+      return;
+    }
+
     const sku = normalizeSku(val.split("#")[0]);
     setScanInput("");
 
@@ -1504,25 +1656,31 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
     setTimeout(() => scanInputRef.current?.focus(), 10);
   };
 
+  const persistReport = async (status: StockCheckReportStatus) => {
+    await saveStockCheckReport("Manufacturer", selectedMfr?.name || "Unknown", scannedItems, status);
+  };
+
+  const handlePause = async () => {
+    setIsSaving(true);
+    try {
+      await persistReport("PAUSED");
+      setSessionStatus("paused");
+      toast.success("Manufacturer stock check paused");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
-
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: "STOCK-CHECK",
-          quantityChange: variance,
-          reason: "Stock Check - Manufacturer Audit",
-          notes: `Manufacturer: ${selectedMfr?.name}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
-      toast.success("Manufacturer stock check saved");
+      await persistReport("COMPLETED");
+      toast.success("Manufacturer stock check completed");
       setSelectedMfrId(null);
+      setSessionStatus("idle");
       setScannedItems([]);
       setScanInput("");
       await loadData();
@@ -1551,7 +1709,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setSelectedMfrId(null); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setSelectedMfrId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>
@@ -1581,7 +1739,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
                   clearable
                   data={manufacturers.map((m) => ({ value: String(m.id), label: m.name }))}
                   value={selectedMfrId}
-                  onChange={setSelectedMfrId}
+                  onChange={handleManufacturerChange}
                   disabled={isLoading}
                   nothingFoundMessage="No manufacturers found"
                 />
@@ -1598,6 +1756,31 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
                 </Group>
               </Paper>
 
+              <Group gap="xs">
+                {sessionStatus === "running" ? (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    variant="outline"
+                    fullWidth
+                    loading={isSaving}
+                    onClick={handlePause}
+                  >
+                    Pause
+                  </Button>
+                ) : (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth
+                    onClick={() => {
+                      setSessionStatus("running");
+                      setTimeout(() => scanInputRef.current?.focus(), 10);
+                    }}
+                  >
+                    {sessionStatus === "paused" ? "Resume" : "Start"}
+                  </Button>
+                )}
+              </Group>
+
               <ScanInput
                 label="Scan Product"
                 placeholder="Scan SKU or Alias..."
@@ -1605,6 +1788,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
                 onChange={setScanInput}
                 onScan={handleProductScan}
                 icon={<Package size={15} />}
+                disabled={sessionStatus !== "running"}
                 autoFocus
                 isMobile={isMobile}
               />
@@ -1631,7 +1815,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
                 onClick={() => setShowConfirm(true)}
                 leftIcon={<Save size={16} />}
               >
-                Save Stock Check
+                Complete Stock Check
               </Button>
               <Button
                 variant="subtle"
@@ -1686,7 +1870,7 @@ function ManufacturerCheckMode({ onBack, isMobile }: { onBack: () => void; isMob
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will adjust stock quantities for <strong>{selectedMfr?.name}</strong> products based on scanned counts.
+            This will save a completed stock check report for <strong>{selectedMfr?.name}</strong>. Inventory quantities will not be adjusted here.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
@@ -1719,6 +1903,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
   const [isLoading, setIsLoading] = useState(true);
 
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<CheckSessionStatus>("idle");
   const [scanInput, setScanInput] = useState("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -1729,6 +1914,13 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
   } | null>(null);
 
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleProductChange = (value: string | null) => {
+    setSelectedProductId(value);
+    setSessionStatus("idle");
+    setScanInput("");
+    setScannedItems([]);
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -1750,10 +1942,34 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
 
   useEffect(() => { void loadData(); }, [loadData]);
 
+  useEffect(() => {
+    const draft = readStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product);
+    if (!draft?.referenceId) return;
+
+    setSelectedProductId(draft.referenceId);
+    setSessionStatus(draft.sessionStatus);
+    setScanInput(draft.scanInput || "");
+    setScannedItems(draft.scannedItems || []);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProductId) {
+      clearStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product);
+      return;
+    }
+
+    writeStockCheckDraft(STOCK_CHECK_DRAFT_KEYS.product, {
+      referenceId: selectedProductId,
+      sessionStatus,
+      scanInput,
+      scannedItems,
+    });
+  }, [scanInput, scannedItems, selectedProductId, sessionStatus]);
+
   const selectedProduct = products.find((p) => p.id === Number(selectedProductId));
 
   useEffect(() => {
-    if (selectedProduct) {
+    if (selectedProduct && scannedItems.length === 0) {
       const qRow = quantityRows.find((q) => q.productId === selectedProduct.id);
       setScannedItems([
         {
@@ -1766,9 +1982,10 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
           alias: normalizeSku(selectedProduct.alias),
         },
       ]);
+      setSessionStatus("idle");
       setTimeout(() => scanInputRef.current?.focus(), 100);
     }
-  }, [selectedProductId]);
+  }, [selectedProduct, quantityRows, scannedItems.length]);
 
   const productLocations = useMemo(() => {
     if (!selectedProduct) return [];
@@ -1781,6 +1998,11 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
   }, [selectedProduct, allottedLocations]);
 
   const handleProductScan = (val: string) => {
+    if (sessionStatus !== "running") {
+      toast.warning("Start the stock check before scanning products");
+      return;
+    }
+
     const sku = normalizeSku(val.split("#")[0]);
     setScanInput("");
 
@@ -1838,25 +2060,31 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
     setTimeout(() => scanInputRef.current?.focus(), 10);
   };
 
+  const persistReport = async (status: StockCheckReportStatus) => {
+    await saveStockCheckReport("Product", selectedProduct?.name || "Unknown", scannedItems, status);
+  };
+
+  const handlePause = async () => {
+    setIsSaving(true);
+    try {
+      await persistReport("PAUSED");
+      setSessionStatus("paused");
+      toast.success("Product stock check paused");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to pause");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowConfirm(false);
     setIsSaving(true);
     try {
-      for (const item of scannedItems) {
-        if (item.productId === null) continue;
-        const variance = item.scannedQty - item.systemQty;
-        if (variance === 0) continue;
-
-        await productQuantitiesApi.adjust({
-          productId: item.productId,
-          locationCode: "STOCK-CHECK",
-          quantityChange: variance,
-          reason: "Stock Check - Product Audit",
-          notes: `Product: ${item.productName}. System: ${item.systemQty}, Scanned: ${item.scannedQty}`,
-        });
-      }
-      toast.success("Product stock check saved");
+      await persistReport("COMPLETED");
+      toast.success("Product stock check completed");
       setSelectedProductId(null);
+      setSessionStatus("idle");
       setScannedItems([]);
       setScanInput("");
       await loadData();
@@ -1885,7 +2113,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={() => { setSelectedProductId(null); setScannedItems([]); setScanInput(""); }}
+                onClick={() => { setSelectedProductId(null); setSessionStatus("idle"); setScannedItems([]); setScanInput(""); }}
               >
                 Change
               </Button>
@@ -1918,7 +2146,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
                     label: p.alias ? `${normalizeSku(p.sku)} — ${p.name} (${p.alias})` : `${normalizeSku(p.sku)} — ${p.name}`,
                   }))}
                   value={selectedProductId}
-                  onChange={setSelectedProductId}
+                  onChange={handleProductChange}
                   disabled={isLoading}
                   nothingFoundMessage="No products found"
                   maxDropdownHeight={300}
@@ -1941,6 +2169,31 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
                 </Stack>
               </Paper>
 
+              <Group gap="xs">
+                {sessionStatus === "running" ? (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    variant="outline"
+                    fullWidth
+                    loading={isSaving}
+                    onClick={handlePause}
+                  >
+                    Pause
+                  </Button>
+                ) : (
+                  <Button
+                    size={isMobile ? "md" : "sm"}
+                    fullWidth
+                    onClick={() => {
+                      setSessionStatus("running");
+                      setTimeout(() => scanInputRef.current?.focus(), 10);
+                    }}
+                  >
+                    {sessionStatus === "paused" ? "Resume" : "Start"}
+                  </Button>
+                )}
+              </Group>
+
               <ScanInput
                 label="Scan Product"
                 placeholder="Scan same SKU to count..."
@@ -1948,6 +2201,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
                 onChange={setScanInput}
                 onScan={handleProductScan}
                 icon={<Package size={15} />}
+                disabled={sessionStatus !== "running"}
                 autoFocus
                 isMobile={isMobile}
               />
@@ -1991,7 +2245,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
                 onClick={() => setShowConfirm(true)}
                 leftIcon={<Save size={16} />}
               >
-                Save Stock Check
+                Complete Stock Check
               </Button>
               <Button
                 variant="subtle"
@@ -2067,9 +2321,9 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
             </Paper>
             <Text size="sm" c="dimmed">
               This product doesn't match the selected one. Would you like to add it to the stock check?
-            </Text>
-            <Group justify="flex-end" gap="xs">
-              <Button
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button
                 variant="subtle"
                 size="sm"
                 onClick={() => { setShowUnexpectedConfirm(null); setTimeout(() => scanInputRef.current?.focus(), 10); }}
@@ -2088,7 +2342,7 @@ function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isMobile: 
       <Modal opened={showConfirm} onClose={() => setShowConfirm(false)} title="Confirm Stock Check Save" centered size="sm">
         <Stack gap="sm">
           <Text size="sm" c="dimmed">
-            This will adjust stock for <strong>{selectedProduct?.name}</strong> and any unexpected products based on scanned counts.
+            This will save a completed stock check report for <strong>{selectedProduct?.name}</strong> and any unexpected products. Inventory quantities will not be adjusted here.
           </Text>
           <SimpleGrid cols={2} spacing="xs">
             <Paper radius="md" p="xs" withBorder>
@@ -2248,6 +2502,32 @@ function EmptyInline({ message }: { message: string }) {
 }
 
 function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
+  const [reports, setReports] = useState<StockCheckReport[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkType, setCheckType] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const loadReports = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const result = await stockCheckReportsApi.getAll({
+        checkType: checkType || undefined,
+        search: search.trim() || undefined,
+        page: 1,
+        pageSize: 100,
+      });
+      setReports(result.data);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load stock check reports");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [checkType, search]);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
+
   return (
     <OperationsPage
       title="Report History"
@@ -2259,12 +2539,109 @@ function StockCheckHistoryMode({ onBack, isMobile }: { onBack: () => void; isMob
         </Button>
       }
     >
-      <OperationsPanel title="History" icon={History} description="Coming soon.">
-        <OperationsEmptyState
-          icon={History}
-          title="History Not Available"
-          description="The history mode is currently under construction."
-        />
+      <ModeHeader title="Report History" icon={History} onBack={onBack} isMobile={isMobile} />
+
+      <OperationsPanel title="History" icon={History} description="Saved stock check snapshots.">
+        <Stack gap="sm">
+          <Group gap="xs" align="end">
+            <Box style={{ flex: 1, minWidth: 180 }}>
+              <Text size="10px" fw={800} c="dimmed" mb={4}>SEARCH</Text>
+              <TextInput
+                size={isMobile ? "md" : "sm"}
+                placeholder="Reference, user, notes..."
+                value={search}
+                onChange={(event) => setSearch(event.currentTarget.value)}
+                leftSection={<Search size={14} />}
+              />
+            </Box>
+            <Box style={{ width: isMobile ? "100%" : 180 }}>
+              <Text size="10px" fw={800} c="dimmed" mb={4}>CHECK TYPE</Text>
+              <Select
+                size={isMobile ? "md" : "sm"}
+                clearable
+                placeholder="All types"
+                value={checkType}
+                onChange={setCheckType}
+                data={[
+                  { value: "LOCATION", label: "Location" },
+                  { value: "MANUFACTURER", label: "Manufacturer" },
+                  { value: "PRODUCT", label: "Product" },
+                ]}
+              />
+            </Box>
+            <Button
+              size={isMobile ? "md" : "sm"}
+              variant="outline"
+              loading={isLoading}
+              onClick={() => void loadReports()}
+              leftIcon={<RefreshCw size={15} />}
+            >
+              Refresh
+            </Button>
+          </Group>
+
+          {reports.length === 0 ? (
+            <OperationsEmptyState
+              icon={History}
+              title="No Reports Found"
+              description="Paused and completed stock checks will appear here."
+            />
+          ) : (
+            <ScrollArea type="auto">
+              <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Date</Table.Th>
+                    <Table.Th>Type</Table.Th>
+                    <Table.Th>Reference</Table.Th>
+                    <Table.Th>Status</Table.Th>
+                    <Table.Th style={{ textAlign: "right" }}>System</Table.Th>
+                    <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
+                    <Table.Th style={{ textAlign: "right" }}>Variance</Table.Th>
+                    <Table.Th style={{ textAlign: "right" }}>Items</Table.Th>
+                    <Table.Th>By</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {reports.map((report) => (
+                    <Table.Tr key={report.id}>
+                      <Table.Td>{format(new Date(report.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
+                      <Table.Td>
+                        <MBadge size="xs" variant="light" color="cyan">{report.checkType}</MBadge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="12px" fw={700}>{report.referenceName}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <MBadge
+                          size="xs"
+                          variant="light"
+                          color={report.status === "COMPLETED" ? "green" : report.status === "PAUSED" ? "yellow" : "blue"}
+                        >
+                          {report.status}
+                        </MBadge>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>{report.totalSystemQty}</Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>{report.totalScannedQty}</Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>
+                        <Text
+                          size="12px"
+                          fw={800}
+                          ff="monospace"
+                          c={report.totalVariance === 0 ? "green.4" : report.totalVariance > 0 ? "yellow.4" : "red.4"}
+                        >
+                          {report.totalVariance > 0 ? "+" : ""}{report.totalVariance}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: "right" }}>{report.itemsChecked}</Table.Td>
+                      <Table.Td>{report.performedByName || "-"}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+        </Stack>
       </OperationsPanel>
     </OperationsPage>
   );

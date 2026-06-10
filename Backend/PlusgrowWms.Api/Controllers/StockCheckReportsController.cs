@@ -96,6 +96,13 @@ public class StockCheckReportsController : BaseController
         if (string.IsNullOrWhiteSpace(dto.ReferenceName))
             return BadRequest<StockCheckReportDto>("Reference name is required");
 
+        var status = string.IsNullOrWhiteSpace(dto.Status)
+            ? "COMPLETED"
+            : dto.Status.Trim().ToUpper();
+
+        if (status is not ("IN_PROGRESS" or "PAUSED" or "COMPLETED"))
+            return BadRequest<StockCheckReportDto>("Invalid stock check status");
+
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
         var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
@@ -112,7 +119,7 @@ public class StockCheckReportsController : BaseController
             ItemsChecked = dto.ItemsChecked,
             ItemsWithVariance = dto.ItemsWithVariance,
             ItemsJson = dto.ItemsJson,
-            Status = "COMPLETED",
+            Status = status,
             Notes = dto.Notes?.Trim(),
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,

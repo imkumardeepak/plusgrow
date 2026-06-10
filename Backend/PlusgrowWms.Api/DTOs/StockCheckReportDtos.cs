@@ -28,5 +28,6 @@ public class CreateStockCheckReportDto
     public int ItemsChecked { get; set; }
     public int ItemsWithVariance { get; set; }
     public string ItemsJson { get; set; } = "[]";
+    public string? Status { get; set; }
     public string? Notes { get; set; }
 }
