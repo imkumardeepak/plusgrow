@@ -338,6 +338,15 @@ export const Dashboard = memo(function Dashboard() {
           visible: hasPermission("putaway", "view"),
         },
         {
+          key: "inward-verify",
+          title: "Inward Verify",
+          description: "Scan stickers and match invoice qty.",
+          icon: IconClipboardCheck,
+          color: "cyan",
+          href: "/inward-verify",
+          visible: hasPermission("inward", "view") || isPickingRole,
+        },
+        {
           key: "picking",
           title: "Picking",
           description: "Pick order items from warehouse locations.",
