@@ -333,7 +333,6 @@ export const InwardVerify = memo(function InwardVerify() {
                                 {line.difference === 0 ? "OK" : line.difference > 0 ? "More" : "Less"}
                               </Badge>
                             </Group>
-                            <Text size="10px" c="dimmed" truncate>{line.productName}</Text>
                           </Box>
                           <Group gap="xs" wrap="nowrap">
                             <Box ta="center"><Text size="9px" c="dimmed" fw={800}>INV</Text><Text size="sm" fw={900}>{line.expectedQty}</Text></Box>
@@ -350,7 +349,6 @@ export const InwardVerify = memo(function InwardVerify() {
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th>SKU</Table.Th>
-                          <Table.Th>Product</Table.Th>
                           <Table.Th style={{ textAlign: "right" }}>Invoice Qty</Table.Th>
                           <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
                           <Table.Th style={{ textAlign: "right" }}>Difference</Table.Th>
@@ -361,7 +359,6 @@ export const InwardVerify = memo(function InwardVerify() {
                         {lines.map((line) => (
                           <Table.Tr key={line.id}>
                             <Table.Td><Text size="12px" fw={800} ff="monospace">{line.skuCode}</Text></Table.Td>
-                            <Table.Td><Text size="12px" lineClamp={1}>{line.productName}</Text></Table.Td>
                             <Table.Td style={{ textAlign: "right" }}>{line.expectedQty}</Table.Td>
                             <Table.Td style={{ textAlign: "right" }}>{line.scannedQty}</Table.Td>
                             <Table.Td style={{ textAlign: "right" }}>
@@ -387,7 +384,6 @@ export const InwardVerify = memo(function InwardVerify() {
                       {scanEvents.slice(0, 20).map((event, index) => (
                         <Group key={`${event.at}-${index}`} justify="space-between" gap="xs" wrap="nowrap">
                           <Text size="11px" ff="monospace" truncate c={event.isExtra ? "red.3" : "white"}>{event.sku}</Text>
-                          <Text size="10px" c="dimmed" truncate>{event.productName}</Text>
                           <Tooltip label="Remove scan">
                             <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setScanEvents((prev) => prev.filter((_, i) => i !== index))}>
                               <Trash2 size={12} />
