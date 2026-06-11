@@ -401,12 +401,7 @@ public class PoInvoicesController : BaseController
 
             var dataRows = worksheet.RowsUsed().Skip(headerRow.RowNumber()).ToList();
 
-            var headerMap = headerRow.CellsUsed()
-                .ToDictionary(
-                    cell => NormalizeHeader(cell.GetString()),
-                    cell => cell.Address.ColumnNumber,
-                    StringComparer.OrdinalIgnoreCase
-                );
+            var headerMap = BuildUploadHeaderMap(headerRow);
 
             var requiredHeaders = new[]
             {
@@ -714,6 +709,53 @@ public class PoInvoicesController : BaseController
     private static string NormalizeHeader(string value)
     {
         return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+    }
+
+    private static Dictionary<string, int> BuildUploadHeaderMap(IXLRow headerRow)
+    {
+        var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cell in headerRow.CellsUsed())
+        {
+            var normalizedHeader = NormalizeHeader(cell.GetString());
+            if (!string.IsNullOrWhiteSpace(normalizedHeader) && !headerMap.ContainsKey(normalizedHeader))
+            {
+                headerMap[normalizedHeader] = cell.Address.ColumnNumber;
+            }
+        }
+
+        if (headerMap.Count > 1)
+        {
+            return headerMap;
+        }
+
+        var firstHeaderCell = headerRow.CellsUsed().FirstOrDefault();
+        if (firstHeaderCell == null)
+        {
+            return headerMap;
+        }
+
+        var concatenatedHeader = NormalizeHeader(firstHeaderCell.GetString());
+        var expectedHeaders = new[]
+        {
+            "invoiceno",
+            "invdate",
+            "partyname",
+            "partno",
+            "mrp",
+            "itemname",
+            "billedqty",
+        };
+
+        var expectedConcatenatedHeader = string.Concat(expectedHeaders);
+        if (!string.Equals(concatenatedHeader, expectedConcatenatedHeader, StringComparison.OrdinalIgnoreCase))
+        {
+            return headerMap;
+        }
+
+        var startColumn = firstHeaderCell.Address.ColumnNumber;
+        return expectedHeaders
+            .Select((header, index) => new { header, column = startColumn + index })
+            .ToDictionary(item => item.header, item => item.column, StringComparer.OrdinalIgnoreCase);
     }
 
     private static DateTime NormalizeInvoiceDate(DateTime value)
