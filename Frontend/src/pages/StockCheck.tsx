@@ -234,8 +234,11 @@ function StockCheckHub({
   onSelectMode: (mode: ActiveMode) => void;
   isMobile: boolean;
 }) {
+  const navigate = useNavigate();
+
   const cards: {
-    mode: ActiveMode;
+    mode?: ActiveMode;
+    href?: string;
     icon: React.ComponentType<{ size?: number; className?: string }>;
     title: string;
     description: string;
@@ -250,6 +253,15 @@ function StockCheckHub({
       description: "Quick single-SKU lookup. View master data, invoices, locations, and stock details.",
       color: "rgba(99, 102, 241, 0.8)",
       gradient: "linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+      small: true,
+    },
+    {
+      href: "/product-mrp-wise-quantity",
+      icon: FileText,
+      title: "Product MRP Wise Quantity",
+      description: "Current quantity grouped product and MRP wise.",
+      color: "rgba(34, 211, 238, 0.8)",
+      gradient: "linear-gradient(135deg, rgba(34,211,238,0.16) 0%, rgba(15,23,42,0.6) 100%)",
       small: true,
     },
     {
@@ -316,14 +328,14 @@ function StockCheckHub({
         </Paper>
       )}
 
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} spacing={isMobile ? "xs" : "sm"}>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 6 }} spacing={isMobile ? "xs" : "sm"}>
         {cards.map((card) => (
           <Paper
-            key={card.mode}
+            key={card.mode ?? card.href}
             radius="md"
             p={isMobile ? "xs" : "sm"}
             withBorder
-            onClick={() => onSelectMode(card.mode)}
+            onClick={() => card.href ? navigate(card.href) : onSelectMode(card.mode!)}
             style={{
               cursor: "pointer",
               background: card.gradient,
@@ -353,7 +365,7 @@ function StockCheckHub({
                   </Text>
                   {card.small && (
                     <MBadge size="xs" variant="light" color="indigo" radius="sm">
-                      Quick
+                      {card.href ? "Report" : "Quick"}
                     </MBadge>
                   )}
                 </Group>
