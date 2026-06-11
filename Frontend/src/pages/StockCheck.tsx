@@ -432,6 +432,26 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
     setIsPrintModalOpen(true);
   };
 
+  const openProductFromSku = useCallback((sku?: string | null, productName?: string | null) => {
+    const normalizedSku = normalizeSku(sku);
+    const normalizedName = (productName || "").trim().toLowerCase();
+    const product =
+      products.find(
+        (item) =>
+          (normalizedSku &&
+            (normalizeSku(item.sku) === normalizedSku || normalizeSku(item.alias) === normalizedSku)) ||
+          (normalizedName && item.name.trim().toLowerCase() === normalizedName),
+      ) ?? lookupResult?.product ?? null;
+
+    if (product) {
+      setLookupResult((prev) => (prev ? { ...prev, product } : prev));
+      setIsEditModalOpen(true);
+      return;
+    }
+
+    navigate(masterHref("/mpd", normalizedSku || productName || ""));
+  }, [lookupResult?.product, navigate, products]);
+
   const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
     const rawInput = scanInput.trim();
@@ -593,7 +613,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                   icon={Package}
                   label="Product Master"
                   value={productTitle}
-                  onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
+                  onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
                   isButton
                 />
                 <ReferenceLink
@@ -653,13 +673,15 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                   <div className="min-w-0">
                     <Group gap="xs" wrap="nowrap">
-                      <Badge size="sm" radius="md" variant="default" color="gray">{lookupResult.sku}</Badge>
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)} mono>
+                        {lookupResult.sku}
+                      </MasterLink>
                       <Badge size="sm" radius="md" variant={lookupResult.quantityRow ? "success" : "warning"}>
                         {lookupResult.quantityRow ? "Stock Available" : "No Stock Row"}
                       </Badge>
                     </Group>
                     <MasterLink
-                      onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
+                      onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
                       size="lg"
                       weight={900}
                       className="mt-2"
@@ -699,12 +721,12 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                   <MetricLabel icon={Package} label="Product Master" />
                   <SimpleGrid cols={2} spacing={6} mt="xs">
                     <Info label="Name" value={
-                      <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)}>
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)}>
                         {lookupResult.product?.name || productTitle}
                       </MasterLink>
                     } />
                     <Info label="SKU" value={
-                      <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)} mono>
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)} mono>
                         {lookupResult.product?.sku || lookupResult.sku}
                       </MasterLink>
                     } />
@@ -771,6 +793,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                           <Table.Th>Date</Table.Th>
                           <Table.Th>Party</Table.Th>
                           <Table.Th>Product</Table.Th>
+                          <Table.Th>SKU</Table.Th>
                           <Table.Th>Invoice Price</Table.Th>
                           <Table.Th>Billed Qty.</Table.Th>
                         </Table.Tr>
@@ -786,16 +809,13 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                             <Table.Td>{format(new Date(invoice.invoiceDate), "dd MMM yyyy")}</Table.Td>
                             <Table.Td>{invoice.partyName}</Table.Td>
                             <Table.Td>
-                              <MasterLink onClick={() => {
-                                const prod = products.find(p => p.sku === invoice.skuCode);
-                                if (prod) {
-                                  setLookupResult(prev => prev ? { ...prev, product: prod } : null);
-                                  setIsEditModalOpen(true);
-                                } else {
-                                  navigate(masterHref("/mpd", invoice.skuCode));
-                                }
-                              }}>
+                              <MasterLink onClick={() => openProductFromSku(invoice.skuCode, invoice.productName)}>
                                 {invoice.productName}
+                              </MasterLink>
+                            </Table.Td>
+                            <Table.Td>
+                              <MasterLink onClick={() => openProductFromSku(invoice.skuCode, invoice.productName)} mono>
+                                {invoice.skuCode}
                               </MasterLink>
                             </Table.Td>
                             <Table.Td>{formatMoney(invoice.mrp)}</Table.Td>
