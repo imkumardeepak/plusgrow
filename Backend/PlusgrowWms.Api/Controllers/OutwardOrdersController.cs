@@ -243,7 +243,8 @@ public class OutwardOrdersController : BaseController
         if (string.IsNullOrWhiteSpace(resolvedLocationCode))
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty);
+        var effectiveMrp = dto.Mrp ?? order.Mrp;
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty, effectiveMrp);
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
@@ -317,7 +318,8 @@ public class OutwardOrdersController : BaseController
         if (string.IsNullOrWhiteSpace(resolvedLocationCode))
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty);
+        var effectiveMrp = dto.Mrp ?? product.Mrp;
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp);
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
@@ -340,7 +342,7 @@ public class OutwardOrdersController : BaseController
             ProductId = product.Id,
             Product = product,
             Quantity = pickQty,
-            Mrp = dto.Mrp ?? product.Mrp,
+            Mrp = effectiveMrp,
             PickedQuantity = pickQty,
             Status = "Packed",
             Notes = salesOrder.Notes,
@@ -432,7 +434,8 @@ public class OutwardOrdersController : BaseController
             if (string.IsNullOrWhiteSpace(resolvedLocationCode))
                 return BadRequest<List<OutwardOrderDto>>($"Scanned location {item.LocationCode.Trim()} was not found");
 
-            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty);
+            var effectiveMrp = item.Mrp ?? product.Mrp;
+            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp);
             if (!reduceLocationResult.Success)
                 return BadRequest<List<OutwardOrderDto>>(reduceLocationResult.Message!);
 
@@ -442,7 +445,7 @@ public class OutwardOrdersController : BaseController
                 ProductId = product.Id,
                 Product = product,
                 Quantity = pickQty,
-                Mrp = item.Mrp ?? product.Mrp,
+                Mrp = effectiveMrp,
                 PickedQuantity = pickQty,
                 Status = "Packed",
                 Notes = salesOrder.Notes,
@@ -683,7 +686,7 @@ public class OutwardOrdersController : BaseController
         return binLocation?.LocationCode;
     }
 
-    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(int productId, string resolvedLocationCode, int quantity)
+    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(int productId, string resolvedLocationCode, int quantity, decimal? mrp)
     {
         var row = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
@@ -699,6 +702,10 @@ public class OutwardOrdersController : BaseController
         if (available < quantity)
             return (false, $"Only {available} units are available in {matchingKey}");
 
+        var batchResult = await ReduceMrpBatchLocationAsync(productId, matchingKey, quantity, mrp);
+        if (!batchResult.Success)
+            return batchResult;
+
         var nextQty = available - quantity;
         if (nextQty <= 0)
             row.LocationJson.Remove(matchingKey);
@@ -707,6 +714,59 @@ public class OutwardOrdersController : BaseController
 
         row.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(row).Property(x => x.LocationJson).IsModified = true;
+        return (true, null);
+    }
+
+    private async Task<(bool Success, string? Message)> ReduceMrpBatchLocationAsync(int productId, string locationCode, int quantity, decimal? mrp)
+    {
+        var batchQuery = _context.PoInvoiceLocations
+            .Include(x => x.PoInvoice)
+                .ThenInclude(x => x!.Header)
+            .Where(x => x.PoInvoice!.ProductId == productId && x.Quantity > 0 && x.LocationCode.ToLower() == locationCode.ToLower());
+
+        if (mrp.HasValue)
+        {
+            var normalizedMrp = decimal.Round(mrp.Value, 2);
+            var minMrp = normalizedMrp - 0.005m;
+            var maxMrp = normalizedMrp + 0.005m;
+            batchQuery = batchQuery.Where(x => x.PoInvoice!.Mrp >= minMrp && x.PoInvoice.Mrp < maxMrp);
+        }
+        else
+        {
+            var availableMrps = await batchQuery
+                .Select(x => x.PoInvoice!.Mrp)
+                .Distinct()
+                .Take(2)
+                .ToListAsync();
+
+            if (availableMrps.Count > 1)
+                return (false, "MRP scan is required because this product/location has stock in multiple MRP batches");
+        }
+
+        var batches = await batchQuery
+            .OrderBy(x => x.PoInvoice!.Header!.InvoiceDate)
+            .ThenBy(x => x.PoInvoiceId)
+            .ThenBy(x => x.Id)
+            .ToListAsync();
+
+        var totalAvailable = batches.Sum(x => x.Quantity);
+        if (totalAvailable < quantity)
+        {
+            var mrpText = mrp.HasValue ? $" for MRP Rs.{mrp.Value:N2}" : string.Empty;
+            return (false, $"Only {totalAvailable} units are available in {locationCode}{mrpText}");
+        }
+
+        var remainingToReduce = quantity;
+        foreach (var batch in batches)
+        {
+            if (remainingToReduce <= 0)
+                break;
+
+            var reduceQty = Math.Min(batch.Quantity, remainingToReduce);
+            batch.Quantity -= reduceQty;
+            remainingToReduce -= reduceQty;
+        }
+
         return (true, null);
     }
 

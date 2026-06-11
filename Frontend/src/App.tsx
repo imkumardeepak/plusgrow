@@ -259,6 +259,7 @@ export default function App() {
                       element={pageElement(["locations", "bins"], <BinMovement />)}
                     />
                     <Route path="mrp-tracking" element={pageElement("inward", <MrpTracking />)} />
+                    <Route path="product-mrp-wise-quantity" element={pageElement("stock-check", <MrpTracking />)} />
                     <Route path="mpd" element={pageElement("mpd", <MPD />)} />
                     <Route
                       path="sticker-printer-config"

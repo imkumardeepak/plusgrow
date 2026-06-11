@@ -57,4 +57,44 @@ public class MrpTrackingController : BaseController
 
         return Success(results);
     }
+
+    [HttpGet("summary")]
+    public async Task<ActionResult<ApiResponse<List<MrpWiseStockSummaryDto>>>> GetMrpWiseStockSummary([FromQuery] string? search)
+    {
+        var query = _context.PoInvoiceLocations
+            .Include(x => x.PoInvoice)
+                .ThenInclude(i => i!.Product)
+            .Where(x => x.Quantity > 0)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(x =>
+                (x.PoInvoice!.Product!.Name != null && x.PoInvoice.Product.Name.ToLower().Contains(s)) ||
+                (x.PoInvoice!.Product!.Sku != null && x.PoInvoice.Product.Sku.ToLower().Contains(s)));
+        }
+
+        var results = await query
+            .GroupBy(x => new
+            {
+                x.PoInvoice!.ProductId,
+                x.PoInvoice.Product!.Name,
+                x.PoInvoice.Product.Sku,
+                x.PoInvoice.Mrp,
+            })
+            .Select(g => new MrpWiseStockSummaryDto
+            {
+                ProductId = g.Key.ProductId,
+                ProductName = g.Key.Name,
+                Sku = g.Key.Sku,
+                Mrp = g.Key.Mrp,
+                Quantity = g.Sum(x => x.Quantity),
+            })
+            .OrderBy(x => x.ProductName)
+            .ThenBy(x => x.Mrp)
+            .ToListAsync();
+
+        return Success(results);
+    }
 }

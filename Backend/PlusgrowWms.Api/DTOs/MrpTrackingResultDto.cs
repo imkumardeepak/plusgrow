@@ -13,3 +13,12 @@ public class MrpTrackingResultDto
     public string? LocationCode { get; set; }
     public int Quantity { get; set; }
 }
+
+public class MrpWiseStockSummaryDto
+{
+    public int ProductId { get; set; }
+    public string? ProductName { get; set; }
+    public string? Sku { get; set; }
+    public decimal? Mrp { get; set; }
+    public int Quantity { get; set; }
+}

@@ -1,27 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Group, ActionIcon, TextInput } from '@mantine/core';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Box, Group, ActionIcon, TextInput, Text } from '@mantine/core';
 import { OperationsPage, OperationsPanel } from '../components/organisms/Operations/OperationsShell';
 import { MantineDataTable, DataTableColumn } from '../components/molecules/MantineDataTable';
-import { format } from 'date-fns';
 import { FileText, Search, RefreshCw, ArrowLeft } from 'lucide-react';
-import { mrpTrackingApi, MrpTrackingResult } from '../services/mrpTrackingApi';
+import { mrpTrackingApi, MrpWiseStockSummary } from '../services/mrpTrackingApi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../lib/toast';
 import { Button } from '../components/atoms/Button';
 
 export default function MrpTracking() {
   const navigate = useNavigate();
-  const [data, setData] = useState<MrpTrackingResult[]>([]);
+  const [data, setData] = useState<MrpWiseStockSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const loadData = async (searchQuery: string = '') => {
     try {
       setIsLoading(true);
-      const result = await mrpTrackingApi.getTrackingReport(searchQuery);
+      const result = await mrpTrackingApi.getMrpWiseStockSummary(searchQuery);
       setData(result || []);
     } catch {
-      toast.error('Failed to load MRP tracking data');
+      toast.error('Failed to load Product MRP Wise Quantity');
     } finally {
       setIsLoading(false);
     }
@@ -31,7 +30,12 @@ export default function MrpTracking() {
     void loadData();
   }, []);
 
-  const columns: DataTableColumn<MrpTrackingResult>[] = [
+  const totalQuantity = useMemo(
+    () => data.reduce((sum, row) => sum + row.quantity, 0),
+    [data],
+  );
+
+  const columns: DataTableColumn<MrpWiseStockSummary>[] = [
     {
       key: 'productName',
       header: 'Product',
@@ -42,77 +46,56 @@ export default function MrpTracking() {
           <div className="text-xs text-gray-500">{row.sku}</div>
         </Box>
       ),
-      width: 250,
-    },
-    {
-      key: 'invoiceNumber',
-      header: 'Invoice No.',
-      sortable: true,
-      render: (row) => row.invoiceNumber,
-      width: 150,
-    },
-    {
-      key: 'invoiceDate',
-      header: 'Invoice Date',
-      sortable: true,
-      render: (row) => row.invoiceDate ? format(new Date(row.invoiceDate), 'dd MMM yyyy') : '-',
-      width: 120,
+      width: 320,
     },
     {
       key: 'mrp',
       header: 'MRP',
       sortable: true,
       render: (row) => row.mrp !== null ? `₹${row.mrp.toFixed(2)}` : '-',
-      width: 100,
-    },
-    {
-      key: 'locationCode',
-      header: 'Location',
-      sortable: true,
-      render: (row) => <div className="font-medium text-cyan-600">{row.locationCode}</div>,
-      width: 120,
+      width: 140,
     },
     {
       key: 'quantity',
-      header: 'Allocated Qty',
+      header: 'Current Qty',
       sortable: true,
       align: 'right',
-      render: (row) => row.quantity,
-      width: 120,
+      render: (row) => <Text fw={800}>{row.quantity}</Text>,
+      width: 140,
     },
   ];
 
   return (
     <OperationsPage
-      title="MRP / Batch Tracking"
-      description="Track inwarded product quantities and their specific locations based on MRP and invoices."
+      title="Product MRP Wise Quantity"
+      description="Current remaining stock grouped by Product and MRP after inward, picking, and outward deduction."
       icon={FileText}
       actions={
         <Button
           variant="outline"
           leftIcon={<ArrowLeft size={16} />}
-          onClick={() => navigate('/inward')}
+          onClick={() => navigate('/stock-check')}
         >
-          Back to Inward
+          Back to Stock Check
         </Button>
       }
     >
       <OperationsPanel
-        title="Allocation Ledger"
+        title="Product MRP Wise Quantity"
         icon={FileText}
-        description="Detailed view of product quantities placed at specific locations."
+        description={`Showing ${data.length} product/MRP batches with total quantity ${totalQuantity}.`}
         action={
           <Group gap="xs" wrap="nowrap">
             <TextInput
               size="xs"
               radius="md"
-              w={240}
+              w={260}
               value={search}
               onChange={(e) => setSearch(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void loadData(search);
               }}
-              placeholder="Search product, SKU, invoice..."
+              placeholder="Search product or SKU..."
               leftSection={<Search size={14} />}
             />
             <ActionIcon
@@ -132,13 +115,13 @@ export default function MrpTracking() {
           data={data}
           columns={columns}
           isLoading={isLoading}
-          rowKey={(row) => row.id}
+          rowKey={(row) => `${row.productId}-${row.mrp ?? 'no-mrp'}`}
           emptyIcon={FileText}
-          emptyTitle="No tracking data"
-          emptyDescription="No location allocations found for the given criteria."
-          itemLabel="allocations"
+          emptyTitle="No MRP wise quantity"
+          emptyDescription="No remaining stock found for the given criteria."
+          itemLabel="MRP batches"
           enablePagination={false}
-          minWidth={1000}
+          minWidth={700}
         />
       </OperationsPanel>
     </OperationsPage>
