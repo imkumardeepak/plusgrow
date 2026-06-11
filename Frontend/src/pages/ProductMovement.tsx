@@ -57,6 +57,7 @@ export const ProductMovement = memo(function ProductMovement() {
 
   const skuInputRef = useRef<HTMLInputElement>(null);
   const destInputRef = useRef<HTMLInputElement>(null);
+  const qtyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     skuInputRef.current?.focus();
@@ -92,11 +93,12 @@ export const ProductMovement = memo(function ProductMovement() {
       setNotes("");
       
       if (result.locations.length > 0) {
-        // Auto-select the first location if only one exists
-        if (result.locations.length === 1) {
-          setSourceLoc(result.locations[0].locationCode);
-        }
+        // Auto-select the first source location with stock, then continue scan flow.
+        const autoSource =
+          result.locations.find((loc) => loc.quantity > 0) || result.locations[0];
+        setSourceLoc(autoSource.locationCode);
         toast.success(`Product identified: ${result.product?.name}`);
+        setTimeout(() => destInputRef.current?.focus(), 100);
       } else {
         toast.error("This product does not have any allocated stock in the warehouse.");
       }
@@ -123,10 +125,7 @@ export const ProductMovement = memo(function ProductMovement() {
       if (matched) {
         setDestLocInput(matched.locationCode);
         toast.success(`Destination identified: ${matched.locationCode}`);
-        setTimeout(() => {
-          const qtyInput = document.getElementById("move-qty-input");
-          qtyInput?.focus();
-        }, 50);
+        setTimeout(() => qtyInputRef.current?.focus(), 50);
       } else {
         toast.error(`Location or Bin "${code}" not found in Location Master`);
       }
@@ -217,7 +216,7 @@ export const ProductMovement = memo(function ProductMovement() {
       icon={ArrowLeftRight}
       hideHeader
     >
-      <div className="max-w-2xl mx-auto w-full space-y-4">
+      <div className="max-w-2xl mx-auto w-full space-y-2 sm:space-y-4 px-1 sm:px-0">
         
         {/* Search Panel */}
         <OperationsPanel
@@ -235,7 +234,7 @@ export const ProductMovement = memo(function ProductMovement() {
             </Button>
           }
         >
-          <form onSubmit={handleLookup} className="space-y-4">
+          <form onSubmit={handleLookup} className="space-y-2 sm:space-y-4">
             <TextInput
               ref={skuInputRef}
               label="SKU CODE"
@@ -290,7 +289,7 @@ export const ProductMovement = memo(function ProductMovement() {
             icon={Boxes}
             description="Provide source, destination, and quantity to relocate."
           >
-            <Stack gap="md">
+            <Stack gap={{ base: "xs", sm: "md" }}>
               {/* Product Info Banner */}
               <Paper
                 radius="lg"
@@ -305,7 +304,7 @@ export const ProductMovement = memo(function ProductMovement() {
                   <Text size="xs" fw={800} c="cyan.4" ff="monospace">
                     {productData.sku}
                   </Text>
-                  <Text size="md" fw={800} c="white">
+                  <Text size="sm" fw={800} c="white" lineClamp={2}>
                     {productData.product?.name}
                   </Text>
                   <Group gap="xs" mt={4}>
@@ -319,7 +318,7 @@ export const ProductMovement = memo(function ProductMovement() {
                 </Stack>
               </Paper>
 
-              <form onSubmit={handleMoveStock} className="space-y-4">
+              <form onSubmit={handleMoveStock} className="space-y-2 sm:space-y-4">
                 
                 {/* Source Location */}
                 <Select
@@ -338,7 +337,7 @@ export const ProductMovement = memo(function ProductMovement() {
                   leftSection={<MapPin size={16} />}
                 />
 
-                <SimpleGrid cols={2} spacing="md">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing={{ base: "xs", sm: "md" }}>
                   {/* Destination Location */}
                   <TextInput
                     ref={destInputRef}
@@ -360,6 +359,7 @@ export const ProductMovement = memo(function ProductMovement() {
 
                   {/* Quantity */}
                   <NumberInput
+                    ref={qtyInputRef}
                     id="move-qty-input"
                     label="QUANTITY TO MOVE"
                     placeholder="Enter quantity"
@@ -374,7 +374,7 @@ export const ProductMovement = memo(function ProductMovement() {
                   />
                 </SimpleGrid>
 
-                <SimpleGrid cols={2} spacing="md">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing={{ base: "xs", sm: "md" }}>
                   {/* Reason */}
                   <Select
                     label="REASON"
@@ -403,7 +403,7 @@ export const ProductMovement = memo(function ProductMovement() {
                   fullWidth
                   disabled={isSubmitting || !sourceLoc || !destLocInput.trim()}
                   loading={isSubmitting}
-                  className="mt-6"
+                  className="mt-2 sm:mt-6"
                 >
                   Confirm Movement
                 </Button>
