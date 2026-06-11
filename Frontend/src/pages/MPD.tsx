@@ -1236,26 +1236,31 @@ export const MPD = memo(function MPD() {
         }
       >
         <form onSubmit={handleSubmit}>
-          <Stack gap="sm">
-            <Paper radius="lg" p="sm" withBorder bg="transparent">
-              <Stack gap="sm">
-                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                  Identity
-                </Text>
-                <Input
-                  label="Product Name"
-                  placeholder="Mechanical keyboard pro"
-                  value={formData.name}
-                  onChange={(event) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      name: event.target.value,
-                    }))
-                  }
-                  leftElement={<Package size={16} />}
-                  required
-                />
-                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+          <Stack gap="xs">
+            <Paper radius="md" p="xs" withBorder bg="transparent">
+              <Stack gap={6}>
+                <Group justify="space-between" gap="xs">
+                  <Text size="10px" fw={800} c="dimmed" tt="uppercase">
+                    Product Details
+                  </Text>
+                  <Text size="10px" c="dimmed">
+                    Compact view
+                  </Text>
+                </Group>
+                <SimpleGrid cols={{ base: 1, sm: 2, md: 3, xl: 5 }} spacing={8} verticalSpacing={6}>
+                  <Input
+                    label="Product Name"
+                    placeholder="Mechanical keyboard pro"
+                    value={formData.name}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                      }))
+                    }
+                    leftElement={<Package size={16} />}
+                    required
+                  />
                   <Input
                     label="SKU"
                     placeholder="SKU-1001"
@@ -1292,8 +1297,6 @@ export const MPD = memo(function MPD() {
                     }
                     leftElement={<Globe size={16} />}
                   />
-                </SimpleGrid>
-                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Select
                     label="Manufacturer"
                     placeholder="Select manufacturer"
@@ -1374,27 +1377,17 @@ export const MPD = memo(function MPD() {
                       },
                     }}
                   />
-                </SimpleGrid>
-                <Input
-                  label="Product Note"
-                  placeholder="Note to print on stickers (optional)"
-                  value={formData.note || ""}
-                  onChange={(event) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      note: event.target.value,
-                    }))
-                  }
-                />
-              </Stack>
-            </Paper>
-
-            <Paper radius="lg" p="sm" withBorder bg="transparent">
-              <Stack gap="sm">
-                <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                  Pricing and Packaging
-                </Text>
-                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
+                  <Input
+                    label="Product Note"
+                    placeholder="Sticker note"
+                    value={formData.note || ""}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        note: event.target.value,
+                      }))
+                    }
+                  />
                   <Input
                     label="MRP"
                     type="number"
@@ -1433,8 +1426,6 @@ export const MPD = memo(function MPD() {
                       }))
                     }
                   />
-                </SimpleGrid>
-                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Input
                     label="USSP (Auto-calculated)"
                     type="number"
@@ -1483,8 +1474,6 @@ export const MPD = memo(function MPD() {
                       }))
                     }
                   />
-                </SimpleGrid>
-                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
                   <Input
                     label="Carton QR"
                     placeholder="Carton QR / barcode"
@@ -1515,7 +1504,7 @@ export const MPD = memo(function MPD() {
                 </SimpleGrid>
               </Stack>
             </Paper>
-            <Group justify="flex-end" pt="sm">
+            <Group justify="flex-end" pt={4} gap="xs">
               <Button variant="outline" onClick={closeModal}>
                 Cancel
               </Button>
