@@ -1194,21 +1194,23 @@ export const poInvoicesApi = {
     const wb = XLSX.utils.book_new();
     const templateData = [
       {
-        'InvoiceDate': '',
-        'PartyName': '',
-        'SKUCode': '',
-        'ProductName': '',
-        'BilledQty': '',
+        'Invoice No.': '',
+        'Inv. Date': '',
+        'Party Name': '',
+        'Part No.': '',
         'MRP': '',
+        'Item Name': '',
+        'Billed Qty.': '',
       }
     ];
     const ws = XLSX.utils.json_to_sheet(templateData);
     ws['!cols'] = [
+      { wch: 18 },
       { wch: 15 },
       { wch: 30 },
       { wch: 20 },
-      { wch: 35 },
       { wch: 12 },
+      { wch: 35 },
       { wch: 12 },
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'PO Invoice Template');
