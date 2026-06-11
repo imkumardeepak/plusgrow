@@ -867,7 +867,7 @@ export const MPD = memo(function MPD() {
             <Package size={18} />
           </ThemeIcon>
           <Stack gap={2} style={{ minWidth: 0 }}>
-            <Text size="xs" fw={700} lineClamp={1} maw={190}>
+            <Text size="xs" fw={700}>
               {row.name}
             </Text>
             <Text size="11px" c="dimmed" lineClamp={1}>
@@ -876,19 +876,7 @@ export const MPD = memo(function MPD() {
           </Stack>
         </Group>
       ),
-      width: 280,
-    },
-    {
-      key: "commodity",
-      header: "Commodity",
-      sortable: true,
-      sortAccessor: (row) => row.commodity?.name,
-      render: (row) => (
-        <Text size="xs" lineClamp={1} maw={130}>
-          {row.commodity?.name || "N/A"}
-        </Text>
-      ),
-      width: 150,
+      width: 430,
     },
     {
       key: "stockQty",
