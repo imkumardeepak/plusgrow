@@ -15,6 +15,7 @@ import { Notifications } from "@mantine/notifications";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import { DashboardLayout } from "./components/templates/DashboardLayout";
+import { GlobalInputClearButtons } from "./components/GlobalInputClearButtons";
 import { PageLoader } from "./components/molecules/PageLoader/PageLoader";
 
 // Lazy load pages for code splitting
@@ -160,6 +161,7 @@ const theme = createTheme({
 export default function App() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
+      <GlobalInputClearButtons />
       <Notifications position="top-right" autoClose={1000} />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>

@@ -181,4 +181,46 @@
   .mantine-ScrollArea-corner {
     display: none;
   }
+
+  @media (max-width: 640px) {
+    .global-input-clear-wrapper {
+      position: relative;
+    }
+
+    .global-input-clear-target {
+      padding-right: 2.5rem !important;
+    }
+
+    .global-input-clear-button {
+      align-items: center;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 9999px;
+      color: rgba(255, 255, 255, 0.86);
+      cursor: pointer;
+      display: inline-flex;
+      font-size: 1.15rem;
+      font-weight: 700;
+      height: 1.5rem;
+      justify-content: center;
+      line-height: 1;
+      position: absolute;
+      right: 0.65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1.5rem;
+      z-index: 2;
+    }
+
+    .global-input-clear-button:hover,
+    .global-input-clear-button:focus-visible {
+      background: rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+      outline: none;
+    }
+
+    .global-input-clear-button[hidden] {
+      display: none;
+    }
+  }
 }
