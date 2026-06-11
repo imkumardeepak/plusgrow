@@ -193,10 +193,11 @@
 
     .global-input-clear-button {
       align-items: center;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.36);
       border-radius: 9999px;
-      color: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+      color: #ffffff;
       cursor: pointer;
       display: inline-flex;
       font-size: 1.15rem;
@@ -209,12 +210,20 @@
       top: 50%;
       transform: translateY(-50%);
       width: 1.5rem;
-      z-index: 2;
+      z-index: 20;
+    }
+
+    .mantine-Input-wrapper .global-input-clear-button {
+      right: 0.5rem;
+    }
+
+    .mantine-Input-wrapper:has(.global-input-clear-button) .mantine-Input-section[data-position="right"] {
+      display: none;
     }
 
     .global-input-clear-button:hover,
     .global-input-clear-button:focus-visible {
-      background: rgba(255, 255, 255, 0.18);
+      background: rgba(30, 192, 243, 0.95);
       color: #ffffff;
       outline: none;
     }

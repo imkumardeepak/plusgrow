@@ -32,13 +32,12 @@ function syncClearButton(input: HTMLInputElement) {
 function enhanceInput(input: HTMLInputElement) {
   if (input.dataset.clearEnhanced === "true") return;
   if (input.disabled || input.readOnly) return;
-  if (input.closest(".mantine-Input-wrapper")) return;
-
   input.dataset.clearEnhanced = "true";
   input.classList.add("global-input-clear-target");
 
   const parent = input.parentElement;
   parent?.classList.add("global-input-clear-wrapper");
+  input.closest(".mantine-Input-wrapper")?.classList.add("global-input-clear-wrapper");
 
   const clearButton = document.createElement("button");
   clearButton.type = "button";
