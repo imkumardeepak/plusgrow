@@ -283,6 +283,7 @@ export function StockCheckHistoryMode({
       <StockCheckReportItemsModal
         report={selectedReport}
         onClose={() => setSelectedReport(null)}
+        isMobile={isMobile}
       />
     </OperationsPage>
   );

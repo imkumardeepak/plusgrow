@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Badge as MBadge, Box, Group, Modal, ScrollArea, Stack, Table, Text } from "@mantine/core";
+import { Badge as MBadge, Box, Group, Modal, Paper, ScrollArea, SimpleGrid, Stack, Table, Text } from "@mantine/core";
 import { format } from "date-fns";
 import { ClipboardCheck } from "lucide-react";
 
@@ -9,11 +9,13 @@ import type { StockCheckReport, StockCheckReportItem } from "../../../services/m
 type StockCheckReportItemsModalProps = {
   report: StockCheckReport | null;
   onClose: () => void;
+  isMobile?: boolean;
 };
 
 export function StockCheckReportItemsModal({
   report,
   onClose,
+  isMobile = false,
 }: StockCheckReportItemsModalProps) {
   const reportItems = useMemo(() => {
     if (!report) return [];
@@ -25,11 +27,19 @@ export function StockCheckReportItemsModal({
   }, [report]);
 
   return (
-    <Modal opened={!!report} onClose={onClose} title="Stock Check Items" centered size="90vw">
+    <Modal
+      opened={!!report}
+      onClose={onClose}
+      title="Stock Check Items"
+      centered={!isMobile}
+      fullScreen={isMobile}
+      size={isMobile ? "100%" : "90vw"}
+      padding={isMobile ? "xs" : "md"}
+    >
       {report && (
-        <Stack gap="sm">
-          <Group justify="space-between" gap="xs">
-            <Box>
+        <Stack gap={isMobile ? "xs" : "sm"}>
+          <Group justify="space-between" gap="xs" wrap="nowrap">
+            <Box className="min-w-0" style={{ flex: 1 }}>
               <Text size="xs" fw={800} c="white">
                 {report.referenceName}
               </Text>
@@ -38,7 +48,7 @@ export function StockCheckReportItemsModal({
               </Text>
             </Box>
             <MBadge
-              size="sm"
+              size="xs"
               variant="light"
               color={report.status === "COMPLETED" ? "green" : report.status === "PAUSED" ? "yellow" : "blue"}
             >
@@ -53,6 +63,60 @@ export function StockCheckReportItemsModal({
               description="This report does not contain item details."
             />
           ) : (
+            isMobile ? (
+              <ScrollArea type="auto" h="calc(100vh - 124px)">
+                <Stack gap={6}>
+                  {reportItems.map((item) => (
+                    <Paper
+                      key={item.sku}
+                      radius="md"
+                      p="xs"
+                      withBorder
+                      style={{
+                        background: "rgba(15,23,42,0.62)",
+                        borderColor: item.variance === 0 ? "rgba(34,197,94,0.18)" : "rgba(248,113,113,0.22)",
+                      }}
+                    >
+                      <Group justify="space-between" gap="xs" wrap="nowrap" mb={6}>
+                        <Box className="min-w-0" style={{ flex: 1 }}>
+                          <Text size="12px" fw={900} ff="monospace" c="white" truncate>
+                            {item.sku}
+                          </Text>
+                        </Box>
+                        {item.isUnexpected && (
+                          <MBadge size="xs" color="orange" variant="light">
+                            UNEXPECTED
+                          </MBadge>
+                        )}
+                      </Group>
+
+                      <SimpleGrid cols={3} spacing={4}>
+                        <Box>
+                          <Text size="9px" c="dimmed" fw={800}>SYS</Text>
+                          <Text size="13px" fw={800} ff="monospace">{item.systemQty}</Text>
+                        </Box>
+                        <Box>
+                          <Text size="9px" c="dimmed" fw={800}>SCAN</Text>
+                          <Text size="13px" fw={900} ff="monospace">{item.scannedQty}</Text>
+                        </Box>
+                        <Box ta="right">
+                          <Text size="9px" c="dimmed" fw={800}>VAR</Text>
+                          <Text
+                            size="13px"
+                            fw={900}
+                            ff="monospace"
+                            c={item.variance === 0 ? "green.4" : item.variance > 0 ? "yellow.4" : "red.4"}
+                          >
+                            {item.variance > 0 ? "+" : ""}
+                            {item.variance}
+                          </Text>
+                        </Box>
+                      </SimpleGrid>
+                    </Paper>
+                  ))}
+                </Stack>
+              </ScrollArea>
+            ) : (
             <ScrollArea type="auto" h="70vh">
               <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
                 <Table.Thead>
@@ -109,6 +173,7 @@ export function StockCheckReportItemsModal({
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            )
           )}
         </Stack>
       )}
