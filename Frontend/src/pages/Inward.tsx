@@ -1764,14 +1764,6 @@ export const Inward = memo(function Inward() {
                 Export Excel
               </Button>
               <Button
-                size="sm"
-                variant="outline"
-                onClick={() => navigate('/mrp-tracking')}
-                leftIcon={<FileText className="h-3.5 w-3.5" />}
-              >
-                MRP Tracking
-              </Button>
-              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsUploadModalOpen(true)}
