@@ -129,9 +129,10 @@ public class StickerService : IStickerService
             : $"{product.Sku ?? string.Empty}#{quantity}#{(string.IsNullOrWhiteSpace(request.InvoiceDate) ? request.MonthYear : request.InvoiceDate)}#{FormatRupee(stickerMrp, 2)}";
         var (skuCode1, skuCode2) = SplitSkuCode(product.Sku);
 
-        var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
+        var stickerProductName = product.Name ?? string.Empty;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
         var compactItemLines = WrapText(stickerProductName, 25, 2);
+        var productStickerLine = WrapText(stickerProductName, 22, 1)[0];
         var noteLines = WrapText(product.Note, 30, 2);
 
         // Use a List of KeyValuePair to guarantee replacement order,
@@ -165,8 +166,8 @@ public class StickerService : IStickerService
             new("<ITEMDESC2>", itemDescriptionLines[1]),
             new("<ITEMCODE1>", compactItemLines[0]),
             new("<ITEMCODE2>", compactItemLines[1]),
-            new("<Product>", product.Name ?? string.Empty),
-            new("<PRODUCT>", product.Name ?? string.Empty),
+            new("<Product>", productStickerLine),
+            new("<PRODUCT>", productStickerLine),
             new("<NOTE1>", noteLines[0]),
             new("<NOTE2>", noteLines[1]),
             new("<ADDRESS1>", importerParts.Line1),
