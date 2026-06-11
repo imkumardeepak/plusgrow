@@ -1288,22 +1288,43 @@ export const Inward = memo(function Inward() {
   const handleExportExcel = () => {
     setIsExporting(true);
     try {
+      const exportRows = invoiceSummaries.flatMap((invoice) => {
+        if (!invoice.items || invoice.items.length === 0) {
+          return [{
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            partyName: invoice.partyName,
+            skuCode: "",
+            mrp: "",
+            productName: "",
+            billedQty: invoice.totalBilledQty,
+          }];
+        }
+
+        return invoice.items.map((item) => ({
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.invoiceDate,
+          partyName: invoice.partyName,
+          skuCode: item.skuCode,
+          mrp: item.mrp ?? "",
+          productName: item.productName,
+          billedQty: item.billedQty,
+        }));
+      });
+
       exportToExcel({
         fileName: "Inward_Invoices",
         sheets: [{
           sheetName: "Invoices",
-          data: invoiceSummaries,
+          data: exportRows,
           columns: [
-            { header: "Invoice Number", accessor: (row) => row.invoiceNumber },
-            { header: "Invoice Date", accessor: (row) => formatExcelDate(row.invoiceDate) },
+            { header: "Invoice No.", accessor: (row) => row.invoiceNumber },
+            { header: "Inv. Date", accessor: (row) => formatExcelDate(row.invoiceDate) },
             { header: "Party Name", accessor: (row) => row.partyName },
-            { header: "Status", accessor: (row) => row.status },
-            { header: "Cancel Remark", accessor: (row) => row.cancelRemark || "" },
-            { header: "Product Count", accessor: (row) => row.productCount, format: "number" },
-            { header: "Total Billed Qty", accessor: (row) => row.totalBilledQty, format: "number" },
-            { header: "Printed Count", accessor: (row) => row.printedCount, format: "number" },
-            { header: "Pending Count", accessor: (row) => row.pendingCount, format: "number" },
-            { header: "Total Remaining Alloc", accessor: (row) => row.totalRemainingAllocation, format: "number" },
+            { header: "Part No.", accessor: (row) => row.skuCode },
+            { header: "MRP", accessor: (row) => row.mrp, format: "currency" },
+            { header: "Item Name", accessor: (row) => row.productName },
+            { header: "Billed Qty.", accessor: (row) => row.billedQty, format: "number" },
           ],
         }],
       });
