@@ -57,6 +57,8 @@ export interface Product {
   mrp?: number;
   bestBeforeMonths: number;
   note?: string | null;
+  cartonQr?: string | null;
+  cartonPerItem?: number | null;
   createdAt: string;
   stockQty?: number;
 }
@@ -133,6 +135,8 @@ export interface CreateProductDto {
   mrp?: number;
   bestBeforeMonths?: number;
   note?: string;
+  cartonQr?: string | null;
+  cartonPerItem?: number | null;
   id?: number;
 }
 
@@ -943,6 +947,8 @@ export const productsApi = {
           case 'Best Before (Months)': row['Best Before (Months)'] = product.bestBeforeMonths ?? ''; break;
           case 'Ownership': row['Ownership'] = product.ownership ?? ''; break;
           case 'Note': row['Note'] = product.note ?? ''; break;
+          case 'Carton QR': row['Carton QR'] = product.cartonQr ?? ''; break;
+          case 'Carton Per Item': row['Carton Per Item'] = product.cartonPerItem ?? ''; break;
           case 'Stock Quantity': row['Stock Quantity'] = product.stockQty ?? ''; break;
         }
       });

@@ -130,6 +130,8 @@ export const MPD = memo(function MPD() {
     mrp: 0,
     bestBeforeMonths: 84,
     note: "",
+    cartonQr: "",
+    cartonPerItem: null,
   });
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -350,6 +352,8 @@ export const MPD = memo(function MPD() {
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 84,
         note: formData.note || null,
+        cartonQr: formData.cartonQr || null,
+        cartonPerItem: formData.cartonPerItem && formData.cartonPerItem > 0 ? formData.cartonPerItem : null,
       };
 
       if (isEditing) {
@@ -386,6 +390,8 @@ export const MPD = memo(function MPD() {
       mrp: 0,
       bestBeforeMonths: 84,
       note: "",
+      cartonQr: "",
+      cartonPerItem: null,
     });
     setIsEditing(null);
     setIsModalOpen(true);
@@ -408,6 +414,8 @@ export const MPD = memo(function MPD() {
       mrp: product.mrp || 0,
       bestBeforeMonths: product.bestBeforeMonths || 84,
       note: product.note || "",
+      cartonQr: product.cartonQr || "",
+      cartonPerItem: product.cartonPerItem ?? null,
     });
     setIsEditing(product);
     setIsModalOpen(true);
@@ -1124,7 +1132,7 @@ export const MPD = memo(function MPD() {
             data={[
               "MRP", "Weight", "Alias", "Product Name", "Manufacturer Name",
               "Commodity Name", "Country of Origin", "Unit Type",
-              "Net Qnty", "Factor", "Best Before (Months)", "Ownership", "Note", "Stock Quantity"
+              "Net Qnty", "Factor", "Best Before (Months)", "Ownership", "Note", "Carton QR", "Carton Per Item", "Stock Quantity"
             ]}
             value={updateFields}
             onChange={setUpdateFields}
@@ -1228,9 +1236,9 @@ export const MPD = memo(function MPD() {
         }
       >
         <form onSubmit={handleSubmit}>
-          <Stack gap="md">
-            <Paper radius="lg" p="md" withBorder bg="transparent">
-              <Stack gap="md">
+          <Stack gap="sm">
+            <Paper radius="lg" p="sm" withBorder bg="transparent">
+              <Stack gap="sm">
                 <Text size="11px" fw={800} c="dimmed" tt="uppercase">
                   Identity
                 </Text>
@@ -1247,7 +1255,7 @@ export const MPD = memo(function MPD() {
                   leftElement={<Package size={16} />}
                   required
                 />
-                <Group grow align="flex-start">
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Input
                     label="SKU"
                     placeholder="SKU-1001"
@@ -1284,8 +1292,8 @@ export const MPD = memo(function MPD() {
                     }
                     leftElement={<Globe size={16} />}
                   />
-                </Group>
-                <Group grow align="flex-start">
+                </SimpleGrid>
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Select
                     label="Manufacturer"
                     placeholder="Select manufacturer"
@@ -1366,7 +1374,7 @@ export const MPD = memo(function MPD() {
                       },
                     }}
                   />
-                </Group>
+                </SimpleGrid>
                 <Input
                   label="Product Note"
                   placeholder="Note to print on stickers (optional)"
@@ -1381,12 +1389,12 @@ export const MPD = memo(function MPD() {
               </Stack>
             </Paper>
 
-            <Paper radius="lg" p="md" withBorder bg="transparent">
-              <Stack gap="md">
+            <Paper radius="lg" p="sm" withBorder bg="transparent">
+              <Stack gap="sm">
                 <Text size="11px" fw={800} c="dimmed" tt="uppercase">
                   Pricing and Packaging
                 </Text>
-                <Group grow align="flex-start">
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Input
                     label="MRP"
                     type="number"
@@ -1425,8 +1433,8 @@ export const MPD = memo(function MPD() {
                       }))
                     }
                   />
-                </Group>
-                <Group grow align="flex-start">
+                </SimpleGrid>
+                <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
                   <Input
                     label="USSP (Auto-calculated)"
                     type="number"
@@ -1475,7 +1483,36 @@ export const MPD = memo(function MPD() {
                       }))
                     }
                   />
-                </Group>
+                </SimpleGrid>
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                  <Input
+                    label="Carton QR"
+                    placeholder="Carton QR / barcode"
+                    value={formData.cartonQr || ""}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        cartonQr: event.target.value,
+                      }))
+                    }
+                    leftElement={<Tag size={16} />}
+                  />
+                  <Input
+                    label="Carton Per Item"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Items per carton"
+                    value={formData.cartonPerItem == null ? "" : String(formData.cartonPerItem)}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        cartonPerItem: event.target.value ? Number(event.target.value) : null,
+                      }))
+                    }
+                    leftElement={<Package size={16} />}
+                  />
+                </SimpleGrid>
               </Stack>
             </Paper>
             <Group justify="flex-end" pt="sm">

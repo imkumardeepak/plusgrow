@@ -526,6 +526,32 @@ public class ProductsController : BaseController
                     if (headers.ContainsKey("Note"))
                         product.Note = row.Cell(headers["Note"]).GetString()?.Trim();
 
+                    if (headers.ContainsKey("Carton QR"))
+                    {
+                        var val = row.Cell(headers["Carton QR"]).GetString()?.Trim();
+                        product.CartonQr = string.IsNullOrEmpty(val) ? null : val;
+                    }
+                    else if (headers.ContainsKey("CartonQr"))
+                    {
+                        var val = row.Cell(headers["CartonQr"]).GetString()?.Trim();
+                        product.CartonQr = string.IsNullOrEmpty(val) ? null : val;
+                    }
+
+                    if (headers.ContainsKey("Carton Per Item"))
+                    {
+                        var val = row.Cell(headers["Carton Per Item"]).GetString()?.Trim();
+                        product.CartonPerItem = int.TryParse(val, out var cartonPerItem) && cartonPerItem > 0
+                            ? cartonPerItem
+                            : null;
+                    }
+                    else if (headers.ContainsKey("CartonPerItem"))
+                    {
+                        var val = row.Cell(headers["CartonPerItem"]).GetString()?.Trim();
+                        product.CartonPerItem = int.TryParse(val, out var cartonPerItem) && cartonPerItem > 0
+                            ? cartonPerItem
+                            : null;
+                    }
+
                     if (headers.ContainsKey("MRP Quantity"))
                     {
                         var val = row.Cell(headers["MRP Quantity"]).GetString()?.Trim();

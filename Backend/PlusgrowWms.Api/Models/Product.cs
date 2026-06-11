@@ -85,6 +85,15 @@ public class Product
     [JsonPropertyName("Note")]
     public string? Note { get; set; }
 
+    [MaxLength(100)]
+    [Column("carton_qr")]
+    [JsonPropertyName("CartonQr")]
+    public string? CartonQr { get; set; }
+
+    [Column("carton_per_item")]
+    [JsonPropertyName("CartonPerItem")]
+    public int? CartonPerItem { get; set; }
+
     [Column("manufacturer_id")]
     public int? ManufacturerId { get; set; }
 
