@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { ActionIcon, Group, Paper, Select, Stack, Text, Tooltip } from "@mantine/core";
+import { ActionIcon, Group, Paper, Select, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
 import { Globe, IndianRupee, Package, Printer, Tag, Trash2 } from "lucide-react";
 import { Input } from "../atoms/Input";
 import { Button } from "../atoms/Button";
@@ -8,9 +8,11 @@ import {
   productsApi,
   manufacturersApi,
   commoditiesApi,
+  partiesApi,
   Product,
   Manufacturer,
   Commodity,
+  Party,
   CreateProductDto,
 } from "../../services/masterApi";
 import { toast } from "../../lib/toast";
@@ -38,6 +40,7 @@ export function ProductFormModal({
 }: ProductFormModalProps) {
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>(initialManufacturers || []);
   const [commodities, setCommodities] = useState<Commodity[]>(initialCommodities || []);
+  const [parties, setParties] = useState<Party[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<CreateProductDto>({
     name: "",
@@ -55,6 +58,8 @@ export function ProductFormModal({
     mrp: 0,
     bestBeforeMonths: 84,
     note: "",
+    cartonQr: "",
+    cartonPerItem: null,
   });
 
   useEffect(() => {
@@ -76,6 +81,8 @@ export function ProductFormModal({
           mrp: product.mrp || 0,
           bestBeforeMonths: product.bestBeforeMonths || 84,
           note: product.note || "",
+          cartonQr: product.cartonQr || "",
+          cartonPerItem: product.cartonPerItem ?? null,
         });
       } else {
         setFormData({
@@ -94,6 +101,8 @@ export function ProductFormModal({
           mrp: 0,
           bestBeforeMonths: 84,
           note: "",
+          cartonQr: "",
+          cartonPerItem: null,
         });
       }
 
@@ -104,6 +113,7 @@ export function ProductFormModal({
       if (!initialCommodities) {
         commoditiesApi.getAll().then(setCommodities).catch(() => {});
       }
+      partiesApi.getAll().then(setParties).catch(() => {});
     }
   }, [isOpen, product, initialManufacturers, initialCommodities]);
 
@@ -116,6 +126,33 @@ export function ProductFormModal({
     () => commodities.map((c) => ({ value: String(c.id), label: c.name })),
     [commodities],
   );
+
+  const ownershipOptions = useMemo(() => {
+    const options = [
+      { value: "Self", label: "Self" },
+      ...parties.map((item) => ({
+        value: item.name.trim(),
+        label: item.name.trim(),
+      })),
+    ];
+
+    const savedOwnership = formData.ownership?.trim();
+    const hasSavedOwnership = savedOwnership
+      ? options.some((option) => option.value.toLowerCase() === savedOwnership.toLowerCase())
+      : true;
+
+    if (savedOwnership && !hasSavedOwnership) {
+      options.push({ value: savedOwnership, label: savedOwnership });
+    }
+
+    return options;
+  }, [formData.ownership, parties]);
+
+  const ownershipSelectValue = useMemo(() => {
+    const ownership = formData.ownership?.trim();
+    if (!ownership) return null;
+    return ownershipOptions.find((option) => option.value.toLowerCase() === ownership.toLowerCase())?.value ?? ownership;
+  }, [formData.ownership, ownershipOptions]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -146,6 +183,8 @@ export function ProductFormModal({
         mrp: formData.mrp || 0,
         bestBeforeMonths: formData.bestBeforeMonths || 84,
         note: formData.note || null,
+        cartonQr: formData.cartonQr || null,
+        cartonPerItem: formData.cartonPerItem && formData.cartonPerItem > 0 ? formData.cartonPerItem : null,
       };
 
       if (product) {
@@ -170,7 +209,7 @@ export function ProductFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={product ? "Edit Product" : "New Product"}
-      size="xl"
+      size="xxl"
       headerActions={
         product ? (
           <>
@@ -205,26 +244,31 @@ export function ProductFormModal({
       }
     >
       <form onSubmit={handleSubmit}>
-        <Stack gap="md">
-          <Paper radius="lg" p="md" withBorder bg="transparent">
-            <Stack gap="md">
-              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                Identity
-              </Text>
-              <Input
-                label="Product Name"
-                placeholder="Mechanical keyboard pro"
-                value={formData.name}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    name: event.target.value,
-                  }))
-                }
-                leftElement={<Package size={16} />}
-                required
-              />
-              <Group grow align="flex-start">
+        <Stack gap="xs">
+          <Paper radius="md" p="xs" withBorder bg="transparent">
+            <Stack gap={6}>
+              <Group justify="space-between" gap="xs">
+                <Text size="10px" fw={800} c="dimmed" tt="uppercase">
+                  Product Details
+                </Text>
+                <Text size="10px" c="dimmed">
+                  Compact view
+                </Text>
+              </Group>
+              <SimpleGrid cols={{ base: 1, sm: 2, md: 3, xl: 5 }} spacing={8} verticalSpacing={6}>
+                <Input
+                  label="Product Name"
+                  placeholder="Mechanical keyboard pro"
+                  value={formData.name}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
+                  leftElement={<Package size={16} />}
+                  required
+                />
                 <Input
                   label="SKU"
                   placeholder="SKU-1001"
@@ -261,8 +305,6 @@ export function ProductFormModal({
                   }
                   leftElement={<Globe size={16} />}
                 />
-              </Group>
-              <Group grow align="flex-start">
                 <Select
                   label="Manufacturer"
                   placeholder="Select manufacturer"
@@ -321,16 +363,13 @@ export function ProductFormModal({
                 />
                 <Select
                   label="Ownership"
-                  placeholder="Self or ThirdParty"
-                  data={[
-                    { value: "Self", label: "Self" },
-                    { value: "ThirdParty", label: "ThirdParty" },
-                  ]}
-                  value={formData.ownership || null}
+                  placeholder="Self or Party"
+                  data={ownershipOptions}
+                  value={ownershipSelectValue}
                   onChange={(value) =>
                     setFormData((prev) => ({
                       ...prev,
-                      ownership: value || undefined,
+                      ownership: value?.trim() || undefined,
                     }))
                   }
                   clearable
@@ -346,27 +385,17 @@ export function ProductFormModal({
                     },
                   }}
                 />
-              </Group>
-              <Input
-                label="Product Note"
-                placeholder="Note to print on stickers (optional)"
-                value={formData.note || ""}
-                onChange={(event) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    note: event.target.value,
-                  }))
-                }
-              />
-            </Stack>
-          </Paper>
-
-          <Paper radius="lg" p="md" withBorder bg="transparent">
-            <Stack gap="md">
-              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
-                Pricing and Packaging
-              </Text>
-              <Group grow align="flex-start">
+                <Input
+                  label="Product Note"
+                  placeholder="Sticker note"
+                  value={formData.note || ""}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      note: event.target.value,
+                    }))
+                  }
+                />
                 <Input
                   label="MRP"
                   type="number"
@@ -405,8 +434,6 @@ export function ProductFormModal({
                     }))
                   }
                 />
-              </Group>
-              <Group grow align="flex-start">
                 <Input
                   label="USSP (Auto-calculated)"
                   type="number"
@@ -455,10 +482,37 @@ export function ProductFormModal({
                     }))
                   }
                 />
-              </Group>
+                <Input
+                  label="Carton QR"
+                  placeholder="Carton QR / barcode"
+                  value={formData.cartonQr || ""}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      cartonQr: event.target.value,
+                    }))
+                  }
+                  leftElement={<Tag size={16} />}
+                />
+                <Input
+                  label="Carton Per Item"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Items per carton"
+                  value={formData.cartonPerItem == null ? "" : String(formData.cartonPerItem)}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      cartonPerItem: event.target.value ? Number(event.target.value) : null,
+                    }))
+                  }
+                  leftElement={<Package size={16} />}
+                />
+              </SimpleGrid>
             </Stack>
           </Paper>
-          <Group justify="flex-end" pt="sm">
+          <Group justify="flex-end" pt={4} gap="xs">
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
