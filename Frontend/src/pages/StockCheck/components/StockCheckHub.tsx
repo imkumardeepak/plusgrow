@@ -2,11 +2,13 @@ import React from "react";
 import {
   ClipboardCheck,
   Eye,
+  FileText,
   MapPin,
   Factory,
   Package,
   ChevronRight,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Badge as MBadge,
   Box,
@@ -24,7 +26,8 @@ import {
 import type { ActiveMode } from "../types";
 
 const cards: {
-  mode: ActiveMode;
+  mode?: ActiveMode;
+  href?: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   title: string;
   description: string;
@@ -39,6 +42,15 @@ const cards: {
     description: "Quick single-SKU lookup. View master data, invoices, locations, and stock details.",
     color: "rgba(99, 102, 241, 0.8)",
     gradient: "linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+    small: true,
+  },
+  {
+    href: "/product-mrp-wise-quantity",
+    icon: FileText,
+    title: "Product MRP Wise Quantity",
+    description: "View current remaining quantity grouped by product and MRP.",
+    color: "rgba(34, 211, 238, 0.8)",
+    gradient: "linear-gradient(135deg, rgba(34,211,238,0.16) 0%, rgba(15,23,42,0.6) 100%)",
     small: true,
   },
   {
@@ -74,6 +86,8 @@ export function StockCheckHub({
   onSelectMode: (mode: ActiveMode) => void;
   isMobile: boolean;
 }) {
+  const navigate = useNavigate();
+
   return (
     <OperationsPage
       title="Stock Check"
@@ -106,11 +120,11 @@ export function StockCheckHub({
       <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
         {cards.map((card) => (
           <Paper
-            key={card.mode}
+            key={card.mode ?? card.href}
             radius="xl"
             p={isMobile ? "md" : "lg"}
             withBorder
-            onClick={() => onSelectMode(card.mode)}
+            onClick={() => card.href ? navigate(card.href) : onSelectMode(card.mode!)}
             style={{
               cursor: "pointer",
               background: card.gradient,
@@ -145,7 +159,7 @@ export function StockCheckHub({
               </Box>
               {card.small && (
                 <MBadge size="xs" variant="light" color="indigo" radius="md">
-                  Quick Lookup
+                  {card.href ? "Report" : "Quick Lookup"}
                 </MBadge>
               )}
             </Stack>

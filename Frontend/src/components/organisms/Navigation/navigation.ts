@@ -5,7 +5,6 @@ import {
   Building,
   ClipboardCheck,
   Factory,
-  FileText,
   LayoutDashboard,
   Layers,
   LucideIcon,
@@ -175,12 +174,6 @@ export const navigationGroups: NavGroup[] = [
         label: "Stock Check",
         icon: ClipboardCheck,
         href: "/stock-check",
-      },
-      {
-        id: "product-mrp-wise-quantity",
-        label: "Product MRP Wise Quantity",
-        icon: FileText,
-        href: "/product-mrp-wise-quantity",
       },
       {
         id: "product-query",
