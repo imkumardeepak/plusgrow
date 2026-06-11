@@ -127,6 +127,7 @@ public class StickerService : IStickerService
         var dmData = isSkuOnlySticker
             ? product.Sku ?? string.Empty
             : $"{product.Sku ?? string.Empty}#{quantity}#{(string.IsNullOrWhiteSpace(request.InvoiceDate) ? request.MonthYear : request.InvoiceDate)}#{FormatRupee(stickerMrp, 2)}";
+        var (skuCode1, skuCode2) = SplitSkuCode(product.Sku);
 
         var stickerProductName = isSkuOnlySticker ? string.Empty : product.Name;
         var itemDescriptionLines = WrapText(stickerProductName, 25, 2);
@@ -157,11 +158,15 @@ public class StickerService : IStickerService
             new("<USSP>", FormatRupee(stickerUssp, 2)),
             new("<UNIT>", product.UnitType ?? "Pcs"),
             new("<BESTBEFORE>", bestBeforeMonths.ToString()),
+            new("<SKUCODE_1>", skuCode1),
+            new("<SKUCODE_2>", skuCode2),
             new("<SKUCODE>", product.Sku ?? string.Empty),
             new("<ITEMDESC1>", itemDescriptionLines[0]),
             new("<ITEMDESC2>", itemDescriptionLines[1]),
             new("<ITEMCODE1>", compactItemLines[0]),
             new("<ITEMCODE2>", compactItemLines[1]),
+            new("<Product>", product.Name ?? string.Empty),
+            new("<PRODUCT>", product.Name ?? string.Empty),
             new("<NOTE1>", noteLines[0]),
             new("<NOTE2>", noteLines[1]),
             new("<ADDRESS1>", importerParts.Line1),
@@ -409,6 +414,17 @@ public class StickerService : IStickerService
         {
             yield return value.Substring(index, Math.Min(maxLength, value.Length - index));
         }
+    }
+
+    private static (string Line1, string Line2) SplitSkuCode(string? sku)
+    {
+        var normalizedSku = sku?.Trim() ?? string.Empty;
+        if (normalizedSku.Length <= 8)
+        {
+            return (normalizedSku, string.Empty);
+        }
+
+        return (normalizedSku[..8], normalizedSku[8..]);
     }
 
     private static string FirstFilled(params string?[] values)
