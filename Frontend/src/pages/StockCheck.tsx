@@ -393,6 +393,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
+  const [locationProduct, setLocationProduct] = useState<Product | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -894,7 +895,53 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
         product={lookupResult?.product || null}
         onSuccess={() => void loadData()}
         onPrint={handlePrint}
+        onViewLocations={setLocationProduct}
       />
+      <Modal
+        opened={Boolean(locationProduct)}
+        onClose={() => setLocationProduct(null)}
+        title="Product Locations"
+        size="lg"
+        centered
+      >
+        {locationProduct ? (
+          <Stack gap="md">
+            <Paper radius="md" p="sm" withBorder bg="transparent">
+              <Group justify="space-between" align="flex-start">
+                <Box className="min-w-0">
+                  <Text fw={800} c="white" truncate>{locationProduct.name}</Text>
+                  <Text size="11px" c="dimmed" ff="monospace">{locationProduct.sku || "-"}</Text>
+                </Box>
+                <MBadge size="sm" variant="light" color="cyan">
+                  {lookupResult?.locations.length || 0} locations
+                </MBadge>
+              </Group>
+            </Paper>
+            {lookupResult?.locations.length ? (
+              <Stack gap={6}>
+                {lookupResult.locations.map((entry) => (
+                  <Group
+                    key={entry.locationCode}
+                    justify="space-between"
+                    wrap="nowrap"
+                    className="rounded-md border border-slate-700/60 px-2 py-1.5"
+                  >
+                    <Group gap={6} wrap="nowrap">
+                      <MapPin size={13} color="var(--mantine-color-cyan-4)" />
+                      <MasterLink href={masterHref("/warehouse-map", entry.locationCode)} mono>
+                        {entry.locationCode}
+                      </MasterLink>
+                    </Group>
+                    <Text size="12px" fw={800} ff="monospace">{entry.quantity}</Text>
+                  </Group>
+                ))}
+              </Stack>
+            ) : (
+              <EmptyInline message="No allotted location stock found for this product." />
+            )}
+          </Stack>
+        ) : null}
+      </Modal>
       <StickerPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}

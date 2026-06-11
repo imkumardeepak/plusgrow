@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { ActionIcon, Group, Paper, Select, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
-import { Globe, IndianRupee, Package, Printer, Tag, Trash2 } from "lucide-react";
+import { Globe, IndianRupee, MapPin, Package, Printer, Tag, Trash2 } from "lucide-react";
 import { Input } from "../atoms/Input";
 import { Button } from "../atoms/Button";
 import { Modal } from "../atoms/Modal";
@@ -24,6 +24,7 @@ export interface ProductFormModalProps {
   onSuccess: () => void;
   onPrint?: (product: Product) => void;
   onDelete?: (product: Product) => void;
+  onViewLocations?: (product: Product) => void;
   initialManufacturers?: Manufacturer[];
   initialCommodities?: Commodity[];
 }
@@ -35,6 +36,7 @@ export function ProductFormModal({
   onSuccess,
   onPrint,
   onDelete,
+  onViewLocations,
   initialManufacturers,
   initialCommodities,
 }: ProductFormModalProps) {
@@ -213,6 +215,19 @@ export function ProductFormModal({
       headerActions={
         product ? (
           <>
+            <Tooltip label="View product locations">
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="teal"
+                onClick={() => onViewLocations?.(product)}
+                disabled={!onViewLocations}
+                aria-label="View product locations"
+              >
+                <MapPin size={18} />
+              </ActionIcon>
+            </Tooltip>
             {onPrint && (
               <Tooltip label="Print sticker">
                 <ActionIcon
