@@ -3,6 +3,7 @@ import { Box, Group, ActionIcon, TextInput, Text, Paper, Stack, Badge } from '@m
 import { OperationsPage, OperationsPanel } from '../components/organisms/Operations/OperationsShell';
 import { MantineDataTable, DataTableColumn } from '../components/molecules/MantineDataTable';
 import { FileText, Search, RefreshCw, ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
 import { mrpTrackingApi, MrpWiseStockSummary } from '../services/mrpTrackingApi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../lib/toast';
@@ -48,6 +49,20 @@ export default function MrpTracking() {
       width: 260,
     },
     {
+      key: 'invoiceDate',
+      header: 'Inv Date',
+      sortable: true,
+      render: (row) => <Text size="12px">{row.invoiceDate ? format(new Date(row.invoiceDate), 'dd MMM yy') : '-'}</Text>,
+      width: 95,
+    },
+    {
+      key: 'invoiceNumber',
+      header: 'Invoice No.',
+      sortable: true,
+      render: (row) => <Text size="12px" fw={800} ff="monospace" truncate>{row.invoiceNumber || '-'}</Text>,
+      width: 135,
+    },
+    {
       key: 'mrp',
       header: 'MRP',
       sortable: true,
@@ -80,7 +95,7 @@ export default function MrpTracking() {
               </ActionIcon>
               <Box className="min-w-0">
                 <Text size="sm" fw={900} c="white" truncate>Product MRP Wise Quantity</Text>
-                <Text size="10px" c="dimmed" truncate>Current stock by product and MRP</Text>
+                <Text size="10px" c="dimmed" truncate>Invoice date/number wise MRP quantity</Text>
               </Box>
             </Group>
             <Group gap={6} wrap="nowrap">
@@ -123,13 +138,13 @@ export default function MrpTracking() {
           data={data}
           columns={columns}
           isLoading={isLoading}
-          rowKey={(row) => `${row.productId}-${row.mrp ?? 'no-mrp'}`}
+          rowKey={(row) => `${row.productId}-${row.invoiceNumber ?? 'no-invoice'}-${row.invoiceDate ?? 'no-date'}-${row.mrp ?? 'no-mrp'}`}
           emptyIcon={FileText}
           emptyTitle="No MRP wise quantity"
-          emptyDescription="No remaining stock found for the given criteria."
+          emptyDescription="No invoice-wise MRP quantity found for the given criteria."
           itemLabel="MRP batches"
           enablePagination={false}
-          minWidth={480}
+          minWidth={680}
         />
         </OperationsPanel>
       </Stack>

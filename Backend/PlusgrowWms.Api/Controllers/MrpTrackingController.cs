@@ -64,6 +64,8 @@ public class MrpTrackingController : BaseController
         var query = _context.PoInvoiceLocations
             .Include(x => x.PoInvoice)
                 .ThenInclude(i => i!.Product)
+            .Include(x => x.PoInvoice)
+                .ThenInclude(i => i!.Header)
             .Where(x => x.Quantity > 0)
             .AsQueryable();
 
@@ -72,7 +74,8 @@ public class MrpTrackingController : BaseController
             var s = search.ToLower();
             query = query.Where(x =>
                 (x.PoInvoice!.Product!.Name != null && x.PoInvoice.Product.Name.ToLower().Contains(s)) ||
-                (x.PoInvoice!.Product!.Sku != null && x.PoInvoice.Product.Sku.ToLower().Contains(s)));
+                (x.PoInvoice!.Product!.Sku != null && x.PoInvoice.Product.Sku.ToLower().Contains(s)) ||
+                (x.PoInvoice!.Header!.InvoiceNumber != null && x.PoInvoice.Header.InvoiceNumber.ToLower().Contains(s)));
         }
 
         var results = await query
@@ -81,6 +84,8 @@ public class MrpTrackingController : BaseController
                 x.PoInvoice!.ProductId,
                 x.PoInvoice.Product!.Name,
                 x.PoInvoice.Product.Sku,
+                x.PoInvoice.Header!.InvoiceNumber,
+                x.PoInvoice.Header.InvoiceDate,
                 x.PoInvoice.Mrp,
             })
             .Select(g => new MrpWiseStockSummaryDto
@@ -88,10 +93,14 @@ public class MrpTrackingController : BaseController
                 ProductId = g.Key.ProductId,
                 ProductName = g.Key.Name,
                 Sku = g.Key.Sku,
+                InvoiceNumber = g.Key.InvoiceNumber,
+                InvoiceDate = g.Key.InvoiceDate,
                 Mrp = g.Key.Mrp,
                 Quantity = g.Sum(x => x.Quantity),
             })
             .OrderBy(x => x.ProductName)
+            .ThenBy(x => x.InvoiceDate)
+            .ThenBy(x => x.InvoiceNumber)
             .ThenBy(x => x.Mrp)
             .ToListAsync();
 
