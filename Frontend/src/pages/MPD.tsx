@@ -752,16 +752,38 @@ export const MPD = memo(function MPD() {
     [importers],
   );
 
-  const ownershipOptions = useMemo(
-    () => [
+  const ownershipOptions = useMemo(() => {
+    const options = [
       { value: "Self", label: "Self" },
       ...parties.map((item) => ({
-        value: item.name,
-        label: item.name,
+        value: item.name.trim(),
+        label: item.name.trim(),
       })),
-    ],
-    [parties],
-  );
+    ];
+
+    const savedOwnership = formData.ownership?.trim();
+    const hasSavedOwnership = savedOwnership
+      ? options.some(
+          (option) => option.value.toLowerCase() === savedOwnership.toLowerCase(),
+        )
+      : true;
+
+    if (savedOwnership && !hasSavedOwnership) {
+      options.push({ value: savedOwnership, label: savedOwnership });
+    }
+
+    return options;
+  }, [formData.ownership, parties]);
+
+  const ownershipSelectValue = useMemo(() => {
+    const ownership = formData.ownership?.trim();
+    if (!ownership) return null;
+    return (
+      ownershipOptions.find(
+        (option) => option.value.toLowerCase() === ownership.toLowerCase(),
+      )?.value ?? ownership
+    );
+  }, [formData.ownership, ownershipOptions]);
 
   const printerConfig = useMemo(
     () =>
@@ -1357,11 +1379,11 @@ export const MPD = memo(function MPD() {
                     label="Ownership"
                     placeholder="Self or Party"
                     data={ownershipOptions}
-                    value={formData.ownership || null}
+                    value={ownershipSelectValue}
                     onChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        ownership: value || undefined,
+                        ownership: value?.trim() || undefined,
                       }))
                     }
                     clearable
