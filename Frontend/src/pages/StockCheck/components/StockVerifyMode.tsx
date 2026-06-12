@@ -1,9 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Boxes,
   ClipboardCheck,
   Eye,
+  FileText,
   History,
+  IndianRupee,
   MapPin,
   Package,
   RefreshCw,
@@ -11,6 +13,7 @@ import {
   Search,
 } from "lucide-react";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import {
   Divider,
   Group,
@@ -32,6 +35,8 @@ import {
   OperationsEmptyState,
 } from "../../../components/organisms/Operations/OperationsShell";
 import {
+  poInvoicesApi,
+  PoInvoice,
   productQuantitiesApi,
   productAllottedLocationsApi,
   Product,
@@ -60,6 +65,27 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+
+  const openProductFromSku = useCallback((sku?: string | null, productName?: string | null) => {
+    const normalizedSku = normalizeSku(sku);
+    const normalizedName = (productName || "").trim().toLowerCase();
+    const product =
+      products.find(
+        (item) =>
+          (normalizedSku &&
+            (normalizeSku(item.sku) === normalizedSku || normalizeSku(item.alias) === normalizedSku)) ||
+          (normalizedName && item.name.trim().toLowerCase() === normalizedName),
+      ) ?? lookupResult?.product ?? null;
+
+    if (product) {
+      setLookupResult((prev) => (prev ? { ...prev, product } : prev));
+      setIsEditModalOpen(true);
+      return;
+    }
+
+    navigate(masterHref("/mpd", normalizedSku || productName || ""));
+  }, [lookupResult?.product, navigate, products]);
 
   const loadData = async () => {
     try {
@@ -107,7 +133,8 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
     try {
       setIsSearching(true);
-      const [movementRows] = await Promise.all([
+      const [invoiceRows, movementRows] = await Promise.all([
+        poInvoicesApi.getAll({ search: sku, pageSize: 100 }),
         productQuantitiesApi.getMovements(sku),
       ]);
       const resolvedSku = product?.sku
@@ -115,6 +142,9 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         : quantityRow?.skuCode
           ? normalizeSku(quantityRow.skuCode)
           : sku;
+      const invoices = invoiceRows
+        .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
+        .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.id - a.id);
       const allottedLocation = allottedLocations.find((row) =>
         resolvedProductId
           ? row.productId === resolvedProductId
@@ -136,7 +166,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         product,
         quantityRow,
         allottedLocation,
-        invoices: [],
+        invoices,
         movements,
         locations,
         totalPoQuantity: 0,
@@ -251,7 +281,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   icon={Package}
                   label="Product Master"
                   value={productTitle}
-                  onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
+                  onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
                   isButton
                 />
                   <ReferenceLink
@@ -311,7 +341,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       </Badge>
                     </Group>
                     <MasterLink
-                      onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
+                      onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
                       size="lg"
                       weight={900}
                       className="mt-2"
@@ -333,9 +363,8 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   <Text mt={6} size="xl" fw={800} ff="monospace">{displayedCurrentStock}</Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={MapPin} label="Location Stock" />
-                  <Text mt={6} size="xl" fw={800} ff="monospace">{lookupResult.totalLocationStock}</Text>
-                  <Text size="10px" c="dimmed" mt={2}>{lookupResult.locations.length} allotted locations</Text>
+                  <MetricLabel icon={IndianRupee} label="Latest Invoice MRP" />
+                  <Text mt={6} size="xl" fw={800} ff="monospace">{formatMoney(lookupResult.invoices[0]?.mrp)}</Text>
                 </Paper>
               </SimpleGrid>
 
@@ -344,12 +373,12 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   <MetricLabel icon={Package} label="Product Master" />
                   <SimpleGrid cols={2} spacing={6} mt="xs">
                     <Info label="Name" value={
-                      <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)}>
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)}>
                         {lookupResult.product?.name || productTitle}
                       </MasterLink>
                     } />
                     <Info label="SKU" value={
-                      <MasterLink onClick={() => lookupResult?.product && setIsEditModalOpen(true)} mono>
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)} mono>
                         {lookupResult.product?.sku || lookupResult.sku}
                       </MasterLink>
                     } />
@@ -372,42 +401,42 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                     </>
                   )}
                 </Paper>
-              </SimpleGrid>
 
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Group justify="space-between" mb="xs">
-                  <MetricLabel icon={MapPin} label="Product Location Details" />
-                  <Badge size="sm" radius="md" variant="default" color="gray">
-                    {lookupResult.totalLocationStock} total qty
-                  </Badge>
-                </Group>
-                {lookupResult.locations.length === 0 ? (
-                  <EmptyInline message="No allotted location quantity found for this SKU." />
-                ) : (
-                  <ScrollArea type="auto">
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={420}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Location</Table.Th>
-                          <Table.Th ta="right">Quantity</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {lookupResult.locations.map((location) => (
-                          <Table.Tr key={location.locationCode}>
-                            <Table.Td>
-                              <Text size="12px" fw={900} ff="monospace">{location.locationCode}</Text>
-                            </Table.Td>
-                            <Table.Td ta="right">
-                              <Text size="12px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
-                            </Table.Td>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <Group justify="space-between" mb="xs">
+                    <MetricLabel icon={MapPin} label="Product Location Details" />
+                    <Badge size="sm" radius="md" variant="default" color="gray">
+                      {lookupResult.totalLocationStock} total qty
+                    </Badge>
+                  </Group>
+                  {lookupResult.locations.length === 0 ? (
+                    <EmptyInline message="No allotted location quantity found for this SKU." />
+                  ) : (
+                    <ScrollArea type="auto">
+                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={200}>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Location</Table.Th>
+                            <Table.Th ta="right">Quantity</Table.Th>
                           </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
-              </Paper>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {lookupResult.locations.map((location) => (
+                            <Table.Tr key={location.locationCode}>
+                              <Table.Td>
+                                <Text size="12px" fw={900} ff="monospace">{location.locationCode}</Text>
+                              </Table.Td>
+                              <Table.Td ta="right">
+                                <Text size="12px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </ScrollArea>
+                  )}
+                </Paper>
+              </SimpleGrid>
 
               <Paper radius="lg" p="sm" withBorder bg="transparent">
                 <Group justify="space-between" mb="xs">
@@ -451,6 +480,45 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                             <Table.Td>{movement.performedByName || "-"}</Table.Td>
                             <Table.Td>
                               <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={FileText} label="Purchase Invoices" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">{lookupResult.invoices.length} invoices</Badge>
+                </Group>
+                {lookupResult.invoices.length === 0 ? (
+                  <EmptyInline message="No purchase invoices found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto">
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Invoice Date</Table.Th>
+                          <Table.Th>Invoice No.</Table.Th>
+                          <Table.Th>Party</Table.Th>
+                          <Table.Th>MRP</Table.Th>
+                          <Table.Th ta="right">Billed Qty</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lookupResult.invoices.map((inv) => (
+                          <Table.Tr key={inv.id}>
+                            <Table.Td>{format(new Date(inv.invoiceDate), "dd MMM yyyy")}</Table.Td>
+                            <Table.Td>
+                              <Text size="12px" fw={900} ff="monospace">{inv.invoiceNumber}</Text>
+                            </Table.Td>
+                            <Table.Td>{inv.partyName}</Table.Td>
+                            <Table.Td>{formatMoney(inv.mrp)}</Table.Td>
+                            <Table.Td ta="right">
+                              <Text size="12px" fw={900} ff="monospace" c="cyan.3">{inv.billedQty}</Text>
                             </Table.Td>
                           </Table.Tr>
                         ))}
