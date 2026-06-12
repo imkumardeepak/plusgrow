@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Eye,
   History,
+  MapPin,
   Package,
   RefreshCw,
   ScanLine,
@@ -32,7 +33,9 @@ import {
 } from "../../../components/organisms/Operations/OperationsShell";
 import {
   productQuantitiesApi,
+  productAllottedLocationsApi,
   Product,
+  ProductAllottedLocationRecord,
   ProductQuantityRecord,
   productsApi,
 } from "../../../services/masterApi";
@@ -40,13 +43,14 @@ import { ProductFormModal } from "../../../components/organisms/ProductFormModal
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
 
 import type { ProductLookupResult } from "../types";
-import { normalizeSku, masterHref, formatMoney } from "../types";
+import { normalizeSku, masterHref, formatMoney, getLocationJson } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { Info, MetricLabel, MasterLink, ReferenceLink, EmptyInline } from "./SharedComponents";
 
 export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
+  const [allottedLocations, setAllottedLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [scanInput, setScanInput] = useState("");
@@ -60,12 +64,14 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [productsData, quantityData] = await Promise.all([
+      const [productsData, quantityData, allottedLocationData] = await Promise.all([
         productsApi.getAll(),
         productQuantitiesApi.getAll(),
+        productAllottedLocationsApi.getAll(),
       ]);
       setProducts(productsData);
       setQuantityRows(quantityData);
+      setAllottedLocations(allottedLocationData);
     } catch {
       toast.error("Failed to load product detail data");
     } finally {
@@ -109,6 +115,16 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         : quantityRow?.skuCode
           ? normalizeSku(quantityRow.skuCode)
           : sku;
+      const allottedLocation = allottedLocations.find((row) =>
+        resolvedProductId
+          ? row.productId === resolvedProductId
+          : normalizeSku(row.skuCode) === resolvedSku || normalizeSku(row.alias) === sku,
+      ) ?? null;
+      const locations = Object.entries(getLocationJson(allottedLocation))
+        .map(([locationCode, quantity]) => ({ locationCode, quantity: Number(quantity) || 0 }))
+        .filter((location) => location.locationCode && location.quantity > 0)
+        .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
+      const totalLocationStock = locations.reduce((sum, location) => sum + location.quantity, 0);
       const movements = movementRows
         .filter((row) =>
           resolvedProductId ? row.productId === resolvedProductId : normalizeSku(row.skuCode) === resolvedSku,
@@ -119,12 +135,12 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         sku,
         product,
         quantityRow,
-        allottedLocation: null,
+        allottedLocation,
         invoices: [],
         movements,
-        locations: [],
+        locations,
         totalPoQuantity: 0,
-        totalLocationStock: 0,
+        totalLocationStock,
       });
 
       if (!product && !quantityRow && movements.length === 0) {
@@ -221,6 +237,10 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
               <Text size="10px" fw={800} c="dimmed">STOCK ROWS</Text>
               <Text mt={6} size="lg" fw={800} c="white">{quantityRows.length}</Text>
             </Paper>
+            <Paper radius="lg" p="sm" withBorder bg="transparent">
+              <Text size="10px" fw={800} c="dimmed">LOCATION ROWS</Text>
+              <Text mt={6} size="lg" fw={800} c="white">{allottedLocations.length}</Text>
+            </Paper>
           </SimpleGrid>
 
           {lookupResult ? (
@@ -234,14 +254,20 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   onClick={() => lookupResult?.product && setIsEditModalOpen(true)}
                   isButton
                 />
-                <ReferenceLink
-                  icon={History}
-                  label="Stock Adjustments"
-                  value={`${lookupResult.movements.length} movement rows`}
-                  href={masterHref("/stock-movement", lookupResult.sku)}
-                />
-              </Stack>
-            </Paper>
+                  <ReferenceLink
+                    icon={History}
+                    label="Stock Adjustments"
+                    value={`${lookupResult.movements.length} movement rows`}
+                    href={masterHref("/stock-movement", lookupResult.sku)}
+                  />
+                  <ReferenceLink
+                    icon={MapPin}
+                    label="Location Stock"
+                    value={`${lookupResult.locations.length} locations, ${lookupResult.totalLocationStock} qty`}
+                    href={masterHref("/warehouse-map", lookupResult.sku)}
+                  />
+                </Stack>
+              </Paper>
           ) : (
             <Paper radius="lg" p="sm" withBorder bg="rgba(14, 165, 233, 0.06)">
               <Group gap="sm" wrap="nowrap">
@@ -306,6 +332,11 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   <MetricLabel icon={Boxes} label="Current Stock" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">{displayedCurrentStock}</Text>
                 </Paper>
+                <Paper radius="lg" p="sm" withBorder bg="transparent">
+                  <MetricLabel icon={MapPin} label="Location Stock" />
+                  <Text mt={6} size="xl" fw={800} ff="monospace">{lookupResult.totalLocationStock}</Text>
+                  <Text size="10px" c="dimmed" mt={2}>{lookupResult.locations.length} allotted locations</Text>
+                </Paper>
               </SimpleGrid>
 
               <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
@@ -342,6 +373,41 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   )}
                 </Paper>
               </SimpleGrid>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent">
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={MapPin} label="Product Location Details" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">
+                    {lookupResult.totalLocationStock} total qty
+                  </Badge>
+                </Group>
+                {lookupResult.locations.length === 0 ? (
+                  <EmptyInline message="No allotted location quantity found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto">
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={420}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Location</Table.Th>
+                          <Table.Th ta="right">Quantity</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {lookupResult.locations.map((location) => (
+                          <Table.Tr key={location.locationCode}>
+                            <Table.Td>
+                              <Text size="12px" fw={900} ff="monospace">{location.locationCode}</Text>
+                            </Table.Td>
+                            <Table.Td ta="right">
+                              <Text size="12px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
 
               <Paper radius="lg" p="sm" withBorder bg="transparent">
                 <Group justify="space-between" mb="xs">
