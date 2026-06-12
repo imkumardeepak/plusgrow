@@ -19,7 +19,9 @@ export interface MrpWiseStockSummary {
   sku: string;
   invoiceNumber: string | null;
   invoiceDate: string | null;
+  partyName: string | null;
   mrp: number | null;
+  billedQty: number;
   quantity: number;
 }
 

@@ -62,6 +62,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       <AppShell.Section
         grow
         component={ScrollArea}
+        type="hover"
         styles={{
           root: {
             "& [data-scrollbar]": {
@@ -81,7 +82,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
           },
         }}
       >
-        <Stack gap={8} pb="lg">
+        <Stack gap={4} pb="sm" pr={4}>
           {navigationGroups
             .map((group) => ({
               ...group,
@@ -96,17 +97,69 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
               (item) => location.pathname === item.href,
             );
 
+            // Special case for overview - just render the dashboard link directly
+            if (group.id === "overview" && group.items.length > 0) {
+              const item = group.items[0];
+              return (
+                <Stack key={item.id} gap={0} mb={2}>
+                  <NavLink
+                    component={RouterNavLink}
+                    to={item.href}
+                    onClick={onMobileClose}
+                    active={location.pathname === item.href}
+                    variant="light"
+                    color="cyan"
+                    leftSection={<item.icon size={15} strokeWidth={1.8} />}
+                    label={item.label}
+                    radius="sm"
+                    styles={{
+                      root: {
+                        minHeight: 30,
+                        paddingInline: 8,
+                        borderRadius: 6,
+                        color: "var(--mantine-color-white)",
+                        background:
+                          location.pathname === item.href
+                            ? "linear-gradient(90deg, rgba(23,185,236,0.35) 0%, rgba(10,139,191,0.25) 100%)"
+                            : "transparent",
+                        border:
+                          location.pathname === item.href
+                            ? "1px solid rgba(30, 192, 243, 0.4)"
+                            : "1px solid transparent",
+                        transform: location.pathname === item.href ? "translateX(4px)" : "none",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          background: location.pathname === item.href 
+                            ? "linear-gradient(90deg, rgba(23,185,236,0.45) 0%, rgba(10,139,191,0.35) 100%)"
+                            : "rgba(255, 255, 255, 0.05)",
+                          color: "var(--mantine-color-white)"
+                        }
+                      },
+                      label: {
+                        fontWeight: location.pathname === item.href ? 700 : 600,
+                        fontSize: "13px",
+                        lineHeight: 1.2,
+                      },
+                      section: {
+                        marginInlineEnd: 8,
+                      },
+                    }}
+                  />
+                </Stack>
+              );
+            }
+
             return (
-              <Stack key={group.id} gap={4}>
+              <Stack key={group.id} gap={2}>
                 <Group
                   justify="space-between"
                   wrap="nowrap"
                   px={8}
                   style={{
                     cursor: "pointer",
-                    borderRadius: 8,
-                    minHeight: 30,
-                    padding: "3px 8px",
+                    borderRadius: 6,
+                    minHeight: 28,
+                    padding: "2px 8px",
                     transition: "background 0.15s ease, border-color 0.15s ease",
                     border: hasActiveItem
                       ? "1px solid rgba(34, 211, 238, 0.14)"
@@ -152,13 +205,12 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                   </ActionIcon>
                 </Group>
 
-                {/* Submenu with Tailwind CSS animation */}
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
                     isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
-                  <Stack gap={4} pt={4}>
+                  <Stack gap={2} pt={2}>
                     {group.items.map((item) => (
                       <NavLink
                         key={item.id}
@@ -168,14 +220,14 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                         active={location.pathname === item.href}
                         variant="light"
                         color="cyan"
-                        leftSection={<item.icon size={15} strokeWidth={1.8} />}
+                        leftSection={<item.icon size={14} strokeWidth={1.8} />}
                         label={item.label}
-                        radius="md"
+                        radius="sm"
                         styles={{
                           root: {
-                            minHeight: 34,
-                            paddingInline: 10,
-                            borderRadius: 10,
+                            minHeight: 30,
+                            paddingInline: 8,
+                            borderRadius: 6,
                             color: "var(--mantine-color-white)",
                             background:
                               location.pathname === item.href
@@ -195,9 +247,9 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
                             }
                           },
                           label: {
-                            fontWeight: location.pathname === item.href ? 700 : 600,
-                            fontSize: "13px",
-                            lineHeight: 1.2,
+                            fontWeight: location.pathname === item.href ? 700 : 500,
+                            fontSize: "12px",
+                            lineHeight: 1.1,
                           },
                           description: {
                             color: "var(--mantine-color-gray-5)",

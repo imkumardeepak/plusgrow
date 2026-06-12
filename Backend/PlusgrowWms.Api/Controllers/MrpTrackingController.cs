@@ -86,7 +86,9 @@ public class MrpTrackingController : BaseController
                 x.PoInvoice.Product.Sku,
                 x.PoInvoice.Header!.InvoiceNumber,
                 x.PoInvoice.Header.InvoiceDate,
+                x.PoInvoice.Header.PartyName,
                 x.PoInvoice.Mrp,
+                x.PoInvoice.BilledQty,
             })
             .Select(g => new MrpWiseStockSummaryDto
             {
@@ -95,13 +97,15 @@ public class MrpTrackingController : BaseController
                 Sku = g.Key.Sku,
                 InvoiceNumber = g.Key.InvoiceNumber,
                 InvoiceDate = g.Key.InvoiceDate,
+                PartyName = g.Key.PartyName,
                 Mrp = g.Key.Mrp,
+                BilledQty = g.Key.BilledQty,
                 Quantity = g.Sum(x => x.Quantity),
             })
             .OrderBy(x => x.ProductName)
+            .ThenBy(x => x.Mrp)
             .ThenBy(x => x.InvoiceDate)
             .ThenBy(x => x.InvoiceNumber)
-            .ThenBy(x => x.Mrp)
             .ToListAsync();
 
         return Success(results);

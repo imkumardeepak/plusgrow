@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Accordion,
   ActionIcon,
   Badge,
   Box,
+  Button,
+  Center,
   Divider,
   Group,
   Loader,
@@ -10,6 +13,7 @@ import {
   ScrollArea,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   TextInput,
   ThemeIcon,
@@ -34,10 +38,10 @@ type ProductMrpGroup = {
 const formatMoney = (value?: number | null) =>
   typeof value === 'number'
     ? new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 2,
-      }).format(value)
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(value)
     : '-';
 
 const getBatchTime = (row: MrpWiseStockSummary) =>
@@ -45,27 +49,30 @@ const getBatchTime = (row: MrpWiseStockSummary) =>
 
 export default function MrpTracking() {
   const navigate = useNavigate();
-  const [data, setData] = useState<MrpWiseStockSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<MrpWiseStockSummary[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
 
   const loadData = async (searchQuery: string = '') => {
+    if (!searchQuery.trim()) {
+      toast.error('Please enter a search query (Product Name or SKU)');
+      return;
+    }
     try {
       setIsLoading(true);
       const result = await mrpTrackingApi.getMrpWiseStockSummary(searchQuery);
       setData(result || []);
     } catch {
-      toast.error('Failed to load Product MRP Wise Quantity');
+      toast.error('Failed to load Product MRP batches');
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    void loadData();
-  }, []);
+  // Removed useEffect on mount - wait for user to search
 
   const groupedProducts = useMemo<ProductMrpGroup[]>(() => {
+    if (!data) return [];
     const map = new Map<number, ProductMrpGroup>();
 
     data.forEach((row) => {
@@ -151,27 +158,28 @@ export default function MrpTracking() {
 
             <Group gap={6} wrap="nowrap">
               <TextInput
-                size="xs"
+                size="sm"
                 radius="md"
-                w={220}
+                w={280}
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') void loadData(search);
                 }}
-                placeholder="Search product, SKU, invoice..."
-                leftSection={<Search size={13} />}
+                placeholder="Search product, SKU..."
+                leftSection={<Search size={14} />}
               />
-              <ActionIcon
+              <Button
                 size="sm"
                 radius="md"
                 variant="light"
                 color="cyan"
                 onClick={() => void loadData(search)}
                 loading={isLoading}
+                leftSection={<Search size={14} />}
               >
-                <RefreshCw size={13} />
-              </ActionIcon>
+                Find Batches
+              </Button>
             </Group>
           </Group>
 
@@ -200,96 +208,89 @@ export default function MrpTracking() {
           {isLoading ? (
             <Group justify="center" py="xl">
               <Loader color="cyan" size="sm" />
-              <Text size="sm" c="dimmed">Loading MRP wise quantity...</Text>
+              <Text size="sm" c="dimmed">Searching batches...</Text>
             </Group>
+          ) : data === null ? (
+            <Center py={100}>
+              <Stack align="center" gap="xs">
+                <ThemeIcon size={64} radius="xl" variant="light" color="cyan">
+                  <Search size={32} />
+                </ThemeIcon>
+                <Text fw={800} size="lg" c="white">Search to view MRP Batches</Text>
+                <Text size="sm" c="dimmed" maw={400} ta="center">
+                  To keep performance fast, please enter a Product Name or SKU above to search for its active MRP batches.
+                </Text>
+              </Stack>
+            </Center>
           ) : groupedProducts.length === 0 ? (
             <OperationsEmptyState
               icon={FileText}
-              title="No MRP wise quantity"
-              description="No invoice-wise MRP quantity found for the given criteria."
+              title="No batches found"
+              description="No invoice-wise MRP quantity found for the given search criteria."
             />
           ) : (
             <ScrollArea h="calc(100vh - 245px)" type="auto" offsetScrollbars>
-              <Stack gap="sm" pr={4}>
+              <Accordion variant="separated" radius="md">
                 {groupedProducts.map((product) => (
-                  <Paper
-                    key={product.productId}
-                    radius="lg"
-                    withBorder
-                    p="sm"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(15,23,42,0.86), rgba(2,6,23,0.76))',
-                      borderColor: 'rgba(148,163,184,0.14)',
-                    }}
-                  >
-                    <Group justify="space-between" align="flex-start" gap="xs" wrap="nowrap">
-                      <Group gap="xs" wrap="nowrap" className="min-w-0" style={{ flex: 1 }}>
-                        <ThemeIcon size={38} radius="lg" variant="light" color="cyan">
-                          <Package size={19} />
-                        </ThemeIcon>
-                        <Box className="min-w-0">
-                          <Text size="sm" fw={950} c="white" truncate>{product.productName}</Text>
-                          <Group gap={6} wrap="wrap" mt={3}>
-                            <Badge size="xs" variant="light" color="gray" radius="sm">SKU {product.sku}</Badge>
-                            <Badge size="xs" variant="light" color="cyan" radius="sm">{product.batchCount} batches</Badge>
-                            <Badge size="xs" variant="light" color="blue" radius="sm">{product.mrpCount} MRP</Badge>
-                          </Group>
+                  <Accordion.Item key={product.productId} value={product.productId.toString()} style={{ background: 'linear-gradient(135deg, rgba(15,23,42,0.86), rgba(2,6,23,0.76))', borderColor: 'rgba(148,163,184,0.14)' }}>
+                    <Accordion.Control>
+                      <Group justify="space-between" align="center" wrap="nowrap" pr="md">
+                        <Group gap="sm" wrap="nowrap" className="min-w-0" style={{ flex: 1 }}>
+                          <ThemeIcon size={38} radius="lg" variant="light" color="cyan">
+                            <Package size={19} />
+                          </ThemeIcon>
+                          <Box className="min-w-0">
+                            <Text size="sm" fw={900} c="white" truncate>{product.productName}</Text>
+                            <Group gap={6} wrap="wrap" mt={4}>
+                              <Badge size="xs" variant="light" color="gray" radius="sm">SKU: {product.sku}</Badge>
+                              <Badge size="xs" variant="light" color="cyan" radius="sm">{product.batchCount} Batches</Badge>
+                              <Badge size="xs" variant="light" color="blue" radius="sm">{product.mrpCount} MRPs</Badge>
+                            </Group>
+                          </Box>
+                        </Group>
+                        <Box ta="right">
+                          <Text size="10px" c="dimmed" fw={900}>TOTAL IN STOCK</Text>
+                          <Text size="xl" fw={950} c="green.3" ff="monospace" lh={1}>{product.totalQty}</Text>
                         </Box>
                       </Group>
-                      <Box ta="right">
-                        <Text size="9px" c="dimmed" fw={900}>TOTAL QTY</Text>
-                        <Text size="xl" fw={950} c="green.3" ff="monospace" lh={1}>{product.totalQty}</Text>
-                      </Box>
-                    </Group>
-
-                    <Divider my="xs" style={{ borderColor: 'rgba(255,255,255,0.08)' }} />
-
-                    <Stack gap={6}>
-                      {product.batches.map((batch, index) => (
-                        <Paper
-                          key={`${product.productId}-${batch.invoiceNumber ?? 'no-invoice'}-${batch.invoiceDate ?? 'no-date'}-${batch.mrp ?? 'no-mrp'}-${index}`}
-                          radius="md"
-                          p="xs"
-                          withBorder
-                          style={{
-                            background: index % 2 === 0 ? 'rgba(8,47,73,0.22)' : 'rgba(15,23,42,0.42)',
-                            borderColor: 'rgba(34,211,238,0.10)',
-                          }}
-                        >
-                          <Group justify="space-between" gap="xs" wrap="nowrap">
-                            <Group gap="xs" wrap="nowrap" className="min-w-0" style={{ flex: 1 }}>
-                              <ThemeIcon size={28} radius="md" variant="light" color="blue">
-                                <CalendarDays size={14} />
-                              </ThemeIcon>
-                              <Box className="min-w-0">
-                                <Text size="12px" fw={850} c="white" truncate>
-                                  {batch.invoiceDate ? format(new Date(batch.invoiceDate), 'dd MMM yyyy') : 'No date'}
-                                  {' · '}
-                                  <Text span ff="monospace" c="cyan.3">{batch.invoiceNumber || '-'}</Text>
-                                </Text>
-                                <Text size="10px" c="dimmed" truncate>Invoice batch, ordered by invoice date</Text>
-                              </Box>
-                            </Group>
-
-                            <Group gap="xs" wrap="nowrap">
-                              <Paper radius="md" px="xs" py={5} withBorder style={{ background: 'rgba(15,23,42,0.58)', borderColor: 'rgba(255,255,255,0.08)', minWidth: 92 }}>
-                                <Group gap={4} justify="flex-end" wrap="nowrap">
-                                  <IndianRupee size={12} color="var(--mantine-color-yellow-4)" />
-                                  <Text size="12px" fw={950} c="yellow.3" ff="monospace">{formatMoney(batch.mrp)}</Text>
-                                </Group>
-                              </Paper>
-                              <Paper radius="md" px="xs" py={5} withBorder style={{ background: 'rgba(20,83,45,0.20)', borderColor: 'rgba(34,197,94,0.16)', minWidth: 64 }}>
-                                <Text size="9px" c="dimmed" fw={900} ta="right">QTY</Text>
-                                <Text size="14px" fw={950} c="green.3" ff="monospace" ta="right" lh={1}>{batch.quantity}</Text>
-                              </Paper>
-                            </Group>
-                          </Group>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  </Paper>
+                    </Accordion.Control>
+                    <Accordion.Panel pb="sm">
+                      <Table striped highlightOnHover withTableBorder withColumnBorders style={{ background: 'rgba(15,23,42,0.4)', borderColor: 'rgba(34,211,238,0.1)' }}>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Invoice Date</Table.Th>
+                            <Table.Th>Invoice No</Table.Th>
+                            <Table.Th>Supplier (Party)</Table.Th>
+                            <Table.Th ta="right">Billed Qty</Table.Th>
+                            <Table.Th ta="right">MRP</Table.Th>
+                            <Table.Th ta="right">Remaining Stock</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {product.batches.map((batch, index) => (
+                            <Table.Tr key={`${batch.invoiceNumber}-${batch.mrp}-${index}`}>
+                              <Table.Td>
+                                {batch.invoiceDate ? format(new Date(batch.invoiceDate), 'dd MMM yyyy') : '-'}
+                              </Table.Td>
+                              <Table.Td>
+                                <Text fw={800} ff="monospace" c="cyan.3">{batch.invoiceNumber || '-'}</Text>
+                              </Table.Td>
+                              <Table.Td>{batch.partyName || 'Unknown'}</Table.Td>
+                              <Table.Td ta="right">{batch.billedQty || 0}</Table.Td>
+                              <Table.Td ta="right">
+                                <Text fw={900} c="yellow.3" ff="monospace">{formatMoney(batch.mrp)}</Text>
+                              </Table.Td>
+                              <Table.Td ta="right">
+                                <Text fw={950} c="green.3" ff="monospace">{batch.quantity}</Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </Accordion.Panel>
+                  </Accordion.Item>
                 ))}
-              </Stack>
+              </Accordion>
             </ScrollArea>
           )}
         </OperationsPanel>

@@ -56,7 +56,7 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Overview",
+    label: "",
     items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard" }],
   },
   {
@@ -435,7 +435,7 @@ export const Layout = () => {
           <div className="space-y-3">
             {navGroups.map((group) => (
               <div key={group.label}>
-                {!sidebarCollapsed && (
+                {!sidebarCollapsed && group.label && (
                   <Text
                     size="xs"
                     tt="uppercase"
