@@ -65,7 +65,7 @@ export const InwardVerify = memo(function InwardVerify() {
       setIsLoading(true);
       const [invoiceResult, productResult] = await Promise.all([
         poInvoicesApi.getHeaders({ status: "printed", page: 1, pageSize: 300 }),
-        productsApi.search(""),
+        productsApi.getAll(),
       ]);
       setInvoices(
         invoiceResult.data
@@ -179,7 +179,13 @@ export const InwardVerify = memo(function InwardVerify() {
     }
 
     const sku = normalizeCode(product.sku);
-    const invoiceLine = expectedItems.find((item) => item.productId === product.id || normalizeCode(item.skuCode) === sku);
+    const alias = normalizeCode(product.alias);
+    const invoiceLine = expectedItems.find(
+      (item) =>
+        item.productId === product.id ||
+        normalizeCode(item.skuCode) === sku ||
+        (!!alias && normalizeCode(item.skuCode) === alias),
+    );
 
     setScanEvents((prev) => [
       {
