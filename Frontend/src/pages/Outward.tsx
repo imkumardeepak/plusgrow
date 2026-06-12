@@ -102,16 +102,16 @@ export const Outward = memo(function Outward() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
-  const [productSearch, setProductSearch] = useState("");
 
   const loadProducts = useCallback(async () => {
     try {
-      const productsData = await productsApi.search(productSearch);
+      // Load all products once so Mantine can filter them locally per-dropdown
+      const productsData = await productsApi.getAll();
       setProducts(productsData);
     } catch {
       toast.error("Failed to load product lookup");
     }
-  }, [productSearch]);
+  }, []);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -126,11 +126,7 @@ export const Outward = memo(function Outward() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadProducts();
-    }, 250);
-
-    return () => window.clearTimeout(timer);
+    void loadProducts();
   }, [loadProducts]);
 
   useEffect(() => {
@@ -661,8 +657,6 @@ export const Outward = memo(function Outward() {
                   label={`Product ${index + 1}`}
                   searchable
                   data={productOptions}
-                  searchValue={productSearch}
-                  onSearchChange={setProductSearch}
                   value={item.productId > 0 ? String(item.productId) : null}
                   onChange={(value) => {
                     const product = products.find((row) => row.id === Number(value));
