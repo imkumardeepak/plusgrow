@@ -65,6 +65,10 @@ public class PoInvoicesController : BaseController
                 query = query.Where(x => x.Header != null && x.Header.Status == "Canceled");
             }
         }
+        else
+        {
+            query = query.Where(x => x.Header != null && x.Header.Status != "Canceled");
+        }
 
         if (filter.FromDate.HasValue)
         {
@@ -631,8 +635,17 @@ public class PoInvoicesController : BaseController
         if (header.Status == "Canceled")
             return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice is already canceled");
 
+        var hasPutAwayQuantity = header.Items.Any(item => item.RemainingAllocation < item.BilledQty || item.LocationAllotted);
+        if (hasPutAwayQuantity)
+            return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice cannot be canceled after put-away has started");
+
         header.Status = "Canceled";
         header.CancelRemark = dto.Remark.Trim();
+
+        foreach (var item in header.Items)
+        {
+            await AdjustProductQuantityAsync(item.ProductId, -item.BilledQty);
+        }
 
         await _context.SaveChangesAsync();
 
@@ -880,6 +893,29 @@ public class PoInvoicesController : BaseController
         }
 
         quantityRow.CurrentQuantity += billedQty;
+        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+    }
+
+    private async Task AdjustProductQuantityAsync(int productId, int quantityChange)
+    {
+        var quantityRow = _context.ProductQuantities.Local.FirstOrDefault(x => x.ProductId == productId)
+            ?? await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
+
+        if (quantityRow == null)
+        {
+            if (quantityChange > 0)
+            {
+                _context.ProductQuantities.Add(new ProductQuantity
+                {
+                    ProductId = productId,
+                    CurrentQuantity = quantityChange,
+                    UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                });
+            }
+            return;
+        }
+
+        quantityRow.CurrentQuantity = Math.Max(quantityRow.CurrentQuantity + quantityChange, 0);
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
     }
 

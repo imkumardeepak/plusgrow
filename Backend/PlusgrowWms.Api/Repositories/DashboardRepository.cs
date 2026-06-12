@@ -24,10 +24,11 @@ public class DashboardRepository : IDashboardRepository
         var quantityCount = await _context.ProductQuantities.AsNoTracking().CountAsync();
         var skusWithStock = await _context.ProductQuantities.AsNoTracking().CountAsync(x => x.CurrentQuantity > 0);
         var totalStock = await _context.ProductQuantities.AsNoTracking().SumAsync(x => (int?)x.CurrentQuantity) ?? 0;
-        var poInvoiceCount = await _context.PoInvoices.AsNoTracking().CountAsync();
-        var pendingPoCount = await _context.PoInvoices.AsNoTracking().CountAsync(x => !x.Printed || !x.LocationAllotted);
-        var pendingStickerRows = await _context.PoInvoices.AsNoTracking().CountAsync(x => !x.Printed);
-        var pendingPutAway = await _context.PoInvoices.AsNoTracking().SumAsync(x => (int?)x.RemainingAllocation) ?? 0;
+        var activePoInvoices = _context.PoInvoices.AsNoTracking().Where(x => x.Header != null && x.Header.Status != "Canceled");
+        var poInvoiceCount = await activePoInvoices.CountAsync();
+        var pendingPoCount = await activePoInvoices.CountAsync(x => !x.Printed || !x.LocationAllotted);
+        var pendingStickerRows = await activePoInvoices.CountAsync(x => !x.Printed);
+        var pendingPutAway = await activePoInvoices.SumAsync(x => (int?)x.RemainingAllocation) ?? 0;
         var outwardCount = await _context.SalesOrders.AsNoTracking().CountAsync();
         var openOutwardCount = await _context.SalesOrders.AsNoTracking().CountAsync(x => x.Status != "Dispatched");
         var pendingDispatch = await _context.OutwardOrders

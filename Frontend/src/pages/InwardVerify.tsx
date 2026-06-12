@@ -35,6 +35,25 @@ type ScanEvent = { code: string; sku: string; productName: string; at: string; i
 
 const normalizeCode = (value?: string | null) => (value || "").trim().toUpperCase();
 
+const buildInvoiceKey = (invoiceNumber?: string | null, partyName?: string | null, invoiceDate?: string | null) =>
+  `${invoiceNumber || ""}__${partyName || ""}__${invoiceDate || ""}`;
+
+const parseVerifiedInvoiceKey = (report: { referenceName?: string | null; notes?: string | null }) => {
+  if (report.notes) {
+    try {
+      const notes = JSON.parse(report.notes);
+      if (notes?.referenceName && notes?.partyName && notes?.invoiceDate) {
+        return buildInvoiceKey(notes.referenceName, notes.partyName, notes.invoiceDate);
+      }
+    } catch {
+      // Ignore malformed legacy notes and fall back to referenceName parsing.
+    }
+  }
+
+  const [invoiceNumber, partyName] = (report.referenceName || "").split(" - ");
+  return invoiceNumber && partyName ? buildInvoiceKey(invoiceNumber, partyName, null) : null;
+};
+
 const extractTokens = (raw: string) => {
   const upper = normalizeCode(raw);
   const tokens = new Set<string>();
@@ -63,16 +82,29 @@ export const InwardVerify = memo(function InwardVerify() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [invoiceResult, productResult] = await Promise.all([
+      const [invoiceResult, productResult, reportResult] = await Promise.all([
         poInvoicesApi.getHeaders({ status: "printed", page: 1, pageSize: 300 }),
         productsApi.getAll(),
+        stockCheckReportsApi.getAll({ checkType: "INWARD_VERIFY", page: 1, pageSize: 1000 }),
       ]);
+      const verifiedInvoiceKeys = new Set(reportResult.data.map(parseVerifiedInvoiceKey).filter(Boolean));
       setInvoices(
         invoiceResult.data
           .filter((invoice) => invoice.status !== "Canceled")
-          .map((invoice) => ({ ...invoice, invoiceKey: `${invoice.invoiceNumber}__${invoice.partyName}__${invoice.invoiceDate}` })),
+          .filter((invoice) => !verifiedInvoiceKeys.has(buildInvoiceKey(invoice.invoiceNumber, invoice.partyName, invoice.invoiceDate)))
+          .filter((invoice) => !verifiedInvoiceKeys.has(buildInvoiceKey(invoice.invoiceNumber, invoice.partyName, null)))
+          .map((invoice) => ({ ...invoice, invoiceKey: buildInvoiceKey(invoice.invoiceNumber, invoice.partyName, invoice.invoiceDate) })),
       );
       setProducts(productResult);
+      setSelectedInvoiceKey((current) => {
+        if (!current) return current;
+        const isStillAvailable = invoiceResult.data.some((invoice) => {
+          const key = buildInvoiceKey(invoice.invoiceNumber, invoice.partyName, invoice.invoiceDate);
+          const legacyKey = buildInvoiceKey(invoice.invoiceNumber, invoice.partyName, null);
+          return key === current && !verifiedInvoiceKeys.has(key) && !verifiedInvoiceKeys.has(legacyKey);
+        });
+        return isStillAvailable ? current : null;
+      });
     } catch (error: any) {
       toast.error(error.message || "Failed to load invoices for verification");
     } finally {
@@ -268,6 +300,8 @@ export const InwardVerify = memo(function InwardVerify() {
       toast.success("Inward verification saved to report");
       setScanEvents([]);
       setScanInput("");
+      setInvoices((prev) => prev.filter((invoice) => invoice.invoiceKey !== selectedInvoice.invoiceKey));
+      setSelectedInvoiceKey(null);
       void loadData();
       setTimeout(() => inputRef.current?.focus(), 10);
     } catch (error: any) {

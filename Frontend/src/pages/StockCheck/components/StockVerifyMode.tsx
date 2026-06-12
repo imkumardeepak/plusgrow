@@ -171,6 +171,11 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
     lookupResult?.allottedLocation?.productName ||
     lookupResult?.invoices[0]?.productName ||
     "Product Details";
+  const displayedCurrentStock = lookupResult
+    ? lookupResult.invoices.length > 0
+      ? Math.min(lookupResult.quantityRow?.currentQuantity ?? 0, lookupResult.totalPoQuantity)
+      : 0
+    : 0;
 
   return (
     <OperationsPage
@@ -342,7 +347,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
               <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
                   <MetricLabel icon={Boxes} label="Current Stock" />
-                  <Text mt={6} size="xl" fw={800} ff="monospace">{lookupResult.quantityRow?.currentQuantity ?? 0}</Text>
+                  <Text mt={6} size="xl" fw={800} ff="monospace">{displayedCurrentStock}</Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
                   <MetricLabel icon={FileText} label="PO Qty." />

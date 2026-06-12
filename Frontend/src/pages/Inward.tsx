@@ -101,6 +101,8 @@ type InvoiceUploadSkippedRow = {
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
   summary?.status === "Canceled";
+const hasInvoicePutAwayStarted = (summary?: Pick<InvoiceSummary, "items"> | null) =>
+  summary?.items.some((item) => item.remainingAllocation < item.billedQty || item.locationAllotted) ?? false;
 const getStickerStatus = (row: PoInvoice) =>
   row.printed ? "Printed" : "Pending";
 const labelModeText: Record<StickerMode, string> = {
@@ -1884,9 +1886,15 @@ export const Inward = memo(function Inward() {
               <Button
                 variant="outline"
                 color="red"
+                title={
+                  hasInvoicePutAwayStarted(selectedInvoiceSummary)
+                    ? "Cannot cancel after put-away has started"
+                    : undefined
+                }
                 disabled={
                   !selectedInvoiceSummary ||
-                  isInvoiceCanceled(selectedInvoiceSummary)
+                  isInvoiceCanceled(selectedInvoiceSummary) ||
+                  hasInvoicePutAwayStarted(selectedInvoiceSummary)
                 }
                 onClick={() => {
                   setCancelInvoiceSummary(selectedInvoiceSummary);
