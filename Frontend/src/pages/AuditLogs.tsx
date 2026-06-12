@@ -26,18 +26,22 @@ export default function AuditLogs() {
   const [debouncedUsername] = useDebouncedValue(searchUsername, 500);
   const [actionFilter, setActionFilter] = useState<string | null>(null);
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["auditLogs", page, pageSize, debouncedUsername, actionFilter, entityFilter],
+    queryKey: ["auditLogs", page, pageSize, debouncedUsername, actionFilter, entityFilter, startDate, endDate],
     queryFn: () => auditLogApi.getLogs({
       page,
       pageSize,
       username: debouncedUsername,
       actionType: actionFilter || undefined,
-      entityType: entityFilter || undefined
+      entityType: entityFilter || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate ? `${endDate}T23:59:59` : undefined,
     }),
   });
 
@@ -73,12 +77,12 @@ export default function AuditLogs() {
         </div>
       </div>
 
-      <Card shadow="sm" radius="md" p="md" className="flex items-center gap-4">
+      <Card shadow="sm" radius="md" p="md" className="flex flex-wrap items-center gap-4">
         <TextInput
           placeholder="Search by Username..."
           icon={<Search size={16} />}
           value={searchUsername}
-          onChange={(e) => setSearchUsername(e.target.value)}
+          onChange={(e) => { setSearchUsername(e.target.value); setPage(1); }}
           className="flex-1"
         />
         <Select
@@ -89,10 +93,11 @@ export default function AuditLogs() {
             { value: "Modified", label: "Modified" },
             { value: "Deleted", label: "Deleted" },
             { value: "CancelSalesOrder", label: "Cancel Sales Order" },
-            { value: "BulkStockUpload", label: "Bulk Stock Upload" }
+            { value: "BulkStockUpload", label: "Bulk Stock Upload" },
+            { value: "Bulk Update", label: "Bulk Update" }
           ]}
           value={actionFilter}
-          onChange={setActionFilter}
+          onChange={(value) => { setActionFilter(value); setPage(1); }}
           clearable
           className="w-48"
         />
@@ -102,13 +107,56 @@ export default function AuditLogs() {
             { value: "", label: "All Entities" },
             { value: "Product", label: "Product" },
             { value: "SalesOrder", label: "Sales Order" },
-            { value: "ProductQuantity", label: "Stock Quantity" }
+            { value: "ProductQuantity", label: "Stock Quantity" },
+            { value: "ProductAllottedLocation", label: "Product Location" },
+            { value: "ProductStockMovement", label: "Stock Movement" },
+            { value: "PoInvoice", label: "PO Invoice" },
+            { value: "PoInvoiceHeader", label: "PO Invoice Header" },
+            { value: "StockCheckReport", label: "Stock Check Report" },
+            { value: "OutwardOrder", label: "Outward Order" },
+            { value: "User", label: "User" },
+            { value: "Role", label: "Role" }
           ]}
           value={entityFilter}
-          onChange={setEntityFilter}
+          onChange={(value) => { setEntityFilter(value); setPage(1); }}
           clearable
           className="w-48"
         />
+        <TextInput
+          type="date"
+          label="From"
+          value={startDate}
+          onChange={(e) => { setStartDate(e.currentTarget.value); setPage(1); }}
+          className="w-40"
+        />
+        <TextInput
+          type="date"
+          label="To"
+          value={endDate}
+          onChange={(e) => { setEndDate(e.currentTarget.value); setPage(1); }}
+          className="w-40"
+        />
+        <Select
+          label="Rows"
+          data={["25", "50", "100", "200"]}
+          value={String(pageSize)}
+          onChange={(value) => { setPageSize(Number(value || 50)); setPage(1); }}
+          className="w-28"
+        />
+        <button
+          className="px-3 py-2 border rounded hover:bg-gray-50 text-sm self-end"
+          onClick={() => {
+            setSearchUsername("");
+            setActionFilter(null);
+            setEntityFilter(null);
+            setStartDate("");
+            setEndDate("");
+            setPageSize(50);
+            setPage(1);
+          }}
+        >
+          Reset
+        </button>
       </Card>
 
       <Card shadow="sm" radius="md" p={0}>

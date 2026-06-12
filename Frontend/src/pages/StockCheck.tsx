@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Activity,
   ArrowLeft,
   Boxes,
   CheckCircle2,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import {
   ActionIcon,
   Badge as MBadge,
@@ -72,6 +74,7 @@ import {
 } from "../services/masterApi";
 import { ProductFormModal } from "../components/organisms/ProductFormModal";
 import { StickerPrintModal } from "../components/organisms/StickerPrintModal";
+import { auditLogApi } from "../services/auditLogApi";
 import { LocationCheckMode } from "./StockCheck/components/LocationCheckMode";
 import { ManufacturerCheckMode } from "./StockCheck/components/ManufacturerCheckMode";
 import { ModeHeader } from "./StockCheck/components/ModeHeader";
@@ -235,6 +238,22 @@ function StockCheckHub({
   isMobile: boolean;
 }) {
   const navigate = useNavigate();
+  const { data: auditLogs, isLoading: auditLogsLoading } = useQuery({
+    queryKey: ["stockCheckHubAuditLogs"],
+    queryFn: () => auditLogApi.getLogs({ page: 1, pageSize: 6 }),
+    staleTime: 30_000,
+  });
+
+  const getAuditActionColor = (action: string) => {
+    switch (action?.toLowerCase()) {
+      case "added": return "blue";
+      case "modified": return "yellow";
+      case "deleted": return "red";
+      case "bulkstockupload": return "grape";
+      case "cancelsalesorder": return "orange";
+      default: return "gray";
+    }
+  };
 
   const cards: {
     mode?: ActiveMode;
@@ -378,6 +397,63 @@ function StockCheckHub({
           </Paper>
         ))}
       </SimpleGrid>
+
+      <Paper
+        radius="md"
+        p={isMobile ? "sm" : "md"}
+        mt="md"
+        withBorder
+        style={{
+          background: "linear-gradient(135deg, rgba(15,23,42,0.92) 0%, rgba(30,41,59,0.72) 100%)",
+          borderColor: "rgba(148,163,184,0.18)",
+        }}
+      >
+        <Group justify="space-between" align="flex-start" mb="sm">
+          <Group gap="sm">
+            <ThemeIcon size={38} radius="md" variant="light" color="cyan">
+              <Activity size={18} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={900} c="white">Recent Operations</Text>
+              <Text size="xs" c="dimmed">Latest audit log activity across the application</Text>
+            </Box>
+          </Group>
+          <Button size="sm" variant="outline" onClick={() => navigate("/audit-logs")}>View Audit Logs</Button>
+        </Group>
+
+        <Stack gap={0}>
+          {auditLogsLoading ? (
+            <Text size="xs" c="dimmed" py="sm">Loading recent operations...</Text>
+          ) : auditLogs?.data?.length ? (
+            auditLogs.data.map((log, index) => (
+              <React.Fragment key={log.id}>
+                <Group justify="space-between" align="center" py="xs" wrap="nowrap">
+                  <Box className="min-w-0" style={{ flex: 1 }}>
+                    <Group gap={8} wrap="nowrap" mb={3}>
+                      <MBadge size="xs" color={getAuditActionColor(log.action)} variant="light" radius="sm">
+                        {log.action}
+                      </MBadge>
+                      <Text size="sm" fw={800} c="white" truncate>
+                        {log.entityType}{log.entityId ? ` #${log.entityId}` : ""}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                      {log.details || `Changed by ${log.username || "System"}`}
+                    </Text>
+                  </Box>
+                  <Box ta="right" style={{ flexShrink: 0 }}>
+                    <Text size="xs" c="gray.4" fw={700}>{log.username || "System"}</Text>
+                    <Text size="10px" c="dimmed">{format(new Date(log.timestamp), "dd MMM HH:mm")}</Text>
+                  </Box>
+                </Group>
+                {index < auditLogs.data.length - 1 && <Divider style={{ borderColor: "rgba(148,163,184,0.12)" }} />}
+              </React.Fragment>
+            ))
+          ) : (
+            <Text size="xs" c="dimmed" py="sm">No audit log operations found.</Text>
+          )}
+        </Stack>
+      </Paper>
     </OperationsPage>
   );
 }
@@ -385,7 +461,6 @@ function StockCheckHub({
 function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
-  const [allottedLocations, setAllottedLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
   const [scanInput, setScanInput] = useState("");
@@ -393,7 +468,6 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
-  const [locationProduct, setLocationProduct] = useState<Product | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -401,14 +475,12 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [productsData, quantityData, allottedData] = await Promise.all([
+      const [productsData, quantityData] = await Promise.all([
         productsApi.getAll(),
         productQuantitiesApi.getAll(),
-        productAllottedLocationsApi.getAll(),
       ]);
       setProducts(productsData);
       setQuantityRows(quantityData);
-      setAllottedLocations(allottedData);
     } catch {
       toast.error("Failed to load product detail data");
     } finally {
@@ -466,15 +538,6 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
     const quantityRow =
       quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
     const resolvedProductId = product?.id ?? quantityRow?.productId ?? null;
-    const allottedLocation =
-      allottedLocations.find((row) =>
-        resolvedProductId
-          ? row.productId === resolvedProductId
-          : normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku,
-      ) ??
-      allottedLocations.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ??
-      null;
-
     try {
       setIsSearching(true);
       const [invoiceRows, movementRows] = await Promise.all([
@@ -494,24 +557,19 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
           resolvedProductId ? row.productId === resolvedProductId : normalizeSku(row.skuCode) === resolvedSku,
         )
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id);
-      const locations = Object.entries(getLocationJson(allottedLocation))
-        .map(([locationCode, quantity]) => ({ locationCode, quantity: Number(quantity) || 0 }))
-        .filter((entry) => entry.quantity > 0)
-        .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
-
       setLookupResult({
         sku,
         product,
         quantityRow,
-        allottedLocation,
+        allottedLocation: null,
         invoices,
         movements,
-        locations,
-        totalPoQuantity: invoices.reduce((sum, row) => sum + Number(row.billedQty || 0), 0),
-        totalLocationStock: locations.reduce((sum, row) => sum + row.quantity, 0),
+        locations: [],
+        totalPoQuantity: 0,
+        totalLocationStock: 0,
       });
 
-      if (!product && !quantityRow && !allottedLocation && invoices.length === 0 && movements.length === 0) {
+      if (!product && !quantityRow && movements.length === 0) {
         toast.error("No product details found for this SKU");
       }
     } catch (error: any) {
@@ -525,19 +583,13 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
   const productTitle =
     lookupResult?.product?.name ||
     lookupResult?.quantityRow?.productName ||
-    lookupResult?.allottedLocation?.productName ||
-    lookupResult?.invoices[0]?.productName ||
     "Product Details";
-  const displayedCurrentStock = lookupResult
-    ? lookupResult.invoices.length > 0
-      ? Math.min(lookupResult.quantityRow?.currentQuantity ?? 0, lookupResult.totalPoQuantity)
-      : 0
-    : 0;
+  const displayedCurrentStock = lookupResult?.quantityRow?.currentQuantity ?? 0;
 
   return (
     <OperationsPage
       title="Stock Verify"
-      description="Quick single-SKU lookup to view product master, invoice pricing, stock, and location data."
+      description="Quick single-SKU lookup to view current stock and product master data."
       icon={Eye}
       hideHeader
       actions={
@@ -606,8 +658,8 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
               <Text mt={6} size="lg" fw={800} c="white">{products.length}</Text>
             </Paper>
             <Paper radius="lg" p="sm" withBorder bg="transparent">
-              <Text size="10px" fw={800} c="dimmed">LOCATION ROWS</Text>
-              <Text mt={6} size="lg" fw={800} c="white">{allottedLocations.length}</Text>
+              <Text size="10px" fw={800} c="dimmed">STOCK ROWS</Text>
+              <Text mt={6} size="lg" fw={800} c="white">{quantityRows.length}</Text>
             </Paper>
           </SimpleGrid>
 
@@ -623,18 +675,6 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                   isButton
                 />
                 <ReferenceLink
-                  icon={FileText}
-                  label="PO Invoices"
-                  value={`${lookupResult.invoices.length} invoice rows`}
-                  href={masterHref("/inward", lookupResult.sku)}
-                />
-                <ReferenceLink
-                  icon={MapPin}
-                  label="Location Master"
-                  value={`${lookupResult.locations.length} allotted locations`}
-                  href={masterHref("/warehouse-map", lookupResult.locations[0]?.locationCode || lookupResult.sku)}
-                />
-                <ReferenceLink
                   icon={History}
                   label="Stock Adjustments"
                   value={`${lookupResult.movements.length} movement rows`}
@@ -647,7 +687,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
               <Group gap="sm" wrap="nowrap">
                 <Boxes size={17} color="var(--mantine-color-cyan-4)" />
                 <Text size="xs" c="dimmed">
-                  This page is read-only. It shows connected product, invoice, and location records without changing stock.
+                  This page is read-only. It shows current stock without changing inventory.
                 </Text>
               </Group>
             </Paper>
@@ -657,7 +697,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
         <OperationsPanel
           title="Inventory Details"
           icon={Boxes}
-          description="Reference-linked product master, PO invoice rows, quantity, and location stock."
+          description="Reference-linked product master and current stock quantity."
           className="lg:col-span-8 flex flex-col overflow-hidden h-full"
           contentClassName="overflow-y-auto scrollbar-thin"
         >
@@ -665,7 +705,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
             <OperationsEmptyState
               icon={ClipboardCheck}
               title="Enter SKU To View Product Details"
-              description="Search a SKU code to see invoice details, price, quantity, and allotted stock locations."
+              description="Search a SKU code to see current stock quantity and product details."
             />
           ) : (
             <Stack gap="sm">
@@ -703,21 +743,13 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                 </Group>
               </Paper>
 
-              <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
                   <MetricLabel icon={Boxes} label="Current Stock" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">{displayedCurrentStock}</Text>
                 </Paper>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={FileText} label="PO Qty." />
-                  <Text mt={6} size="xl" fw={800} ff="monospace">{lookupResult.totalPoQuantity}</Text>
-                </Paper>
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={MapPin} label="Allotted Stock" />
-                  <Text mt={6} size="xl" fw={800} ff="monospace">{lookupResult.totalLocationStock}</Text>
-                </Paper>
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={IndianRupee} label="Latest Invoice Price" />
+                  <MetricLabel icon={IndianRupee} label="Latest Invoice MRP" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">{formatMoney(lookupResult.invoices[0]?.mrp)}</Text>
                 </Paper>
               </SimpleGrid>
@@ -755,84 +787,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
                     </>
                   )}
                 </Paper>
-
-                <Paper radius="lg" p="sm" withBorder bg="transparent">
-                  <MetricLabel icon={MapPin} label="Location Stock" />
-                  {lookupResult.locations.length === 0 ? (
-                    <EmptyInline message="No allotted location stock found for this SKU." />
-                  ) : (
-                    <Stack gap={6} mt="xs">
-                      {lookupResult.locations.map((entry) => (
-                        <Group
-                          key={entry.locationCode}
-                          justify="space-between"
-                          wrap="nowrap"
-                          className="rounded-md border border-slate-700/60 px-2 py-1.5"
-                        >
-                          <Group gap={6} wrap="nowrap">
-                            <MapPin size={13} color="var(--mantine-color-cyan-4)" />
-                            <MasterLink href={masterHref("/warehouse-map", entry.locationCode)} mono>
-                              {entry.locationCode}
-                            </MasterLink>
-                          </Group>
-                          <Text size="12px" fw={800} ff="monospace">{entry.quantity}</Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  )}
-                </Paper>
               </SimpleGrid>
-
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Group justify="space-between" mb="xs">
-                  <MetricLabel icon={FileText} label="PO Invoice Details With Price" />
-                  <Badge size="sm" radius="md" variant="default" color="gray">{lookupResult.invoices.length} rows</Badge>
-                </Group>
-                {lookupResult.invoices.length === 0 ? (
-                  <EmptyInline message="No PO invoice rows found for this SKU." />
-                ) : (
-                  <ScrollArea type="auto">
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={760}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Invoice No.</Table.Th>
-                          <Table.Th>Date</Table.Th>
-                          <Table.Th>Party</Table.Th>
-                          <Table.Th>Product</Table.Th>
-                          <Table.Th>SKU</Table.Th>
-                          <Table.Th>Invoice Price</Table.Th>
-                          <Table.Th>Billed Qty.</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {lookupResult.invoices.map((invoice) => (
-                          <Table.Tr key={invoice.id}>
-                            <Table.Td>
-                              <MasterLink href={masterHref("/inward", invoice.invoiceNumber)} mono>
-                                {invoice.invoiceNumber}
-                              </MasterLink>
-                            </Table.Td>
-                            <Table.Td>{format(new Date(invoice.invoiceDate), "dd MMM yyyy")}</Table.Td>
-                            <Table.Td>{invoice.partyName}</Table.Td>
-                            <Table.Td>
-                              <MasterLink onClick={() => openProductFromSku(invoice.skuCode, invoice.productName)}>
-                                {invoice.productName}
-                              </MasterLink>
-                            </Table.Td>
-                            <Table.Td>
-                              <MasterLink onClick={() => openProductFromSku(invoice.skuCode, invoice.productName)} mono>
-                                {invoice.skuCode}
-                              </MasterLink>
-                            </Table.Td>
-                            <Table.Td>{formatMoney(invoice.mrp)}</Table.Td>
-                            <Table.Td>{invoice.billedQty}</Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
-              </Paper>
 
               <Paper radius="lg" p="sm" withBorder bg="transparent">
                 <Group justify="space-between" mb="xs">
@@ -900,53 +855,7 @@ function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: b
         product={lookupResult?.product || null}
         onSuccess={() => void loadData()}
         onPrint={handlePrint}
-        onViewLocations={setLocationProduct}
       />
-      <Modal
-        opened={Boolean(locationProduct)}
-        onClose={() => setLocationProduct(null)}
-        title="Product Locations"
-        size="lg"
-        centered
-      >
-        {locationProduct ? (
-          <Stack gap="md">
-            <Paper radius="md" p="sm" withBorder bg="transparent">
-              <Group justify="space-between" align="flex-start">
-                <Box className="min-w-0">
-                  <Text fw={800} c="white" truncate>{locationProduct.name}</Text>
-                  <Text size="11px" c="dimmed" ff="monospace">{locationProduct.sku || "-"}</Text>
-                </Box>
-                <MBadge size="sm" variant="light" color="cyan">
-                  {lookupResult?.locations.length || 0} locations
-                </MBadge>
-              </Group>
-            </Paper>
-            {lookupResult?.locations.length ? (
-              <Stack gap={6}>
-                {lookupResult.locations.map((entry) => (
-                  <Group
-                    key={entry.locationCode}
-                    justify="space-between"
-                    wrap="nowrap"
-                    className="rounded-md border border-slate-700/60 px-2 py-1.5"
-                  >
-                    <Group gap={6} wrap="nowrap">
-                      <MapPin size={13} color="var(--mantine-color-cyan-4)" />
-                      <MasterLink href={masterHref("/warehouse-map", entry.locationCode)} mono>
-                        {entry.locationCode}
-                      </MasterLink>
-                    </Group>
-                    <Text size="12px" fw={800} ff="monospace">{entry.quantity}</Text>
-                  </Group>
-                ))}
-              </Stack>
-            ) : (
-              <EmptyInline message="No allotted location stock found for this product." />
-            )}
-          </Stack>
-        ) : null}
-      </Modal>
       <StickerPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
