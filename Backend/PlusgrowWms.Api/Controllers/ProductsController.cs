@@ -677,16 +677,14 @@ public class ProductsController : BaseController
                                 }
 
                                 var productLocation = await _context.ProductAllottedLocations.FirstOrDefaultAsync(l => l.ProductId == product.Id);
+                                var resetLocationStock = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                                {
+                                    [Location.DefaultLocationCode] = stockQnty
+                                };
+
                                 if (productLocation != null)
                                 {
-                                    productLocation.LocationJson ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-                                    int currentLocQty = 0;
-                                    productLocation.LocationJson.TryGetValue(Location.DefaultLocationCode, out currentLocQty);
-                                    
-                                    int newLocQty = currentLocQty + quantityChange;
-                                    if (newLocQty < 0) newLocQty = 0; // Prevent negative stock in 0-0-0
-                                    
-                                    productLocation.LocationJson[Location.DefaultLocationCode] = newLocQty;
+                                    productLocation.LocationJson = resetLocationStock;
                                     productLocation.UpdatedAt = now;
                                     _context.Entry(productLocation).Property(x => x.LocationJson).IsModified = true;
                                 }
@@ -695,10 +693,7 @@ public class ProductsController : BaseController
                                     _context.ProductAllottedLocations.Add(new ProductAllottedLocation
                                     {
                                         ProductId = product.Id,
-                                        LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-                                        {
-                                            [Location.DefaultLocationCode] = stockQnty
-                                        },
+                                        LocationJson = resetLocationStock,
                                         UpdatedAt = now
                                     });
                                 }
