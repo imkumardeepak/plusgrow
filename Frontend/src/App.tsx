@@ -204,7 +204,7 @@ export default function App() {
                     />
                     <Route
                       path="inward-verify"
-                      element={pageElement("inward", <InwardVerify />)}
+                      element={pageElement("inward-verify", <InwardVerify />)}
                     />
                     <Route
                       path="sticker"
@@ -258,7 +258,7 @@ export default function App() {
                       path="bin-movement"
                       element={pageElement(["locations", "bins"], <BinMovement />)}
                     />
-                    <Route path="mrp-tracking" element={pageElement("inward", <MrpTracking />)} />
+                    <Route path="mrp-tracking" element={pageElement("mrp-tracking", <MrpTracking />)} />
                     <Route path="product-mrp-wise-quantity" element={pageElement("stock-check", <MrpTracking />)} />
                     <Route path="mpd" element={pageElement("mpd", <MPD />)} />
                     <Route

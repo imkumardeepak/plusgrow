@@ -30,12 +30,16 @@ import {
 } from "../../components/organisms/Operations/OperationsShell";
 import {
   ProductAllottedLocationRecord,
+  PoInvoice,
   ProductQuantityRecord,
   PutAwayScanAssignmentResult,
+  poInvoicesApi,
   productAllottedLocationsApi,
   productQuantitiesApi,
   productsApi,
   Product,
+  StockCheckReport,
+  stockCheckReportsApi,
 } from "../../services/masterApi";
 
 type PutAwayTask = {
@@ -53,12 +57,64 @@ const emptyResult: PutAwayScanAssignmentResult | null = null;
 const normalizeScanCode = (value: string) =>
   value.trim().split("#")[0].trim().toLowerCase();
 
+const normalizeDateText = (value?: string | null) => {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString().slice(0, 10);
+};
+
+const isVerificationForInvoice = (report: StockCheckReport, invoice: PoInvoice) => {
+  if (report.notes) {
+    try {
+      const notes = JSON.parse(report.notes) as {
+        referenceName?: string;
+        partyName?: string;
+        invoiceDate?: string;
+      };
+      if (notes.referenceName && notes.partyName && notes.invoiceDate) {
+        return (
+          notes.referenceName.trim().toLowerCase() === invoice.invoiceNumber.trim().toLowerCase() &&
+          notes.partyName.trim().toLowerCase() === invoice.partyName.trim().toLowerCase() &&
+          normalizeDateText(notes.invoiceDate) === normalizeDateText(invoice.invoiceDate)
+        );
+      }
+    } catch {
+      // Fall back to legacy referenceName matching.
+    }
+  }
+
+  return (report.referenceName || "")
+    .trim()
+    .toLowerCase()
+    .startsWith(`${invoice.invoiceNumber} - ${invoice.partyName}`.trim().toLowerCase());
+};
+
+const getVerifiedQtyForSku = (report: StockCheckReport, sku?: string | null) => {
+  if (!sku) return 0;
+  try {
+    const items = JSON.parse(report.itemsJson || "[]") as Array<{
+      sku?: string;
+      scannedQty?: number;
+      isUnexpected?: boolean;
+    }>;
+    const normalizedSku = sku.trim().toUpperCase();
+    return items.reduce((sum, item) => {
+      if (item.isUnexpected || item.sku?.trim().toUpperCase() !== normalizedSku) return sum;
+      return sum + Number(item.scannedQty || 0);
+    }, 0);
+  } catch {
+    return 0;
+  }
+};
+
 export const PutAway = () => {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [products, setProducts] = useState<Product[]>([]);
   const [productQuantities, setProductQuantities] = useState<
     ProductQuantityRecord[]
   >([]);
+  const [activeInwardRows, setActiveInwardRows] = useState<PoInvoice[]>([]);
+  const [inwardVerifyReports, setInwardVerifyReports] = useState<StockCheckReport[]>([]);
   const [allocations, setAllocations] = useState<
     ProductAllottedLocationRecord[]
   >([]);
@@ -77,15 +133,19 @@ export const PutAway = () => {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, quantitiesData, allocationsData] = await Promise.all([
+      const [productsData, quantitiesData, allocationsData, inwardRowsData, verifyReportsData] = await Promise.all([
         productsApi.getAll(),
         productQuantitiesApi.getAll(),
         productAllottedLocationsApi.getAll(),
+        poInvoicesApi.getAll({ pageSize: 1000 }),
+        stockCheckReportsApi.getAll({ checkType: "INWARD_VERIFY", page: 1, pageSize: 1000 }),
       ]);
 
       setProducts(productsData);
       setProductQuantities(quantitiesData);
       setAllocations(allocationsData);
+      setActiveInwardRows(inwardRowsData.filter((row) => row.remainingAllocation > 0));
+      setInwardVerifyReports(verifyReportsData.data);
     } catch (error) {
       toast.error("Failed to load put-away data");
     } finally {
@@ -98,6 +158,23 @@ export const PutAway = () => {
   }, [loadData]);
 
   const allTasks = useMemo<PutAwayTask[]>(() => {
+    const activeRemainingByProduct = activeInwardRows.reduce((map, row) => {
+      map.set(row.productId, (map.get(row.productId) || 0) + Number(row.remainingAllocation || 0));
+      return map;
+    }, new Map<number, number>());
+
+    const putAwayByProduct = activeInwardRows.reduce((map, row) => {
+      map.set(row.productId, (map.get(row.productId) || 0) + Math.max(Number(row.billedQty || 0) - Number(row.remainingAllocation || 0), 0));
+      return map;
+    }, new Map<number, number>());
+
+    const verifiedByProduct = activeInwardRows.reduce((map, row) => {
+      const report = inwardVerifyReports.find((candidate) => isVerificationForInvoice(candidate, row));
+      if (!report) return map;
+      map.set(row.productId, (map.get(row.productId) || 0) + getVerifiedQtyForSku(report, row.skuCode));
+      return map;
+    }, new Map<number, number>());
+
     return productQuantities
       .map((quantityRow) => {
         const product = products.find((item) => item.id === quantityRow.productId);
@@ -108,9 +185,10 @@ export const PutAway = () => {
           (allocationRow?.locationJson || {}) as Record<string, number>,
         ).reduce((sum, qty) => sum + Number(qty), 0);
 
-        // Calculate remaining using the same logic as backend: currentQuantity - allocatedQuantity
+        const activeInwardRemainingQuantity = activeRemainingByProduct.get(quantityRow.productId) || 0;
+        const verifiedRemainingQuantity = Math.max((verifiedByProduct.get(quantityRow.productId) || 0) - (putAwayByProduct.get(quantityRow.productId) || 0), 0);
         const remainingQuantity = Math.max(
-          quantityRow.currentQuantity - allocatedQuantity,
+          Math.min(quantityRow.currentQuantity - allocatedQuantity, activeInwardRemainingQuantity, verifiedRemainingQuantity),
           0,
         );
 
@@ -127,7 +205,7 @@ export const PutAway = () => {
       })
       .filter((task) => task.remainingQuantity > 0)
       .sort((a, b) => b.remainingQuantity - a.remainingQuantity);
-  }, [allocations, productQuantities, products]);
+  }, [activeInwardRows, allocations, inwardVerifyReports, productQuantities, products]);
 
   const tasks = allTasks;
 

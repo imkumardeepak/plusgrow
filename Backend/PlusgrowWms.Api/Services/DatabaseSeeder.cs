@@ -137,11 +137,12 @@ public class DatabaseSeeder : IDatabaseSeeder
     {
         var pages = new[]
         {
-            "dashboard", "inward", "sticker", "receiving", "putaway",
+            "dashboard", "inward", "inward-verify", "mrp-tracking", "sticker", "receiving", "putaway",
             "outward", "packing", "dispatch", "importers", "manufacturers", "parties",
-            "commodities", "bins", "locations", "mpd", "products",
+            "commodities", "bins", "locations", "bin-movement", "mpd", "products",
+            "product-query", "product-movement", "product-mrp-wise-quantity",
             "sticker-printer-config", "stock-check", "stock-movement",
-            "warehouse-map", "role-master", "user-master", "profile"
+            "warehouse-map", "role-master", "user-master", "audit-logs", "profile"
         };
 
         foreach (var page in pages)

@@ -83,7 +83,7 @@ export const InwardVerify = memo(function InwardVerify() {
     try {
       setIsLoading(true);
       const [invoiceResult, productResult, reportResult] = await Promise.all([
-        poInvoicesApi.getHeaders({ status: "printed", page: 1, pageSize: 300 }),
+        poInvoicesApi.getHeaders({ status: "all", page: 1, pageSize: 300 }),
         productsApi.getAll(),
         stockCheckReportsApi.getAll({ checkType: "INWARD_VERIFY", page: 1, pageSize: 1000 }),
       ]);
@@ -319,7 +319,7 @@ export const InwardVerify = memo(function InwardVerify() {
   return (
     <OperationsPage
       title="Inward Verify"
-      description="Scan printed sticker QR/barcodes and verify counts against inward purchase invoice quantity."
+      description="Scan sticker QR/barcodes and verify counts against inward purchase invoice quantity."
       icon={ClipboardCheck}
       hideHeader
     >
@@ -330,7 +330,7 @@ export const InwardVerify = memo(function InwardVerify() {
               <ClipboardCheck size={isMobile ? 18 : 20} color="var(--mantine-color-cyan-4)" />
               <Box className="min-w-0">
                 <Text fw={900} size={isMobile ? "sm" : "md"} c="white">Inward Verify</Text>
-                {!isMobile && <Text size="11px" c="dimmed">Select invoice and scan every printed sticker</Text>}
+                {!isMobile && <Text size="11px" c="dimmed">Select invoice and scan every sticker</Text>}
               </Box>
             </Group>
             <Button size="xs" variant="outline" leftIcon={<RefreshCw size={14} />} loading={isLoading} onClick={() => void loadData()}>
@@ -346,12 +346,12 @@ export const InwardVerify = memo(function InwardVerify() {
               size={isMobile ? "xs" : "sm"}
               searchable
               clearable
-              placeholder="Select printed invoice..."
+              placeholder="Select inward invoice..."
               data={invoiceOptions}
               value={selectedInvoiceKey}
               onChange={setSelectedInvoiceKey}
               disabled={isLoading}
-              nothingFoundMessage="No printed invoices found"
+              nothingFoundMessage="No inward invoices found"
             />
 
             {selectedInvoice ? (

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using System.Security.Claims;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
@@ -159,6 +160,11 @@ public class ProductAllottedLocationsController : BaseController
 
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == product.Id);
         var currentQuantity = quantityRow?.CurrentQuantity ?? 0;
+        var activeInwardRemainingQuantity = await _context.PoInvoices
+            .Include(x => x.Header)
+            .Where(x => x.ProductId == product.Id && x.RemainingAllocation > 0 && x.Header != null && x.Header.Status != "Canceled")
+            .SumAsync(x => (int?)x.RemainingAllocation) ?? 0;
+        var verifiedRemainingQuantity = await GetVerifiedRemainingQuantityAsync(product.Id);
 
         var allocationRow = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == product.Id);
         if (allocationRow == null)
@@ -177,7 +183,13 @@ public class ProductAllottedLocationsController : BaseController
         }
 
         var totalAllocatedBefore = allocationRow.LocationJson.Values.Sum();
-        var remainingBefore = Math.Max(currentQuantity - totalAllocatedBefore, 0);
+        var remainingBefore = Math.Max(Math.Min(currentQuantity - totalAllocatedBefore, Math.Min(activeInwardRemainingQuantity, verifiedRemainingQuantity)), 0);
+
+        if (activeInwardRemainingQuantity <= 0)
+            return BadRequest<PutAwayScanAssignmentResultDto>("No active inward stock is available for put-away. Canceled inward entries cannot be put away.");
+
+        if (verifiedRemainingQuantity <= 0)
+            return BadRequest<PutAwayScanAssignmentResultDto>("No inward verified stock is available for put-away. Complete inward verification first.");
 
         if (dto.Quantity > remainingBefore)
             return BadRequest<PutAwayScanAssignmentResultDto>($"Only {remainingBefore} units are available for put away");
@@ -404,6 +416,101 @@ public class ProductAllottedLocationsController : BaseController
 
             remainingToAllocate -= reduceBy;
         }
+    }
+
+    private async Task<int> GetVerifiedRemainingQuantityAsync(int productId)
+    {
+        var invoices = await _context.PoInvoices
+            .Include(x => x.Header)
+            .Include(x => x.Product)
+            .Where(x => x.ProductId == productId && x.Header != null && x.Header.Status != "Canceled")
+            .ToListAsync();
+
+        if (invoices.Count == 0)
+            return 0;
+
+        var reports = await _context.StockCheckReports
+            .AsNoTracking()
+            .Where(x => x.CheckType == "INWARD_VERIFY")
+            .ToListAsync();
+
+        var verifiedQty = 0;
+        foreach (var invoice in invoices)
+        {
+            var matchingReport = reports.FirstOrDefault(report => IsVerificationForInvoice(report, invoice));
+            if (matchingReport == null)
+                continue;
+
+            verifiedQty += GetVerifiedQuantityForSku(matchingReport.ItemsJson, invoice.Product?.Sku);
+        }
+
+        var alreadyPutAwayQty = invoices.Sum(invoice => Math.Max(invoice.BilledQty - invoice.RemainingAllocation, 0));
+        return Math.Max(verifiedQty - alreadyPutAwayQty, 0);
+    }
+
+    private static bool IsVerificationForInvoice(StockCheckReport report, PoInvoice invoice)
+    {
+        if (invoice.Header == null)
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(report.Notes))
+        {
+            try
+            {
+                using var notes = JsonDocument.Parse(report.Notes);
+                var root = notes.RootElement;
+                var referenceName = root.TryGetProperty("referenceName", out var referenceElement) ? referenceElement.GetString() : null;
+                var partyName = root.TryGetProperty("partyName", out var partyElement) ? partyElement.GetString() : null;
+                var invoiceDate = root.TryGetProperty("invoiceDate", out var dateElement) ? dateElement.GetString() : null;
+                return string.Equals(referenceName, invoice.Header.InvoiceNumber, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(partyName, invoice.Header.PartyName, StringComparison.OrdinalIgnoreCase)
+                    && NormalizeDateText(invoiceDate) == NormalizeDateText(invoice.Header.InvoiceDate.ToString("yyyy-MM-dd"));
+            }
+            catch
+            {
+                // Fall through to legacy reference matching.
+            }
+        }
+
+        return report.ReferenceName.StartsWith($"{invoice.Header.InvoiceNumber} - {invoice.Header.PartyName}", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetVerifiedQuantityForSku(string itemsJson, string? sku)
+    {
+        if (string.IsNullOrWhiteSpace(itemsJson) || string.IsNullOrWhiteSpace(sku))
+            return 0;
+
+        try
+        {
+            using var document = JsonDocument.Parse(itemsJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                return 0;
+
+            var normalizedSku = sku.Trim().ToUpperInvariant();
+            var total = 0;
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                var itemSku = item.TryGetProperty("sku", out var skuElement) ? skuElement.GetString() : null;
+                var isUnexpected = item.TryGetProperty("isUnexpected", out var unexpectedElement) && unexpectedElement.GetBoolean();
+                if (isUnexpected || !string.Equals(itemSku?.Trim(), normalizedSku, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                total += item.TryGetProperty("scannedQty", out var qtyElement) && qtyElement.TryGetInt32(out var qty) ? qty : 0;
+            }
+            return total;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static string NormalizeDateText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return DateTime.TryParse(value, out var parsed) ? parsed.ToString("yyyy-MM-dd") : value.Trim();
     }
 
     private static string NormalizeScanCode(string value)
