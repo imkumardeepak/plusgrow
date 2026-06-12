@@ -12,6 +12,8 @@ import {
   Text,
   Textarea,
   TextInput,
+  Box,
+  ScrollArea,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
@@ -597,8 +599,8 @@ export const Outward = memo(function Outward() {
           </Group>
         }
       >
-        <Stack gap="sm">
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+        <Stack gap="md">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="sm">
             <TextInput
               label="Order Date"
               type="date"
@@ -613,6 +615,7 @@ export const Outward = memo(function Outward() {
             />
             <TextInput
               label="Customer Name"
+              placeholder="e.g. Acme Corp"
               value={orderForm.customerName}
               onChange={(event) => {
                 const { value } = event.currentTarget;
@@ -621,9 +624,11 @@ export const Outward = memo(function Outward() {
                   customerName: value,
                 }));
               }}
+              size="sm"
             />
             <TextInput
               label="Notes"
+              placeholder="Optional remarks"
               value={orderForm.notes || ""}
               onChange={(event) => {
                 const { value } = event.currentTarget;
@@ -632,32 +637,35 @@ export const Outward = memo(function Outward() {
                   notes: value,
                 }));
               }}
-              className="md:col-span-2"
             />
           </SimpleGrid>
 
-          <Stack gap="xs">
-            <Group justify="space-between">
-              <Text size="sm" fw={700}>
+            <Box bg="rgba(15, 23, 42, 0.4)" p="md" radius="md" style={{ border: "1px solid rgba(148, 163, 184, 0.1)" }}>
+            <Group justify="space-between" mb="md">
+              <Text size="md" fw={700} c="white">
                 Order Items
               </Text>
               <Button
-                size="xs"
-                variant="outline"
-                leftIcon={<Plus size={14} />}
+                size="sm"
+                variant="light"
+                color="cyan"
+                leftSection={<Plus size={14} />}
                 onClick={addOrderItem}
               >
                 Add Item
               </Button>
             </Group>
 
-            {orderForm.items.map((item, index) => (
-              <SimpleGrid key={item.id} cols={{ base: 1, md: 12 }} spacing="sm">
-                <Select
-                  label={`Product ${index + 1}`}
-                  searchable
-                  data={productOptions}
-                  value={item.productId > 0 ? String(item.productId) : null}
+            <ScrollArea type="auto" offsetScrollbars="y" style={{ maxHeight: "500px", paddingRight: "8px" }}>
+              <Stack gap="md">
+                {orderForm.items.map((item, index) => (
+                  <Group key={item.id} wrap="nowrap" align="flex-end" gap="sm">
+                    <Select
+                      label={index === 0 ? "Product" : undefined}
+                      placeholder="Select product..."
+                      searchable
+                      data={productOptions}
+                      value={item.productId > 0 ? String(item.productId) : null}
                   onChange={(value) => {
                     const product = products.find((row) => row.id === Number(value));
                     updateOrderItem(item.id, {
@@ -665,22 +673,25 @@ export const Outward = memo(function Outward() {
                       mrp: product?.mrp ?? "",
                     });
                   }}
-                  className="md:col-span-6"
-                />
-                <NumberInput
-                  label="Quantity"
-                  min={1}
+                      style={{ flex: 1 }}
+                    />
+                    <NumberInput
+                      label={index === 0 ? "Qty" : undefined}
+                      placeholder="1"
+                      w={100}
+                      min={1}
                   value={item.quantity}
                   onChange={(value) =>
                     updateOrderItem(item.id, {
                       quantity: typeof value === "number" ? value : 1,
                     })
                   }
-                  className="md:col-span-2"
-                />
-                <NumberInput
-                  label="MRP"
-                  min={0}
+                    />
+                    <NumberInput
+                      label={index === 0 ? "MRP" : undefined}
+                      placeholder="0.00"
+                      w={130}
+                      min={0}
                   decimalScale={2}
                   value={item.mrp}
                   onChange={(value) =>
@@ -688,24 +699,23 @@ export const Outward = memo(function Outward() {
                       mrp: typeof value === "number" ? value : "",
                     })
                   }
-                  className="md:col-span-3"
-                />
-                <Group align="end" className="md:col-span-1">
-                  <ActionIcon
-                    size="lg"
-                    radius="md"
-                    variant="light"
-                    color="red"
-                    disabled={orderForm.items.length === 1}
-                    onClick={() => removeOrderItem(item.id)}
-                    aria-label="Remove item"
-                  >
-                    <Trash2 size={16} />
-                  </ActionIcon>
-                </Group>
-              </SimpleGrid>
-            ))}
-          </Stack>
+                    />
+                    <ActionIcon
+                      size={36}
+                      radius="md"
+                      variant="subtle"
+                      color="red"
+                      disabled={orderForm.items.length === 1}
+                      onClick={() => removeOrderItem(item.id)}
+                      aria-label="Remove item"
+                    >
+                      <Trash2 size={16} />
+                    </ActionIcon>
+                  </Group>
+                ))}
+              </Stack>
+            </ScrollArea>
+          </Box>
         </Stack>
       </Modal>
 
