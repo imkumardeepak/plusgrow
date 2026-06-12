@@ -15,7 +15,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCw, ScanLine, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCw, Save, ScanLine, Trash2 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../components/organisms/Operations/OperationsShell";
@@ -26,6 +26,7 @@ import {
   Product,
   poInvoicesApi,
   productsApi,
+  stockCheckReportsApi,
 } from "../services/masterApi";
 
 type InvoiceSummary = PoInvoiceHeaderSummary & { invoiceKey: string };
@@ -56,6 +57,7 @@ export const InwardVerify = memo(function InwardVerify() {
   const [scanInput, setScanInput] = useState("");
   const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
@@ -197,6 +199,78 @@ export const InwardVerify = memo(function InwardVerify() {
     setTimeout(() => inputRef.current?.focus(), 10);
   };
 
+  const handleSaveVerification = async () => {
+    if (!selectedInvoice) {
+      toast.warning("Select invoice number first");
+      return;
+    }
+
+    if (scanEvents.length === 0) {
+      toast.warning("Scan stickers before saving verification");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const extraItems = scanEvents
+        .filter((event) => event.isExtra)
+        .map((event, index) => ({
+          sku: event.sku === "UNKNOWN" ? event.code : event.sku,
+          productName: event.productName,
+          systemQty: 0,
+          scannedQty: 1,
+          variance: 1,
+          isUnexpected: true,
+          scannedCode: event.code,
+          scannedAt: event.at,
+          row: index + 1,
+        }));
+
+      const items = [
+        ...lines.map((line) => ({
+          sku: line.skuCode,
+          productName: line.productName,
+          systemQty: line.expectedQty,
+          scannedQty: line.scannedQty,
+          variance: line.difference,
+          isUnexpected: false,
+        })),
+        ...extraItems,
+      ];
+
+      await stockCheckReportsApi.create({
+        checkType: "INWARD_VERIFY",
+        referenceName: `${selectedInvoice.invoiceNumber} - ${selectedInvoice.partyName}`,
+        totalSystemQty: totalExpected,
+        totalScannedQty: totalScanned + extraCount,
+        totalVariance: totalScanned + extraCount - totalExpected,
+        itemsChecked: items.length,
+        itemsWithVariance: items.filter((item) => item.variance !== 0).length,
+        itemsJson: JSON.stringify(items),
+        status: "COMPLETED",
+        notes: JSON.stringify({
+          checkId: `INWARD-${selectedInvoice.invoiceNumber}-${Date.now()}`,
+          checkType: "INWARD_VERIFY",
+          referenceName: selectedInvoice.invoiceNumber,
+          partyName: selectedInvoice.partyName,
+          invoiceDate: selectedInvoice.invoiceDate,
+          totalScans: scanEvents.length,
+          savedAt: new Date().toISOString(),
+        }),
+      });
+
+      toast.success("Inward verification saved to report");
+      setScanEvents([]);
+      setScanInput("");
+      void loadData();
+      setTimeout(() => inputRef.current?.focus(), 10);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save inward verification");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const invoiceOptions = invoices.map((invoice) => ({
     value: invoice.invoiceKey,
     label: `${invoice.invoiceNumber} · ${invoice.partyName} · ${invoice.totalBilledQty} stickers`,
@@ -287,6 +361,18 @@ export const InwardVerify = memo(function InwardVerify() {
 
                 <Button variant="subtle" color="red" size="xs" fullWidth leftIcon={<Trash2 size={14} />} onClick={() => setScanEvents([])}>
                   Clear Scans
+                </Button>
+
+                <Button
+                  color="green"
+                  size={isMobile ? "sm" : "md"}
+                  fullWidth
+                  leftIcon={<Save size={15} />}
+                  loading={isSaving}
+                  disabled={scanEvents.length === 0}
+                  onClick={() => void handleSaveVerification()}
+                >
+                  Save Verification
                 </Button>
               </>
             ) : (

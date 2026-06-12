@@ -160,6 +160,7 @@ export function StockCheckHistoryMode({
                   { value: "LOCATION", label: "Location" },
                   { value: "MANUFACTURER", label: "Manufacturer" },
                   { value: "PRODUCT", label: "Product" },
+                  { value: "INWARD_VERIFY", label: "Inward Verify" },
                 ]}
               />
               </Box>
