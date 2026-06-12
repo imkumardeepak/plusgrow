@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Activity,
   ClipboardCheck,
   Eye,
   FileText,
@@ -9,21 +10,27 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Badge as MBadge,
   Box,
+  Button,
+  Divider,
   Group,
   Paper,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
   ThemeIcon,
 } from "@mantine/core";
+import { formatDistanceToNow } from "date-fns";
 
 import {
   OperationsPage,
 } from "../../../components/organisms/Operations/OperationsShell";
 import type { ActiveMode } from "../types";
+import { auditLogApi } from "../../../services/auditLogApi";
 
 const cards: {
   mode?: ActiveMode;
@@ -87,6 +94,28 @@ export function StockCheckHub({
   isMobile: boolean;
 }) {
   const navigate = useNavigate();
+  const { data: auditLogs, isLoading: auditLogsLoading } = useQuery({
+    queryKey: ["stockCheckHubAuditLogs"],
+    queryFn: () => auditLogApi.getLogs({ page: 1, pageSize: 6 }),
+    staleTime: 30_000,
+  });
+
+  const getActionColor = (action: string) => {
+    switch (action?.toLowerCase()) {
+      case "added":
+        return "blue";
+      case "modified":
+        return "yellow";
+      case "deleted":
+        return "red";
+      case "bulkstockupload":
+        return "grape";
+      case "cancelsalesorder":
+        return "orange";
+      default:
+        return "gray";
+    }
+  };
 
   return (
     <OperationsPage
@@ -166,6 +195,72 @@ export function StockCheckHub({
           </Paper>
         ))}
       </SimpleGrid>
+
+      <Paper
+        radius="xl"
+        p={isMobile ? "md" : "lg"}
+        mt="md"
+        withBorder
+        style={{
+          background: "linear-gradient(135deg, rgba(15,23,42,0.9) 0%, rgba(30,41,59,0.72) 100%)",
+          borderColor: "rgba(148,163,184,0.18)",
+        }}
+      >
+        <Group justify="space-between" align="flex-start" mb="md">
+          <Group gap="sm">
+            <ThemeIcon size={42} radius="xl" variant="light" color="cyan">
+              <Activity size={20} />
+            </ThemeIcon>
+            <Box>
+              <Text fw={900} c="white">Recent Operations</Text>
+              <Text size="xs" c="dimmed">Live audit trail of application activity</Text>
+            </Box>
+          </Group>
+          <Button size="xs" variant="light" color="cyan" onClick={() => navigate("/audit-logs")}>View all</Button>
+        </Group>
+
+        <Stack gap={0}>
+          {auditLogsLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <Box key={index} py="xs">
+                <Skeleton height={14} radius="xl" mb={8} />
+                <Skeleton height={10} width="65%" radius="xl" />
+              </Box>
+            ))
+          ) : auditLogs?.data?.length ? (
+            auditLogs.data.map((log, index) => (
+              <React.Fragment key={log.id}>
+                <Group justify="space-between" align="center" py="xs" wrap="nowrap">
+                  <Box style={{ minWidth: 0 }}>
+                    <Group gap={8} mb={3} wrap="nowrap">
+                      <MBadge size="xs" color={getActionColor(log.action)} variant="light" radius="md">
+                        {log.action}
+                      </MBadge>
+                      <Text size="sm" fw={700} c="white" truncate>
+                        {log.entityType}{log.entityId ? ` #${log.entityId}` : ""}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                      {log.details || `Changed by ${log.username || "System"}`}
+                    </Text>
+                  </Box>
+                  <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
+                    <Text size="xs" c="gray.4" fw={700}>{log.username || "System"}</Text>
+                    <Text size="10px" c="dimmed">
+                      {formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}
+                    </Text>
+                  </Stack>
+                </Group>
+                {index < auditLogs.data.length - 1 && <Divider color="rgba(148,163,184,0.12)" />}
+              </React.Fragment>
+            ))
+          ) : (
+            <Box py="lg" ta="center">
+              <Text size="sm" c="dimmed">No audit operations recorded yet.</Text>
+            </Box>
+          )}
+        </Stack>
+      </Paper>
     </OperationsPage>
   );
 }
