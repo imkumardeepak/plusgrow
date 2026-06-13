@@ -79,7 +79,7 @@ builder.Services.AddHttpClient<TallyService>();
 
 // Tally sync
 builder.Services.AddScoped<ITallySyncService, TallySyncService>();
-builder.Services.AddHostedService<TallySyncBackgroundService>();
+// builder.Services.AddHostedService<TallySyncBackgroundService>();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
