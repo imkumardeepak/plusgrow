@@ -104,91 +104,99 @@ public class TallyService
 
 	public async Task<List<Voucher>> GetVoucherAsync(string xmlFilePath)
 	{
+		if (!File.Exists(xmlFilePath))
+			throw new FileNotFoundException("The specified XML file was not found.", xmlFilePath);
+
+		string xmlContent = await File.ReadAllTextAsync(xmlFilePath);
+		return await GetVouchersFromXmlContentAsync(xmlContent);
+	}
+
+	/// <summary>
+	/// Fetch vouchers for a date range without a static XML file.
+	/// Tally date format is yyyyMMdd.
+	/// </summary>
+	public async Task<List<Voucher>> GetVoucherByDateRangeAsync(DateTime from, DateTime to)
+	{
+		string fromDate = from.ToString("yyyyMMdd");
+		string toDate = to.ToString("yyyyMMdd");
+
+		string xml = $@"<ENVELOPE>
+  <HEADER>
+    <VERSION>1</VERSION>
+    <TALLYREQUEST>Export</TALLYREQUEST>
+    <TYPE>Object</TYPE>
+    <SUBTYPE>Vouchers</SUBTYPE>
+  </HEADER>
+  <BODY>
+    <DESC>
+      <STATICVARIABLES>
+        <SVFROMDATE>{fromDate}</SVFROMDATE>
+        <SVTODATE>{toDate}</SVTODATE>
+        <EXPLODEFLAG>Yes</EXPLODEFLAG>
+      </STATICVARIABLES>
+    </DESC>
+  </BODY>
+</ENVELOPE>";
+
+		return await GetVouchersFromXmlContentAsync(xml);
+	}
+
+	private async Task<List<Voucher>> GetVouchersFromXmlContentAsync(string xmlContent)
+	{
 		try
 		{
-			// Validate Tally URL
 			string tallyUrl = _configuration["TallySettings:TallyUrl"];
 			if (string.IsNullOrWhiteSpace(tallyUrl))
-			{
 				throw new InvalidOperationException("Tally URL is not configured.");
-			}
 
-			// Validate XML file
-			if (!File.Exists(xmlFilePath))
-			{
-				throw new FileNotFoundException("The specified XML file was not found.", xmlFilePath);
-			}
-
-			// Read the XML content from the file
-			string xmlContent = await File.ReadAllTextAsync(xmlFilePath);
-
-			// Create HTTP request
 			var request = new HttpRequestMessage(HttpMethod.Post, tallyUrl)
 			{
 				Content = new StringContent(xmlContent, Encoding.UTF8, "text/xml")
 			};
 
-			// Send request and get response
 			var response = await _httpClient.SendAsync(request);
 			response.EnsureSuccessStatusCode();
 
 			var responseContent = await response.Content.ReadAsStringAsync();
 			responseContent = RemoveInvalidCharacters(responseContent);
-			// Parse the cleaned XML response
+
 			var xmlDocument = new XmlDocument();
 			xmlDocument.LoadXml(responseContent);
 
-			// Convert XML to JSON
 			string jsonData = JsonConvert.SerializeXmlNode(xmlDocument, Newtonsoft.Json.Formatting.Indented);
-
-			// Deserialize JSON into a JObject for manipulation
 			var jsonObject = JsonConvert.DeserializeObject<JObject>(jsonData);
-
-			// Remove empty or invalid values recursively
 			RemoveEmptyValues(jsonObject);
 
-			// Navigate to the TALLYMESSAGE array
 			var tallyMessageArray = jsonObject["ENVELOPE"]?["BODY"]?["IMPORTDATA"]?["REQUESTDATA"]?["TALLYMESSAGE"];
 
-
-			// Convert the TALLYMESSAGE array to a formatted JSON string
 			string tallyMessageJson = JsonConvert.SerializeObject(tallyMessageArray, Newtonsoft.Json.Formatting.Indented);
 			var data = JsonConvert.DeserializeObject<List<Dictionary<string, dynamic>>>(tallyMessageJson);
 
-			// List to store processed vouchers
 			var voucherList = new List<Voucher>();
 			if (data != null)
 			{
 				foreach (var entry in data)
 				{
-					// Check if the entry contains the "VOUCHER" key
 					if (entry.ContainsKey("VOUCHER"))
 					{
 						var voucherData = entry["VOUCHER"];
 						var itemData = voucherData["ALLINVENTORYENTRIES.LIST"];
 
-						// Initialize variables to store accounting allocation details
 						string voucherTypeName = "NA";
 
-						// Check if ACCOUNTINGALLOCATIONS.LIST exists and is valid
 						if (itemData is JObject itemDataObject &&
 							itemDataObject["ACCOUNTINGALLOCATIONS.LIST"] is JArray accountingArray)
 						{
-							// Handle multiple accounting allocations
 							var firstAccountingEntry = accountingArray.FirstOrDefault() as JObject;
 							if (firstAccountingEntry != null)
-							{
 								voucherTypeName = firstAccountingEntry["LEDGERNAME"]?.ToString() ?? "NA";
-							}
 						}
 						else if (itemData is JObject singleAccountingEntry &&
 								 singleAccountingEntry["ACCOUNTINGALLOCATIONS.LIST"] is JObject singleAccountingObject)
 						{
-							// Handle single accounting allocation
 							voucherTypeName = singleAccountingObject["LEDGERNAME"]?.ToString() ?? "NA";
 						}
 
-						// Create a new Voucher object and handle null fields by assigning "NA"
 						var voucher = new Voucher
 						{
 							RemoteID = voucherData["@REMOTEID"]?.ToString() ?? "NA",
@@ -196,36 +204,29 @@ public class TallyService
 							Date = voucherData["DATE"]?.ToString() ?? "NA",
 							PartyName = voucherData["PARTYNAME"]?.ToString() ?? "NA",
 							AccountType = voucherTypeName,
-							Items = new List<ItemDetails>() // Initialize the Items list
+							Items = new List<ItemDetails>()
 						};
 
-						// Check if the item data is a JArray or JObject
 						if (itemData is JArray itemArray)
 						{
-							// Handle multiple items
 							foreach (var item in itemArray)
-							{
-								var newItem = new ItemDetails
+								voucher.Items.Add(new ItemDetails
 								{
 									StockItemName = item["STOCKITEMNAME"]?.ToString() ?? "NA",
 									Rate = item["RATE"]?.ToString() ?? "NA",
 									Amount = item["AMOUNT"]?.ToString() ?? "NA",
 									ActualQty = item["ACTUALQTY"]?.ToString() ?? "NA"
-								};
-								voucher.Items.Add(newItem);
-							}
+								});
 						}
 						else if (itemData is JObject singleItem)
 						{
-							// Handle a single item
-							var newItem = new ItemDetails
+							voucher.Items.Add(new ItemDetails
 							{
 								StockItemName = singleItem["STOCKITEMNAME"]?.ToString() ?? "NA",
 								Rate = singleItem["RATE"]?.ToString() ?? "NA",
 								Amount = singleItem["AMOUNT"]?.ToString() ?? "NA",
 								ActualQty = singleItem["ACTUALQTY"]?.ToString() ?? "NA"
-							};
-							voucher.Items.Add(newItem);
+							});
 						}
 
 						voucherList.Add(voucher);
@@ -233,10 +234,7 @@ public class TallyService
 				}
 			}
 
-
-
 			return voucherList;
-
 		}
 		catch (Exception ex)
 		{
