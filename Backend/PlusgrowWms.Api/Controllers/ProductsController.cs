@@ -46,6 +46,31 @@ public class ProductsController : BaseController
     public async Task<ActionResult<ApiResponse<Product>>> CreateProduct([FromBody] Product product)
     {
         var created = await _productService.CreateAsync(product);
+
+        // Ensure the default location 0-0-0 exists in the locations table
+        var defaultLocationExists = await _context.Locations
+            .AnyAsync(l => l.LocationCode == Location.DefaultLocationCode);
+        if (!defaultLocationExists)
+            _context.Locations.Add(Location.CreateDefault());
+
+        // Create a default allotment so the product immediately appears
+        // in the StockMovement location dropdown (even before any stock is added)
+        var hasAllotment = await _context.ProductAllottedLocations
+            .AnyAsync(a => a.ProductId == created.Id);
+        if (!hasAllotment)
+        {
+            _context.ProductAllottedLocations.Add(new ProductAllottedLocation
+            {
+                ProductId = created.Id,
+                LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [Location.DefaultLocationCode] = 0,
+                },
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
+            });
+            await _context.SaveChangesAsync();
+        }
+
         return Success(created, "Product created successfully");
     }
 
@@ -358,8 +383,10 @@ public class ProductsController : BaseController
             foreach (var (row, product) in rowProductMap)
             {
                 var stockQntyStr = GetCell(row, "Stock", "Stock Qnty").GetString()?.Trim();
+
+                // Skip blank or zero — only process rows with stock > 0
                 if (string.IsNullOrEmpty(stockQntyStr) ||
-                    !int.TryParse(stockQntyStr, out int stockQnty) || stockQnty < 0) continue;
+                    !int.TryParse(stockQntyStr, out int stockQnty) || stockQnty <= 0) continue;
 
                 if (existingQtys.TryGetValue(product.Id, out var existing))
                 {
@@ -459,6 +486,7 @@ public class ProductsController : BaseController
 
             var createdManufacturers = new Dictionary<string, Manufacturer>(StringComparer.OrdinalIgnoreCase);
             var createdCommodities = new Dictionary<string, Commodity>(StringComparer.OrdinalIgnoreCase);
+            var updatedProductIds = new List<int>();
 
             foreach (var row in rows)
             {
@@ -651,7 +679,8 @@ public class ProductsController : BaseController
                     if (headers.ContainsKey("Stock Quantity"))
                     {
                         var stockStr = row.Cell(headers["Stock Quantity"]).GetString()?.Trim();
-                        if (int.TryParse(stockStr, out int stockQnty) && stockQnty >= 0)
+                        // Skip blank or zero — only update when stock > 0
+                        if (int.TryParse(stockStr, out int stockQnty) && stockQnty > 0)
                         {
                             var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                             
@@ -714,11 +743,44 @@ public class ProductsController : BaseController
                     }
 
                     result.ImportedCount++;
+                    updatedProductIds.Add(product.Id);
                 }
                 catch (Exception ex)
                 {
                     result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
                 }
+            }
+
+            // Ensure every updated product has a default 0-0-0 allotment so the
+            // location dropdown in StockMovement is never empty.
+            if (updatedProductIds.Any())
+            {
+                var nowFix = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                var existingAllotmentIds = await _context.ProductAllottedLocations
+                    .Where(a => updatedProductIds.Contains(a.ProductId))
+                    .Select(a => a.ProductId)
+                    .ToHashSetAsync();
+
+                var defaultLocExists = await _context.Locations
+                    .AnyAsync(l => l.LocationCode == Location.DefaultLocationCode);
+                if (!defaultLocExists)
+                    _context.Locations.Add(Location.CreateDefault());
+
+                var missingAllotments = updatedProductIds
+                    .Where(id => !existingAllotmentIds.Contains(id))
+                    .Select(id => new ProductAllottedLocation
+                    {
+                        ProductId = id,
+                        LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            [Location.DefaultLocationCode] = 0,
+                        },
+                        UpdatedAt = nowFix
+                    })
+                    .ToList();
+
+                if (missingAllotments.Any())
+                    await _context.ProductAllottedLocations.AddRangeAsync(missingAllotments);
             }
 
             await _context.SaveChangesAsync();
