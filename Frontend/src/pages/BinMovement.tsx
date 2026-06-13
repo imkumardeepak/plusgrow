@@ -229,7 +229,7 @@ export const BinMovement = memo(function BinMovement() {
                     ref={locationInputRef}
                     placeholder="Scan or type location code (e.g. 101-A-3)"
                     value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
+                    onChange={(e) => setLocationInput(e.target.value.trim())}
                     onKeyDown={handleLocationScan}
                     leftSection={<MapPin size={18} />}
                     size="md"
@@ -293,7 +293,7 @@ export const BinMovement = memo(function BinMovement() {
                       ref={binInputRef}
                       placeholder="Scan or type bin code (e.g. B-101-A)"
                       value={binInput}
-                      onChange={(e) => setBinInput(e.target.value)}
+                      onChange={(e) => setBinInput(e.target.value.trim())}
                       onKeyDown={handleBinScan}
                       leftSection={<ScanBarcode size={18} />}
                       size="md"

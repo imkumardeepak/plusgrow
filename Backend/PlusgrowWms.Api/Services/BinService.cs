@@ -30,6 +30,7 @@ public class BinService : IBinService
 
     public async Task<(BinDto? Bin, int TotalCount)> CreateAsync(CreateBinDto createBinDto)
     {
+        createBinDto.BinCode = createBinDto.BinCode.Trim();
         var bin = _mapper.Map<Bin>(createBinDto);
         await _repository.AddAsync(bin);
         await _repository.SaveChangesAsync();
@@ -46,6 +47,7 @@ public class BinService : IBinService
         if (bin == null)
             return (null, "Bin not found");
 
+        updateBinDto.BinCode = updateBinDto.BinCode.Trim();
         _mapper.Map(updateBinDto, bin);
         await _repository.SaveChangesAsync();
         return (_mapper.Map<BinDto>(bin), null);

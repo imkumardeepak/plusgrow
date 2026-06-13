@@ -82,13 +82,15 @@ export const Bins = memo(function Bins() {
       return;
     }
 
+    const trimmedData = { ...formData, binCode: formData.binCode.trim() };
+
     setIsSubmitting(true);
     try {
       if (isEditing) {
-        await binsApi.update(isEditing.id, formData);
+        await binsApi.update(isEditing.id, trimmedData);
         toast.success("Bin updated successfully");
       } else {
-        await binsApi.create(formData);
+        await binsApi.create(trimmedData);
         toast.success("Bin created successfully");
       }
       await loadBins();
@@ -188,7 +190,7 @@ export const Bins = memo(function Bins() {
 
   const filteredBins = useMemo(() => {
     if (!search.trim()) return bins;
-    const searchLower = search.toLowerCase();
+    const searchLower = search.trim().toLowerCase();
     return bins.filter((b) => b.binCode.toLowerCase().includes(searchLower));
   }, [bins, search]);
 
@@ -276,7 +278,7 @@ export const Bins = memo(function Bins() {
                   radius="md"
                   w={240}
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => setSearch(event.target.value.trim())}
                   placeholder="Search bin codes..."
                   leftElement={<Search size={14} />}
                 />
