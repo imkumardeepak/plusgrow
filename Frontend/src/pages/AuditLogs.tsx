@@ -84,8 +84,9 @@ export default function AuditLogs() {
   const [debouncedUsername] = useDebouncedValue(searchUsername, 500);
   const [actionFilter, setActionFilter] = useState<string | null>(null);
   const [entityFilter, setEntityFilter] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
 
   const { data, isFetching } = useQuery({
@@ -109,8 +110,8 @@ export default function AuditLogs() {
     setSearchUsername("");
     setActionFilter(null);
     setEntityFilter(null);
-    setStartDate("");
-    setEndDate("");
+    setStartDate(today);
+    setEndDate(today);
     setPageSize(50);
     setPage(1);
   };
