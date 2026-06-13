@@ -348,7 +348,7 @@ public class ProductsController : BaseController
 				}
 				catch (Exception ex)
 				{
-					result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
+					result.Errors.Add($"Row {row.RowNumber()}: {GetFullErrorMessage(ex)}");
 				}
 			}
 
@@ -439,7 +439,7 @@ public class ProductsController : BaseController
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error uploading Excel file");
-			return Error<ProductUploadResult>($"Error processing file: {ex.Message}");
+			return Error<ProductUploadResult>($"Error processing file: {GetFullErrorMessage(ex)}");
 		}
 	}
 
@@ -745,7 +745,7 @@ public class ProductsController : BaseController
 				}
 				catch (Exception ex)
 				{
-					result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
+					result.Errors.Add($"Row {row.RowNumber()}: {GetFullErrorMessage(ex)}");
 				}
 			}
 
@@ -814,7 +814,7 @@ public class ProductsController : BaseController
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating from Excel file");
-			return Error<ProductUploadResult>($"Error processing file: {ex.Message}");
+			return Error<ProductUploadResult>($"Error processing file: {GetFullErrorMessage(ex)}");
 		}
 	}
 
@@ -868,4 +868,22 @@ public class ProductsController : BaseController
 	}
 
 	private bool ProductExists(int id) => _context.Products.Any(e => e.Id == id);
+
+	/// <summary>
+	/// Walks the InnerException chain and concatenates every message so the
+	/// real root cause (e.g. the PostgreSQL constraint violation) is visible
+	/// instead of the generic EF Core wrapper text.
+	/// </summary>
+	private static string GetFullErrorMessage(Exception ex)
+	{
+		var messages = new List<string>();
+		var current = ex;
+		while (current != null)
+		{
+			if (!string.IsNullOrWhiteSpace(current.Message))
+				messages.Add(current.Message.Trim());
+			current = current.InnerException;
+		}
+		return string.Join(" -> ", messages);
+	}
 }
