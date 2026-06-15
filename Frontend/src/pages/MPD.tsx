@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
+import QRCode from "qrcode";
 import {
   ActionIcon,
   Badge,
@@ -40,6 +41,7 @@ import {
   Package,
   Plus,
   Printer,
+  QrCode,
   RefreshCw,
   Tag,
   Trash2,
@@ -164,6 +166,8 @@ export const MPD = memo(function MPD() {
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [skuQrDataUrl, setSkuQrDataUrl] = useState<string | null>(null);
+  const [isSkuQrModalOpen, setIsSkuQrModalOpen] = useState(false);
 
   const refreshTableData = useCallback(async () => {
     try {
@@ -211,6 +215,35 @@ export const MPD = memo(function MPD() {
     const marketingCompany = findMarketingCompanyForProduct(selectedPrintProduct, importers);
     setPrintImporterId(marketingCompany ? String(marketingCompany.id) : null);
   }, [importers, selectedPrintProduct, stickerSize]);
+
+  useEffect(() => {
+    const sku = formData.sku?.trim().toUpperCase() || "";
+    if (!isModalOpen || !sku) {
+      setSkuQrDataUrl(null);
+      return;
+    }
+
+    let isMounted = true;
+    QRCode.toDataURL(sku, {
+      width: 160,
+      margin: 1,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (isMounted) setSkuQrDataUrl(url);
+      })
+      .catch(() => {
+        if (isMounted) setSkuQrDataUrl(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.sku, isModalOpen]);
 
   const loadData = async () => {
     try {
@@ -1213,6 +1246,19 @@ export const MPD = memo(function MPD() {
         size="xxl"
         headerActions={
           <>
+            <Tooltip label={formData.sku ? "SKU QR generated" : "Enter SKU to generate QR"}>
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="violet"
+                disabled={!formData.sku?.trim()}
+                onClick={() => setIsSkuQrModalOpen(true)}
+                aria-label="SKU QR code"
+              >
+                <QrCode size={18} />
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label={isEditing ? "View product locations" : "Save product first to view locations"}>
               <ActionIcon
                 size="md"
@@ -1536,6 +1582,38 @@ export const MPD = memo(function MPD() {
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isSkuQrModalOpen}
+        onClose={() => setIsSkuQrModalOpen(false)}
+        title="SKU QR Code"
+        size="sm"
+        headerActions={
+          <ActionIcon size="md" radius="md" variant="light" color="violet" aria-label="SKU QR code">
+            <QrCode size={18} />
+          </ActionIcon>
+        }
+      >
+        <Stack align="center" gap="md">
+          <Paper radius="lg" p="md" withBorder bg="white">
+            {skuQrDataUrl ? (
+              <Image src={skuQrDataUrl} alt="SKU QR code" w={240} h={240} fit="contain" />
+            ) : (
+              <Center w={240} h={240}>
+                <QrCode size={54} color="var(--mantine-color-dimmed)" />
+              </Center>
+            )}
+          </Paper>
+          <Stack gap={2} align="center">
+            <Text size="10px" fw={800} c="dimmed" tt="uppercase">
+              SKU
+            </Text>
+            <Text size="sm" fw={900} ff="monospace">
+              {formData.sku?.trim() || "No SKU"}
+            </Text>
+          </Stack>
+        </Stack>
       </Modal>
 
       <Modal

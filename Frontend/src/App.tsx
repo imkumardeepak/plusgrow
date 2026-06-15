@@ -40,7 +40,6 @@ const StickerPrinterConfigMaster = lazy(
   () => import("./pages/StickerPrinterConfigMaster"),
 );
 const StockCheck = lazy(() => import("./pages/StockCheck"));
-const ProductQuery = lazy(() => import("./pages/ProductQuery"));
 const ProductMovement = lazy(() => import("./pages/ProductMovement"));
 const StockMovement = lazy(() => import("./pages/StockMovement"));
 const WarehouseMap = lazy(() => import("./pages/WarehouseMap"));
@@ -274,7 +273,7 @@ export default function App() {
                     />
                     <Route
                       path="product-query"
-                      element={pageElement("dashboard", <ProductQuery />)}
+                      element={pageElement(["product-query", "stock-check"], <StockCheck initialMode="verify" />)}
                     />
                     <Route
                       path="product-movement"

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   Activity,
@@ -195,9 +195,17 @@ const saveStockCheckReport = async (
 };
 
 
-export const StockCheck = memo(function StockCheck() {
-  const [activeMode, setActiveMode] = useState<ActiveMode>("hub");
+export const StockCheck = memo(function StockCheck({
+  initialMode = "hub",
+}: {
+  initialMode?: ActiveMode;
+}) {
+  const [activeMode, setActiveMode] = useState<ActiveMode>(initialMode);
   const isMobile = useMediaQuery("(max-width: 48em)");
+
+  useEffect(() => {
+    setActiveMode(initialMode);
+  }, [initialMode]);
 
   const handleBack = useCallback(() => setActiveMode("hub"), []);
   const handleResumePausedCheck = useCallback((mode: Extract<ActiveMode, "location" | "manufacturer" | "product">) => {

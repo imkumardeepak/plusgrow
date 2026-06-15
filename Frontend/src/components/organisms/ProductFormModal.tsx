@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { ActionIcon, Group, Paper, Select, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
-import { Globe, IndianRupee, MapPin, Package, Printer, Tag, Trash2 } from "lucide-react";
+import QRCode from "qrcode";
+import { ActionIcon, Center, Group, Image, Paper, Select, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
+import { Globe, IndianRupee, MapPin, Package, Printer, QrCode, Tag, Trash2 } from "lucide-react";
 import { Input } from "../atoms/Input";
 import { Button } from "../atoms/Button";
 import { Modal } from "../atoms/Modal";
@@ -44,6 +45,8 @@ export function ProductFormModal({
   const [commodities, setCommodities] = useState<Commodity[]>(initialCommodities || []);
   const [parties, setParties] = useState<Party[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [skuQrDataUrl, setSkuQrDataUrl] = useState<string | null>(null);
+  const [isSkuQrModalOpen, setIsSkuQrModalOpen] = useState(false);
   const [formData, setFormData] = useState<CreateProductDto>({
     name: "",
     sku: "",
@@ -118,6 +121,35 @@ export function ProductFormModal({
       partiesApi.getAll().then(setParties).catch(() => {});
     }
   }, [isOpen, product, initialManufacturers, initialCommodities]);
+
+  useEffect(() => {
+    const sku = formData.sku?.trim().toUpperCase() || "";
+    if (!isOpen || !sku) {
+      setSkuQrDataUrl(null);
+      return;
+    }
+
+    let isMounted = true;
+    QRCode.toDataURL(sku, {
+      width: 160,
+      margin: 1,
+      errorCorrectionLevel: "M",
+      color: {
+        dark: "#0f172a",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (isMounted) setSkuQrDataUrl(url);
+      })
+      .catch(() => {
+        if (isMounted) setSkuQrDataUrl(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.sku, isOpen]);
 
   const manufacturerOptions = useMemo(
     () => manufacturers.map((m) => ({ value: String(m.id), label: m.name })),
@@ -207,14 +239,29 @@ export function ProductFormModal({
   };
 
   return (
+    <>
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={product ? "Edit Product" : "New Product"}
       size="xxl"
       headerActions={
-        product ? (
-          <>
+        <>
+            <Tooltip label={formData.sku ? "SKU QR generated" : "Enter SKU to generate QR"}>
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="violet"
+                disabled={!formData.sku?.trim()}
+                onClick={() => setIsSkuQrModalOpen(true)}
+                aria-label="SKU QR code"
+              >
+                <QrCode size={18} />
+              </ActionIcon>
+            </Tooltip>
+          {product ? (
+            <>
             <Tooltip label="View product locations">
               <ActionIcon
                 size="md"
@@ -254,8 +301,9 @@ export function ProductFormModal({
                 </ActionIcon>
               </Tooltip>
             )}
-          </>
-        ) : null
+            </>
+          ) : null}
+        </>
       }
     >
       <form onSubmit={handleSubmit}>
@@ -538,5 +586,37 @@ export function ProductFormModal({
         </Stack>
       </form>
     </Modal>
+    <Modal
+      isOpen={isSkuQrModalOpen}
+      onClose={() => setIsSkuQrModalOpen(false)}
+      title="SKU QR Code"
+      size="sm"
+      headerActions={
+        <ActionIcon size="md" radius="md" variant="light" color="violet" aria-label="SKU QR code">
+          <QrCode size={18} />
+        </ActionIcon>
+      }
+    >
+      <Stack align="center" gap="md">
+        <Paper radius="lg" p="md" withBorder bg="white">
+          {skuQrDataUrl ? (
+            <Image src={skuQrDataUrl} alt="SKU QR code" w={240} h={240} fit="contain" />
+          ) : (
+            <Center w={240} h={240}>
+              <QrCode size={54} color="var(--mantine-color-dimmed)" />
+            </Center>
+          )}
+        </Paper>
+        <Stack gap={2} align="center">
+          <Text size="10px" fw={800} c="dimmed" tt="uppercase">
+            SKU
+          </Text>
+          <Text size="sm" fw={900} ff="monospace">
+            {formData.sku?.trim() || "No SKU"}
+          </Text>
+        </Stack>
+      </Stack>
+    </Modal>
+    </>
   );
 }
