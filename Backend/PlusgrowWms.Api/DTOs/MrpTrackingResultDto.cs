@@ -26,3 +26,18 @@ public class MrpWiseStockSummaryDto
     public int BilledQty { get; set; }
     public int Quantity { get; set; }
 }
+
+public class MrpChangeDto
+{
+    public int ProductId { get; set; }
+    public string? ProductName { get; set; }
+    public string? Sku { get; set; }
+    public decimal? BaseMrp { get; set; }
+    public decimal? InwardMrp { get; set; }
+    public decimal? Difference { get; set; }
+    public decimal? ChangePercent { get; set; }
+    public string? InvoiceNumber { get; set; }
+    public DateTime? InvoiceDate { get; set; }
+    public string? PartyName { get; set; }
+    public int BilledQty { get; set; }
+}

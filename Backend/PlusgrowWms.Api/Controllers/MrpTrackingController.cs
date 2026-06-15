@@ -110,4 +110,53 @@ public class MrpTrackingController : BaseController
 
         return Success(results);
     }
+
+    [HttpGet("changes")]
+    public async Task<ActionResult<ApiResponse<List<MrpChangeDto>>>> GetMrpChanges([FromQuery] string? search)
+    {
+        var query = _context.PoInvoices
+            .Include(x => x.Product)
+            .Include(x => x.Header)
+            .Where(x => x.Mrp != null && x.Product != null && x.Header != null)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(x =>
+                (x.Product!.Name != null && x.Product.Name.ToLower().Contains(s)) ||
+                (x.Product!.Sku != null && x.Product.Sku.ToLower().Contains(s)) ||
+                (x.Header!.InvoiceNumber != null && x.Header.InvoiceNumber.ToLower().Contains(s)));
+        }
+
+        // Only return rows where inward MRP differs from product base MRP
+        // Also include rows where product base MRP is null (no base MRP set)
+        query = query.Where(x =>
+            x.Product!.Mrp == null || x.Mrp != x.Product.Mrp);
+
+        var results = await query
+            .OrderByDescending(x => x.Header!.InvoiceDate)
+            .ThenBy(x => x.Product!.Name)
+            .Select(x => new MrpChangeDto
+            {
+                ProductId = x.ProductId,
+                ProductName = x.Product!.Name,
+                Sku = x.Product.Sku,
+                BaseMrp = x.Product.Mrp,
+                InwardMrp = x.Mrp,
+                Difference = x.Product.Mrp.HasValue && x.Mrp.HasValue
+                    ? x.Mrp.Value - x.Product.Mrp.Value
+                    : null,
+                ChangePercent = x.Product.Mrp.HasValue && x.Product.Mrp.Value > 0 && x.Mrp.HasValue
+                    ? Math.Round((x.Mrp.Value - x.Product.Mrp.Value) / x.Product.Mrp.Value * 100, 2)
+                    : null,
+                InvoiceNumber = x.Header!.InvoiceNumber,
+                InvoiceDate = x.Header.InvoiceDate,
+                PartyName = x.Header.PartyName,
+                BilledQty = x.BilledQty,
+            })
+            .ToListAsync();
+
+        return Success(results);
+    }
 }
