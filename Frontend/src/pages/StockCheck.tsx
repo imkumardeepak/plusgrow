@@ -23,6 +23,7 @@ import {
   Trash2,
   Eye,
   ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -251,6 +252,15 @@ function StockCheckHub({
         description: "Current quantity grouped product and MRP wise.",
         color: "rgba(34, 211, 238, 0.8)",
         gradient: "linear-gradient(135deg, rgba(34,211,238,0.16) 0%, rgba(15,23,42,0.6) 100%)",
+        small: true,
+      },
+      {
+        href: "/outward",
+        icon: TrendingUp,
+        title: "Quick Sale",
+        description: "Review sales orders and identify most frequently sold products.",
+        color: "rgba(244, 114, 182, 0.8)",
+        gradient: "linear-gradient(135deg, rgba(244,114,182,0.16) 0%, rgba(15,23,42,0.6) 100%)",
         small: true,
       },
       {

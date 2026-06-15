@@ -8,6 +8,7 @@ import {
   Package,
   ChevronRight,
   ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,6 +66,16 @@ const cards: {
     gradient: "linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(15,23,42,0.6) 100%)",
     small: true,
     badge: "Activity Trail",
+  },
+  {
+    href: "/outward",
+    icon: TrendingUp,
+    title: "Quick Sale",
+    description: "Open sales orders to review fast-moving and most frequently sold products.",
+    color: "rgba(244, 114, 182, 0.8)",
+    gradient: "linear-gradient(135deg, rgba(244,114,182,0.16) 0%, rgba(15,23,42,0.6) 100%)",
+    small: true,
+    badge: "Frequent Sale",
   },
   {
     mode: "location",
