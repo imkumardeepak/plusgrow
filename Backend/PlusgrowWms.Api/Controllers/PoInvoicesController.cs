@@ -327,6 +327,12 @@ public class PoInvoicesController : BaseController
         var previousBilledQty = entity.BilledQty;
         var previouslyAllocatedQty = Math.Max(entity.BilledQty - entity.RemainingAllocation, 0);
 
+        if (previouslyAllocatedQty > 0 && previousProductId != dto.ProductId)
+            return BadRequest<PoInvoiceDto>("Product cannot be changed after put-away has started");
+
+        if (previouslyAllocatedQty > dto.BilledQty)
+            return BadRequest<PoInvoiceDto>("Billed quantity cannot be reduced below already put-away quantity");
+
         entity.PoInvoiceHeaderId = header.Id;
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
@@ -334,7 +340,7 @@ public class PoInvoicesController : BaseController
 
         if (previousProductId != dto.ProductId)
         {
-            await UpsertProductQuantityAsync(previousProductId, -previousBilledQty);
+            await AdjustProductQuantityAsync(previousProductId, -previousBilledQty);
             await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
         }
         else
@@ -342,7 +348,7 @@ public class PoInvoicesController : BaseController
             var quantityDifference = dto.BilledQty - previousBilledQty;
             if (quantityDifference != 0)
             {
-                await UpsertProductQuantityAsync(dto.ProductId, quantityDifference);
+                await AdjustProductQuantityAsync(dto.ProductId, quantityDifference);
             }
         }
 
@@ -370,6 +376,11 @@ public class PoInvoicesController : BaseController
             return NotFound("PO invoice not found");
 
         var headerId = entity.PoInvoiceHeaderId;
+        var hasPutAwayQuantity = entity.RemainingAllocation < entity.BilledQty || entity.LocationAllotted;
+        if (hasPutAwayQuantity)
+            return BadRequest("PO invoice row cannot be deleted after put-away has started");
+
+        await AdjustProductQuantityAsync(entity.ProductId, -entity.BilledQty);
         _context.PoInvoices.Remove(entity);
         await _context.SaveChangesAsync();
         await DeleteHeaderIfOrphanedAsync(headerId);
