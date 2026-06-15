@@ -80,6 +80,7 @@ function createInputButton(className: string, label: string, text: string) {
 
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    event.stopPropagation();
   });
 
   return button;
@@ -101,7 +102,9 @@ function enhanceNumericInput(input: HTMLInputElement) {
     "-",
   );
   decrementButton.dataset.stepDirection = "down";
-  decrementButton.addEventListener("click", () => {
+  decrementButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     setInputValue(input, String(getStepValue(input, -1)));
     input.focus();
     syncClearButton(input);
@@ -114,7 +117,9 @@ function enhanceNumericInput(input: HTMLInputElement) {
     "+",
   );
   incrementButton.dataset.stepDirection = "up";
-  incrementButton.addEventListener("click", () => {
+  incrementButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     setInputValue(input, String(getStepValue(input, 1)));
     input.focus();
     syncClearButton(input);
@@ -148,7 +153,9 @@ function enhanceInput(input: HTMLInputElement) {
   );
   clearButton.hidden = !input.value;
 
-  clearButton.addEventListener("click", () => {
+  clearButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     setInputValue(input, "");
     input.focus();
     syncClearButton(input);
@@ -197,6 +204,7 @@ function removeEnhancements() {
 export function GlobalInputClearButtons() {
   useEffect(() => {
     const mediaQuery = window.matchMedia(SMALL_DEVICE_QUERY);
+    let animationFrameId = 0;
 
     const sync = () => {
       if (mediaQuery.matches) {
@@ -206,20 +214,31 @@ export function GlobalInputClearButtons() {
       }
     };
 
-    const observer = new MutationObserver(sync);
+    const scheduleSync = () => {
+      if (animationFrameId) return;
+      animationFrameId = window.requestAnimationFrame(() => {
+        animationFrameId = 0;
+        sync();
+      });
+    };
+
+    const observer = new MutationObserver(scheduleSync);
     observer.observe(document.body, {
       attributes: true,
-      attributeFilter: ["disabled", "readonly", "type", "inputmode", "role", "value"],
+      attributeFilter: ["disabled", "readonly", "type", "inputmode", "role"],
       childList: true,
       subtree: true,
     });
 
-    mediaQuery.addEventListener("change", sync);
+    mediaQuery.addEventListener("change", scheduleSync);
     sync();
 
     return () => {
+      if (animationFrameId) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
       observer.disconnect();
-      mediaQuery.removeEventListener("change", sync);
+      mediaQuery.removeEventListener("change", scheduleSync);
       removeEnhancements();
     };
   }, []);
