@@ -61,6 +61,7 @@ export type ProductLookupResult = {
   quantityRow: import("../../services/masterApi").ProductQuantityRecord | null;
   allottedLocation: import("../../services/masterApi").ProductAllottedLocationRecord | null;
   invoices: import("../../services/masterApi").PoInvoice[];
+  salesOrders: import("../../services/masterApi").SalesOrderRecord[];
   movements: import("../../services/masterApi").ProductStockMovementRecord[];
   locations: LocationStock[];
   totalPoQuantity: number;

@@ -43,6 +43,7 @@ import {
   ProductAllottedLocationRecord,
   ProductQuantityRecord,
   productsApi,
+  outwardOrdersApi,
 } from "../../../services/masterApi";
 import { ProductFormModal } from "../../../components/organisms/ProductFormModal";
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
@@ -51,6 +52,9 @@ import type { ProductLookupResult } from "../types";
 import { normalizeSku, masterHref, formatMoney, getLocationJson } from "../types";
 import { ModeHeader } from "./ModeHeader";
 import { Info, MetricLabel, MasterLink, ReferenceLink, EmptyInline } from "./SharedComponents";
+
+const TABLE_ROW_LIMIT = 10;
+const TABLE_SECTION_HEIGHT = 285;
 
 export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -133,9 +137,10 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
     try {
       setIsSearching(true);
-      const [invoiceRows, movementRows] = await Promise.all([
+      const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
         poInvoicesApi.getAll({ search: sku, pageSize: 100 }),
         productQuantitiesApi.getMovements(sku),
+        outwardOrdersApi.getSalesOrders({ search: sku, pageSize: 100 }),
       ]);
       const resolvedSku = product?.sku
         ? normalizeSku(product.sku)
@@ -160,6 +165,15 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
           resolvedProductId ? row.productId === resolvedProductId : normalizeSku(row.skuCode) === resolvedSku,
         )
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id);
+      const salesOrders = salesOrderRows
+        .map((order) => ({
+          ...order,
+          items: order.items.filter((item) =>
+            resolvedProductId ? item.productId === resolvedProductId : normalizeSku(item.skuCode) === resolvedSku,
+          ),
+        }))
+        .filter((order) => order.items.length > 0)
+        .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime() || b.id - a.id);
 
       setLookupResult({
         sku,
@@ -167,6 +181,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         quantityRow,
         allottedLocation,
         invoices,
+        salesOrders,
         movements,
         locations,
         totalPoQuantity: 0,
@@ -191,6 +206,10 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const displayedCurrentStock = lookupResult
     ? lookupResult.quantityRow?.currentQuantity ?? 0
     : 0;
+  const visibleLocations = lookupResult?.locations.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleMovements = lookupResult?.movements.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleInvoices = lookupResult?.invoices.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleSalesOrders = lookupResult?.salesOrders.slice(0, TABLE_ROW_LIMIT) ?? [];
 
   return (
       <OperationsPage
@@ -296,6 +315,12 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                     value={`${lookupResult.locations.length} locations, ${lookupResult.totalLocationStock} qty`}
                     href={masterHref("/warehouse-map", lookupResult.sku)}
                   />
+                  <ReferenceLink
+                    icon={FileText}
+                    label="Sales Orders"
+                    value={`${lookupResult.salesOrders.length} sales rows`}
+                    href={masterHref("/outward", lookupResult.sku)}
+                  />
                 </Stack>
               </Paper>
           ) : (
@@ -357,7 +382,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                 </Group>
               </Paper>
 
-              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm" style={{ alignItems: "start" }}>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
                   <MetricLabel icon={Boxes} label="Current Stock" />
                   <Text mt={6} size="xl" fw={800} ff="monospace">{displayedCurrentStock}</Text>
@@ -368,7 +393,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                 </Paper>
               </SimpleGrid>
 
-              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm" style={{ alignItems: "start" }}>
                 <Paper radius="lg" p="sm" withBorder bg="transparent">
                   <MetricLabel icon={Package} label="Product Master" />
                   <SimpleGrid cols={2} spacing={6} mt="xs">
@@ -406,7 +431,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   <Group justify="space-between" mb="xs">
                     <MetricLabel icon={MapPin} label="Product Location Details" />
                     <Badge size="sm" radius="md" variant="default" color="gray">
-                      {lookupResult.totalLocationStock} total qty
+                      Showing top {Math.min(lookupResult.locations.length, TABLE_ROW_LIMIT)} of {lookupResult.locations.length}
                     </Badge>
                   </Group>
                   {lookupResult.locations.length === 0 ? (
@@ -421,7 +446,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {lookupResult.locations.map((location) => (
+                          {visibleLocations.map((location) => (
                             <Table.Tr key={location.locationCode}>
                               <Table.Td>
                                 <Text size="12px" fw={900} ff="monospace">{location.locationCode}</Text>
@@ -438,15 +463,108 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                 </Paper>
               </SimpleGrid>
 
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
+              <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={FileText} label="Purchase Invoices" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.invoices.length, TABLE_ROW_LIMIT)} of {lookupResult.invoices.length}</Badge>
+                </Group>
+                {lookupResult.invoices.length === 0 ? (
+                  <EmptyInline message="No purchase invoices found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto" h={TABLE_SECTION_HEIGHT - 58}>
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Invoice Date</Table.Th>
+                          <Table.Th>Invoice No.</Table.Th>
+                          <Table.Th>Party</Table.Th>
+                          <Table.Th>MRP</Table.Th>
+                          <Table.Th ta="right">Billed Qty</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {visibleInvoices.map((inv) => (
+                          <Table.Tr key={inv.id}>
+                            <Table.Td>{format(new Date(inv.invoiceDate), "dd MMM yyyy")}</Table.Td>
+                            <Table.Td>
+                              <Text size="12px" fw={900} ff="monospace">{inv.invoiceNumber}</Text>
+                            </Table.Td>
+                            <Table.Td>{inv.partyName}</Table.Td>
+                            <Table.Td>{formatMoney(inv.mrp)}</Table.Td>
+                            <Table.Td ta="right">
+                              <Text size="12px" fw={900} ff="monospace" c="cyan.3">{inv.billedQty}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
+                <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={FileText} label="Sales Information" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.salesOrders.length, TABLE_ROW_LIMIT)} of {lookupResult.salesOrders.length}</Badge>
+                </Group>
+                {lookupResult.salesOrders.length === 0 ? (
+                  <EmptyInline message="No sales orders found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto" h={TABLE_SECTION_HEIGHT - 58}>
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={760}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Order Date</Table.Th>
+                          <Table.Th>Order No.</Table.Th>
+                          <Table.Th>Customer</Table.Th>
+                          <Table.Th>Status</Table.Th>
+                          <Table.Th ta="right">Qty</Table.Th>
+                          <Table.Th ta="right">Picked</Table.Th>
+                          <Table.Th ta="right">Pending</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {visibleSalesOrders.map((order) => {
+                          const skuItems = order.items;
+                          const quantity = skuItems.reduce((sum, item) => sum + item.quantity, 0);
+                          const pickedQuantity = skuItems.reduce((sum, item) => sum + item.pickedQuantity, 0);
+                          const pendingQuantity = skuItems.reduce((sum, item) => sum + item.pendingQuantity, 0);
+
+                          return (
+                            <Table.Tr key={order.id}>
+                              <Table.Td>{format(new Date(order.orderDate), "dd MMM yyyy")}</Table.Td>
+                              <Table.Td>
+                                <Text size="12px" fw={900} ff="monospace">{order.orderNumber}</Text>
+                              </Table.Td>
+                              <Table.Td>{order.customerName}</Table.Td>
+                              <Table.Td>
+                                <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
+                                  {order.status}
+                                </Badge>
+                              </Table.Td>
+                              <Table.Td ta="right">
+                                <Text size="12px" fw={900} ff="monospace" c="cyan.3">{quantity}</Text>
+                              </Table.Td>
+                              <Table.Td ta="right">{pickedQuantity}</Table.Td>
+                              <Table.Td ta="right">{pendingQuantity}</Table.Td>
+                            </Table.Tr>
+                          );
+                        })}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
                 <Group justify="space-between" mb="xs">
                   <MetricLabel icon={History} label="Stock Adjustment / Movement History" />
-                  <Badge size="sm" radius="md" variant="default" color="gray">{lookupResult.movements.length} rows</Badge>
+                  <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.movements.length, TABLE_ROW_LIMIT)} of {lookupResult.movements.length}</Badge>
                 </Group>
                 {lookupResult.movements.length === 0 ? (
                   <EmptyInline message="No stock adjustment or movement history found for this SKU." />
                 ) : (
-                  <ScrollArea type="auto">
+                  <ScrollArea type="auto" h={TABLE_SECTION_HEIGHT - 58}>
                     <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
                       <Table.Thead>
                         <Table.Tr>
@@ -461,7 +579,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
-                        {lookupResult.movements.map((movement) => (
+                        {visibleMovements.map((movement) => (
                           <Table.Tr key={movement.id}>
                             <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
                             <Table.Td>
@@ -480,45 +598,6 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                             <Table.Td>{movement.performedByName || "-"}</Table.Td>
                             <Table.Td>
                               <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
-              </Paper>
-
-              <Paper radius="lg" p="sm" withBorder bg="transparent">
-                <Group justify="space-between" mb="xs">
-                  <MetricLabel icon={FileText} label="Purchase Invoices" />
-                  <Badge size="sm" radius="md" variant="default" color="gray">{lookupResult.invoices.length} invoices</Badge>
-                </Group>
-                {lookupResult.invoices.length === 0 ? (
-                  <EmptyInline message="No purchase invoices found for this SKU." />
-                ) : (
-                  <ScrollArea type="auto">
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Invoice Date</Table.Th>
-                          <Table.Th>Invoice No.</Table.Th>
-                          <Table.Th>Party</Table.Th>
-                          <Table.Th>MRP</Table.Th>
-                          <Table.Th ta="right">Billed Qty</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {lookupResult.invoices.map((inv) => (
-                          <Table.Tr key={inv.id}>
-                            <Table.Td>{format(new Date(inv.invoiceDate), "dd MMM yyyy")}</Table.Td>
-                            <Table.Td>
-                              <Text size="12px" fw={900} ff="monospace">{inv.invoiceNumber}</Text>
-                            </Table.Td>
-                            <Table.Td>{inv.partyName}</Table.Td>
-                            <Table.Td>{formatMoney(inv.mrp)}</Table.Td>
-                            <Table.Td ta="right">
-                              <Text size="12px" fw={900} ff="monospace" c="cyan.3">{inv.billedQty}</Text>
                             </Table.Td>
                           </Table.Tr>
                         ))}
