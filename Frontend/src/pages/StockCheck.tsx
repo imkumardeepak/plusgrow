@@ -65,11 +65,12 @@ import { LocationCheckMode } from "./StockCheck/components/LocationCheckMode";
 import { ManufacturerCheckMode } from "./StockCheck/components/ManufacturerCheckMode";
 import { ModeHeader } from "./StockCheck/components/ModeHeader";
 import { ProductCheckMode } from "./StockCheck/components/ProductCheckMode";
+import { QuickSaleMode } from "./StockCheck/components/QuickSaleMode";
 import { EmptyInline, Info, MasterLink, MetricLabel, ReferenceLink } from "./StockCheck/components/SharedComponents";
 import { StockCheckHistoryMode } from "./StockCheck/components/StockCheckHistoryMode";
 import { StockVerifyMode } from "./StockCheck/components/StockVerifyMode";
 
-type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
+type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history";
 type CheckSessionStatus = "idle" | "running" | "paused";
 type StockCheckReportStatus = "PAUSED" | "COMPLETED";
 type StockCheckDraft = {
@@ -207,6 +208,7 @@ export const StockCheck = memo(function StockCheck() {
     <>
       {activeMode === "hub" && <StockCheckHub onSelectMode={setActiveMode} isMobile={!!isMobile} />}
       {activeMode === "verify" && <StockVerifyMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "quick-sale" && <QuickSaleMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "location" && <LocationCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "manufacturer" && <ManufacturerCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "product" && <ProductCheckMode onBack={handleBack} isMobile={!!isMobile} />}
@@ -255,10 +257,10 @@ function StockCheckHub({
         small: true,
       },
       {
-        href: "/outward",
+        mode: "quick-sale",
         icon: TrendingUp,
         title: "Quick Sale",
-        description: "Review sales orders and identify most frequently sold products.",
+        description: "View most frequently sold products without leaving Stock Check.",
         color: "rgba(244, 114, 182, 0.8)",
         gradient: "linear-gradient(135deg, rgba(244,114,182,0.16) 0%, rgba(15,23,42,0.6) 100%)",
         small: true,

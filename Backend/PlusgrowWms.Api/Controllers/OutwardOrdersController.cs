@@ -106,6 +106,68 @@ public class OutwardOrdersController : BaseController
         return Success(rows.Select(MapOrder).ToList(), page, pageSize, total);
     }
 
+    [HttpGet("quick-sale-products")]
+    public async Task<ActionResult<ApiResponse<List<QuickSaleProductDto>>>> GetQuickSaleProducts([FromQuery] int days = 30, [FromQuery] int limit = 20)
+    {
+        var safeDays = Math.Clamp(days, 1, 3650);
+        var safeLimit = Math.Clamp(limit, 1, 100);
+        var fromDate = DateTime.SpecifyKind(DateTime.Now.Date.AddDays(-(safeDays - 1)), DateTimeKind.Unspecified);
+
+        var rows = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .AsNoTracking()
+            .Where(x =>
+                x.SalesOrder != null &&
+                x.SalesOrder.OrderDate >= fromDate &&
+                x.Status != "Canceled" &&
+                x.SalesOrder.Status != "Canceled")
+            .GroupBy(x => new
+            {
+                x.ProductId,
+                SkuCode = x.Product != null ? x.Product.Sku : null,
+                ProductName = x.Product != null ? x.Product.Name : null,
+                Alias = x.Product != null ? x.Product.Alias : null,
+            })
+            .Select(g => new
+            {
+                g.Key.ProductId,
+                g.Key.SkuCode,
+                g.Key.ProductName,
+                g.Key.Alias,
+                TotalQuantity = g.Sum(x => x.Quantity),
+                OrderCount = g.Select(x => x.SalesOrderId).Distinct().Count(),
+                CustomerCount = g.Select(x => x.SalesOrder!.CustomerName).Distinct().Count(),
+                LastSaleAt = g.Max(x => (DateTime?)x.SalesOrder!.OrderDate),
+            })
+            .OrderByDescending(x => x.TotalQuantity)
+            .ThenByDescending(x => x.OrderCount)
+            .ThenBy(x => x.ProductName)
+            .Take(safeLimit)
+            .ToListAsync();
+
+        var productIds = rows.Select(x => x.ProductId).ToList();
+        var stockByProduct = await _context.ProductQuantities
+            .AsNoTracking()
+            .Where(x => productIds.Contains(x.ProductId))
+            .ToDictionaryAsync(x => x.ProductId, x => x.CurrentQuantity);
+
+        var result = rows.Select(row => new QuickSaleProductDto
+        {
+            ProductId = row.ProductId,
+            SkuCode = row.SkuCode ?? string.Empty,
+            ProductName = row.ProductName ?? string.Empty,
+            Alias = row.Alias,
+            TotalQuantity = row.TotalQuantity,
+            OrderCount = row.OrderCount,
+            CustomerCount = row.CustomerCount,
+            CurrentQuantity = stockByProduct.GetValueOrDefault(row.ProductId),
+            LastSaleAt = row.LastSaleAt,
+        }).ToList();
+
+        return Success(result);
+    }
+
     [HttpPost]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> CreateOrder([FromBody] CreateOutwardOrderDto dto)
     {

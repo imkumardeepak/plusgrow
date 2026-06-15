@@ -1,4 +1,5 @@
 export { StockCheckHub } from "./StockCheckHub";
+export { QuickSaleMode } from "./QuickSaleMode";
 export { StockVerifyMode } from "./StockVerifyMode";
 export { LocationCheckMode } from "./LocationCheckMode";
 export { ManufacturerCheckMode } from "./ManufacturerCheckMode";

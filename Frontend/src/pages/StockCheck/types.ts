@@ -1,4 +1,4 @@
-export type ActiveMode = "hub" | "verify" | "location" | "manufacturer" | "product" | "history";
+export type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history";
 
 export type CheckSessionStatus = "idle" | "running" | "paused";
 

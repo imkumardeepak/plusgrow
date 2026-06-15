@@ -68,10 +68,10 @@ const cards: {
     badge: "Activity Trail",
   },
   {
-    href: "/outward",
+    mode: "quick-sale",
     icon: TrendingUp,
     title: "Quick Sale",
-    description: "Open sales orders to review fast-moving and most frequently sold products.",
+    description: "View most frequently sold products without leaving Stock Check.",
     color: "rgba(244, 114, 182, 0.8)",
     gradient: "linear-gradient(135deg, rgba(244,114,182,0.16) 0%, rgba(15,23,42,0.6) 100%)",
     small: true,

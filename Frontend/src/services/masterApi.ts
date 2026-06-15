@@ -422,6 +422,18 @@ export interface OutwardOrder {
   dispatchedAt?: string | null;
 }
 
+export interface QuickSaleProductRecord {
+  productId: number;
+  skuCode: string;
+  productName: string;
+  alias?: string | null;
+  totalQuantity: number;
+  orderCount: number;
+  customerCount: number;
+  currentQuantity: number;
+  lastSaleAt?: string | null;
+}
+
 export interface SalesOrderRecord {
   id: number;
   orderNumber: string;
@@ -1353,6 +1365,14 @@ export const outwardOrdersApi = {
       data: response.data.data || [],
       pagination: response.data.pagination || emptyPagination(filters.page, filters.pageSize),
     };
+  },
+
+  getQuickSaleProducts: async (days = 30, limit = 20): Promise<QuickSaleProductRecord[]> => {
+    const response = await api.get<ApiResponse<QuickSaleProductRecord[]>>('/outwardorders/quick-sale-products', {
+      params: { days, limit },
+    });
+    if (!response.data.success) throw new Error(response.data.message || 'Error loading quick sale products');
+    return response.data.data || [];
   },
 
   create: async (data: CreateOutwardOrderDto): Promise<OutwardOrder> => {

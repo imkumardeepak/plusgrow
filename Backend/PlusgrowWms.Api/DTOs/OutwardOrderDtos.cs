@@ -36,6 +36,19 @@ public class OutwardOrderFilterDto
     public int PageSize { get; set; } = 25;
 }
 
+public class QuickSaleProductDto
+{
+    public int ProductId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public string? Alias { get; set; }
+    public int TotalQuantity { get; set; }
+    public int OrderCount { get; set; }
+    public int CustomerCount { get; set; }
+    public int CurrentQuantity { get; set; }
+    public DateTime? LastSaleAt { get; set; }
+}
+
 public class CreateOutwardOrderDto
 {
     public DateTime OrderDate { get; set; }
