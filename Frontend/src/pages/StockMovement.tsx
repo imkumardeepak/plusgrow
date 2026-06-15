@@ -49,11 +49,19 @@ import { toast } from "../lib/toast";
 type StockLedgerRow = {
   productId: number;
   skuCode: string;
+  alias: string;
   productName: string;
   currentQuantity: number;
   updatedAt: string | null;
   hasQuantityRow: boolean;
 };
+
+const formatStockProductLabel = (row: StockLedgerRow) =>
+  row.alias
+    ? `${row.skuCode} / ${row.alias} - ${row.productName}`
+    : `${row.skuCode} - ${row.productName}`;
+
+const normalizeScanCode = (value: string) => value.trim().toUpperCase();
 
 const adjustmentReasonOptions = [
   { value: "Manual Reconciliation", label: "Manual Reconciliation" },
@@ -87,6 +95,7 @@ export const StockMovement = memo(function StockMovement() {
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [productSearch, setProductSearch] = useState("");
   const [adjustmentForm, setAdjustmentForm] =
     useState<CreateStockAdjustmentDto>(emptyAdjustmentForm);
 
@@ -138,6 +147,7 @@ export const StockMovement = memo(function StockMovement() {
         return {
           productId: product.id,
           skuCode: product.sku || "NO-SKU",
+          alias: product.alias || "",
           productName: product.name,
           currentQuantity: quantityRow?.currentQuantity ?? 0,
           updatedAt: quantityRow?.updatedAt ?? null,
@@ -156,6 +166,7 @@ export const StockMovement = memo(function StockMovement() {
     return ledgerRows.filter(
       (row) =>
         row.skuCode.toLowerCase().includes(normalized) ||
+        row.alias.toLowerCase().includes(normalized) ||
         row.productName.toLowerCase().includes(normalized),
     );
   }, [ledgerRows, searchTerm]);
@@ -221,9 +232,44 @@ export const StockMovement = memo(function StockMovement() {
     () =>
       ledgerRows.map((row) => ({
         value: String(row.productId),
-        label: `${row.skuCode} - ${row.productName}`,
+        label: formatStockProductLabel(row),
       })),
     [ledgerRows],
+  );
+
+  const selectAdjustmentProduct = useCallback(
+    (productId: number) => {
+      const row = ledgerRows.find((item) => item.productId === productId) ?? null;
+
+      setAdjustmentForm((current) => ({
+        ...current,
+        productId: row ? productId : 0,
+        locationCode: "",
+      }));
+      setProductSearch(row ? formatStockProductLabel(row) : "");
+    },
+    [ledgerRows],
+  );
+
+  const handleProductSearchChange = useCallback(
+    (value: string) => {
+      setProductSearch(value);
+
+      const normalized = normalizeScanCode(value.split("#")[0]);
+      if (!normalized) return;
+
+      const matchedRow = ledgerRows.find(
+        (row) =>
+          normalizeScanCode(row.skuCode) === normalized ||
+          normalizeScanCode(row.alias) === normalized ||
+          normalizeScanCode(row.productName) === normalized,
+      );
+
+      if (matchedRow) {
+        selectAdjustmentProduct(matchedRow.productId);
+      }
+    },
+    [ledgerRows, selectAdjustmentProduct],
   );
 
   const locationOptions = useMemo(
@@ -470,6 +516,7 @@ export const StockMovement = memo(function StockMovement() {
       );
 
       setAdjustmentForm(emptyAdjustmentForm);
+      setProductSearch("");
     } catch (error: any) {
       toast.error(error.message || "Failed to post stock adjustment");
     } finally {
@@ -526,17 +573,15 @@ export const StockMovement = memo(function StockMovement() {
                     searchable
                     placeholder="Select SKU / Product"
                     data={productOptions}
+                    searchValue={productSearch}
+                    onSearchChange={handleProductSearchChange}
                     value={
                       adjustmentForm.productId > 0
                         ? String(adjustmentForm.productId)
                         : null
                     }
                     onChange={(value) =>
-                      setAdjustmentForm((current) => ({
-                        ...current,
-                        productId: value ? Number(value) : 0,
-                        locationCode: "",
-                      }))
+                      selectAdjustmentProduct(value ? Number(value) : 0)
                     }
                     nothingFoundMessage="No product found"
                   />
@@ -719,7 +764,10 @@ export const StockMovement = memo(function StockMovement() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setAdjustmentForm(emptyAdjustmentForm)}
+                    onClick={() => {
+                      setAdjustmentForm(emptyAdjustmentForm);
+                      setProductSearch("");
+                    }}
                     className={isMobile ? "flex-1" : ""}
                   >
                     Clear

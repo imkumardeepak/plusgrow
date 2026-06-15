@@ -85,6 +85,9 @@ const parseStickerScan = (value: string): StickerScan => {
 const formatMrp = (value?: number | null) =>
   typeof value === "number" ? `Rs ${value.toFixed(2)}` : "-";
 
+const isCanceledOrder = (order: OutwardOrder) =>
+  order.status === "Canceled" || order.salesOrderStatus === "Canceled";
+
 type PickingOrderGroup = {
   salesOrderId: number;
   orderNumber: string;
@@ -162,6 +165,7 @@ export const Picking = memo(function Picking() {
     const query = searchQuery.toLowerCase();
     return orders.filter(
       (order) =>
+        !isCanceledOrder(order) &&
         (order.status === "Open" ||
           order.status === "Picking" ||
           order.status === "Packed") &&

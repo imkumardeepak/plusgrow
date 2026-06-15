@@ -296,7 +296,7 @@ export const Dashboard = memo(function Dashboard() {
   }
 
   return (
-    <SimpleGrid cols={{ base: 3, sm: 5, lg: 7, xl: 8 }} spacing={6}>
+    <SimpleGrid cols={{ base: 2, sm: 3, lg: 4, xl: 5 }} spacing="sm">
       {launcherCards.map((card, index) => (
         <motion.div
           key={card.key}
@@ -308,7 +308,7 @@ export const Dashboard = memo(function Dashboard() {
             <Card
               withBorder
               radius="md"
-              p={6}
+              p="sm"
               style={{
                 background:
                   "linear-gradient(180deg, rgba(19,27,45,0.96) 0%, rgba(10,18,32,0.98) 100%)",
@@ -318,7 +318,7 @@ export const Dashboard = memo(function Dashboard() {
               }}
               className="hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
             >
-              <Group gap={5} align="center" mb={3} wrap="nowrap">
+              <Group gap={8} align="center" mb={6} wrap="nowrap">
                 <ThemeIcon
                   color={card.color}
                   variant="light"
@@ -327,11 +327,11 @@ export const Dashboard = memo(function Dashboard() {
                 >
                   <card.icon size={13} />
                 </ThemeIcon>
-                <Text size="11px" fw={700} c="white" style={{ flex: 1 }} lineClamp={1}>
+                <Text size="sm" fw={700} c="white" style={{ flex: 1 }} lineClamp={1}>
                   {card.title}
                 </Text>
               </Group>
-              <Text size="9px" c="dimmed" lineClamp={1}>
+              <Text size="xs" c="dimmed" lineClamp={1}>
                 {card.description}
               </Text>
             </Card>

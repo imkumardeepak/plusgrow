@@ -19,6 +19,9 @@ type DispatchOrderGroup = {
   totalQuantity: number;
 };
 
+const isCanceledOrder = (order: OutwardOrder) =>
+  order.status === "Canceled" || order.salesOrderStatus === "Canceled";
+
 export const Dispatch = memo(function Dispatch() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
@@ -46,7 +49,7 @@ export const Dispatch = memo(function Dispatch() {
     const query = searchQuery.toLowerCase();
     const groups = new Map<number, DispatchOrderGroup>();
 
-    orders.forEach((order) => {
+    orders.filter((order) => !isCanceledOrder(order)).forEach((order) => {
       const salesOrderId = order.salesOrderId ?? 0;
       const current = groups.get(salesOrderId);
       if (current) {
@@ -77,8 +80,9 @@ export const Dispatch = memo(function Dispatch() {
   }, [orders, searchQuery]);
 
   const activeOrder = dispatchQueue.find((row) => row.salesOrderId === selectedSalesOrderId) ?? null;
-  const dispatchedOrders = orders.filter((row) => row.status === "Dispatched").length;
-  const dispatchProgress = orders.length > 0 ? Math.round((dispatchedOrders / orders.length) * 100) : 0;
+  const activeOrders = orders.filter((row) => !isCanceledOrder(row));
+  const dispatchedOrders = activeOrders.filter((row) => row.status === "Dispatched").length;
+  const dispatchProgress = activeOrders.length > 0 ? Math.round((dispatchedOrders / activeOrders.length) * 100) : 0;
 
   useEffect(() => {
     if (!activeOrder) {

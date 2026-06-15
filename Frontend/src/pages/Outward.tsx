@@ -59,6 +59,15 @@ type OrderForm = Omit<CreateOutwardOrderDto, "items"> & {
   items: OrderItemInput[];
 };
 
+const normalizeProductScan = (value: string) => value.trim().toUpperCase();
+
+const formatProductOptionLabel = (product: Product) => {
+  const sku = product.sku || "NO-SKU";
+  return product.alias
+    ? `${sku} / ${product.alias} - ${product.name}`
+    : `${sku} - ${product.name}`;
+};
+
 const createOrderItemInput = (): OrderItemInput => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   productId: 0,
@@ -104,6 +113,7 @@ export const Outward = memo(function Outward() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
+  const [productSearchByItemId, setProductSearchByItemId] = useState<Record<string, string>>({});
 
   const loadProducts = useCallback(async () => {
     try {
@@ -139,7 +149,7 @@ export const Outward = memo(function Outward() {
     () =>
       products.map((product) => ({
         value: String(product.id),
-        label: product.alias ? `${product.sku || "NO-SKU"} - ${product.name} (${product.alias})` : `${product.sku || "NO-SKU"} - ${product.name}`,
+        label: formatProductOptionLabel(product),
       })),
     [products],
   );
@@ -373,6 +383,35 @@ export const Outward = memo(function Outward() {
     }));
   };
 
+  const selectOrderProduct = (itemId: string, productId: number) => {
+    const product = products.find((row) => row.id === productId);
+    updateOrderItem(itemId, {
+      productId: product ? productId : 0,
+      mrp: product?.mrp ?? "",
+    });
+    setProductSearchByItemId((current) => ({
+      ...current,
+      [itemId]: product ? formatProductOptionLabel(product) : "",
+    }));
+  };
+
+  const handleOrderProductSearchChange = (itemId: string, value: string) => {
+    setProductSearchByItemId((current) => ({ ...current, [itemId]: value }));
+
+    const normalized = normalizeProductScan(value.split("#")[0]);
+    if (!normalized) return;
+
+    const product = products.find(
+      (row) =>
+        normalizeProductScan(row.sku || "") === normalized ||
+        normalizeProductScan(row.alias || "") === normalized,
+    );
+
+    if (product) {
+      selectOrderProduct(itemId, product.id);
+    }
+  };
+
   const addOrderItem = () => {
     setOrderForm((current) => ({
       ...current,
@@ -388,6 +427,10 @@ export const Outward = memo(function Outward() {
           ? current.items.filter((item) => item.id !== itemId)
           : current.items,
     }));
+    setProductSearchByItemId((current) => {
+      const { [itemId]: _removed, ...rest } = current;
+      return rest;
+    });
   };
 
   const handleCreateOrder = async () => {
@@ -434,6 +477,7 @@ export const Outward = memo(function Outward() {
       );
       setIsCreateOpen(false);
       setOrderForm(emptyOrderForm());
+      setProductSearchByItemId({});
       await loadOrders();
     } catch (error: any) {
       toast.error(error.message || "Failed to create outward order");
@@ -558,7 +602,11 @@ export const Outward = memo(function Outward() {
             <Button
               size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => {
+                setOrderForm(emptyOrderForm());
+                setProductSearchByItemId({});
+                setIsCreateOpen(true);
+              }}
             >
               New Order
             </Button>
@@ -661,18 +709,18 @@ export const Outward = memo(function Outward() {
                 {orderForm.items.map((item, index) => (
                   <Group key={item.id} wrap="nowrap" align="flex-end" gap="sm">
                     <Select
-                      label={index === 0 ? "Product" : undefined}
-                      placeholder="Select product..."
+                      label={index === 0 ? "Scan SKU / Alias" : undefined}
+                      placeholder="Scan or type SKU/Alias"
                       searchable
                       data={productOptions}
+                      searchValue={productSearchByItemId[item.id] || ""}
+                      onSearchChange={(value) =>
+                        handleOrderProductSearchChange(item.id, value)
+                      }
                       value={item.productId > 0 ? String(item.productId) : null}
-                  onChange={(value) => {
-                    const product = products.find((row) => row.id === Number(value));
-                    updateOrderItem(item.id, {
-                      productId: value ? Number(value) : 0,
-                      mrp: product?.mrp ?? "",
-                    });
-                  }}
+                      onChange={(value) =>
+                        selectOrderProduct(item.id, value ? Number(value) : 0)
+                      }
                       style={{ flex: 1 }}
                     />
                     <NumberInput

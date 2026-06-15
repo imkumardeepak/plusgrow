@@ -433,6 +433,29 @@ export const Inward = memo(function Inward() {
     [inwardEntryMode, invoiceForm.partyName, manufacturers, products],
   );
 
+  const handleProductLookupByCode = useCallback(async (value: string) => {
+    try {
+      const lookup = await productsApi.lookup(value);
+      const product = lookup.product;
+      if (!product?.id) return null;
+
+      setProducts((current) => {
+        if (current.some((item) => item.id === product.id)) return current;
+        return [product, ...current];
+      });
+
+      return {
+        value: product.id,
+        label: `${product.sku || "NO-SKU"} - ${product.name}`,
+        sku: product.sku || "",
+        alias: product.alias || "",
+        mrp: product.mrp ?? null,
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
   const invoiceManufacturerOptions = useMemo(() => {
     const seen = new Map<string, { value: string; label: string }>();
     for (const item of manufacturers) {
@@ -1845,6 +1868,7 @@ export const Inward = memo(function Inward() {
         onManufacturerSearchChange={setInvoiceManufacturerSearch}
         onPartySearchChange={setInvoicePartySearch}
         onProductSearchChange={setProductSearch}
+        onProductLookupByCode={handleProductLookupByCode}
         onAddLine={handleAddInvoiceLine}
         onDownloadThirdPartyTemplate={handleDownloadThirdPartyLineTemplate}
         onDownloadSkippedRows={handleDownloadSkippedInvoiceLines}

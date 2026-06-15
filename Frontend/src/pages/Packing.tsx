@@ -47,6 +47,9 @@ type PackingOrderGroup = {
   packedQuantity: number;
 };
 
+const isCanceledOrder = (order: OutwardOrder) =>
+  order.status === "Canceled" || order.salesOrderStatus === "Canceled";
+
 export const Packing = memo(function Packing() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
@@ -101,8 +104,9 @@ export const Packing = memo(function Packing() {
 
   const filteredOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return orders;
-    return orders.filter(
+    const activeOrders = orders.filter((order) => !isCanceledOrder(order));
+    if (!query) return activeOrders;
+    return activeOrders.filter(
       (order) =>
         order.orderNumber.toLowerCase().includes(query) ||
         order.customerName.toLowerCase().includes(query) ||

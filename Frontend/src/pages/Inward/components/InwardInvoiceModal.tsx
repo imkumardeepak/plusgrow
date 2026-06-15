@@ -54,6 +54,13 @@ interface InwardInvoiceModalProps {
   onManufacturerSearchChange: (value: string) => void;
   onPartySearchChange: (value: string) => void;
   onProductSearchChange: (value: string) => void;
+  onProductLookupByCode: (value: string) => Promise<{
+    value: number;
+    label: string;
+    sku?: string;
+    alias?: string;
+    mrp?: number | null;
+  } | null>;
   onAddLine: () => void;
   onDownloadThirdPartyTemplate: () => void;
   onDownloadSkippedRows: () => void;
@@ -96,6 +103,7 @@ export function InwardInvoiceModal({
   onManufacturerSearchChange,
   onPartySearchChange,
   onProductSearchChange,
+  onProductLookupByCode,
   onAddLine,
   onDownloadThirdPartyTemplate,
   onDownloadSkippedRows,
@@ -107,7 +115,7 @@ export function InwardInvoiceModal({
   const normalizeProductCode = (value?: string | null) =>
     (value || "").trim().toUpperCase();
 
-  const selectProductByCode = (value: string) => {
+  const selectProductByCode = async (value: string) => {
     const normalized = normalizeProductCode(value.split("#")[0]);
     if (!normalized) {
       onInvoiceFormChange((prev) => ({ ...prev, productId: 0, mrp: null }));
@@ -118,7 +126,7 @@ export function InwardInvoiceModal({
       (option) =>
         normalizeProductCode(option.sku) === normalized ||
         normalizeProductCode(option.alias) === normalized,
-    );
+    ) ?? await onProductLookupByCode(normalized);
 
     if (!product) return;
 
@@ -243,12 +251,12 @@ export function InwardInvoiceModal({
                         onChange={(event) => {
                           const value = event.target.value;
                           onProductSearchChange(value);
-                          selectProductByCode(value);
+                          void selectProductByCode(value);
                         }}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") {
                             event.preventDefault();
-                            selectProductByCode(productSearch);
+                            void selectProductByCode(productSearch);
                           }
                         }}
                         leftIcon={<ScanLine size={14} />}
