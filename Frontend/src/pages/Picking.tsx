@@ -60,12 +60,17 @@ type StickerScan = {
   importDate?: string | null;
   batchNumber?: string | null;
   mrp?: number | null;
+  hasFullData?: boolean;
 };
 
 const parseStickerScan = (value: string): StickerScan => {
   const raw = value.trim();
-  const parts = raw.split("#").map((part) => part.trim()).filter(Boolean);
-  const mrpText = parts[4] || parts[3] || "";
+  const parts = raw.split("#").map((part) => part.trim());
+  
+  // Format is: <SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER/PRICE>
+  const hasFullData = parts.length >= 4;
+  
+  const mrpText = hasFullData ? parts[3] : "";
   const mrpMatch = mrpText.match(/[\d,.]+/);
   const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
 
@@ -73,9 +78,9 @@ const parseStickerScan = (value: string): StickerScan => {
     raw,
     sku: parts[0] || raw,
     quantity: Math.max(Number(parts[1]) || 1, 1),
-    importDate: parts[2] || null,
-    batchNumber: parts[4] ? parts[3] : null,
+    importDate: parts.length >= 3 ? parts[2] : null,
     mrp: parsedMrp && Number.isFinite(parsedMrp) ? parsedMrp : null,
+    hasFullData,
   };
 };
 
@@ -412,18 +417,19 @@ export const Picking = memo(function Picking() {
     }
 
     if (
+      parsedScan.hasFullData &&
       parsedScan.mrp !== null &&
       matchedItem.mrp !== null &&
       matchedItem.mrp !== undefined &&
       Number(parsedScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
     ) {
-      const message = `MRP mismatch. Sticker ${formatMrp(parsedScan.mrp)} vs sales order ${formatMrp(matchedItem.mrp)}.`;
-      setScanTone("error");
-      setLastScanMessage(message);
-      toast.error(message);
-      setScanCode("");
-      window.setTimeout(() => scanInputRef.current?.focus(), 0);
-      return;
+      const message = `Price Mismatch Alert!\n\nSticker Price: Rs ${parsedScan.mrp}\nSales Order Item Price: Rs ${matchedItem.mrp}\n\nDo you want to proceed with picking?`;
+      
+      if (!window.confirm(message)) {
+        setScanCode("");
+        window.setTimeout(() => scanInputRef.current?.focus(), 0);
+        return;
+      }
     }
 
     setActiveItemId(matchedItem.id);
