@@ -117,7 +117,7 @@ const labelModeText: Record<StickerMode, string> = {
 
 const defaultToDate = format(new Date(), "yyyy-MM-dd");
 const defaultFromDate = format(
-  new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
   "yyyy-MM-dd",
 );
 
@@ -1829,7 +1829,7 @@ export const Inward = memo(function Inward() {
                     setInvoicePage(1);
                   }}
                 >
-                  Last 7 Days
+                  Last 30 Days
                 </Button>
                 <Button
                   size="xs"
