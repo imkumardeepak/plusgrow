@@ -99,8 +99,8 @@ type InvoiceUploadSkippedRow = {
   reason: string;
 };
 
-const INVOICE_PAGE_SIZE = 25;
-const EXPORT_PAGE_SIZE = 500;
+const INVOICE_PAGE_SIZE = 100;
+const EXPORT_PAGE_SIZE = 50000;
 
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
