@@ -148,7 +148,7 @@ public class PoInvoicesController : BaseController
 
         var total = await query.CountAsync();
         var headers = await query
-            .OrderByDescending(x => x.InvoiceDate)
+            .OrderByDescending(x => x.CreatedAt)
             .ThenBy(x => x.PartyName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

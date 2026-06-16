@@ -45,7 +45,7 @@ import {
   productsApi,
   outwardOrdersApi,
 } from "../../../services/masterApi";
-import { ProductFormModal } from "../../../components/organisms/ProductFormModal";
+import { ProductUpdateModal } from "../../../components/organisms/ProductUpdateModal";
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
 
 import type { ProductLookupResult } from "../types";
@@ -611,11 +611,14 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         </OperationsPanel>
       </div>
 
-      <ProductFormModal
+      <ProductUpdateModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         product={lookupResult?.product || null}
-        onSuccess={() => void loadData()}
+        onProductSaved={(product) => {
+          setLookupResult((prev) => (prev ? { ...prev, product } : prev));
+          void loadData();
+        }}
         onPrint={handlePrint}
       />
       <StickerPrintModal

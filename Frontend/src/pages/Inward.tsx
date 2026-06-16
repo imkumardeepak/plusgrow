@@ -44,6 +44,7 @@ import { exportToExcel, formatExcelDate, formatExcelNumber } from "../hooks/useE
 import { Button } from "../components/atoms/Button";
 import { Input } from "../components/atoms/Input";
 import { Modal, ConfirmDialog } from "../components/atoms/Modal";
+import { ProductUpdateModal } from "../components/organisms/ProductUpdateModal";
 import {
   OperationsPage,
   OperationsPanel,
@@ -188,6 +189,7 @@ export const Inward = memo(function Inward() {
   const [selectedPrintRow, setSelectedPrintRow] = useState<PoInvoice | null>(
     null,
   );
+  const [isProductUpdateOpen, setIsProductUpdateOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -757,6 +759,25 @@ export const Inward = memo(function Inward() {
     };
   }, [selectedPrintRow]);
 
+  const openProductUpdateFromSticker = useCallback(() => {
+    if (!selectedProduct) {
+      toast.error("Product master not loaded for this SKU");
+      return;
+    }
+
+    setIsProductUpdateOpen(true);
+  }, [selectedProduct]);
+
+  const handleStickerProductSaved = useCallback((product: Product) => {
+    setSelectedProduct(product);
+    setProducts((current) => {
+      if (current.some((item) => item.id === product.id)) {
+        return current.map((item) => (item.id === product.id ? product : item));
+      }
+
+      return [product, ...current];
+    });
+  }, []);
   useEffect(() => {
     if (!selectedPrintRow) {
       setManufacturerId(null);
@@ -1487,15 +1508,14 @@ export const Inward = memo(function Inward() {
         }
         setSearch("");
         setStatusFilter("all");
-        setFromDate("");
-        setToDate("");
+        // Maintain current date selection for pagination
         setInvoicePage(1);
         await loadData();
         await loadInvoiceRows({
           search: "",
           status: "all",
-          fromDate: "",
-          toDate: "",
+          fromDate,
+          toDate,
           page: 1,
           pageSize: INVOICE_PAGE_SIZE,
         });
@@ -2381,7 +2401,23 @@ export const Inward = memo(function Inward() {
                 <Text size="xs" c="dimmed">
                   SKU
                 </Text>
-                <Text size="sm" fw={800} ff="monospace" c="cyan.3">
+                <Text
+                  component="button"
+                  type="button"
+                  size="sm"
+                  fw={800}
+                  ff="monospace"
+                  c="cyan.3"
+                  td="underline"
+                  onClick={openProductUpdateFromSticker}
+                  style={{
+                    background: "none",
+                    border: 0,
+                    padding: 0,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
                   {selectedPrintRow.skuCode}
                 </Text>
                 <Text size="xs" c="dimmed" mt="xs">
@@ -2531,6 +2567,12 @@ export const Inward = memo(function Inward() {
         ) : null}
       </Modal>
 
+      <ProductUpdateModal
+        isOpen={isProductUpdateOpen}
+        onClose={() => setIsProductUpdateOpen(false)}
+        product={selectedProduct}
+        onProductSaved={handleStickerProductSaved}
+      />
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
