@@ -195,6 +195,25 @@ public class OutwardOrdersController : BaseController
         if (missingProductId > 0)
             return BadRequest<OutwardOrderDto>($"Selected product {missingProductId} does not exist");
 
+        // Validate stock availability for each product
+        var stockQtyMap = await _context.ProductQuantities
+            .AsNoTracking()
+            .Where(q => productIds.Contains(q.ProductId))
+            .ToDictionaryAsync(q => q.ProductId, q => q.CurrentQuantity);
+
+        foreach (var item in requestedItems)
+        {
+            var availableStock = stockQtyMap.GetValueOrDefault(item.ProductId, 0);
+            var product = products[item.ProductId];
+            var productLabel = !string.IsNullOrWhiteSpace(product.Sku)
+                ? $"{product.Sku} - {product.Name}"
+                : product.Name;
+
+            if (item.Quantity > availableStock)
+                return BadRequest<OutwardOrderDto>(
+                    $"Insufficient stock for '{productLabel}'. Available: {availableStock}, Requested: {item.Quantity}.");
+        }
+
         var orderNumber = await GenerateOrderNumberAsync();
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         var normalizedOrderDate = DateTime.SpecifyKind(dto.OrderDate.Date, DateTimeKind.Unspecified);

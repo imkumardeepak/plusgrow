@@ -14,9 +14,11 @@ import {
   TextInput,
   Box,
   ScrollArea,
+  Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
+  AlertTriangle,
   Download,
   Edit2,
   FileText,
@@ -465,6 +467,23 @@ export const Outward = memo(function Outward() {
       return;
     }
 
+    // Frontend stock check before submission
+    const stockErrors: string[] = [];
+    for (const item of orderForm.items) {
+      const product = products.find((p) => p.id === item.productId);
+      if (product && product.stockQty !== undefined) {
+        const available = product.stockQty ?? 0;
+        if (item.quantity > available) {
+          const label = product.sku ? `${product.sku} - ${product.name}` : product.name;
+          stockErrors.push(`"${label}": requested ${item.quantity}, available ${available}`);
+        }
+      }
+    }
+    if (stockErrors.length > 0) {
+      toast.error(`Insufficient stock:\n${stockErrors.join("\n")}`);
+      return;
+    }
+
     const mergedItems = Array.from(
       orderForm.items.reduce((map, item) => {
         const key = `${item.productId}:${Number(item.mrp || 0).toFixed(2)}`;
@@ -758,61 +777,98 @@ export const Outward = memo(function Outward() {
 
             <ScrollArea type="auto" offsetScrollbars="y" style={{ maxHeight: "500px", paddingRight: "8px" }}>
               <Stack gap="md">
-                {orderForm.items.map((item, index) => (
-                  <Group key={item.id} wrap="nowrap" align="flex-end" gap="sm">
-                    <Select
-                      label={index === 0 ? "Scan SKU / Alias" : undefined}
-                      placeholder="Scan or type SKU/Alias"
-                      searchable
-                      data={productOptions}
-                      searchValue={productSearchByItemId[item.id] || ""}
-                      onSearchChange={(value) =>
-                        handleOrderProductSearchChange(item.id, value)
-                      }
-                      value={item.productId > 0 ? String(item.productId) : null}
-                      onChange={(value) =>
-                        selectOrderProduct(item.id, value ? Number(value) : 0)
-                      }
-                      style={{ flex: 1 }}
-                    />
-                    <NumberInput
-                      label={index === 0 ? "Qty" : undefined}
-                      placeholder="1"
-                      w={100}
-                      min={1}
-                  value={item.quantity}
-                  onChange={(value) =>
-                    updateOrderItem(item.id, {
-                      quantity: typeof value === "number" ? value : 1,
-                    })
-                  }
-                    />
-                    <NumberInput
-                      label={index === 0 ? "MRP" : undefined}
-                      placeholder="0.00"
-                      w={130}
-                      min={0}
-                  decimalScale={2}
-                  value={item.mrp}
-                  onChange={(value) =>
-                    updateOrderItem(item.id, {
-                      mrp: typeof value === "number" ? value : "",
-                    })
-                  }
-                    />
-                    <ActionIcon
-                      size={36}
-                      radius="md"
-                      variant="subtle"
-                      color="red"
-                      disabled={orderForm.items.length === 1}
-                      onClick={() => removeOrderItem(item.id)}
-                      aria-label="Remove item"
-                    >
-                      <Trash2 size={16} />
-                    </ActionIcon>
-                  </Group>
-                ))}
+                {orderForm.items.map((item, index) => {
+                  const selectedProduct = products.find((p) => p.id === item.productId);
+                  const availableStock = selectedProduct?.stockQty ?? null;
+                  const stockExceeded = availableStock !== null && item.quantity > availableStock;
+
+                  return (
+                  <Stack key={item.id} gap={4}>
+                    <Group wrap="nowrap" align="flex-end" gap="sm">
+                      <Select
+                        label={index === 0 ? "Scan SKU / Alias" : undefined}
+                        placeholder="Scan or type SKU/Alias"
+                        searchable
+                        data={productOptions}
+                        searchValue={productSearchByItemId[item.id] || ""}
+                        onSearchChange={(value) =>
+                          handleOrderProductSearchChange(item.id, value)
+                        }
+                        value={item.productId > 0 ? String(item.productId) : null}
+                        onChange={(value) =>
+                          selectOrderProduct(item.id, value ? Number(value) : 0)
+                        }
+                        style={{ flex: 1 }}
+                      />
+                      <Stack gap={2} align="center">
+                        {index === 0 && <Text size="xs" c="dimmed" mb={2}>Qty</Text>}
+                        <Tooltip
+                          label={stockExceeded ? `Max available: ${availableStock}` : availableStock !== null ? `In stock: ${availableStock}` : ""}
+                          disabled={availableStock === null}
+                          position="top"
+                        >
+                          <NumberInput
+                            placeholder="1"
+                            w={100}
+                            min={1}
+                            max={availableStock ?? undefined}
+                            value={item.quantity}
+                            error={stockExceeded}
+                            styles={stockExceeded ? { input: { borderColor: "var(--mantine-color-red-5)", color: "var(--mantine-color-red-4)" } } : undefined}
+                            onChange={(value) =>
+                              updateOrderItem(item.id, {
+                                quantity: typeof value === "number" ? value : 1,
+                              })
+                            }
+                          />
+                        </Tooltip>
+                      </Stack>
+                      <NumberInput
+                        label={index === 0 ? "MRP" : undefined}
+                        placeholder="0.00"
+                        w={130}
+                        min={0}
+                        decimalScale={2}
+                        value={item.mrp}
+                        onChange={(value) =>
+                          updateOrderItem(item.id, {
+                            mrp: typeof value === "number" ? value : "",
+                          })
+                        }
+                      />
+                      <ActionIcon
+                        size={36}
+                        radius="md"
+                        variant="subtle"
+                        color="red"
+                        disabled={orderForm.items.length === 1}
+                        onClick={() => removeOrderItem(item.id)}
+                        aria-label="Remove item"
+                        style={{ marginBottom: stockExceeded ? 20 : 0 }}
+                      >
+                        <Trash2 size={16} />
+                      </ActionIcon>
+                    </Group>
+                    {/* Stock warning row */}
+                    {selectedProduct && availableStock !== null && (
+                      <Group gap={6} pl={4}>
+                        {stockExceeded ? (
+                          <>
+                            <AlertTriangle size={12} color="var(--mantine-color-red-5)" />
+                            <Text size="10px" c="red.4">
+                              Only {availableStock} in stock — reduce quantity
+                            </Text>
+                          </>
+                        ) : (
+                          <Text size="10px" c="dimmed">
+                            In stock: <Text component="span" fw={700} c={availableStock === 0 ? "red.4" : availableStock <= 5 ? "yellow.4" : "green.4"}>{availableStock}</Text>
+                          </Text>
+                        )}
+                      </Group>
+                    )}
+                  </Stack>
+                  );
+                })}
               </Stack>
             </ScrollArea>
           </Box>

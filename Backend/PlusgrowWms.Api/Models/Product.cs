@@ -103,6 +103,11 @@ public class Product
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
+    /// <summary>Current warehouse stock quantity — populated at query time, not persisted.</summary>
+    [NotMapped]
+    [JsonPropertyName("stockQty")]
+    public int StockQty { get; set; }
+
     public void CalculateUssp()
     {
         if (Mrp.HasValue && Mrp.Value > 0 && !string.IsNullOrEmpty(Factor))

@@ -50,6 +50,19 @@ public class ProductRepository : IProductRepository
             .Take(pageSize)
             .ToListAsync();
 
+        // Attach current stock quantity for each product
+        if (items.Count > 0)
+        {
+            var productIds = items.Select(p => p.Id).ToList();
+            var stockMap = await _context.ProductQuantities
+                .AsNoTracking()
+                .Where(q => productIds.Contains(q.ProductId))
+                .ToDictionaryAsync(q => q.ProductId, q => q.CurrentQuantity);
+
+            foreach (var product in items)
+                product.StockQty = stockMap.GetValueOrDefault(product.Id, 0);
+        }
+
         return new PagedListResult<Product>
         {
             Items = items,
@@ -58,6 +71,7 @@ public class ProductRepository : IProductRepository
             Total = total,
         };
     }
+
 
     public Task<List<Product>> SearchAsync(string? query, int limit = 25)
     {
