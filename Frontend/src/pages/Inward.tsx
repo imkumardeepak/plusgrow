@@ -115,11 +115,8 @@ const labelModeText: Record<StickerMode, string> = {
   Manufacture: "Marketed By / Manufacture By",
 };
 
-const defaultToDate = format(new Date(), "yyyy-MM-dd");
-const defaultFromDate = format(
-  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-  "yyyy-MM-dd",
-);
+const defaultToDate = "";
+const defaultFromDate = "";
 
 const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   invoiceNumber: "",
