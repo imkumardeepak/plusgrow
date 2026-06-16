@@ -98,6 +98,9 @@ type InvoiceUploadSkippedRow = {
   reason: string;
 };
 
+const INVOICE_PAGE_SIZE = 25;
+const EXPORT_PAGE_SIZE = 500;
+
 const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
   summary?.status === "Canceled";
@@ -144,6 +147,7 @@ export const Inward = memo(function Inward() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRowsLoading, setIsRowsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [invoicePage, setInvoicePage] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
@@ -352,18 +356,23 @@ export const Inward = memo(function Inward() {
     setStickerNote("");
   }, [selectedPrintRow]);
 
+  const withInvoiceKey = useCallback(
+    (row: PoInvoiceHeaderSummary): InvoiceSummary => ({
+      ...row,
+      invoiceKey: `${row.invoiceNumber}__${row.invoiceDate}__${row.partyName}`,
+    }),
+    [],
+  );
+
   const loadInvoiceRows = useCallback(async (filters: PoInvoiceFilters) => {
     try {
       setIsRowsLoading(true);
       const result = await poInvoicesApi.getHeaders({
         ...filters,
-        page: 1,
-        pageSize: 1000,
+        page: filters.page ?? 1,
+        pageSize: filters.pageSize ?? INVOICE_PAGE_SIZE,
       });
-      const summaries = result.data.map((row) => ({
-        ...row,
-        invoiceKey: `${row.invoiceNumber}__${row.invoiceDate}__${row.partyName}`,
-      }));
+      const summaries: InvoiceSummary[] = result.data.map((row) => withInvoiceKey(row));
       setInvoiceSummaries(summaries);
       setPoInvoices(summaries.flatMap((row) => row.items));
       setPagination(result.pagination);
@@ -372,7 +381,7 @@ export const Inward = memo(function Inward() {
     } finally {
       setIsRowsLoading(false);
     }
-  }, []);
+  }, [withInvoiceKey]);
 
   useEffect(() => {
     const fetchRows = () => {
@@ -381,6 +390,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page: invoicePage,
+        pageSize: INVOICE_PAGE_SIZE,
       });
     };
 
@@ -391,7 +402,11 @@ export const Inward = memo(function Inward() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [fromDate, loadInvoiceRows, search, statusFilter, toDate]);
+  }, [fromDate, invoicePage, loadInvoiceRows, search, statusFilter, toDate]);
+
+  const handleInvoicePageChange = useCallback((page: number) => {
+    setInvoicePage(page);
+  }, []);
 
   const productOptions = useMemo(
     () => {
@@ -920,6 +935,8 @@ export const Inward = memo(function Inward() {
           status: statusFilter,
           fromDate,
           toDate,
+          page: invoicePage,
+          pageSize: INVOICE_PAGE_SIZE,
         });
         setSelectedPrintRow((current) =>
           current ? { ...current, printed: true } : current,
@@ -1278,6 +1295,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page: invoicePage,
+        pageSize: INVOICE_PAGE_SIZE,
       });
       resetInvoiceModal();
     } catch (error: any) {
@@ -1301,6 +1320,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page: invoicePage,
+        pageSize: INVOICE_PAGE_SIZE,
       });
       setDeleteTarget(null);
     } catch (error: any) {
@@ -1310,38 +1331,66 @@ export const Inward = memo(function Inward() {
     }
   };
 
-  const handleExportExcel = () => {
-    setIsExporting(true);
-    try {
-      const exportRows = invoiceSummaries.flatMap((invoice) => {
-        if (!invoice.items || invoice.items.length === 0) {
-          return [{
-            invoiceNumber: invoice.invoiceNumber,
-            invoiceDate: invoice.invoiceDate,
-            partyName: invoice.partyName,
-            skuCode: "",
-            mrp: "",
-            productName: "",
-            billedQty: invoice.totalBilledQty,
-          }];
-        }
-
-        return invoice.items.map((item) => ({
+  const buildExportRows = useCallback((summaries: InvoiceSummary[]) => {
+    return summaries.flatMap((invoice) => {
+      if (!invoice.items || invoice.items.length === 0) {
+        return [{
           invoiceNumber: invoice.invoiceNumber,
           invoiceDate: invoice.invoiceDate,
           partyName: invoice.partyName,
-          skuCode: item.skuCode,
-          mrp: item.mrp ?? "",
-          productName: item.productName,
-          billedQty: item.billedQty,
-        }));
+          skuCode: "",
+          mrp: "",
+          productName: "",
+          billedQty: invoice.totalBilledQty,
+        }];
+      }
+
+      return invoice.items.map((item) => ({
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.invoiceDate,
+        partyName: invoice.partyName,
+        skuCode: item.skuCode,
+        mrp: item.mrp ?? "",
+        productName: item.productName,
+        billedQty: item.billedQty,
+      }));
+    });
+  }, []);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const firstResult = await poInvoicesApi.getHeaders({
+        search,
+        status: statusFilter,
+        fromDate,
+        toDate,
+        page: 1,
+        pageSize: EXPORT_PAGE_SIZE,
       });
+      const allSummaries = firstResult.data.map(withInvoiceKey);
+      const totalPages = Math.max(
+        1,
+        Math.ceil(firstResult.pagination.total / EXPORT_PAGE_SIZE),
+      );
+
+      for (let page = 2; page <= totalPages; page += 1) {
+        const result = await poInvoicesApi.getHeaders({
+          search,
+          status: statusFilter,
+          fromDate,
+          toDate,
+          page,
+          pageSize: EXPORT_PAGE_SIZE,
+        });
+        allSummaries.push(...result.data.map(withInvoiceKey));
+      }
 
       exportToExcel({
         fileName: "Inward_Invoices",
         sheets: [{
           sheetName: "Invoices",
-          data: exportRows,
+          data: buildExportRows(allSummaries),
           columns: [
             { header: "Invoice No.", accessor: (row) => row.invoiceNumber },
             { header: "Inv. Date", accessor: (row) => formatExcelDate(row.invoiceDate) },
@@ -1360,7 +1409,6 @@ export const Inward = memo(function Inward() {
       setIsExporting(false);
     }
   };
-
   const handleCancelInvoice = async () => {
     if (!cancelInvoiceSummary) return;
 
@@ -1381,6 +1429,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page: invoicePage,
+        pageSize: INVOICE_PAGE_SIZE,
       });
       setCancelInvoiceSummary(null);
       setCancelRemark("");
@@ -1439,12 +1489,15 @@ export const Inward = memo(function Inward() {
         setStatusFilter("all");
         setFromDate("");
         setToDate("");
+        setInvoicePage(1);
         await loadData();
         await loadInvoiceRows({
           search: "",
           status: "all",
           fromDate: "",
           toDate: "",
+          page: 1,
+          pageSize: INVOICE_PAGE_SIZE,
         });
         setIsUploadModalOpen(errors.length > 0);
         setUploadFile(null);
@@ -1645,6 +1698,8 @@ export const Inward = memo(function Inward() {
         status: statusFilter,
         fromDate,
         toDate,
+        page: invoicePage,
+        pageSize: INVOICE_PAGE_SIZE,
       });
 
       setSelectedInvoiceSummary((prev) => {
@@ -1703,9 +1758,10 @@ export const Inward = memo(function Inward() {
                 size="xs"
                 radius="md"
                 value={statusFilter}
-                onChange={(value) =>
-                  setStatusFilter(value as InwardStatusFilter)
-                }
+                onChange={(value) => {
+                  setStatusFilter(value as InwardStatusFilter);
+                  setInvoicePage(1);
+                }}
                 data={[
                   { value: "all", label: "All" },
                   { value: "pending", label: "Pending" },
@@ -1721,7 +1777,10 @@ export const Inward = memo(function Inward() {
               label="From Date"
               type="date"
               value={fromDate}
-              onChange={(event) => setFromDate(event.currentTarget.value)}
+              onChange={(event) => {
+                setFromDate(event.currentTarget.value);
+                setInvoicePage(1);
+              }}
             />
 
             <TextInput
@@ -1730,7 +1789,10 @@ export const Inward = memo(function Inward() {
               label="To Date"
               type="date"
               value={toDate}
-              onChange={(event) => setToDate(event.currentTarget.value)}
+              onChange={(event) => {
+                setToDate(event.currentTarget.value);
+                setInvoicePage(1);
+              }}
             />
 
             <Box>
@@ -1744,6 +1806,7 @@ export const Inward = memo(function Inward() {
                   onClick={() => {
                     setFromDate(defaultFromDate);
                     setToDate(defaultToDate);
+                    setInvoicePage(1);
                   }}
                 >
                   Last 7 Days
@@ -1755,6 +1818,7 @@ export const Inward = memo(function Inward() {
                     setFromDate("");
                     setToDate("");
                     setStatusFilter("all");
+                    setInvoicePage(1);
                   }}
                 >
                   Clear
@@ -1771,14 +1835,17 @@ export const Inward = memo(function Inward() {
           action={
             <Group gap="xs" wrap="nowrap">
               <Badge size="sm" radius="md" variant="light" color="gray">
-                {poInvoices.length} Rows
+                {pagination?.total ?? invoiceSummaries.length} Invoices
               </Badge>
               <TextInput
                 size="xs"
                 radius="md"
                 w={240}
                 value={search}
-                onChange={(event) => setSearch(event.currentTarget.value)}
+                onChange={(event) => {
+                  setSearch(event.currentTarget.value);
+                  setInvoicePage(1);
+                }}
                 placeholder="Search invoice, party, SKU..."
                 leftSection={<Search size={14} />}
               />
@@ -1793,6 +1860,8 @@ export const Inward = memo(function Inward() {
                     status: statusFilter,
                     fromDate,
                     toDate,
+                    page: invoicePage,
+                    pageSize: INVOICE_PAGE_SIZE,
                   })
                 }
                 loading={isRowsLoading}
@@ -1833,7 +1902,10 @@ export const Inward = memo(function Inward() {
             columns={columns}
             rowKey={(row) => row.invoiceKey}
             isLoading={isLoading || isRowsLoading}
-            pageSize={25}
+            pageSize={INVOICE_PAGE_SIZE}
+            totalItems={pagination?.total}
+            currentPage={invoicePage}
+            onPageChange={handleInvoicePageChange}
             fontSize={isLargeScreen ? 14 : 12}
             emptyIcon={FileText}
             emptyTitle="No inward invoices"
