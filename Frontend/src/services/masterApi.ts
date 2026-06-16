@@ -441,6 +441,7 @@ export interface SalesOrderRecord {
   customerName: string;
   status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
   notes?: string | null;
+  referenceNumber?: string | null;
   cancelRemark?: string | null;
   itemCount: number;
   totalQuantity: number;
@@ -1414,6 +1415,15 @@ export const outwardOrdersApi = {
   cancelSalesOrder: async (salesOrderId: number, remark: string): Promise<SalesOrderRecord> => {
     const response = await api.post<ApiResponse<SalesOrderRecord>>(`/outwardorders/sales-orders/${salesOrderId}/cancel`, { remark });
     if (!response.data.success) throw new Error(response.data.message || 'Error canceling sales order');
+    return response.data.data!;
+  },
+
+  updateSalesOrder: async (
+    salesOrderId: number,
+    data: { customerName?: string; orderDate?: string; notes?: string | null; referenceNumber?: string | null }
+  ): Promise<SalesOrderRecord> => {
+    const response = await api.put<ApiResponse<SalesOrderRecord>>(`/outwardorders/sales-orders/${salesOrderId}`, data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating sales order');
     return response.data.data!;
   },
 };

@@ -25,6 +25,9 @@ public class SalesOrder
     [Column("notes")]
     public string? Notes { get; set; }
 
+    [Column("reference_number")]
+    public string? ReferenceNumber { get; set; }
+
     [Column("cancel_remark")]
     public string? CancelRemark { get; set; }
 

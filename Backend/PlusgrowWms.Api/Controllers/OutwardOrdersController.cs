@@ -692,6 +692,52 @@ public class OutwardOrdersController : BaseController
         return Success(MapSalesOrder(salesOrder), $"Sales order {salesOrder.OrderNumber} canceled successfully");
     }
 
+    [HttpPut("sales-orders/{salesOrderId}")]
+    public async Task<ActionResult<ApiResponse<SalesOrderDto>>> UpdateSalesOrder(int salesOrderId, [FromBody] UpdateSalesOrderDto dto)
+    {
+        var salesOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstOrDefaultAsync(x => x.Id == salesOrderId);
+
+        if (salesOrder == null)
+            return NotFound<SalesOrderDto>("Sales order not found");
+
+        if (salesOrder.Status == "Canceled")
+        {
+            // Only allow reference number edit for canceled orders
+            salesOrder.ReferenceNumber = dto.ReferenceNumber?.Trim();
+            salesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            await _context.SaveChangesAsync();
+            return Success(MapSalesOrder(salesOrder), "Reference number updated");
+        }
+
+        // Full edit for non-canceled orders (except order number)
+        if (!string.IsNullOrWhiteSpace(dto.CustomerName))
+            salesOrder.CustomerName = dto.CustomerName.Trim();
+
+        if (!string.IsNullOrWhiteSpace(dto.OrderDate) &&
+            DateTime.TryParse(dto.OrderDate, out var parsedDate))
+            salesOrder.OrderDate = DateTime.SpecifyKind(parsedDate, DateTimeKind.Unspecified);
+
+        salesOrder.Notes = dto.Notes?.Trim();
+        salesOrder.ReferenceNumber = dto.ReferenceNumber?.Trim();
+        salesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        await _context.SaveChangesAsync();
+
+        await _auditLogService.LogCustomActionAsync(
+            "UpdateSalesOrder",
+            "SalesOrder",
+            salesOrder.Id.ToString(),
+            $"Updated order {salesOrder.OrderNumber}",
+            null,
+            new { dto.CustomerName, dto.OrderDate, dto.Notes, dto.ReferenceNumber }
+        );
+
+        return Success(MapSalesOrder(salesOrder), $"Sales order {salesOrder.OrderNumber} updated successfully");
+    }
+
     private async Task<string> GenerateOrderNumberAsync()
     {
         var prefix = $"SO-{DateTime.Now:yyMMdd}";
@@ -936,6 +982,7 @@ public class OutwardOrdersController : BaseController
             CustomerName = row.CustomerName,
             Status = row.Status,
             Notes = row.Notes,
+            ReferenceNumber = row.ReferenceNumber,
             CancelRemark = row.CancelRemark,
             ItemCount = items.Count,
             TotalQuantity = items.Sum(x => x.Quantity),

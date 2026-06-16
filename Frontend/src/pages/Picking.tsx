@@ -7,24 +7,21 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { NumberInput, Stack, Group, Text, Textarea, TextInput, Select, SegmentedControl, ActionIcon, Table, Tooltip, ScrollArea } from "@mantine/core";
+import { Text, TextInput, Select, SegmentedControl, ActionIcon, Table, ScrollArea } from "@mantine/core";
 import {
   ArrowRight,
   ArrowLeft,
   AlertTriangle,
   ClipboardList,
-  MapPin,
   Package,
   ScanLine,
   Plus,
-  Trash2,
   X,
 } from "lucide-react";
 import { useMediaQuery } from "@mantine/hooks";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
-import { Modal } from "../components/atoms/Modal";
 import {
   OperationsEmptyState,
   OperationsPage,
@@ -119,7 +116,7 @@ export const Picking = memo(function Picking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPicking, setIsPicking] = useState(false);
 
-  // --- NEW POS DIRECT PICK STATES ---
+  // --- DIRECT PICK STATES ---
   const [pickingMode, setPickingMode] = useState<"sales_orders" | "direct_pick">("sales_orders");
   const [parties, setParties] = useState<Party[]>([]);
   const [directPickCustomer, setDirectPickCustomer] = useState<string>("Self");
@@ -304,7 +301,7 @@ export const Picking = memo(function Picking() {
       try {
         setIsPicking(true);
         const updated = await outwardOrdersApi.pick(orderItem.id, {
-          quantity: 1, // Default to 1 instead of scan.quantity
+          quantity: 1,
           skuCode: scan.sku,
           locationCode: normalizedLocation,
           mrp: scan.mrp,
@@ -451,24 +448,32 @@ export const Picking = memo(function Picking() {
       }
 
       setDirectPickItems((current) => {
-        const existingIndex = current.findIndex((item) => item.product.sku?.toLowerCase() === result.product.sku?.toLowerCase() || (item.product.alias && item.product.alias.toLowerCase() === result.product.alias?.toLowerCase()));
+        const existingIndex = current.findIndex(
+          (item) =>
+            item.product.sku?.toLowerCase() === result.product.sku?.toLowerCase() ||
+            (item.product.alias && item.product.alias.toLowerCase() === result.product.alias?.toLowerCase())
+        );
 
         if (existingIndex >= 0) {
-          const updated = [...current];
-          updated[existingIndex].quantity += 1; // Default to 1
-          return updated;
+          // Immutable update — avoids the double-increment bug from direct mutation
+          return current.map((item, idx) =>
+            idx === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+          );
         }
 
-        return [{
-          id: Math.random().toString(36).substring(7),
-          product: result.product,
-          skuCode: result.product.sku || result.product.alias || parsedScan.sku,
-          locationCode: locCode,
-          quantity: 1, // Default to 1
-          mrp: parsedScan.mrp,
-          importDate: parsedScan.importDate,
-          lookupResult: result
-        }, ...current];
+        return [
+          {
+            id: Math.random().toString(36).substring(7),
+            product: result.product,
+            skuCode: result.product.sku || result.product.alias || parsedScan.sku,
+            locationCode: locCode,
+            quantity: 1,
+            mrp: parsedScan.mrp,
+            importDate: parsedScan.importDate,
+            lookupResult: result,
+          },
+          ...current,
+        ];
       });
 
       setDirectPickSkuInput("");
@@ -491,7 +496,6 @@ export const Picking = memo(function Picking() {
     setIsDirectPicking(true);
 
     try {
-      // Validate locations
       for (const item of directPickItems) {
         if (!item.locationCode) {
           throw new Error(`Location missing for ${item.product.name}`);
@@ -619,8 +623,8 @@ export const Picking = memo(function Picking() {
                     <tr>
                       <th>SKU/Alias</th>
                       <th>Location</th>
-                      <th>Quantity</th>
-                      <th>Actions</th>
+                      <th>Qty</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -633,27 +637,54 @@ export const Picking = memo(function Picking() {
                           <Badge color="blue">{item.locationCode}</Badge>
                         </td>
                         <td>
-                          <NumberInput
-                            value={item.quantity}
-                            onChange={(val) => {
-                              setDirectPickItems((current) =>
-                                current.map((i) => i.id === item.id ? { ...i, quantity: Number(val) || 1 } : i)
-                              );
-                            }}
-                            min={1}
-                            size="xs"
-                            className="w-20"
-                          />
+                          <div className="flex items-center gap-1">
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              color="gray"
+                              onClick={() =>
+                                setDirectPickItems((current) =>
+                                  current.map((i) =>
+                                    i.id === item.id
+                                      ? { ...i, quantity: Math.max(1, i.quantity - 1) }
+                                      : i
+                                  )
+                                )
+                              }
+                            >
+                              <span style={{ fontSize: 14, lineHeight: 1 }}>−</span>
+                            </ActionIcon>
+                            <span className="min-w-[24px] text-center text-sm font-semibold">
+                              {item.quantity}
+                            </span>
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              color="gray"
+                              onClick={() =>
+                                setDirectPickItems((current) =>
+                                  current.map((i) =>
+                                    i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+                                  )
+                                )
+                              }
+                            >
+                              <Plus size={12} />
+                            </ActionIcon>
+                          </div>
                         </td>
                         <td>
                           <ActionIcon
                             color="red"
                             variant="subtle"
-                            onClick={() => {
-                              setDirectPickItems((current) => current.filter((i) => i.id !== item.id));
-                            }}
+                            size="sm"
+                            onClick={() =>
+                              setDirectPickItems((current) =>
+                                current.filter((i) => i.id !== item.id)
+                              )
+                            }
                           >
-                            <Trash2 size={16} />
+                            <X size={14} />
                           </ActionIcon>
                         </td>
                       </tr>

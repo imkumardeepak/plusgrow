@@ -18,6 +18,7 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import {
   Download,
+  Edit2,
   FileText,
   Plus,
   RefreshCw,
@@ -114,6 +115,21 @@ export const Outward = memo(function Outward() {
   const [isExporting, setIsExporting] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
   const [productSearchByItemId, setProductSearchByItemId] = useState<Record<string, string>>({});
+
+  // Edit modal state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    customerName: string;
+    orderDate: string;
+    notes: string;
+    referenceNumber: string;
+  }>({
+    customerName: "",
+    orderDate: "",
+    notes: "",
+    referenceNumber: "",
+  });
 
   const loadProducts = useCallback(async () => {
     try {
@@ -510,6 +526,42 @@ export const Outward = memo(function Outward() {
     }
   };
 
+  const openEditModal = (order: SalesOrderRecord) => {
+    setEditForm({
+      customerName: order.customerName,
+      orderDate: order.orderDate.slice(0, 10),
+      notes: order.notes ?? "",
+      referenceNumber: order.referenceNumber ?? "",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditOrder = async () => {
+    if (!selectedGroup) return;
+    if (!editForm.customerName.trim() && selectedGroup.status !== "Canceled") {
+      toast.error("Customer name is required");
+      return;
+    }
+    try {
+      setIsEditing(true);
+      const isCanceled = selectedGroup.status === "Canceled";
+      const updated = await outwardOrdersApi.updateSalesOrder(selectedGroup.id, {
+        customerName: isCanceled ? undefined : editForm.customerName.trim() || undefined,
+        orderDate: isCanceled ? undefined : editForm.orderDate || undefined,
+        notes: isCanceled ? undefined : editForm.notes.trim() || null,
+        referenceNumber: editForm.referenceNumber.trim() || null,
+      });
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setSelectedGroup(updated);
+      toast.success("Sales order updated");
+      setIsEditOpen(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update order");
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   const handleExportExcel = () => {
     setIsExporting(true);
     try {
@@ -790,9 +842,19 @@ export const Outward = memo(function Outward() {
             >
               Cancel Sales Order
             </Button>
-            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-              Close
-            </Button>
+            <Group gap="xs">
+              <Button
+                variant="light"
+                leftIcon={<Edit2 className="h-3.5 w-3.5" />}
+                onClick={() => selectedGroup && openEditModal(selectedGroup)}
+                disabled={!selectedGroup}
+              >
+                {selectedGroup?.status === "Canceled" ? "Edit Ref. No." : "Edit Order"}
+              </Button>
+              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                Close
+              </Button>
+            </Group>
           </Group>
         }
       >
@@ -814,6 +876,11 @@ export const Outward = memo(function Outward() {
               {selectedGroup.status === "Canceled" ? (
                 <Text size="sm" fw={700} c="red.3">
                   Reason: <Text component="span" fw={500}>{selectedGroup.cancelRemark || "-"}</Text>
+                </Text>
+              ) : null}
+              {selectedGroup.referenceNumber ? (
+                <Text size="sm" fw={700} c="cyan.3">
+                  Ref No: <Text component="span" fw={500}>{selectedGroup.referenceNumber}</Text>
                 </Text>
               ) : null}
             </SimpleGrid>
@@ -876,6 +943,89 @@ export const Outward = memo(function Outward() {
             onChange={(event) => setCancelRemark(event.currentTarget.value)}
             placeholder="Enter reason for canceling this sales order"
           />
+        </Stack>
+      </Modal>
+
+      {/* Edit Sales Order Modal */}
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title={
+          selectedGroup?.status === "Canceled"
+            ? `Edit Reference — ${selectedGroup.orderNumber}`
+            : `Edit Order — ${selectedGroup?.orderNumber ?? ""}`
+        }
+        size="md"
+        footer={
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleEditOrder()} loading={isEditing}>
+              Save Changes
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="md">
+          {selectedGroup?.status === "Canceled" ? (
+            <>
+              <Text size="sm" c="dimmed">
+                This order is canceled. Only the reference number can be updated.
+              </Text>
+              <TextInput
+                label="Reference Number"
+                placeholder="e.g. PO-12345 or customer ref"
+                value={editForm.referenceNumber}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, referenceNumber: e.currentTarget.value }))
+                }
+              />
+            </>
+          ) : (
+            <>
+              <TextInput
+                label="Order Number"
+                value={selectedGroup?.orderNumber ?? ""}
+                disabled
+                description="Order number cannot be changed"
+              />
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                <TextInput
+                  label="Customer Name"
+                  placeholder="e.g. Acme Corp"
+                  value={editForm.customerName}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, customerName: e.currentTarget.value }))
+                  }
+                />
+                <TextInput
+                  label="Order Date"
+                  type="date"
+                  value={editForm.orderDate}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, orderDate: e.currentTarget.value }))
+                  }
+                />
+              </SimpleGrid>
+              <TextInput
+                label="Reference Number"
+                placeholder="e.g. PO-12345 or customer ref"
+                value={editForm.referenceNumber}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, referenceNumber: e.currentTarget.value }))
+                }
+              />
+              <TextInput
+                label="Notes"
+                placeholder="Optional remarks"
+                value={editForm.notes}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, notes: e.currentTarget.value }))
+                }
+              />
+            </>
+          )}
         </Stack>
       </Modal>
     </OperationsPage>
