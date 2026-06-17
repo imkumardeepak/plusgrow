@@ -59,6 +59,8 @@ public class ProductService : IProductService
         existing.Weight = product.Weight;
         existing.Ownership = product.Ownership;
         existing.Note = product.Note;
+        existing.CartonQr = product.CartonQr;
+        existing.CartonPerItem = product.CartonPerItem;
 
         existing.CalculateUssp();
 
