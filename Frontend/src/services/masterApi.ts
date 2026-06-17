@@ -248,7 +248,7 @@ export interface MarkPoInvoicesPrintedResult {
 
 export interface PoInvoiceFilters {
   search?: string;
-  status?: "all" | "pending" | "printed" | "canceled";
+  status?: "all" | "open" | "printed" | "verified" | "putaway" | "closed" | "canceled";
   fromDate?: string;
   toDate?: string;
   page?: number;
@@ -277,7 +277,7 @@ export interface PoInvoiceHeaderSummary {
   invoiceNumber: string;
   invoiceDate: string;
   partyName: string;
-  status: "Active" | "Canceled";
+  status: "Open" | "Printed" | "Verified" | "Put Away" | "Closed" | "Canceled";
   cancelRemark?: string | null;
   totalBilledQty: number;
   totalRemainingAllocation: number;

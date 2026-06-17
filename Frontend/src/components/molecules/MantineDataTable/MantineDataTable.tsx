@@ -3,7 +3,6 @@ import {
   ActionIcon,
   Center,
   Group,
-  ScrollArea,
   Table,
   Text,
 } from "@mantine/core";
@@ -230,6 +229,27 @@ function MantineDataTableInner<T>({
     setCurrentPage(nextPage);
   };
 
+  const numericColumnWidth = (width: DataTableColumn<T>["width"]) => {
+    if (typeof width === "number") return width;
+    if (typeof width !== "string") return 0;
+
+    const parsed = Number.parseFloat(width);
+    return Number.isFinite(parsed) && width.trim().endsWith("px") ? parsed : 0;
+  };
+
+  const resolvedMinWidth = useMemo(() => {
+    const columnWidthTotal = columns.reduce(
+      (total, column) => total + numericColumnWidth(column.width),
+      0,
+    );
+
+    if (typeof minWidth === "number") {
+      return Math.max(minWidth, columnWidthTotal);
+    }
+
+    return columnWidthTotal > 0 ? Math.max(600, columnWidthTotal) : minWidth;
+  }, [columns, minWidth]);
+
   if (isLoading) {
     return (
       <Center h={260}>
@@ -248,15 +268,25 @@ function MantineDataTableInner<T>({
     );
   }
 
+  const scrollContainerStyle: React.CSSProperties = {
+    width: "100%",
+    overflowX: "auto",
+    overflowY: maxHeight ? "auto" : undefined,
+    maxHeight,
+    minWidth: 0,
+    touchAction: "pan-x pan-y",
+    WebkitOverflowScrolling: "touch",
+  };
+
   return (
     <div className={className}>
-      <ScrollArea style={maxHeight ? { maxHeight } : undefined}>
+      <div style={scrollContainerStyle}>
         <Table
           highlightOnHover
           stickyHeader
           verticalSpacing={6}
           horizontalSpacing="sm"
-          style={{ minWidth, fontSize }}
+          style={{ minWidth: resolvedMinWidth, fontSize }}
         >
           <Table.Thead>
             <Table.Tr>
@@ -271,8 +301,10 @@ function MantineDataTableInner<T>({
                     ta={col.align}
                     style={{
                       ...((col.width
-                        ? { width: col.width }
+                        ? { width: col.width, minWidth: col.width }
                         : undefined) as React.CSSProperties),
+                      whiteSpace: "nowrap",
+                      touchAction: "pan-x pan-y",
                       ...(isSortable
                         ? { cursor: "pointer", userSelect: "none" }
                         : undefined),
@@ -337,6 +369,14 @@ function MantineDataTableInner<T>({
                       key={col.key}
                       ta={col.align}
                       className={col.className}
+                      style={
+                        col.width
+                          ? ({
+                              width: col.width,
+                              minWidth: col.width,
+                            } as React.CSSProperties)
+                          : undefined
+                      }
                     >
                       {col.render(row, absoluteIndex)}
                     </Table.Td>
@@ -346,7 +386,7 @@ function MantineDataTableInner<T>({
             })}
           </Table.Tbody>
         </Table>
-      </ScrollArea>
+      </div>
 
       {enablePagination && pagination.totalItems > pageSize && (
         <Group

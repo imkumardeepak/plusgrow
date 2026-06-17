@@ -17,7 +17,6 @@ import {
   Radio,
   Select,
   SegmentedControl,
-  SimpleGrid,
   Stack,
   Text,
   Textarea,
@@ -88,7 +87,14 @@ import {
 } from "./Inward/components/InwardUploadModals";
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
-type InwardStatusFilter = "all" | "pending" | "printed" | "canceled";
+type InwardStatusFilter =
+  | "all"
+  | "open"
+  | "printed"
+  | "verified"
+  | "putaway"
+  | "closed"
+  | "canceled";
 type StickerMode = StickerTemplate["type"];
 type InvoiceSummary = PoInvoiceHeaderSummary & {
   invoiceKey: string;
@@ -105,6 +111,14 @@ const EXPORT_PAGE_SIZE = 50000;
 
 const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
   summary?.status === "Canceled";
+const inwardStatusTone: Record<InvoiceSummary["status"], string> = {
+  Open: "blue",
+  Printed: "green",
+  Verified: "cyan",
+  "Put Away": "violet",
+  Closed: "gray",
+  Canceled: "red",
+};
 const hasInvoicePutAwayStarted = (summary?: Pick<InvoiceSummary, "items"> | null) =>
   summary?.items.some((item) => item.remainingAllocation < item.billedQty || item.locationAllotted) ?? false;
 const getStickerStatus = (row: PoInvoice) =>
@@ -112,6 +126,20 @@ const getStickerStatus = (row: PoInvoice) =>
 
 const defaultToDate = "";
 const defaultFromDate = "";
+const toDateInputValue = (date: Date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+const getLast30DayRange = () => {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(to.getDate() - 30);
+
+  return {
+    fromDate: toDateInputValue(from),
+    toDate: toDateInputValue(to),
+  };
+};
 
 const stickerModeLabel: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
@@ -150,7 +178,7 @@ export const Inward = memo(function Inward() {
   const [isExporting, setIsExporting] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("open");
   const [fromDate, setFromDate] = useState(defaultFromDate);
   const [toDate, setToDate] = useState(defaultToDate);
 
@@ -598,22 +626,16 @@ export const Inward = memo(function Inward() {
       key: "printed",
       header: "Status",
       sortable: true,
-      sortAccessor: (row) =>
-        isInvoiceCanceled(row) ? "canceled" : String(row.pendingCount),
+      sortAccessor: (row) => row.status,
       render: (row) => {
-        const isCanceled = isInvoiceCanceled(row);
         return (
           <Badge
             size="sm"
             radius="md"
             variant="light"
-            color={isCanceled ? "red" : row.pendingCount === 0 ? "green" : "orange"}
+            color={inwardStatusTone[row.status]}
           >
-            {isCanceled
-              ? "Canceled"
-              : row.pendingCount === 0
-                ? "Fully Printed"
-                : `${row.pendingCount} Pending`}
+            {row.status}
           </Badge>
         );
       },
@@ -1239,13 +1261,13 @@ export const Inward = memo(function Inward() {
           setIsUploadSkippedModalOpen(true);
         }
         setSearch("");
-        setStatusFilter("all");
+        setStatusFilter("open");
         // Maintain current date selection for pagination
         setInvoicePage(1);
         await loadData();
         await loadInvoiceRows({
           search: "",
-          status: "all",
+          status: "open",
           fromDate,
           toDate,
           page: 1,
@@ -1498,34 +1520,34 @@ export const Inward = memo(function Inward() {
           icon={ArrowDownToLine}
           description="Status and invoice date window for inward rows."
         >
-          <SimpleGrid cols={{ base: 1, lg: 4 }} spacing="sm">
-            <Box>
-              <Text size="10px" fw={800} c="dimmed" mb={5}>
-                STATUS
-              </Text>
-              <SegmentedControl
-                fullWidth
-                size="xs"
-                radius="md"
-                value={statusFilter}
-                onChange={(value) => {
-                  setStatusFilter(value as InwardStatusFilter);
-                  setInvoicePage(1);
-                }}
-                data={[
-                  { value: "all", label: "All" },
-                  { value: "pending", label: "Pending" },
-                  { value: "printed", label: "Printed" },
-                  { value: "canceled", label: "Canceled" },
-                ]}
-              />
-            </Box>
+          <Group align="flex-end" gap={8} wrap="wrap">
+            <Select
+              size="xs"
+              radius="md"
+              label="Status"
+              w={150}
+              value={statusFilter}
+              onChange={(value) => {
+                setStatusFilter((value || "open") as InwardStatusFilter);
+                setInvoicePage(1);
+              }}
+              data={[
+                { value: "open", label: "Open" },
+                { value: "printed", label: "Printed" },
+                { value: "verified", label: "Verified" },
+                { value: "putaway", label: "Put Away" },
+                { value: "closed", label: "Closed" },
+                { value: "canceled", label: "Canceled" },
+                { value: "all", label: "All" },
+              ]}
+            />
 
             <TextInput
               size="xs"
               radius="md"
               label="From Date"
               type="date"
+              w={140}
               value={fromDate}
               onChange={(event) => {
                 setFromDate(event.currentTarget.value);
@@ -1538,6 +1560,7 @@ export const Inward = memo(function Inward() {
               radius="md"
               label="To Date"
               type="date"
+              w={140}
               value={toDate}
               onChange={(event) => {
                 setToDate(event.currentTarget.value);
@@ -1554,8 +1577,9 @@ export const Inward = memo(function Inward() {
                   size="xs"
                   variant="light"
                   onClick={() => {
-                    setFromDate(defaultFromDate);
-                    setToDate(defaultToDate);
+                    const range = getLast30DayRange();
+                    setFromDate(range.fromDate);
+                    setToDate(range.toDate);
                     setInvoicePage(1);
                   }}
                 >
@@ -1567,7 +1591,7 @@ export const Inward = memo(function Inward() {
                   onClick={() => {
                     setFromDate("");
                     setToDate("");
-                    setStatusFilter("all");
+                    setStatusFilter("open");
                     setInvoicePage(1);
                   }}
                 >
@@ -1575,7 +1599,7 @@ export const Inward = memo(function Inward() {
                 </Button>
               </Group>
             </Box>
-          </SimpleGrid>
+          </Group>
         </OperationsPanel>
 
         <OperationsPanel
@@ -1583,14 +1607,14 @@ export const Inward = memo(function Inward() {
           icon={FileText}
           description="Compact PO invoice view for upload, edit, delete, and downstream sticker or put-away flow."
           action={
-            <Group gap="xs" wrap="nowrap">
+            <Group gap="xs" wrap="wrap" justify="flex-end">
               <Badge size="sm" radius="md" variant="light" color="gray">
                 {pagination?.total ?? invoiceSummaries.length} Invoices
               </Badge>
               <TextInput
                 size="xs"
                 radius="md"
-                w={240}
+                w={{ base: 180, sm: 240 }}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.currentTarget.value);

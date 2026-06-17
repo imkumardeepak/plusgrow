@@ -24,7 +24,7 @@ public class PoInvoiceHeader
     public string PartyName { get; set; } = string.Empty;
 
     [Column("status")]
-    public string Status { get; set; } = "Active";
+    public string Status { get; set; } = "Open";
 
     [Column("cancel_remark")]
     public string? CancelRemark { get; set; }

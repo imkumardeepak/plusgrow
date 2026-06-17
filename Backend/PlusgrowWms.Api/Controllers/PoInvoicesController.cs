@@ -8,6 +8,7 @@ using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
 using ClosedXML.Excel;
 using System.Globalization;
+using System.Text.Json;
 
 namespace PlusgrowWms.Api.Controllers;
 
@@ -49,21 +50,10 @@ public class PoInvoicesController : BaseController
                 (x.Product != null && x.Product.Name.ToLower().Contains(search)));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            filter.Status.Trim().Equals("canceled", StringComparison.OrdinalIgnoreCase))
         {
-            var status = filter.Status.Trim().ToLowerInvariant();
-            if (status == "pending")
-            {
-                query = query.Where(x => x.Header != null && x.Header.Status != "Canceled" && !x.Printed);
-            }
-            else if (status == "printed")
-            {
-                query = query.Where(x => x.Header != null && x.Header.Status != "Canceled" && x.Printed);
-            }
-            else if (status == "canceled")
-            {
-                query = query.Where(x => x.Header != null && x.Header.Status == "Canceled");
-            }
+            query = query.Where(x => x.Header != null && x.Header.Status == "Canceled");
         }
         else
         {
@@ -117,23 +107,6 @@ public class PoInvoicesController : BaseController
                     (item.Product != null && item.Product.Name.ToLower().Contains(search))));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.Status))
-        {
-            var status = filter.Status.Trim().ToLowerInvariant();
-            if (status == "pending")
-            {
-                query = query.Where(x => x.Status != "Canceled" && (x.Items.Any(item => !item.Printed) || !x.Items.Any()));
-            }
-            else if (status == "printed")
-            {
-                query = query.Where(x => x.Status != "Canceled" && x.Items.Any() && x.Items.All(item => item.Printed));
-            }
-            else if (status == "canceled")
-            {
-                query = query.Where(x => x.Status == "Canceled");
-            }
-        }
-
         if (filter.FromDate.HasValue)
         {
             var fromDate = NormalizeInvoiceDate(filter.FromDate.Value);
@@ -146,15 +119,39 @@ public class PoInvoicesController : BaseController
             query = query.Where(x => x.InvoiceDate <= toDate);
         }
 
-        var total = await query.CountAsync();
         var headers = await query
             .OrderByDescending(x => x.CreatedAt)
             .ThenBy(x => x.PartyName)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
             .ToListAsync();
 
-        return Success(headers.Select(MapHeaderSummary).ToList(), page, pageSize, total);
+        var verificationReports = await _context.StockCheckReports
+            .AsNoTracking()
+            .Where(x => x.CheckType == "INWARD_VERIFY" && x.Status == "COMPLETED")
+            .ToListAsync();
+
+        var summaries = headers
+            .Select(header => MapHeaderSummary(header, verificationReports))
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            !filter.Status.Trim().Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            var status = NormalizeInwardStatus(filter.Status);
+            summaries = summaries
+                .Where(summary => string.Equals(
+                    NormalizeInwardStatus(summary.Status),
+                    status,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        var total = summaries.Count;
+        var pagedSummaries = summaries
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Success(pagedSummaries, page, pageSize, total);
     }
 
     [HttpPost]
@@ -723,7 +720,9 @@ public class PoInvoicesController : BaseController
         };
     }
 
-    private static PoInvoiceHeaderSummaryDto MapHeaderSummary(PoInvoiceHeader header)
+    private static PoInvoiceHeaderSummaryDto MapHeaderSummary(
+        PoInvoiceHeader header,
+        IReadOnlyCollection<StockCheckReport>? verificationReports = null)
     {
         var items = header.Items
             .OrderBy(item => item.Id)
@@ -736,7 +735,7 @@ public class PoInvoicesController : BaseController
             InvoiceNumber = header.InvoiceNumber,
             InvoiceDate = header.InvoiceDate,
             PartyName = header.PartyName,
-            Status = header.Status,
+            Status = ResolveInwardStatus(header, items, verificationReports),
             CancelRemark = header.CancelRemark,
             TotalBilledQty = items.Sum(item => item.BilledQty),
             TotalRemainingAllocation = items.Sum(item => item.RemainingAllocation),
@@ -745,6 +744,69 @@ public class PoInvoicesController : BaseController
             PendingCount = items.Count(item => !item.Printed),
             Items = items,
         };
+    }
+
+    private static string ResolveInwardStatus(
+        PoInvoiceHeader header,
+        IReadOnlyCollection<PoInvoiceDto> items,
+        IReadOnlyCollection<StockCheckReport>? verificationReports)
+    {
+        if (header.Status == "Canceled")
+            return "Canceled";
+
+        if (items.Count > 0 && items.All(item => item.RemainingAllocation <= 0 || item.LocationAllotted))
+            return "Closed";
+
+        if (items.Any(item => item.RemainingAllocation < item.BilledQty || item.LocationAllotted))
+            return "Put Away";
+
+        if (verificationReports?.Any(report => IsVerificationForHeader(report, header)) == true)
+            return "Verified";
+
+        if (items.Count > 0 && items.All(item => item.Printed))
+            return "Printed";
+
+        return "Open";
+    }
+
+    private static bool IsVerificationForHeader(StockCheckReport report, PoInvoiceHeader header)
+    {
+        if (!string.IsNullOrWhiteSpace(report.Notes))
+        {
+            try
+            {
+                using var notes = JsonDocument.Parse(report.Notes);
+                var root = notes.RootElement;
+                var referenceName = root.TryGetProperty("referenceName", out var referenceElement) ? referenceElement.GetString() : null;
+                var partyName = root.TryGetProperty("partyName", out var partyElement) ? partyElement.GetString() : null;
+                var invoiceDate = root.TryGetProperty("invoiceDate", out var dateElement) ? dateElement.GetString() : null;
+
+                return string.Equals(referenceName, header.InvoiceNumber, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(partyName, header.PartyName, StringComparison.OrdinalIgnoreCase)
+                    && NormalizeDateText(invoiceDate) == NormalizeDateText(header.InvoiceDate.ToString("yyyy-MM-dd"));
+            }
+            catch
+            {
+                // Fall through to legacy reference matching.
+            }
+        }
+
+        return report.ReferenceName.StartsWith(
+            $"{header.InvoiceNumber} - {header.PartyName}",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeInwardStatus(string? value) =>
+        (value ?? string.Empty).Trim().Replace(" ", string.Empty).ToLowerInvariant();
+
+    private static string NormalizeDateText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+            ? parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : value.Trim();
     }
 
     private static string NormalizeHeader(string value)
@@ -845,7 +907,7 @@ public class PoInvoicesController : BaseController
                 InvoiceNumber = normalizedInvoiceNumber,
                 InvoiceDate = normalizedInvoiceDate,
                 PartyName = normalizedPartyName,
-                Status = "Active",
+                Status = "Open",
             };
 
             _context.PoInvoiceHeaders.Add(nextHeader);
