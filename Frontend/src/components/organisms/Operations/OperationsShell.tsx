@@ -243,8 +243,8 @@ export function OperationsPanel({
               "linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)",
           }}
         >
-          <Group justify="space-between" align="center" gap="sm">
-            <Group gap="sm" wrap="nowrap">
+          <Group justify="space-between" align="center" gap="sm" wrap="wrap">
+            <Group gap="sm" wrap="nowrap" style={{ flex: "1 1 260px", minWidth: 0 }}>
               <ThemeIcon
                 color="cyan"
                 variant="light"
@@ -269,7 +269,20 @@ export function OperationsPanel({
                 ) : null}
               </Box>
             </Group>
-            {action ? <Box>{action}</Box> : null}
+            {action ? (
+              <Box
+                style={{
+                  flex: "0 1 auto",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
+                {action}
+              </Box>
+            ) : null}
           </Group>
         </Box>
       )}
