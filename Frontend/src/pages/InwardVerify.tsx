@@ -77,6 +77,17 @@ const extractTokens = (raw: string) => {
   return Array.from(tokens);
 };
 
+const getCartonScanQuantity = (raw: string, product?: Product | null) => {
+  const cartonQr = normalizeCode(product?.cartonQr);
+  if (!cartonQr) return 0;
+
+  const isCartonScan = extractTokens(raw).includes(cartonQr);
+  if (!isCartonScan) return 0;
+
+  const cartonPerItem = Number(product?.cartonPerItem);
+  return Number.isFinite(cartonPerItem) && cartonPerItem > 0 ? Math.trunc(cartonPerItem) : 1;
+};
+
 export const InwardVerify = memo(function InwardVerify() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
@@ -146,9 +157,13 @@ export const InwardVerify = memo(function InwardVerify() {
       if (product.id) entries.set(String(product.id), product);
       if (product.sku) entries.set(normalizeCode(product.sku), product);
       if (product.alias) entries.set(normalizeCode(product.alias), product);
+      if (product.cartonQr) entries.set(normalizeCode(product.cartonQr), product);
     });
     expectedItems.forEach((item) => {
-      entries.set(normalizeCode(item.skuCode), {
+      const skuKey = normalizeCode(item.skuCode);
+      if (entries.has(skuKey)) return;
+
+      entries.set(skuKey, {
         id: item.productId,
         name: item.productName,
         sku: item.skuCode,
@@ -317,11 +332,20 @@ export const InwardVerify = memo(function InwardVerify() {
         focusScanner();
         return;
       }
+
+      const cartonQty = getCartonScanQuantity(raw, product);
+      const requestedQty = cartonQty || 1;
+      const quantityDelta = Math.min(requestedQty, invoiceLine.billedQty - currentQty);
+
       setVerifiedQtyByProduct((prev) => ({
         ...prev,
-        [invoiceLine.productId]: Math.min(invoiceLine.billedQty, (prev[invoiceLine.productId] || 0) + 1),
+        [invoiceLine.productId]: Math.min(invoiceLine.billedQty, (prev[invoiceLine.productId] || 0) + quantityDelta),
       }));
     }
+
+    const cartonQty = invoiceLine ? getCartonScanQuantity(raw, product) : 0;
+    const currentQty = invoiceLine ? verifiedQtyByProduct[invoiceLine.productId] || 0 : 0;
+    const quantityDelta = invoiceLine ? Math.min(cartonQty || 1, invoiceLine.billedQty - currentQty) : undefined;
 
     setScanEvents((prev) => [
       {
@@ -331,7 +355,7 @@ export const InwardVerify = memo(function InwardVerify() {
         at: new Date().toISOString(),
         isExtra: !invoiceLine,
         productId: invoiceLine?.productId,
-        quantityDelta: invoiceLine ? 1 : undefined,
+        quantityDelta,
       },
       ...prev,
     ]);
@@ -705,7 +729,7 @@ export const InwardVerify = memo(function InwardVerify() {
                                 ? `Manual ${event.quantityDelta && event.quantityDelta > 0 ? "+" : ""}${event.quantityDelta || 0}`
                                 : event.isExtra
                                   ? event.code
-                                  : "Scan +1"}
+                                  : `Scan +${event.quantityDelta || 1}`}
                             </Text>
                           </Box>
                           <Tooltip label="Remove scan">
