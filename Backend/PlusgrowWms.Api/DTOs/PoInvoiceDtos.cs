@@ -15,6 +15,7 @@ public class PoInvoiceDto
     public int RemainingAllocation { get; set; }
     public bool LocationAllotted { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool HasMissingData { get; set; }
 }
 
 public class PoInvoiceHeaderSummaryDto

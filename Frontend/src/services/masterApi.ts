@@ -269,6 +269,7 @@ export interface PoInvoice {
   remainingAllocation: number;
   locationAllotted: boolean;
   createdAt: string;
+  hasMissingData: boolean;
 }
 
 export interface PoInvoiceHeaderSummary {

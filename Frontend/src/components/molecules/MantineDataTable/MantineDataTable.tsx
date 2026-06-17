@@ -94,6 +94,8 @@ export interface MantineDataTableProps<T> {
   onSortChange?: (sort: SortState | null) => void;
   /** Optional custom table footer row(s) inside <tfoot> */
   tableFooter?: React.ReactNode;
+  /** Optional row class name generator */
+  rowClassName?: (row: T, rowIndex: number) => string | undefined;
 }
 
 function MantineDataTableInner<T>({
@@ -119,6 +121,7 @@ function MantineDataTableInner<T>({
   sortState: controlledSortState,
   onSortChange,
   tableFooter,
+  rowClassName,
 }: MantineDataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [internalSortState, setInternalSortState] = useState<SortState | null>(
@@ -317,6 +320,7 @@ function MantineDataTableInner<T>({
               return (
                 <Table.Tr
                   key={rowKey(row, absoluteIndex)}
+                  className={rowClassName?.(row, absoluteIndex)}
                   onClick={
                     onRowClick
                       ? () => onRowClick(row, absoluteIndex)

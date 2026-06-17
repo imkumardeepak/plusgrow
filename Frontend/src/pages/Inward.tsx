@@ -2082,6 +2082,7 @@ export const Inward = memo(function Inward() {
 
             <MantineDataTable<PoInvoice>
               data={selectedInvoiceSummary.items}
+              rowClassName={(row) => row.hasMissingData ? "bg-red-900/30" : undefined}
               columns={[
                 {
                   key: "sku",

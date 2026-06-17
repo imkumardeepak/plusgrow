@@ -46,9 +46,9 @@ public class Product
     public string? NetQuantity
     {
         get => _netQuantity;
-        set => _netQuantity = value?.Trim();
+        set => _netQuantity = string.IsNullOrWhiteSpace(value) ? "1N" : value.Trim();
     }
-    private string? _netQuantity;
+    private string? _netQuantity = "1N";
 
     [MaxLength(20)]
     [Column("unit_type")]

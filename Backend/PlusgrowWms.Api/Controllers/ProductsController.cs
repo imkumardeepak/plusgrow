@@ -45,6 +45,19 @@ public class ProductsController : BaseController
 	[HttpPost]
 	public async Task<ActionResult<ApiResponse<Product>>> CreateProduct([FromBody] Product product)
 	{
+		if (string.IsNullOrWhiteSpace(product.CountryOfOrigin))
+		{
+			if (product.ManufacturerId.HasValue)
+			{
+				var manufacturer = await _context.Manufacturers.FindAsync(product.ManufacturerId.Value);
+				product.CountryOfOrigin = manufacturer?.Country ?? "India";
+			}
+			else
+			{
+				product.CountryOfOrigin = "India";
+			}
+		}
+
 		var created = await _productService.CreateAsync(product);
 
 		// Ensure the default location 0-0-0 exists in the locations table
@@ -324,6 +337,9 @@ public class ProductsController : BaseController
 					var ownership = GetCell(row, "Ownership").GetString()?.Trim();
 					if (string.IsNullOrEmpty(ownership)) ownership = "Self";
 
+					var countryOfOriginStr = GetCell(row, "Country of Origin").GetString()?.Trim();
+					if (string.IsNullOrEmpty(countryOfOriginStr)) countryOfOriginStr = manufacturer?.Country ?? "India";
+
 					var product = new Product
 					{
 						Name = productName,
@@ -331,7 +347,7 @@ public class ProductsController : BaseController
 						Alias = GetCell(row, "Alias").GetString()?.Trim(),
 						ManufacturerId = manufacturer?.Id,
 						CommodityId = commodity?.Id,
-						CountryOfOrigin = GetCell(row, "Country of Origin").GetString()?.Trim() ?? "India",
+						CountryOfOrigin = countryOfOriginStr,
 						Factor = GetCell(row, "Factor").GetString()?.Trim(),
 						NetQuantity = string.IsNullOrEmpty(netQntyStr) ? null : netQntyStr,
 						UnitType = (GetCell(row, "Unit Type").GetString()?.Trim() ?? "pcs").ToLowerInvariant(),

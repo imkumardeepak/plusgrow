@@ -688,6 +688,22 @@ public class PoInvoicesController : BaseController
 
     private static PoInvoiceDto MapInvoice(PoInvoice invoice)
     {
+        bool hasMissingData = false;
+        if (invoice.Product != null)
+        {
+            hasMissingData = 
+                string.IsNullOrWhiteSpace(invoice.Product.Sku) ||
+                string.IsNullOrWhiteSpace(invoice.Product.Name) ||
+                invoice.Product.CommodityId == null ||
+                invoice.Product.ManufacturerId == null ||
+                string.IsNullOrWhiteSpace(invoice.Product.CountryOfOrigin) ||
+                string.IsNullOrWhiteSpace(invoice.Product.NetQuantity) ||
+                string.IsNullOrWhiteSpace(invoice.Product.UnitType) ||
+                (invoice.Product.Mrp ?? 0) <= 0 ||
+                invoice.Product.BestBeforeMonths <= 0 ||
+                string.IsNullOrWhiteSpace(invoice.Product.Factor);
+        }
+
         return new PoInvoiceDto
         {
             Id = invoice.Id,
@@ -703,6 +719,7 @@ public class PoInvoicesController : BaseController
             RemainingAllocation = invoice.RemainingAllocation,
             LocationAllotted = invoice.LocationAllotted,
             CreatedAt = invoice.CreatedAt,
+            HasMissingData = hasMissingData,
         };
     }
 

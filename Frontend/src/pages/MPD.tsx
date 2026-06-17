@@ -124,7 +124,7 @@ export const MPD = memo(function MPD() {
     manufacturerId: undefined,
     countryOfOrigin: "India",
     factor: "",
-    netQuantity: "",
+    netQuantity: "1N",
     unitType: "UNIT",
     ussp: 0,
     weight: 0,
@@ -377,7 +377,7 @@ export const MPD = memo(function MPD() {
         manufacturerId: formData.manufacturerId || null,
         countryOfOrigin: formData.countryOfOrigin || null,
         factor: formData.factor || null,
-        netQuantity: formData.netQuantity || null,
+        netQuantity: formData.netQuantity || "1N",
         unitType: formData.unitType || null,
         ussp: ussp,
         weight: formData.weight || 0,
@@ -415,7 +415,7 @@ export const MPD = memo(function MPD() {
       manufacturerId: undefined,
       countryOfOrigin: "India",
       factor: "",
-      netQuantity: "",
+      netQuantity: "1N",
       unitType: "UNIT",
       ussp: 0,
       weight: 0,
@@ -1374,12 +1374,20 @@ export const MPD = memo(function MPD() {
                         ? String(formData.manufacturerId)
                         : null
                     }
-                    onChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        manufacturerId: value ? Number(value) : undefined,
-                      }))
-                    }
+                    onChange={(value) => {
+                      const mfgId = value ? Number(value) : undefined;
+                      const selectedMfg = manufacturers.find((m) => m.id === mfgId);
+                      setFormData((prev) => {
+                        const isDefaultCountry = !prev.countryOfOrigin || prev.countryOfOrigin.trim().toLowerCase() === "india";
+                        return {
+                          ...prev,
+                          manufacturerId: mfgId,
+                          countryOfOrigin: (selectedMfg?.country && isDefaultCountry) 
+                            ? selectedMfg.country 
+                            : prev.countryOfOrigin,
+                        };
+                      });
+                    }}
                     searchable
                     clearable
                     styles={{
