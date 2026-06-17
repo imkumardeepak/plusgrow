@@ -15,7 +15,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { AlertTriangle, CheckCircle2, ClipboardCheck, RefreshCw, Save, ScanLine, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Minus, Plus, RefreshCw, Save, ScanLine, Trash2 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../components/organisms/Operations/OperationsShell";
@@ -31,7 +31,16 @@ import {
 
 type InvoiceSummary = PoInvoiceHeaderSummary & { invoiceKey: string };
 type ExpectedLine = PoInvoice & { expectedQty: number; scannedQty: number; difference: number };
-type ScanEvent = { code: string; sku: string; productName: string; at: string; isExtra: boolean };
+type ScanEvent = {
+  code: string;
+  sku: string;
+  productName: string;
+  at: string;
+  isExtra: boolean;
+  productId?: number;
+  quantityDelta?: number;
+  isManual?: boolean;
+};
 
 const normalizeCode = (value?: string | null) => (value || "").trim().toUpperCase();
 
@@ -75,6 +84,7 @@ export const InwardVerify = memo(function InwardVerify() {
   const [selectedInvoiceKey, setSelectedInvoiceKey] = useState<string | null>(null);
   const [scanInput, setScanInput] = useState("");
   const [scanEvents, setScanEvents] = useState<ScanEvent[]>([]);
+  const [verifiedQtyByProduct, setVerifiedQtyByProduct] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +128,7 @@ export const InwardVerify = memo(function InwardVerify() {
 
   useEffect(() => {
     setScanEvents([]);
+    setVerifiedQtyByProduct({});
     setScanInput("");
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [selectedInvoiceKey]);
@@ -148,21 +159,10 @@ export const InwardVerify = memo(function InwardVerify() {
     return entries;
   }, [expectedItems, products]);
 
-  const scannedCounts = useMemo(() => {
-    const counts = new Map<number, number>();
-    scanEvents.forEach((event) => {
-      if (event.isExtra) return;
-      const line = expectedItems.find((item) => normalizeCode(item.skuCode) === event.sku);
-      if (!line) return;
-      counts.set(line.productId, (counts.get(line.productId) || 0) + 1);
-    });
-    return counts;
-  }, [expectedItems, scanEvents]);
-
   const lines: ExpectedLine[] = useMemo(
     () =>
       expectedItems.map((item) => {
-        const scannedQty = scannedCounts.get(item.productId) || 0;
+        const scannedQty = verifiedQtyByProduct[item.productId] || 0;
         return {
           ...item,
           expectedQty: item.billedQty,
@@ -170,14 +170,14 @@ export const InwardVerify = memo(function InwardVerify() {
           difference: scannedQty - item.billedQty,
         };
       }),
-    [expectedItems, scannedCounts],
+    [expectedItems, verifiedQtyByProduct],
   );
 
   const totalExpected = lines.reduce((sum, line) => sum + line.expectedQty, 0);
   const totalScanned = lines.reduce((sum, line) => sum + line.scannedQty, 0);
   const extraCount = scanEvents.filter((event) => event.isExtra).length;
-  const isCorrect = selectedInvoice && totalExpected > 0 && totalExpected === totalScanned && extraCount === 0 && lines.every((line) => line.difference === 0);
-  const hasDifference = selectedInvoice && (extraCount > 0 || lines.some((line) => line.difference !== 0));
+  const isCorrect = Boolean(selectedInvoice && totalExpected > 0 && totalExpected === totalScanned && extraCount === 0 && lines.every((line) => line.difference === 0));
+  const hasDifference = Boolean(selectedInvoice && (extraCount > 0 || lines.some((line) => line.difference !== 0)));
 
   const resolveScannedProduct = (raw: string) => {
     const tokens = extractTokens(raw);
@@ -186,6 +186,96 @@ export const InwardVerify = memo(function InwardVerify() {
       if (product) return product;
     }
     return null;
+  };
+
+  const focusScanner = () => {
+    setTimeout(() => inputRef.current?.focus(), 10);
+  };
+
+  const handleQuantityAdjust = (line: ExpectedLine, nextQty: number) => {
+    const currentQty = verifiedQtyByProduct[line.productId] || 0;
+    const boundedQty = Math.max(0, Math.min(line.expectedQty, Math.trunc(Number.isFinite(nextQty) ? nextQty : currentQty)));
+
+    if (nextQty > line.expectedQty) {
+      toast.warning(`Verified quantity cannot be greater than invoice quantity for ${line.skuCode}`);
+    }
+
+    if (boundedQty === currentQty) {
+      focusScanner();
+      return;
+    }
+
+    const quantityDelta = boundedQty - currentQty;
+    setVerifiedQtyByProduct((prev) => ({ ...prev, [line.productId]: boundedQty }));
+    setScanEvents((prev) => [
+      {
+        code: "MANUAL-QTY",
+        sku: normalizeCode(line.skuCode),
+        productName: line.productName,
+        at: new Date().toISOString(),
+        isExtra: false,
+        productId: line.productId,
+        quantityDelta,
+        isManual: true,
+      },
+      ...prev,
+    ]);
+    focusScanner();
+  };
+
+  const handleMarkAllVerified = () => {
+    if (!selectedInvoice) {
+      toast.warning("Select invoice number first");
+      return;
+    }
+
+    const nextQuantities: Record<number, number> = {};
+    const manualEvents: ScanEvent[] = [];
+    const adjustedAt = new Date().toISOString();
+
+    lines.forEach((line) => {
+      const currentQty = verifiedQtyByProduct[line.productId] || 0;
+      nextQuantities[line.productId] = line.expectedQty;
+      if (currentQty !== line.expectedQty) {
+        manualEvents.push({
+          code: "VERIFY-LINE",
+          sku: normalizeCode(line.skuCode),
+          productName: line.productName,
+          at: adjustedAt,
+          isExtra: false,
+          productId: line.productId,
+          quantityDelta: line.expectedQty - currentQty,
+          isManual: true,
+        });
+      }
+    });
+
+    if (manualEvents.length === 0) {
+      toast.info("All invoice quantities are already verified");
+      focusScanner();
+      return;
+    }
+
+    setVerifiedQtyByProduct((prev) => ({ ...prev, ...nextQuantities }));
+    setScanEvents((prev) => [...manualEvents, ...prev]);
+    toast.success("All invoice quantities marked verified");
+    focusScanner();
+  };
+
+  const handleRemoveScanEvent = (event: ScanEvent, index: number) => {
+    setScanEvents((prev) => prev.filter((_, eventIndex) => eventIndex !== index));
+    if (!event.isExtra && event.productId && event.quantityDelta) {
+      const line = lines.find((item) => item.productId === event.productId);
+      setVerifiedQtyByProduct((prev) => {
+        const currentQty = prev[event.productId!] || 0;
+        const nextQty = currentQty - event.quantityDelta!;
+        return {
+          ...prev,
+          [event.productId!]: Math.max(0, Math.min(line?.expectedQty || currentQty, nextQty)),
+        };
+      });
+    }
+    focusScanner();
   };
 
   const handleScan = () => {
@@ -206,7 +296,7 @@ export const InwardVerify = memo(function InwardVerify() {
         ...prev,
       ]);
       toast.error("Sticker not matching invoice product");
-      setTimeout(() => inputRef.current?.focus(), 10);
+      focusScanner();
       return;
     }
 
@@ -219,6 +309,20 @@ export const InwardVerify = memo(function InwardVerify() {
         (!!alias && normalizeCode(item.skuCode) === alias),
     );
 
+    if (invoiceLine) {
+      const currentQty = verifiedQtyByProduct[invoiceLine.productId] || 0;
+      if (currentQty >= invoiceLine.billedQty) {
+        setScanInput("");
+        toast.warning(`Invoice quantity already verified for ${invoiceLine.skuCode}`);
+        focusScanner();
+        return;
+      }
+      setVerifiedQtyByProduct((prev) => ({
+        ...prev,
+        [invoiceLine.productId]: Math.min(invoiceLine.billedQty, (prev[invoiceLine.productId] || 0) + 1),
+      }));
+    }
+
     setScanEvents((prev) => [
       {
         code: raw,
@@ -226,6 +330,8 @@ export const InwardVerify = memo(function InwardVerify() {
         productName: invoiceLine?.productName || product.name,
         at: new Date().toISOString(),
         isExtra: !invoiceLine,
+        productId: invoiceLine?.productId,
+        quantityDelta: invoiceLine ? 1 : undefined,
       },
       ...prev,
     ]);
@@ -234,7 +340,7 @@ export const InwardVerify = memo(function InwardVerify() {
       toast.warning("Extra sticker scanned, not in selected invoice");
     }
 
-    setTimeout(() => inputRef.current?.focus(), 10);
+    focusScanner();
   };
 
   const handleSaveVerification = async () => {
@@ -244,7 +350,23 @@ export const InwardVerify = memo(function InwardVerify() {
     }
 
     if (scanEvents.length === 0) {
-      toast.warning("Scan stickers before saving verification");
+      toast.warning("Scan stickers or adjust quantity before saving verification");
+      return;
+    }
+
+    const overLimitLine = lines.find((line) => line.scannedQty > line.expectedQty);
+    if (overLimitLine) {
+      toast.error(`Verified quantity for ${overLimitLine.skuCode} cannot be greater than invoice quantity`);
+      return;
+    }
+
+    if (extraCount > 0) {
+      toast.error("Remove extra/unmatched scans before saving verification");
+      return;
+    }
+
+    if (!isCorrect) {
+      toast.warning("Match every product quantity with invoice quantity before saving verification");
       return;
     }
 
@@ -292,13 +414,15 @@ export const InwardVerify = memo(function InwardVerify() {
           referenceName: selectedInvoice.invoiceNumber,
           partyName: selectedInvoice.partyName,
           invoiceDate: selectedInvoice.invoiceDate,
-          totalScans: scanEvents.length,
+          totalScans: scanEvents.filter((event) => !event.isManual).length,
+          totalVerifiedQty: totalScanned,
           savedAt: new Date().toISOString(),
         }),
       });
 
       toast.success("Inward verification saved to report");
       setScanEvents([]);
+      setVerifiedQtyByProduct({});
       setScanInput("");
       setInvoices((prev) => prev.filter((invoice) => invoice.invoiceKey !== selectedInvoice.invoiceKey));
       setSelectedInvoiceKey(null);
@@ -383,6 +507,17 @@ export const InwardVerify = memo(function InwardVerify() {
                   autoFocus
                 />
                 <Button size={isMobile ? "sm" : "md"} fullWidth onClick={handleScan} leftIcon={<ScanLine size={15} />}>Add Scan</Button>
+                <Button
+                  size={isMobile ? "sm" : "md"}
+                  fullWidth
+                  variant="outline"
+                  color="cyan"
+                  leftIcon={<CheckCircle2 size={15} />}
+                  disabled={lines.length === 0 || isCorrect}
+                  onClick={handleMarkAllVerified}
+                >
+                  Mark All Qty Verified
+                </Button>
 
                 <SimpleGrid cols={3} spacing="xs">
                   <Paper radius="md" p="xs" withBorder bg="transparent">
@@ -399,8 +534,18 @@ export const InwardVerify = memo(function InwardVerify() {
                   </Paper>
                 </SimpleGrid>
 
-                <Button variant="subtle" color="red" size="xs" fullWidth leftIcon={<Trash2 size={14} />} onClick={() => setScanEvents([])}>
-                  Clear Scans
+                <Button
+                  variant="subtle"
+                  color="red"
+                  size="xs"
+                  fullWidth
+                  leftIcon={<Trash2 size={14} />}
+                  onClick={() => {
+                    setScanEvents([]);
+                    setVerifiedQtyByProduct({});
+                  }}
+                >
+                  Clear Verification
                 </Button>
 
                 <Button
@@ -409,7 +554,6 @@ export const InwardVerify = memo(function InwardVerify() {
                   fullWidth
                   leftIcon={<Save size={15} />}
                   loading={isSaving}
-                  disabled={scanEvents.length === 0}
                   onClick={() => void handleSaveVerification()}
                 >
                   Save Verification
@@ -459,11 +603,34 @@ export const InwardVerify = memo(function InwardVerify() {
                                 {line.difference === 0 ? "OK" : line.difference > 0 ? "More" : "Less"}
                               </Badge>
                             </Group>
+                            <Text size="10px" c="dimmed" truncate>{line.productName}</Text>
                           </Box>
+                        </Group>
+                        <Group justify="space-between" gap="xs" mt={6} wrap="nowrap">
                           <Group gap="xs" wrap="nowrap">
                             <Box ta="center"><Text size="9px" c="dimmed" fw={800}>INV</Text><Text size="sm" fw={900}>{line.expectedQty}</Text></Box>
-                            <Box ta="center"><Text size="9px" c="dimmed" fw={800}>SCAN</Text><Text size="sm" fw={900}>{line.scannedQty}</Text></Box>
                             <Box ta="center"><Text size="9px" c="dimmed" fw={800}>DIFF</Text><Text size="sm" fw={900} ff="monospace" c={line.difference === 0 ? "green.4" : line.difference > 0 ? "yellow.4" : "red.4"}>{line.difference > 0 ? "+" : ""}{line.difference}</Text></Box>
+                          </Group>
+                          <Group gap={4} wrap="nowrap">
+                            <Tooltip label="Decrease quantity">
+                              <ActionIcon size="sm" variant="light" color="red" disabled={line.scannedQty <= 0} onClick={() => handleQuantityAdjust(line, line.scannedQty - 1)}>
+                                <Minus size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Box ta="center" miw={34}>
+                              <Text size="9px" c="dimmed" fw={800}>VERIFY</Text>
+                              <Text size="sm" fw={900}>{line.scannedQty}</Text>
+                            </Box>
+                            <Tooltip label="Increase quantity">
+                              <ActionIcon size="sm" variant="light" color="green" disabled={line.scannedQty >= line.expectedQty} onClick={() => handleQuantityAdjust(line, line.scannedQty + 1)}>
+                                <Plus size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Set to invoice quantity">
+                              <ActionIcon size="sm" variant="subtle" color="cyan" disabled={line.scannedQty === line.expectedQty} onClick={() => handleQuantityAdjust(line, line.expectedQty)}>
+                                <CheckCircle2 size={14} />
+                              </ActionIcon>
+                            </Tooltip>
                           </Group>
                         </Group>
                       </Paper>
@@ -476,7 +643,7 @@ export const InwardVerify = memo(function InwardVerify() {
                         <Table.Tr>
                           <Table.Th>SKU</Table.Th>
                           <Table.Th style={{ textAlign: "right" }}>Invoice Qty</Table.Th>
-                          <Table.Th style={{ textAlign: "right" }}>Scanned</Table.Th>
+                          <Table.Th style={{ textAlign: "right" }}>Verified Qty</Table.Th>
                           <Table.Th style={{ textAlign: "right" }}>Difference</Table.Th>
                           <Table.Th>Status</Table.Th>
                         </Table.Tr>
@@ -484,9 +651,31 @@ export const InwardVerify = memo(function InwardVerify() {
                       <Table.Tbody>
                         {lines.map((line) => (
                           <Table.Tr key={line.id}>
-                            <Table.Td><Text size="12px" fw={800} ff="monospace">{line.skuCode}</Text></Table.Td>
+                            <Table.Td>
+                              <Text size="12px" fw={800} ff="monospace">{line.skuCode}</Text>
+                              <Text size="10px" c="dimmed" truncate maw={260}>{line.productName}</Text>
+                            </Table.Td>
                             <Table.Td style={{ textAlign: "right" }}>{line.expectedQty}</Table.Td>
-                            <Table.Td style={{ textAlign: "right" }}>{line.scannedQty}</Table.Td>
+                            <Table.Td>
+                              <Group justify="flex-end" gap={6} wrap="nowrap">
+                                <Tooltip label="Decrease quantity">
+                                  <ActionIcon size="sm" variant="light" color="red" disabled={line.scannedQty <= 0} onClick={() => handleQuantityAdjust(line, line.scannedQty - 1)}>
+                                    <Minus size={14} />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Text miw={32} ta="center" fw={900}>{line.scannedQty}</Text>
+                                <Tooltip label="Increase quantity">
+                                  <ActionIcon size="sm" variant="light" color="green" disabled={line.scannedQty >= line.expectedQty} onClick={() => handleQuantityAdjust(line, line.scannedQty + 1)}>
+                                    <Plus size={14} />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Set to invoice quantity">
+                                  <ActionIcon size="sm" variant="subtle" color="cyan" disabled={line.scannedQty === line.expectedQty} onClick={() => handleQuantityAdjust(line, line.expectedQty)}>
+                                    <CheckCircle2 size={14} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              </Group>
+                            </Table.Td>
                             <Table.Td style={{ textAlign: "right" }}>
                               <Text fw={900} ff="monospace" c={line.difference === 0 ? "green.4" : line.difference > 0 ? "yellow.4" : "red.4"}>{line.difference > 0 ? "+" : ""}{line.difference}</Text>
                             </Table.Td>
@@ -509,9 +698,18 @@ export const InwardVerify = memo(function InwardVerify() {
                     <Stack gap={4} mah={160} style={{ overflowY: "auto" }}>
                       {scanEvents.slice(0, 20).map((event, index) => (
                         <Group key={`${event.at}-${index}`} justify="space-between" gap="xs" wrap="nowrap">
-                          <Text size="11px" ff="monospace" truncate c={event.isExtra ? "red.3" : "white"}>{event.sku}</Text>
+                          <Box className="min-w-0" style={{ flex: 1 }}>
+                            <Text size="11px" ff="monospace" truncate c={event.isExtra ? "red.3" : event.isManual ? "cyan.3" : "white"}>{event.sku}</Text>
+                            <Text size="9px" c="dimmed" truncate>
+                              {event.isManual
+                                ? `Manual ${event.quantityDelta && event.quantityDelta > 0 ? "+" : ""}${event.quantityDelta || 0}`
+                                : event.isExtra
+                                  ? event.code
+                                  : "Scan +1"}
+                            </Text>
+                          </Box>
                           <Tooltip label="Remove scan">
-                            <ActionIcon size="xs" variant="subtle" color="red" onClick={() => setScanEvents((prev) => prev.filter((_, i) => i !== index))}>
+                            <ActionIcon size="xs" variant="subtle" color="red" onClick={() => handleRemoveScanEvent(event, index)}>
                               <Trash2 size={12} />
                             </ActionIcon>
                           </Tooltip>
