@@ -77,6 +77,28 @@ import {
 } from "../services/masterApi";
 import { exportToExcel, formatExcelDate, formatExcelNumber } from "../hooks/useExcelExport";
 type ProductFilterMode = "all" | "mapped" | "unpriced";
+const DEFAULT_PRODUCT_FACTOR = "1";
+const DEFAULT_PRODUCT_UNIT_TYPE = "pcs";
+
+const createDefaultProductForm = (): CreateProductDto => ({
+  name: "",
+  sku: "",
+  alias: "",
+  commodityId: undefined,
+  manufacturerId: undefined,
+  countryOfOrigin: "India",
+  factor: DEFAULT_PRODUCT_FACTOR,
+  netQuantity: "1N",
+  unitType: DEFAULT_PRODUCT_UNIT_TYPE,
+  ussp: 0,
+  weight: 0,
+  ownership: "Self",
+  mrp: 0,
+  bestBeforeMonths: 84,
+  note: "",
+  cartonQr: "",
+  cartonPerItem: null,
+});
 
 export const MPD = memo(function MPD() {
   const [searchParams] = useSearchParams();
@@ -100,25 +122,9 @@ export const MPD = memo(function MPD() {
     Record<number, Record<string, number>>
   >({});
   const [locationProduct, setLocationProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<CreateProductDto>({
-    name: "",
-    sku: "",
-    alias: "",
-    commodityId: undefined,
-    manufacturerId: undefined,
-    countryOfOrigin: "India",
-    factor: "",
-    netQuantity: "1N",
-    unitType: "UNIT",
-    ussp: 0,
-    weight: 0,
-    ownership: "Self",
-    mrp: 0,
-    bestBeforeMonths: 84,
-    note: "",
-    cartonQr: "",
-    cartonPerItem: null,
-  });
+  const [formData, setFormData] = useState<CreateProductDto>(
+    createDefaultProductForm,
+  );
 
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [updateFields, setUpdateFields] = useState<string[]>([]);
@@ -302,10 +308,14 @@ export const MPD = memo(function MPD() {
 
     setIsSubmitting(true);
     try {
+      const normalizedFactor = formData.factor?.trim() || DEFAULT_PRODUCT_FACTOR;
+      const normalizedUnitType =
+        formData.unitType?.trim() || DEFAULT_PRODUCT_UNIT_TYPE;
+
       // Auto-calculate USSP from MRP / Factor
       const ussp =
-        formData.mrp && formData.factor
-          ? formData.mrp / parseFloat(formData.factor) || 0
+        formData.mrp && normalizedFactor
+          ? formData.mrp / parseFloat(normalizedFactor) || 0
           : 0;
 
       const payload = {
@@ -316,9 +326,9 @@ export const MPD = memo(function MPD() {
         commodityId: formData.commodityId || null,
         manufacturerId: formData.manufacturerId || null,
         countryOfOrigin: formData.countryOfOrigin || null,
-        factor: formData.factor || null,
+        factor: normalizedFactor,
         netQuantity: formData.netQuantity || "1N",
-        unitType: formData.unitType || null,
+        unitType: normalizedUnitType,
         ussp: ussp,
         weight: formData.weight || 0,
         ownership: formData.ownership || null,
@@ -347,25 +357,7 @@ export const MPD = memo(function MPD() {
   };
 
   const openCreateModal = () => {
-    setFormData({
-      name: "",
-      sku: "",
-      alias: "",
-      commodityId: undefined,
-      manufacturerId: undefined,
-      countryOfOrigin: "India",
-      factor: "",
-      netQuantity: "1N",
-      unitType: "UNIT",
-      ussp: 0,
-      weight: 0,
-      ownership: "Self",
-      mrp: 0,
-      bestBeforeMonths: 84,
-      note: "",
-      cartonQr: "",
-      cartonPerItem: null,
-    });
+    setFormData(createDefaultProductForm());
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -378,9 +370,9 @@ export const MPD = memo(function MPD() {
       commodityId: product.commodityId,
       manufacturerId: product.manufacturerId,
       countryOfOrigin: product.countryOfOrigin || "India",
-      factor: product.factor || "",
+      factor: product.factor || DEFAULT_PRODUCT_FACTOR,
       netQuantity: product.netQuantity || "",
-      unitType: product.unitType || "UNIT",
+      unitType: product.unitType || DEFAULT_PRODUCT_UNIT_TYPE,
       ussp: product.ussp || 0,
       weight: product.weight || 0,
       ownership: product.ownership || "Self",
@@ -710,7 +702,7 @@ export const MPD = memo(function MPD() {
               {row.name}
             </Text>
             <Text size="11px" c="dimmed" lineClamp={1}>
-              {row.countryOfOrigin || "No origin"} • {row.unitType || "UNIT"}
+              {row.countryOfOrigin || "No origin"} • {row.unitType || DEFAULT_PRODUCT_UNIT_TYPE}
             </Text>
           </Stack>
         </Group>
@@ -1293,7 +1285,7 @@ export const MPD = memo(function MPD() {
                   />
                   <Input
                     label="Unit"
-                    placeholder="UNIT, KG, ML"
+                    placeholder="pcs, kg, ml"
                     value={formData.unitType}
                     onChange={(event) =>
                       setFormData((prev) => ({
