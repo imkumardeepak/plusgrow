@@ -43,9 +43,26 @@ export interface StickerPrintModalProps {
   onClose: () => void;
   product: Product | null;
   initialManufacturers?: Manufacturer[];
+  title?: string;
+  invoiceRow?: StickerPrintInvoiceRow | null;
+  onProductLinkClick?: () => void;
+  onNormalPrintComplete?: () => Promise<void> | void;
 }
 
 type StickerMode = "Combined" | "Separate" | "Manufacture";
+
+export interface StickerPrintInvoiceRow {
+  id: number;
+  invoiceNumber: string;
+  invoiceDate: string;
+  partyName: string;
+  productId: number;
+  skuCode: string;
+  productName: string;
+  billedQty: number;
+  printed: boolean;
+  mrp?: number | null;
+}
 
 const stickerModeLabel: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
@@ -58,6 +75,10 @@ export function StickerPrintModal({
   onClose,
   product,
   initialManufacturers,
+  title = "Print Product Stickers",
+  invoiceRow,
+  onProductLinkClick,
+  onNormalPrintComplete,
 }: StickerPrintModalProps) {
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>(initialManufacturers || []);
   const [printerConfigs, setPrinterConfigs] = useState<StickerPrinterConfig[]>([]);
@@ -70,10 +91,15 @@ export function StickerPrintModal({
   const [printImporterId, setPrintImporterId] = useState<string | null>(null);
   const [importDate, setImportDate] = useState<Date>(new Date());
   const [printQuantity, setPrintQuantity] = useState<number | "">(1);
+  const [reprintFrom, setReprintFrom] = useState<number | "">(1);
+  const [reprintTo, setReprintTo] = useState<number | "">(1);
+  const [stickerNote, setStickerNote] = useState("");
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  const isInvoicePrint = Boolean(invoiceRow);
 
   useEffect(() => {
     if (isOpen) {
@@ -95,6 +121,13 @@ export function StickerPrintModal({
   useEffect(() => {
     setPrintManufacturerId(product?.manufacturerId ? String(product.manufacturerId) : null);
   }, [product]);
+
+  useEffect(() => {
+    if (!invoiceRow) return;
+    setReprintFrom(1);
+    setReprintTo(invoiceRow.billedQty || 1);
+    setStickerNote("");
+  }, [invoiceRow]);
 
   useEffect(() => {
     if (!product || stickerSize === "25x25") {
@@ -135,16 +168,36 @@ export function StickerPrintModal({
   const buildStickerPayload = useCallback(
     (prod: Product, quantity: number) => ({
       productId: prod.id,
-      manufacturerId: printManufacturerId ? Number(printManufacturerId) : undefined,
+      manufacturerId:
+        !isInvoicePrint || stickerType === "Manufacture"
+          ? printManufacturerId
+            ? Number(printManufacturerId)
+            : undefined
+          : undefined,
       importerId: stickerSize !== "25x25" && printImporterId ? Number(printImporterId) : undefined,
       size: stickerSize,
       type: stickerType,
-      monthYear: format(importDate, "MMM/yyyy").toUpperCase(),
-      batchNumber: "N/A",
-      note: prod.note?.trim() || "",
+      monthYear: invoiceRow
+        ? format(new Date(invoiceRow.invoiceDate), "MMM/yyyy").toUpperCase()
+        : format(importDate, "MMM/yyyy").toUpperCase(),
+      invoiceDate: invoiceRow
+        ? format(new Date(invoiceRow.invoiceDate), "dd/MM/yyyy")
+        : undefined,
+      batchNumber: invoiceRow?.invoiceNumber || "N/A",
+      note: invoiceRow ? stickerNote.trim() : prod.note?.trim() || "",
       quantity,
+      mrp: invoiceRow ? invoiceRow.mrp ?? null : undefined,
     }),
-    [printManufacturerId, printImporterId, stickerSize, stickerType, importDate],
+    [
+      importDate,
+      invoiceRow,
+      isInvoicePrint,
+      printManufacturerId,
+      printImporterId,
+      stickerNote,
+      stickerSize,
+      stickerType,
+    ],
   );
 
   const refreshPreview = useCallback(async () => {
@@ -167,7 +220,10 @@ export function StickerPrintModal({
     setIsPreviewLoading(true);
     try {
       const nextPreview = await stickersApi.getPreview(
-        buildStickerPayload(product, Number(printQuantity) || 1),
+        buildStickerPayload(
+          product,
+          invoiceRow ? invoiceRow.billedQty || 1 : Number(printQuantity) || 1,
+        ),
       );
       setPreviewUrl((previousUrl) => {
         if (previousUrl) URL.revokeObjectURL(previousUrl);
@@ -178,7 +234,7 @@ export function StickerPrintModal({
     } finally {
       setIsPreviewLoading(false);
     }
-  }, [buildStickerPayload, product, printQuantity, isOpen, stickerSize]);
+  }, [buildStickerPayload, invoiceRow, product, printQuantity, isOpen, stickerSize, printImporterId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -193,8 +249,13 @@ export function StickerPrintModal({
     };
   }, [previewUrl]);
 
-  const handlePrint = async () => {
+  const handlePrint = async (mode: "normal" | "reprint" = "normal") => {
     if (!product) return;
+
+    if (mode === "reprint" && !invoiceRow?.printed) {
+      toast.error("Reprint is available only after full quantity has been printed");
+      return;
+    }
 
     const validationErrors = validateProductForSticker(product, stickerSize);
     if (validationErrors.length > 0) {
@@ -213,7 +274,31 @@ export function StickerPrintModal({
       return;
     }
 
-    const quantity = Number(printQuantity) || 1;
+    if (!activeTemplate) {
+      toast.error("Sticker template not found for selected size and label mode");
+      return;
+    }
+
+    const from = Number(reprintFrom || 1);
+    const to = Number(reprintTo || from);
+    if (mode === "reprint" && invoiceRow) {
+      if (from < 1 || to < 1 || from > invoiceRow.billedQty || to > invoiceRow.billedQty) {
+        toast.error("Reprint range must stay within billed quantity");
+        return;
+      }
+
+      if (from > to) {
+        toast.error("Reprint range is invalid. 'From sticker' cannot be greater than 'To sticker'");
+        return;
+      }
+    }
+
+    const quantity = invoiceRow
+      ? mode === "normal"
+        ? invoiceRow.billedQty
+        : to - from + 1
+      : Number(printQuantity) || 1;
+
     setIsPrinting(true);
     try {
       await stickersApi.print({
@@ -225,8 +310,20 @@ export function StickerPrintModal({
           },
         ],
       });
-      toast.success(`${quantity} stickers sent to printer`);
-      onClose();
+
+      if (invoiceRow && mode === "normal") {
+        await onNormalPrintComplete?.();
+      }
+
+      toast.success(
+        invoiceRow && mode === "reprint"
+          ? `${quantity} stickers sent from ${from} to ${to}`
+          : `${quantity} stickers sent to printer`,
+      );
+
+      if (!invoiceRow) {
+        onClose();
+      }
     } catch (error: any) {
       toast.error(error.message || "Sticker print job failed");
     } finally {
@@ -238,7 +335,7 @@ export function StickerPrintModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Print Product Stickers"
+      title={title}
       size="xxl"
     >
       {product ? (
@@ -312,53 +409,118 @@ export function StickerPrintModal({
                   </Box>
                 ) : null}
               </SimpleGrid>
-              <TextInput
-                label="Import Date"
-                size="xs"
-                radius="md"
-                mt="sm"
-                type="date"
-                value={format(importDate, "yyyy-MM-dd")}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setImportDate(value ? new Date(value) : new Date());
-                }}
-              />
+              {invoiceRow ? (
+                <TextInput
+                  label="Note"
+                  size="xs"
+                  radius="md"
+                  mt="sm"
+                  placeholder="Optional note for sticker"
+                  value={stickerNote}
+                  onChange={(event) =>
+                    setStickerNote(event.currentTarget.value)
+                  }
+                />
+              ) : (
+                <TextInput
+                  label="Import Date"
+                  size="xs"
+                  radius="md"
+                  mt="sm"
+                  type="date"
+                  value={format(importDate, "yyyy-MM-dd")}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setImportDate(value ? new Date(value) : new Date());
+                  }}
+                />
+              )}
             </Paper>
 
             <Paper radius="md" p="sm" withBorder>
-              <Text size="xs" fw={800} mb="xs">
-                Product Info
-              </Text>
-              <Group justify="space-between" align="flex-start">
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    SKU
+              {invoiceRow ? (
+                <>
+                  <Group justify="space-between" align="flex-start">
+                    <Box>
+                      <Text size="xs" fw={800} ff="monospace">
+                        {invoiceRow.invoiceNumber}
+                      </Text>
+                      <Text size="sm" fw={700} mt={2}>
+                        {invoiceRow.partyName}
+                      </Text>
+                      <Text size="xs" c="dimmed" mt={2}>
+                        {format(new Date(invoiceRow.invoiceDate), "dd MMM yyyy")}
+                      </Text>
+                    </Box>
+                    <Badge
+                      color={invoiceRow.printed ? "green" : "orange"}
+                      variant={invoiceRow.printed ? "light" : "filled"}
+                    >
+                      {invoiceRow.printed ? "Printed" : "Pending"}
+                    </Badge>
+                  </Group>
+                  <Divider my="sm" />
+                </>
+              ) : (
+                <Text size="xs" fw={800} mb="xs">
+                  Product Info
+                </Text>
+              )}
+              <Box>
+                <Text size="xs" c="dimmed">
+                  SKU
+                </Text>
+                {invoiceRow && onProductLinkClick ? (
+                  <Text
+                    component="button"
+                    type="button"
+                    size="sm"
+                    fw={800}
+                    ff="monospace"
+                    c="cyan.3"
+                    td="underline"
+                    onClick={onProductLinkClick}
+                    style={{
+                      background: "none",
+                      border: 0,
+                      padding: 0,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    {invoiceRow.skuCode}
                   </Text>
+                ) : (
                   <Text size="sm" fw={800} ff="monospace" c="cyan.3">
-                    {product.sku || "N/A"}
+                    {invoiceRow?.skuCode || product.sku || "N/A"}
                   </Text>
-                  <Text size="xs" c="dimmed" mt="xs">
-                    Product
-                  </Text>
-                  <Text size="sm" fw={700}>
-                    {product.name}
-                  </Text>
-                  <Text size="xs" c="dimmed" mt="xs">
-                    Origin
-                  </Text>
-                  <Text size="xs">
-                    {product.countryOfOrigin || "N/A"} • {product.unitType || "UNIT"}
-                  </Text>
-                </Box>
-              </Group>
+                )}
+                <Text size="xs" c="dimmed" mt="xs">
+                  Product
+                </Text>
+                <Text size="sm" fw={700}>
+                  {invoiceRow?.productName || product.name}
+                </Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {invoiceRow ? "Product master" : "Origin"}
+                </Text>
+                <Text size="xs">
+                  {invoiceRow
+                    ? `${product.name || "Not matched"} - ${product.unitType || "No unit"}`
+                    : `${product.countryOfOrigin || "N/A"} • ${product.unitType || "UNIT"}`}
+                </Text>
+              </Box>
               <Divider my="sm" />
-              <Text size="xs" c="dimmed">
-                Import Date
-              </Text>
-              <Text size="xs" fw={700}>
-                {format(importDate, "MMM/yyyy").toUpperCase()}
-              </Text>
+              {invoiceRow ? null : (
+                <>
+                  <Text size="xs" c="dimmed">
+                    Import Date
+                  </Text>
+                  <Text size="xs" fw={700}>
+                    {format(importDate, "MMM/yyyy").toUpperCase()}
+                  </Text>
+                </>
+              )}
             </Paper>
 
             <Paper radius="md" p="sm" withBorder>
@@ -381,10 +543,12 @@ export function StickerPrintModal({
                 </Box>
                 <Box>
                   <Text size="10px" fw={800} c="dimmed">
-                    PRINTER
+                    {invoiceRow ? "QTY" : "PRINTER"}
                   </Text>
                   <Text size="xs" fw={800}>
-                    {printerConfig ? `${printerConfig.printerIp}:${printerConfig.printerPort}` : "Not configured"}
+                    {invoiceRow
+                      ? invoiceRow.billedQty
+                      : printerConfig ? `${printerConfig.printerIp}:${printerConfig.printerPort}` : "Not configured"}
                   </Text>
                 </Box>
               </SimpleGrid>
@@ -434,22 +598,73 @@ export function StickerPrintModal({
             </Paper>
 
             <Paper radius="md" p="sm" withBorder>
-              <Text size="xs" fw={800} mb="xs">
-                Print Quantity
-              </Text>
-              <NumberInput
-                size="xs"
-                label="Quantity"
-                min={1}
-                max={999}
-                value={printQuantity}
-                onChange={(value) => setPrintQuantity(typeof value === "number" ? value : "")}
-              />
-              <Group mt="sm" grow>
-                <Button size="xs" leftIcon={<Printer size={14} />} onClick={() => void handlePrint()} loading={isPrinting}>
-                  Print
-                </Button>
-              </Group>
+              {invoiceRow ? (
+                <>
+                  <Text size="xs" fw={800} mb="xs">
+                    Reprint Range
+                  </Text>
+                  <SimpleGrid cols={2} spacing="xs">
+                    <NumberInput
+                      size="xs"
+                      label="From sticker"
+                      min={1}
+                      max={invoiceRow.billedQty}
+                      value={reprintFrom}
+                      disabled={!invoiceRow.printed}
+                      onChange={(value) => setReprintFrom(typeof value === "number" ? value : "")}
+                    />
+                    <NumberInput
+                      size="xs"
+                      label="To sticker"
+                      min={1}
+                      max={invoiceRow.billedQty}
+                      value={reprintTo}
+                      disabled={!invoiceRow.printed}
+                      onChange={(value) => setReprintTo(typeof value === "number" ? value : "")}
+                    />
+                  </SimpleGrid>
+                  <Group mt="sm" grow>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      leftIcon={<Printer size={14} />}
+                      onClick={() => void handlePrint("reprint")}
+                      loading={isPrinting}
+                      disabled={!invoiceRow.printed || invoiceRow.billedQty <= 0}
+                    >
+                      Reprint Range
+                    </Button>
+                    <Button
+                      size="xs"
+                      leftIcon={<Printer size={14} />}
+                      onClick={() => void handlePrint("normal")}
+                      loading={isPrinting}
+                      disabled={invoiceRow.printed || invoiceRow.billedQty <= 0}
+                    >
+                      Print Full Qty
+                    </Button>
+                  </Group>
+                </>
+              ) : (
+                <>
+                  <Text size="xs" fw={800} mb="xs">
+                    Print Quantity
+                  </Text>
+                  <NumberInput
+                    size="xs"
+                    label="Quantity"
+                    min={1}
+                    max={999}
+                    value={printQuantity}
+                    onChange={(value) => setPrintQuantity(typeof value === "number" ? value : "")}
+                  />
+                  <Group mt="sm" grow>
+                    <Button size="xs" leftIcon={<Printer size={14} />} onClick={() => void handlePrint()} loading={isPrinting}>
+                      Print
+                    </Button>
+                  </Group>
+                </>
+              )}
             </Paper>
           </Stack>
         </SimpleGrid>

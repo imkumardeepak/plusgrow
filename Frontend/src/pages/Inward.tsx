@@ -49,6 +49,7 @@ import {
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import { StickerPrintModal } from "../components/organisms/StickerPrintModal";
 import {
   MantineDataTable,
   DataTableColumn,
@@ -88,7 +89,7 @@ import {
 
 type DeleteTarget = { kind: "invoice"; row: PoInvoice } | null;
 type InwardStatusFilter = "all" | "pending" | "printed" | "canceled";
-type StickerMode = "Combined" | "Separate" | "Manufacture";
+type StickerMode = StickerTemplate["type"];
 type InvoiceSummary = PoInvoiceHeaderSummary & {
   invoiceKey: string;
 };
@@ -102,21 +103,21 @@ type InvoiceUploadSkippedRow = {
 const INVOICE_PAGE_SIZE = 100;
 const EXPORT_PAGE_SIZE = 50000;
 
-const rowStatusColor = (printed: boolean) => (printed ? "green" : "orange");
 const isInvoiceCanceled = (summary?: Pick<InvoiceSummary, "status"> | null) =>
   summary?.status === "Canceled";
 const hasInvoicePutAwayStarted = (summary?: Pick<InvoiceSummary, "items"> | null) =>
   summary?.items.some((item) => item.remainingAllocation < item.billedQty || item.locationAllotted) ?? false;
 const getStickerStatus = (row: PoInvoice) =>
   row.printed ? "Printed" : "Pending";
-const labelModeText: Record<StickerMode, string> = {
+
+const defaultToDate = "";
+const defaultFromDate = "";
+
+const stickerModeLabel: Record<StickerMode, string> = {
   Combined: "Imported & Marketed By",
   Separate: "Marketed / Imported",
   Manufacture: "Marketed By / Manufacture By",
 };
-
-const defaultToDate = "";
-const defaultFromDate = "";
 
 const emptyInvoiceForm = (): CreatePoInvoiceDto => ({
   invoiceNumber: "",
@@ -187,23 +188,12 @@ export const Inward = memo(function Inward() {
     null,
   );
   const [isProductUpdateOpen, setIsProductUpdateOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [stickerSize, setStickerSize] = useState("50x50");
-  const [stickerType, setStickerType] = useState<StickerMode>("Combined");
-  const [manufacturerId, setManufacturerId] = useState<string | null>(null);
-  const [importerId, setImporterId] = useState<string | null>(null);
   const [invoiceManufacturerSearch, setInvoiceManufacturerSearch] = useState("");
   const [invoicePartySearch, setInvoicePartySearch] = useState("");
-  const [manufacturerSearch, setManufacturerSearch] = useState("");
-  const [importerSearch, setImporterSearch] = useState("");
-  const [reprintFrom, setReprintFrom] = useState<number | "">(1);
-  const [reprintTo, setReprintTo] = useState<number | "">(1);
-  const [stickerNote, setStickerNote] = useState("");
 
   const [printAllSizePickerOpen, setPrintAllSizePickerOpen] = useState(false);
   const [printAllSize, setPrintAllSize] = useState("50x50");
+  const [printAllType, setPrintAllType] = useState<StickerMode>("Combined");
   const [printAllProgressOpen, setPrintAllProgressOpen] = useState(false);
   const [printAllCurrent, setPrintAllCurrent] = useState(0);
   const [printAllTotal, setPrintAllTotal] = useState(0);
@@ -283,21 +273,6 @@ export const Inward = memo(function Inward() {
     }
   }, []);
 
-  const loadImporterLookup = useCallback(async (query: string) => {
-    try {
-      const result = await importersApi.getPaged({
-        search: query,
-        page: 1,
-        pageSize: 25,
-        sortBy: "name",
-        sortDirection: "asc",
-      });
-      setImporters(result.data);
-    } catch {
-      toast.error("Failed to search importers");
-    }
-  }, []);
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadProductLookup(productSearch);
@@ -305,14 +280,6 @@ export const Inward = memo(function Inward() {
 
     return () => window.clearTimeout(timer);
   }, [loadProductLookup, productSearch]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadManufacturerLookup(manufacturerSearch);
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [loadManufacturerLookup, manufacturerSearch]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -331,29 +298,8 @@ export const Inward = memo(function Inward() {
   }, [invoicePartySearch, loadPartyLookup]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadImporterLookup(importerSearch);
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [importerSearch, loadImporterLookup]);
-
-  useEffect(() => {
     void loadData();
   }, [loadData]);
-
-  useEffect(() => {
-    if (stickerSize === "25x25" && stickerType !== "Combined") {
-      setStickerType("Combined");
-    }
-  }, [stickerSize, stickerType]);
-
-  useEffect(() => {
-    if (!selectedPrintRow) return;
-    setReprintFrom(1);
-    setReprintTo(selectedPrintRow.billedQty || 1);
-    setStickerNote("");
-  }, [selectedPrintRow]);
 
   const withInvoiceKey = useCallback(
     (row: PoInvoiceHeaderSummary): InvoiceSummary => ({
@@ -534,44 +480,6 @@ export const Inward = memo(function Inward() {
     setInvoiceManufacturerSearch("");
     setInvoicePartySearch("");
   };
-
-  const importerOptions = useMemo(
-    () =>
-      importers.map((item) => ({
-        value: String(item.id),
-        label: item.name,
-      })),
-    [importers],
-  );
-
-  const defaultImporter = useMemo(
-    () => findMarketingCompanyForProduct(selectedProduct, importers),
-    [importers, selectedProduct],
-  );
-
-  const handleImporterChange = useCallback(
-    (value: string | null) => {
-      setImporterId(value);
-    },
-    [],
-  );
-
-  const printerConfig = useMemo(
-    () =>
-      printerConfigs.find(
-        (config) => config.stickerSize === stickerSize && config.isActive,
-      ) ?? null,
-    [printerConfigs, stickerSize],
-  );
-
-  const activeTemplate = useMemo(
-    () =>
-      templates.find(
-        (template) =>
-          template.size === stickerSize && template.type === stickerType,
-      ) ?? null,
-    [stickerSize, stickerType, templates],
-  );
 
   const invoiceStats = useMemo(() => {
     const activeSummaries = invoiceSummaries.filter(
@@ -775,204 +683,31 @@ export const Inward = memo(function Inward() {
       return [product, ...current];
     });
   }, []);
-  useEffect(() => {
-    if (!selectedPrintRow) {
-      setManufacturerId(null);
-      return;
-    }
 
-    setManufacturerId(
-      selectedProduct?.manufacturerId
-        ? String(selectedProduct.manufacturerId)
-        : null,
-    );
-  }, [selectedPrintRow, selectedProduct]);
-
-  useEffect(() => {
-    if (!selectedPrintRow || stickerSize === "25x25") {
-      setImporterId(null);
-      setImporterSearch("");
-      return;
-    }
-
-    setImporterId(defaultImporter ? String(defaultImporter.id) : null);
-  }, [defaultImporter, selectedPrintRow?.id, selectedProduct?.ownership, stickerSize, stickerType]);
-
-  const buildStickerPayload = useCallback(
-    (row: PoInvoice, quantity: number) => ({
-      productId: row.productId,
-      manufacturerId:
-        stickerType === "Manufacture" && manufacturerId
-          ? Number(manufacturerId)
-          : undefined,
-      importerId:
-        stickerSize !== "25x25" && importerId
-          ? Number(importerId)
-          : undefined,
-      size: stickerSize,
-      type: stickerType,
-      monthYear: format(new Date(row.invoiceDate), "MMM/yyyy").toUpperCase(),
-      invoiceDate: format(new Date(row.invoiceDate), "dd/MM/yyyy"),
-      batchNumber: row.invoiceNumber,
-      note: stickerNote.trim(),
-      quantity,
-      mrp: row.mrp ?? null,
-    }),
-    [importerId, manufacturerId, stickerNote, stickerSize, stickerType],
-  );
-
-  const refreshPreview = useCallback(async () => {
-    if (!selectedPrintRow || !selectedProduct) {
-      setPreviewUrl(null);
-      return;
-    }
-
-    const validationErrors = validateProductForSticker(
-      selectedProduct,
-      stickerSize,
-    );
-    if (validationErrors.length > 0) {
-      setPreviewUrl(null);
-      return;
-    }
-
-    if (stickerSize !== "25x25" && !importerId) {
-      setPreviewUrl(null);
-      return;
-    }
-
-    setIsPreviewLoading(true);
-    try {
-      const nextPreview = await stickersApi.getPreview(
-        buildStickerPayload(selectedPrintRow, selectedPrintRow.billedQty || 1),
-      );
-      setPreviewUrl((previousUrl) => {
-        if (previousUrl) URL.revokeObjectURL(previousUrl);
-        return nextPreview;
-      });
-    } catch {
-      setPreviewUrl(null);
-    } finally {
-      setIsPreviewLoading(false);
-    }
-  }, [buildStickerPayload, selectedPrintRow, selectedProduct, stickerSize]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void refreshPreview();
-    }, 250);
-
-    return () => window.clearTimeout(timer);
-  }, [refreshPreview]);
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  const getPrinterAddress = () => {
-    if (!printerConfig?.printerIp?.trim()) return null;
-    return `${printerConfig.printerIp.trim()}:${printerConfig.printerPort}`;
-  };
-
-  const handlePrint = async (mode: "normal" | "reprint") => {
+  const handleStickerPrintComplete = useCallback(async () => {
     if (!selectedPrintRow) return;
-    if (!selectedProduct) {
-      toast.error("Product details not loaded yet");
-      return;
-    }
 
-    if (mode === "reprint" && !selectedPrintRow.printed) {
-      toast.error("Reprint is available only after full quantity has been printed");
-      return;
-    }
-
-    const validationErrors = validateProductForSticker(
-      selectedProduct,
-      stickerSize,
+    await poInvoicesApi.markPrinted([selectedPrintRow.id]);
+    await loadInvoiceRows({
+      search,
+      status: statusFilter,
+      fromDate,
+      toDate,
+      page: invoicePage,
+      pageSize: INVOICE_PAGE_SIZE,
+    });
+    setSelectedPrintRow((current) =>
+      current ? { ...current, printed: true } : current,
     );
-    if (validationErrors.length > 0) {
-      toast.error("Cannot print sticker. Missing product data: " + validationErrors.join(", "));
-      return;
-    }
-
-    if (stickerSize !== "25x25" && !importerId) {
-      toast.error("Please select an importer from importer master for Imported & Marketed By sticker");
-      return;
-    }
-
-    const printerAddress = getPrinterAddress();
-    if (!printerAddress) {
-      toast.error("Active printer profile not found for selected sticker size");
-      return;
-    }
-
-    if (!activeTemplate) {
-      toast.error("Sticker template not found for selected size and label mode");
-      return;
-    }
-
-    const from = Number(reprintFrom || 1);
-    const to = Number(reprintTo || from);
-    if (mode === "reprint") {
-      if (from < 1 || to < 1 || from > selectedPrintRow.billedQty || to > selectedPrintRow.billedQty) {
-        toast.error("Reprint range must stay within billed quantity");
-        return;
-      }
-
-      if (from > to) {
-        toast.error("Reprint range is invalid. 'From sticker' cannot be greater than 'To sticker'");
-        return;
-      }
-    }
-
-    const reprintQuantity = to - from + 1;
-    const quantity =
-      mode === "normal" ? selectedPrintRow.billedQty : reprintQuantity;
-
-    setIsPrinting(true);
-    try {
-      await stickersApi.print({
-        printerIp: printerAddress,
-        items: [
-          {
-            config: {
-              ...buildStickerPayload(selectedPrintRow, quantity),
-              note: stickerNote.trim(),
-            },
-            quantity,
-          },
-        ],
-      });
-
-      if (mode === "normal") {
-        await poInvoicesApi.markPrinted([selectedPrintRow.id]);
-        await loadInvoiceRows({
-          search,
-          status: statusFilter,
-          fromDate,
-          toDate,
-          page: invoicePage,
-          pageSize: INVOICE_PAGE_SIZE,
-        });
-        setSelectedPrintRow((current) =>
-          current ? { ...current, printed: true } : current,
-        );
-      }
-
-      toast.success(
-        mode === "normal"
-          ? `${selectedPrintRow.billedQty} stickers sent`
-          : `${quantity} stickers sent from ${from} to ${to}`,
-      );
-    } catch (error: any) {
-      toast.error(error.message || "Sticker print job failed");
-    } finally {
-      setIsPrinting(false);
-    }
-  };
-
+  }, [
+    fromDate,
+    invoicePage,
+    loadInvoiceRows,
+    search,
+    selectedPrintRow,
+    statusFilter,
+    toDate,
+  ]);
   const resetInvoiceModal = () => {
     setEditingInvoice(null);
     setInvoiceForm(emptyInvoiceForm());
@@ -1547,9 +1282,6 @@ export const Inward = memo(function Inward() {
     }
 
     setSelectedPrintRow(row);
-    setImporterId(null);
-    setManufacturerSearch("");
-    setImporterSearch("");
   };
 
   const closeUploadModal = () => {
@@ -1580,6 +1312,7 @@ export const Inward = memo(function Inward() {
       return;
     }
     setPrintAllSize("50x50");
+    setPrintAllType("Combined");
     setPrintAllSizePickerOpen(true);
   };
 
@@ -1613,11 +1346,11 @@ export const Inward = memo(function Inward() {
     }
 
     const template = templates.find(
-      (t) => t.size === printAllSize && t.type === "Combined",
+      (t) => t.size === printAllSize && t.type === printAllType,
     );
     if (!template) {
       toast.error(
-        "Sticker template not found for selected size (Combined mode)",
+        `Sticker template not found for selected size (${stickerModeLabel[printAllType]})`,
       );
       return;
     }
@@ -1679,7 +1412,7 @@ export const Inward = memo(function Inward() {
           productId: row.productId,
           importerId: rowMarketingCompany?.id ?? undefined,
           size: printAllSize,
-          type: "Combined" as const,
+          type: printAllType,
           monthYear: format(
             new Date(row.invoiceDate),
             "MMM/yyyy",
@@ -2274,296 +2007,16 @@ export const Inward = memo(function Inward() {
         </Stack>
       </Modal>
 
-      <Modal
+      <StickerPrintModal
         isOpen={Boolean(selectedPrintRow)}
         onClose={() => setSelectedPrintRow(null)}
+        product={selectedProduct}
+        invoiceRow={selectedPrintRow}
+        initialManufacturers={manufacturers}
         title="Sticker Print"
-        size="xxl"
-      >
-        {selectedPrintRow ? (
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-            <Stack gap="sm">
-              <Paper radius="md" p="sm" withBorder>
-                <Text size="xs" fw={800} mb="xs">
-                  Sticker Options
-                </Text>
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed" mb={5}>
-                      SIZE
-                    </Text>
-                    <SegmentedControl
-                      fullWidth
-                      size="xs"
-                      radius="md"
-                      value={stickerSize}
-                      onChange={setStickerSize}
-                      data={[
-                        { value: "25x25", label: "25x25" },
-                        { value: "38x38", label: "38x38" },
-                        { value: "50x50", label: "50x50" },
-                        { value: "60x60", label: "60x60" },
-                        { value: "75x75", label: "75x75" },
-                      ]}
-                    />
-                  </Box>
-                  {stickerSize !== "25x25" ? (
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed" mb={5}>
-                        LABEL MODE
-                      </Text>
-                      <Radio.Group
-                        value={stickerType}
-                        onChange={(value) =>
-                          setStickerType(value as StickerMode)
-                        }
-                      >
-                        <Stack gap={6}>
-                          <Radio
-                            value="Combined"
-                            label={labelModeText.Combined}
-                            size="xs"
-                          />
-                          <Radio
-                            value="Separate"
-                            label={labelModeText.Separate}
-                            size="xs"
-                          />
-                          <Radio
-                            value="Manufacture"
-                            label={labelModeText.Manufacture}
-                            size="xs"
-                          />
-                        </Stack>
-                      </Radio.Group>
-                    </Box>
-                  ) : (
-                    <Box>
-                      <Text size="10px" fw={800} c="dimmed">
-                        TEMPLATE
-                      </Text>
-                      <Text size="xs" fw={700} lineClamp={1} mt={4}>
-                        {activeTemplate?.name || "Template missing"}
-                      </Text>
-                    </Box>
-                  )}
-                  {stickerSize !== "25x25" ? (
-                    <Select
-                      label="Marketing Company"
-                      size="xs"
-                      radius="md"
-                      placeholder="Select Marketing Company from importer master"
-                      value={importerId}
-                      onChange={handleImporterChange}
-                      data={importerOptions}
-                    />
-                  ) : null}
-                </SimpleGrid>
-                <TextInput
-                  label="Note"
-                  size="xs"
-                  radius="md"
-                  mt="sm"
-                  placeholder="Optional note for sticker"
-                  value={stickerNote}
-                  onChange={(event) =>
-                    setStickerNote(event.currentTarget.value)
-                  }
-                />
-              </Paper>
-
-              <Paper radius="md" p="sm" withBorder>
-                <Group justify="space-between" align="flex-start">
-                  <Box>
-                    <Text size="xs" fw={800} ff="monospace">
-                      {selectedPrintRow.invoiceNumber}
-                    </Text>
-                    <Text size="sm" fw={700} mt={2}>
-                      {selectedPrintRow.partyName}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={2}>
-                      {format(
-                        new Date(selectedPrintRow.invoiceDate),
-                        "dd MMM yyyy",
-                      )}
-                    </Text>
-                  </Box>
-                  <Badge
-                    color={rowStatusColor(selectedPrintRow.printed)}
-                    variant={selectedPrintRow.printed ? "light" : "filled"}
-                  >
-                    {selectedPrintRow.printed ? "Printed" : "Pending"}
-                  </Badge>
-                </Group>
-                <Divider my="sm" />
-                <Text size="xs" c="dimmed">
-                  SKU
-                </Text>
-                <Text
-                  component="button"
-                  type="button"
-                  size="sm"
-                  fw={800}
-                  ff="monospace"
-                  c="cyan.3"
-                  td="underline"
-                  onClick={openProductUpdateFromSticker}
-                  style={{
-                    background: "none",
-                    border: 0,
-                    padding: 0,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  {selectedPrintRow.skuCode}
-                </Text>
-                <Text size="xs" c="dimmed" mt="xs">
-                  Product
-                </Text>
-                <Text size="sm" fw={700}>
-                  {selectedPrintRow.productName}
-                </Text>
-                <Text size="xs" c="dimmed" mt="xs">
-                  Product master
-                </Text>
-                <Text size="xs">
-                  {selectedProduct?.name || "Not matched"} -{" "}
-                  {selectedProduct?.unitType || "No unit"}
-                </Text>
-              </Paper>
-
-              <Paper radius="md" p="sm" withBorder>
-                <SimpleGrid cols={3} spacing="xs">
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      SIZE
-                    </Text>
-                    <Text size="xs" fw={800}>
-                      {stickerSize}
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      MODE
-                    </Text>
-                    <Text size="xs" fw={800}>
-                      {labelModeText[stickerType]}
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text size="10px" fw={800} c="dimmed">
-                      QTY
-                    </Text>
-                    <Text size="xs" fw={800}>
-                      {selectedPrintRow.billedQty}
-                    </Text>
-                  </Box>
-                </SimpleGrid>
-              </Paper>
-            </Stack>
-
-            <Stack gap="sm">
-              <Paper radius="md" p="sm" withBorder>
-                <Group justify="space-between" mb="xs">
-                  <Text size="xs" fw={800}>
-                    Preview
-                  </Text>
-                  <Badge size="xs" variant="light" color="cyan">
-                    {activeTemplate?.fileName || "Template missing"}
-                  </Badge>
-                </Group>
-                {isPreviewLoading ? (
-                  <Center h={300}>
-                    <Loader size="sm" />
-                  </Center>
-                ) : previewUrl ? (
-                  <Center h={300}>
-                    <Image
-                      src={previewUrl}
-                      alt="Sticker preview"
-                      fit="contain"
-                      mah={280}
-                      radius="sm"
-                      style={{ background: "white", padding: 12 }}
-                    />
-                  </Center>
-                ) : (
-                  <Paper
-                    withBorder
-                    radius="md"
-                    p="xl"
-                    style={{ textAlign: "center" }}
-                  >
-                    <Tag size={48} style={{ marginBottom: 12 }} />
-                    <Text fw={700} size="lg" mb="xs" c={selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0 ? "red.4" : undefined}>
-                      {selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0
-                        ? "Missing Product Data"
-                        : "No preview"}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {selectedProduct && validateProductForSticker(selectedProduct, stickerSize).length > 0
-                        ? `Please fill missing product fields: ${validateProductForSticker(selectedProduct, stickerSize).join(", ")}`
-                        : "Preview not available for this row."}
-                    </Text>
-                  </Paper>
-                )}
-              </Paper>
-
-              <Paper radius="md" p="sm" withBorder>
-                <Text size="xs" fw={800} mb="xs">
-                  Reprint Range
-                </Text>
-                <SimpleGrid cols={2} spacing="xs">
-                  <NumberInput
-                    size="xs"
-                    label="From sticker"
-                    min={1}
-                    max={selectedPrintRow.billedQty}
-                    value={reprintFrom}
-                    disabled={!selectedPrintRow.printed}
-                    onChange={(value) =>
-                      setReprintFrom(typeof value === "number" ? value : "")
-                    }
-                  />
-                  <NumberInput
-                    size="xs"
-                    label="To sticker"
-                    min={1}
-                    max={selectedPrintRow.billedQty}
-                    value={reprintTo}
-                    disabled={!selectedPrintRow.printed}
-                    onChange={(value) =>
-                      setReprintTo(typeof value === "number" ? value : "")
-                    }
-                  />
-                </SimpleGrid>
-                <Group mt="sm" grow>
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    leftIcon={<Printer size={14} />}
-                    onClick={() => void handlePrint("reprint")}
-                    loading={isPrinting}
-                    disabled={!selectedPrintRow.printed || selectedPrintRow.billedQty <= 0}
-                  >
-                    Reprint Range
-                  </Button>
-                  <Button
-                    size="xs"
-                    leftIcon={<Printer size={14} />}
-                    onClick={() => void handlePrint("normal")}
-                    loading={isPrinting}
-                    disabled={selectedPrintRow.printed || selectedPrintRow.billedQty <= 0}
-                  >
-                    Print Full Qty
-                  </Button>
-                </Group>
-              </Paper>
-            </Stack>
-          </SimpleGrid>
-        ) : null}
-      </Modal>
+        onProductLinkClick={openProductUpdateFromSticker}
+        onNormalPrintComplete={handleStickerPrintComplete}
+      />
 
       <ProductUpdateModal
         isOpen={isProductUpdateOpen}
@@ -2617,7 +2070,7 @@ export const Inward = memo(function Inward() {
             <Text component="span" fw={800} ff="monospace" c="cyan.3">
               {selectedInvoiceSummary?.invoiceNumber}
             </Text>
-            . Label mode will be set to Combined.
+            .
           </Text>
           <Paper radius="md" p="md" withBorder bg="transparent">
             <Text size="10px" fw={800} c="dimmed" mb={8} tt="uppercase">
@@ -2637,6 +2090,33 @@ export const Inward = memo(function Inward() {
                 { value: "75x75", label: "75×75" },
               ]}
             />
+          </Paper>
+          <Paper radius="md" p="md" withBorder bg="transparent">
+            <Text size="10px" fw={800} c="dimmed" mb={8} tt="uppercase">
+              Sticker Type
+            </Text>
+            <Radio.Group
+              value={printAllType}
+              onChange={(value) => setPrintAllType(value as StickerMode)}
+            >
+              <Stack gap={8}>
+                <Radio
+                  value="Combined"
+                  label={stickerModeLabel.Combined}
+                  size="sm"
+                />
+                <Radio
+                  value="Separate"
+                  label={stickerModeLabel.Separate}
+                  size="sm"
+                />
+                <Radio
+                  value="Manufacture"
+                  label={stickerModeLabel.Manufacture}
+                  size="sm"
+                />
+              </Stack>
+            </Radio.Group>
           </Paper>
         </Stack>
       </Modal>

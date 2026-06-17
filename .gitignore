@@ -39,6 +39,8 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 Packed*/
+.cursor/
+.mcp/
 
 # Package directories
 node_modules/
