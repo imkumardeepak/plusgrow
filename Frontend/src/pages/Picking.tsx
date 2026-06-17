@@ -90,6 +90,20 @@ const formatMrp = (value?: number | null) =>
 const isCanceledOrder = (order: OutwardOrder) =>
   order.status === "Canceled" || order.salesOrderStatus === "Canceled";
 
+const normalizeProductScan = (value?: string | null) =>
+  (value || "").trim().split("#")[0].trim().toLowerCase();
+
+const getCartonQuantity = (
+  scan: string,
+  cartonQr?: string | null,
+  cartonPerItem?: number | null,
+) => {
+  const normalizedCartonQr = normalizeProductScan(cartonQr);
+  if (!normalizedCartonQr || normalizeProductScan(scan) !== normalizedCartonQr) return 0;
+
+  return cartonPerItem && cartonPerItem > 0 ? cartonPerItem : 1;
+};
+
 type PickingOrderGroup = {
   salesOrderId: number;
   orderNumber: string;
@@ -306,8 +320,8 @@ export const Picking = memo(function Picking() {
       try {
         setIsPicking(true);
         const updated = await outwardOrdersApi.pick(orderItem.id, {
-          quantity: 1,
-          skuCode: scan.sku,
+          quantity: scan.quantity,
+          skuCode: orderItem.skuCode,
           locationCode: normalizedLocation,
           mrp: scan.mrp,
           importDate: scan.importDate,
@@ -329,7 +343,7 @@ export const Picking = memo(function Picking() {
         toast.success(
           remaining === 0
             ? `${updated.orderNumber} ready for packing`
-            : `Picked 1 for ${updated.orderNumber}`,
+            : `Picked ${scan.quantity} for ${updated.orderNumber}`,
         );
         if (remaining > 0) {
           setScanCode("");
@@ -394,13 +408,14 @@ export const Picking = memo(function Picking() {
       return;
     }
 
-    const scanVal = parsedScan.sku.toLowerCase();
+    const scanVal = normalizeProductScan(parsedScan.sku);
     const matchedItem =
       activeGroup.items.find(
         (item) =>
           item.pendingQuantity > 0 &&
-          (item.skuCode.toLowerCase() === scanVal ||
-            item.alias?.toLowerCase() === scanVal),
+          (normalizeProductScan(item.skuCode) === scanVal ||
+            normalizeProductScan(item.alias) === scanVal ||
+            normalizeProductScan(item.cartonQr) === scanVal),
       ) ?? null;
 
     if (!matchedItem) {
@@ -416,14 +431,28 @@ export const Picking = memo(function Picking() {
       return;
     }
 
+    const cartonQuantity = getCartonQuantity(
+      parsedScan.raw,
+      matchedItem.cartonQr,
+      matchedItem.cartonPerItem,
+    );
+    const effectiveScan = {
+      ...parsedScan,
+      sku: matchedItem.skuCode,
+      quantity: Math.min(
+        cartonQuantity > 0 ? cartonQuantity : 1,
+        matchedItem.pendingQuantity,
+      ),
+    };
+
     if (
-      parsedScan.hasFullData &&
-      parsedScan.mrp !== null &&
+      effectiveScan.hasFullData &&
+      effectiveScan.mrp !== null &&
       matchedItem.mrp !== null &&
       matchedItem.mrp !== undefined &&
-      Number(parsedScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
+      Number(effectiveScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
     ) {
-      const message = `Price Mismatch Alert!\n\nSticker Price: Rs ${parsedScan.mrp}\nSales Order Item Price: Rs ${matchedItem.mrp}\n\nDo you want to proceed with picking?`;
+      const message = `Price Mismatch Alert!\n\nSticker Price: Rs ${effectiveScan.mrp}\nSales Order Item Price: Rs ${matchedItem.mrp}\n\nDo you want to proceed with picking?`;
       
       if (!window.confirm(message)) {
         setScanCode("");
@@ -433,7 +462,7 @@ export const Picking = memo(function Picking() {
     }
 
     setActiveItemId(matchedItem.id);
-    await handlePick(matchedItem, parsedScan);
+    await handlePick(matchedItem, effectiveScan);
   };
 
   const handleDirectPickScan = useCallback(async () => {
@@ -446,6 +475,12 @@ export const Picking = memo(function Picking() {
     setIsDirectProductLoading(true);
     try {
       const result = await productsApi.lookup(parsedScan.sku);
+      const cartonQuantity = getCartonQuantity(
+        parsedScan.raw,
+        result.product.cartonQr,
+        result.product.cartonPerItem,
+      );
+      const pickQuantity = cartonQuantity > 0 ? cartonQuantity : 1;
 
       const firstLocation = result.locations.find((entry) => entry.quantity > 0);
       const locCode = firstLocation?.locationCode || "";
@@ -463,7 +498,7 @@ export const Picking = memo(function Picking() {
         if (existingIndex >= 0) {
           // Immutable update — avoids the double-increment bug from direct mutation
           return current.map((item, idx) =>
-            idx === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+            idx === existingIndex ? { ...item, quantity: item.quantity + pickQuantity } : item
           );
         }
 
@@ -473,7 +508,7 @@ export const Picking = memo(function Picking() {
             product: result.product,
             skuCode: result.product.sku || result.product.alias || parsedScan.sku,
             locationCode: locCode,
-            quantity: 1,
+            quantity: pickQuantity,
             mrp: parsedScan.mrp,
             importDate: parsedScan.importDate,
             lookupResult: result,

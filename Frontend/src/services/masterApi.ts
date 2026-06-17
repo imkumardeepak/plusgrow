@@ -411,6 +411,8 @@ export interface OutwardOrder {
   skuCode: string;
   productName: string;
   alias?: string;
+  cartonQr?: string | null;
+  cartonPerItem?: number | null;
   quantity: number;
   mrp?: number | null;
   pickedQuantity: number;

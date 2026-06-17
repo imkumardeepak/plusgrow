@@ -143,6 +143,7 @@ public class ProductAllottedLocationsController : BaseController
 
         var product = await _context.Products.FirstOrDefaultAsync(x => x.Sku != null && x.Sku.ToLower() == productScan.ToLower())
             ?? await _context.Products.FirstOrDefaultAsync(x => x.Alias != null && x.Alias.ToLower() == productScan.ToLower())
+            ?? await _context.Products.FirstOrDefaultAsync(x => x.CartonQr != null && x.CartonQr.ToLower() == productScan.ToLower())
             ?? await _context.Products.FirstOrDefaultAsync(x => x.Name.ToLower() == productScan.ToLower());
 
         if (product == null)

@@ -842,15 +842,18 @@ public class ProductsController : BaseController
 
 		var normalizedSku = sku.Trim().ToLower();
 
-		// Find the product by SKU or Alias (case-insensitive)
+		// Find the product by SKU, Alias, or Carton QR (case-insensitive)
 		var product = await _context.Products
 			.Include(p => p.Commodity)
 			.Include(p => p.Manufacturer)
 			.AsNoTracking()
-			.FirstOrDefaultAsync(p => (p.Sku != null && p.Sku.ToLower() == normalizedSku) || (p.Alias != null && p.Alias.ToLower() == normalizedSku));
+			.FirstOrDefaultAsync(p =>
+				(p.Sku != null && p.Sku.ToLower() == normalizedSku) ||
+				(p.Alias != null && p.Alias.ToLower() == normalizedSku) ||
+				(p.CartonQr != null && p.CartonQr.ToLower() == normalizedSku));
 
 		if (product == null)
-			return NotFound<ProductLookupDto>("Product not found for the given SKU/Alias");
+			return NotFound<ProductLookupDto>("Product not found for the given SKU/Alias/Carton QR");
 
 		// Get current stock quantity
 		var quantity = await _context.ProductQuantities

@@ -973,6 +973,8 @@ public class OutwardOrdersController : BaseController
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
             Alias = row.Product?.Alias,
+            CartonQr = row.Product?.CartonQr,
+            CartonPerItem = row.Product?.CartonPerItem,
             Quantity = row.Quantity,
             Mrp = row.Mrp,
             PickedQuantity = row.PickedQuantity,

@@ -47,6 +47,8 @@ type PutAwayTask = {
   skuCode: string;
   productName: string;
   alias?: string;
+  cartonQr?: string | null;
+  cartonPerItem?: number | null;
   currentQuantity: number;
   allocatedQuantity: number;
   remainingQuantity: number;
@@ -56,6 +58,16 @@ type PutAwayTask = {
 const emptyResult: PutAwayScanAssignmentResult | null = null;
 const normalizeScanCode = (value: string) =>
   value.trim().split("#")[0].trim().toLowerCase();
+const getCartonScanQuantity = (
+  scan: string,
+  cartonQr?: string | null,
+  cartonPerItem?: number | null,
+) => {
+  const normalizedCartonQr = cartonQr ? normalizeScanCode(cartonQr) : "";
+  if (!normalizedCartonQr || normalizeScanCode(scan) !== normalizedCartonQr) return 0;
+
+  return cartonPerItem && cartonPerItem > 0 ? cartonPerItem : 1;
+};
 
 const normalizeDateText = (value?: string | null) => {
   if (!value) return "";
@@ -197,6 +209,8 @@ export const PutAway = () => {
           skuCode: product?.sku?.trim() || quantityRow.skuCode,
           productName: product?.name?.trim() || quantityRow.productName,
           alias: product?.alias?.trim() || quantityRow.alias,
+          cartonQr: product?.cartonQr?.trim() || null,
+          cartonPerItem: product?.cartonPerItem ?? null,
           currentQuantity: quantityRow.currentQuantity,
           allocatedQuantity,
           remainingQuantity,
@@ -218,6 +232,7 @@ export const PutAway = () => {
         (task) =>
           task.skuCode.trim().toLowerCase() === scan ||
           (task.alias && task.alias.trim().toLowerCase() === scan) ||
+          (task.cartonQr && normalizeScanCode(task.cartonQr) === scan) ||
           task.productName.trim().toLowerCase() === scan,
       ) ?? null
     );
@@ -263,10 +278,22 @@ export const PutAway = () => {
         (t) =>
           t.skuCode.trim().toLowerCase() === scan ||
           (t.alias && t.alias.trim().toLowerCase() === scan) ||
+          (t.cartonQr && normalizeScanCode(t.cartonQr) === scan) ||
           t.productName.trim().toLowerCase() === scan,
       );
 
       if (task) {
+        const cartonQuantity = getCartonScanQuantity(
+          productScanCode,
+          task.cartonQr,
+          task.cartonPerItem,
+        );
+        setAssignQuantity(
+          Math.min(
+            cartonQuantity > 0 ? cartonQuantity : task.remainingQuantity,
+            task.remainingQuantity,
+          ),
+        );
         // Found in put-away queue
         setProductError(null);
         setScannedProduct(null);
@@ -285,6 +312,7 @@ export const PutAway = () => {
           (p) =>
             p.sku?.trim().toLowerCase() === scan ||
             p.alias?.trim().toLowerCase() === scan ||
+            (p.cartonQr && normalizeScanCode(p.cartonQr) === scan) ||
             p.name.trim().toLowerCase() === scan,
         );
 
