@@ -8,6 +8,7 @@ using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Models;
 using ClosedXML.Excel;
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace PlusgrowWms.Api.Controllers;
@@ -446,12 +447,17 @@ public class PoInvoicesController : BaseController
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var existingInvoiceNumbers = await _context.PoInvoiceHeaders
-                .Where(x => incomingInvoiceNumbers.Contains(x.InvoiceNumber) && x.Status != "Canceled")
-                .Select(x => x.InvoiceNumber)
+            var existingHeaders = await _context.PoInvoiceHeaders
+                .Where(x => incomingInvoiceNumbers.Contains(x.InvoiceNumber))
+                .Select(x => new { x.InvoiceNumber, x.Status })
                 .ToListAsync();
 
-            var existingInvoiceNumbersSet = new HashSet<string>(existingInvoiceNumbers, StringComparer.OrdinalIgnoreCase);
+            var existingInvoiceNumbersSet = new HashSet<string>(
+                existingHeaders.Where(x => x.Status != "Canceled").Select(x => x.InvoiceNumber),
+                StringComparer.OrdinalIgnoreCase);
+            var canceledInvoiceNumbersSet = new HashSet<string>(
+                existingHeaders.Where(x => x.Status == "Canceled").Select(x => x.InvoiceNumber),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in dataRows)
             {
@@ -477,6 +483,12 @@ public class PoInvoicesController : BaseController
                     if (existingInvoiceNumbersSet.Contains(invoiceNumber))
                     {
                         result.Errors.Add($"Row {row.RowNumber()}: Invoice {invoiceNumber} already exists. You cannot add new rows to an existing invoice via upload.");
+                        continue;
+                    }
+
+                    if (canceledInvoiceNumbersSet.Contains(invoiceNumber))
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Invoice {invoiceNumber} was canceled and cannot be re-uploaded. Use a different invoice number.");
                         continue;
                     }
 
@@ -979,11 +991,14 @@ public class PoInvoicesController : BaseController
                 CurrentQuantity = billedQty,
                 UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
             });
+            RecordStockMovement(productId, 0, billedQty, "Inward Receipt", "inward", $"Inward receipt (+{billedQty})");
             return;
         }
 
+        var quantityBefore = quantityRow.CurrentQuantity;
         quantityRow.CurrentQuantity += billedQty;
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        RecordStockMovement(productId, quantityBefore, quantityRow.CurrentQuantity, "Inward Receipt", "inward", $"Inward receipt (+{billedQty})");
     }
 
     private async Task AdjustProductQuantityAsync(int productId, int quantityChange)
@@ -1001,12 +1016,42 @@ public class PoInvoicesController : BaseController
                     CurrentQuantity = quantityChange,
                     UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
                 });
+                RecordStockMovement(productId, 0, quantityChange, "PO Stock Adjustment", "adjustment", $"PO stock adjustment ({quantityChange:+0;-0})");
             }
             return;
         }
 
+        var quantityBefore = quantityRow.CurrentQuantity;
         quantityRow.CurrentQuantity = Math.Max(quantityRow.CurrentQuantity + quantityChange, 0);
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        if (quantityRow.CurrentQuantity != quantityBefore)
+        {
+            var actualChange = quantityRow.CurrentQuantity - quantityBefore;
+            RecordStockMovement(productId, quantityBefore, quantityRow.CurrentQuantity, "PO Stock Adjustment", "adjustment", $"PO stock adjustment ({actualChange:+0;-0})");
+        }
+    }
+
+    private void RecordStockMovement(int productId, int quantityBefore, int quantityAfter, string reason, string movementType, string notes)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        _context.ProductStockMovements.Add(new ProductStockMovement
+        {
+            ProductId = productId,
+            QuantityChange = quantityAfter - quantityBefore,
+            QuantityBefore = quantityBefore,
+            QuantityAfter = quantityAfter,
+            Reason = reason,
+            MovementType = movementType,
+            Notes = notes,
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        });
     }
 
     private async Task DeleteHeaderIfOrphanedAsync(int? headerId = null)

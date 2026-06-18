@@ -325,7 +325,8 @@ public class OutwardOrdersController : BaseController
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
         var effectiveMrp = dto.Mrp ?? order.Mrp;
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty, effectiveMrp);
+        var (pickUserId, pickUserName) = ResolvePerformedBy();
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "outward");
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
@@ -400,7 +401,8 @@ public class OutwardOrdersController : BaseController
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
         var effectiveMrp = dto.Mrp ?? product.Mrp;
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp);
+        var (pickUserId, pickUserName) = ResolvePerformedBy();
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "direct");
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
@@ -485,6 +487,8 @@ public class OutwardOrdersController : BaseController
         var productIds = dto.Items.Select(x => x.ProductId).Distinct().ToList();
         var products = await _context.Products.Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
 
+        var (bulkPickUserId, bulkPickUserName) = ResolvePerformedBy();
+
         foreach (var item in dto.Items)
         {
             if (item.ProductId <= 0)
@@ -516,7 +520,7 @@ public class OutwardOrdersController : BaseController
                 return BadRequest<List<OutwardOrderDto>>($"Scanned location {item.LocationCode.Trim()} was not found");
 
             var effectiveMrp = item.Mrp ?? product.Mrp;
-            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp);
+            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp, bulkPickUserId, bulkPickUserName, "bulk-direct");
             if (!reduceLocationResult.Success)
                 return BadRequest<List<OutwardOrderDto>>(reduceLocationResult.Message!);
 
@@ -813,7 +817,14 @@ public class OutwardOrdersController : BaseController
         return binLocation?.LocationCode;
     }
 
-    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(int productId, string resolvedLocationCode, int quantity, decimal? mrp)
+    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(
+        int productId,
+        string resolvedLocationCode,
+        int quantity,
+        decimal? mrp,
+        int? performedByUserId,
+        string performedByName,
+        string flow)
     {
         var row = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
@@ -844,7 +855,38 @@ public class OutwardOrdersController : BaseController
 
         row.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(row).Property(x => x.LocationJson).IsModified = true;
+
+        // Reduce total product stock in the same operation as the location decrement so the two
+        // stock representations always stay in sync, and log an auditable movement for the pick.
+        var quantityBefore = quantityRow.CurrentQuantity;
+        quantityRow.CurrentQuantity -= quantity;
+        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        _context.ProductStockMovements.Add(new ProductStockMovement
+        {
+            ProductId = productId,
+            QuantityChange = -quantity,
+            QuantityBefore = quantityBefore,
+            QuantityAfter = quantityRow.CurrentQuantity,
+            Reason = "Outward Pick",
+            MovementType = "pick",
+            Notes = $"Picked {quantity} from {matchingKey} ({flow})",
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        });
+
         return (true, null);
+    }
+
+    private (int? UserId, string Name) ResolvePerformedBy()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+        return (performedByUserId, performedByName);
     }
 
     private static string BuildCartonId(OutwardOrder order)
@@ -868,33 +910,8 @@ public class OutwardOrdersController : BaseController
         if (order.PickedQuantity < order.Quantity)
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully picked before dispatch");
 
-        var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
-        if (quantityRow == null)
-            return (false, $"Stock quantity row is missing for {order.Product?.Name ?? order.SalesOrder?.OrderNumber ?? order.Id.ToString()}");
-
-        var currentQuantity = quantityRow.CurrentQuantity;
-        if (currentQuantity < order.Quantity)
-            return (false, $"Only {currentQuantity} units are available in stock for {order.Product?.Name ?? order.SalesOrder?.OrderNumber ?? order.Id.ToString()}");
-
-        quantityRow.CurrentQuantity -= order.Quantity;
-        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-
-        var movement = new ProductStockMovement
-        {
-            ProductId = order.ProductId,
-            QuantityChange = -order.Quantity,
-            QuantityBefore = currentQuantity,
-            QuantityAfter = quantityRow.CurrentQuantity,
-            Reason = "Outward Dispatch",
-            MovementType = "dispatch",
-            Notes = $"Outward order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} dispatched",
-            PerformedByUserId = performedByUserId,
-            PerformedByName = performedByName,
-            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-        };
-
-        _context.ProductStockMovements.Add(movement);
-
+        // Product stock and the per-location quantity are already reduced (and a stock movement
+        // logged) at pick time. Dispatch is status-only and must not reduce stock again.
         order.Status = "Dispatched";
         order.CartonId = string.IsNullOrWhiteSpace(cartonIdOverride)
             ? (order.CartonId ?? BuildCartonId(order))
