@@ -124,11 +124,19 @@ const hasInvoicePutAwayStarted = (summary?: Pick<InvoiceSummary, "items"> | null
 const getStickerStatus = (row: PoInvoice) =>
   row.printed ? "Printed" : "Pending";
 
-const defaultToDate = "";
-const defaultFromDate = "";
 const toDateInputValue = (date: Date) => {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localDate.toISOString().slice(0, 10);
+};
+const getDefaultDateRange = () => {
+  const to = new Date();
+  const from = new Date(to);
+  from.setDate(to.getDate() - 14);
+
+  return {
+    fromDate: toDateInputValue(from),
+    toDate: toDateInputValue(to),
+  };
 };
 const getLast30DayRange = () => {
   const to = new Date();
@@ -179,8 +187,9 @@ export const Inward = memo(function Inward() {
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("open");
-  const [fromDate, setFromDate] = useState(defaultFromDate);
-  const [toDate, setToDate] = useState(defaultToDate);
+  const defaultRange = getDefaultDateRange();
+  const [fromDate, setFromDate] = useState(defaultRange.fromDate);
+  const [toDate, setToDate] = useState(defaultRange.toDate);
 
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 
@@ -1589,8 +1598,9 @@ export const Inward = memo(function Inward() {
                   size="xs"
                   variant="subtle"
                   onClick={() => {
-                    setFromDate("");
-                    setToDate("");
+                    const range = getDefaultDateRange();
+                    setFromDate(range.fromDate);
+                    setToDate(range.toDate);
                     setStatusFilter("open");
                     setInvoicePage(1);
                   }}
