@@ -326,6 +326,10 @@ public class OutwardOrdersController : BaseController
 
         var effectiveMrp = dto.Mrp ?? order.Mrp;
         var (pickUserId, pickUserName) = ResolvePerformedBy();
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(order.ProductId);
+
         var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "outward");
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
@@ -341,6 +345,7 @@ public class OutwardOrdersController : BaseController
             await UpdateSalesOrderStatusAsync(order.SalesOrderId);
             await _context.SaveChangesAsync();
         }
+        await transaction.CommitAsync();
 
         var response = MapOrder(order);
 
@@ -402,6 +407,10 @@ public class OutwardOrdersController : BaseController
 
         var effectiveMrp = dto.Mrp ?? product.Mrp;
         var (pickUserId, pickUserName) = ResolvePerformedBy();
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(product.Id);
+
         var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "direct");
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
@@ -437,6 +446,7 @@ public class OutwardOrdersController : BaseController
         _context.SalesOrders.Add(salesOrder);
         _context.OutwardOrders.Add(order);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var response = MapOrder(order);
         await SendNotificationAsync(new RealtimeNotificationDto
@@ -488,6 +498,9 @@ public class OutwardOrdersController : BaseController
         var products = await _context.Products.Where(p => productIds.Contains(p.Id)).ToDictionaryAsync(p => p.Id);
 
         var (bulkPickUserId, bulkPickUserName) = ResolvePerformedBy();
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductsAsync(productIds.Where(id => id > 0));
 
         foreach (var item in dto.Items)
         {
@@ -544,6 +557,7 @@ public class OutwardOrdersController : BaseController
         _context.SalesOrders.Add(salesOrder);
         _context.OutwardOrders.AddRange(createdOrders);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var responses = createdOrders.Select(MapOrder).ToList();
         

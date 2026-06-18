@@ -49,6 +49,7 @@ public class ProductQuantitiesController : BaseController
         };
 
         _context.ProductQuantities.Add(entity);
+        AddDirectStockMovement(dto.ProductId, 0, dto.CurrentQuantity, "Manual Stock Set", "adjustment", "Initial product quantity created");
         await _context.SaveChangesAsync();
 
         var created = await _context.ProductQuantities.Include(x => x.Product).FirstAsync(x => x.Id == entity.Id);
@@ -72,9 +73,21 @@ public class ProductQuantitiesController : BaseController
         if (duplicate)
             return BadRequest<ProductQuantityDto>("Quantity row already exists for this product");
 
+        // Guard: total stock must not be edited directly while units are physically placed in
+        // locations, otherwise the total and the per-location map would silently diverge.
+        var allocationRow = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
+        var allocatedTotal = allocationRow?.LocationJson?.Values.Sum() ?? 0;
+        if (allocatedTotal > 0)
+            return BadRequest<ProductQuantityDto>(
+                "Cannot edit total stock directly while units are allotted to locations. Use Stock Adjustment instead.");
+
+        var quantityBefore = entity.CurrentQuantity;
         entity.ProductId = dto.ProductId;
         entity.CurrentQuantity = dto.CurrentQuantity;
         entity.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        if (dto.CurrentQuantity != quantityBefore)
+            AddDirectStockMovement(dto.ProductId, quantityBefore, dto.CurrentQuantity, "Manual Stock Set", "adjustment", "Product quantity updated directly");
 
         await _context.SaveChangesAsync();
 
@@ -134,6 +147,9 @@ public class ProductQuantitiesController : BaseController
             return NotFound<StockAdjustmentResultDto>("Selected location does not exist");
 
         locationCode = location.LocationCode;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(dto.ProductId);
 
         var quantityRow = await _context.ProductQuantities
             .Include(x => x.Product)
@@ -217,6 +233,7 @@ public class ProductQuantitiesController : BaseController
 
         _context.ProductStockMovements.Add(movement);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var refreshedQuantity = await _context.ProductQuantities
             .Include(x => x.Product)
@@ -273,9 +290,41 @@ public class ProductQuantitiesController : BaseController
         if (entity == null)
             return NotFound("Product quantity not found");
 
+        // Guard: do not zero out total stock while units are still placed in locations.
+        var allocationRow = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == entity.ProductId);
+        var allocatedTotal = allocationRow?.LocationJson?.Values.Sum() ?? 0;
+        if (allocatedTotal > 0)
+            return BadRequest("Cannot delete stock while units are allotted to locations. Move or pick the stock first.");
+
+        if (entity.CurrentQuantity != 0)
+            AddDirectStockMovement(entity.ProductId, entity.CurrentQuantity, 0, "Manual Stock Set", "adjustment", "Product quantity row deleted");
+
         _context.ProductQuantities.Remove(entity);
         await _context.SaveChangesAsync();
         return Ok("Product quantity deleted successfully");
+    }
+
+    private void AddDirectStockMovement(int productId, int quantityBefore, int quantityAfter, string reason, string movementType, string notes)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        _context.ProductStockMovements.Add(new ProductStockMovement
+        {
+            ProductId = productId,
+            QuantityChange = quantityAfter - quantityBefore,
+            QuantityBefore = quantityBefore,
+            QuantityAfter = quantityAfter,
+            Reason = reason,
+            MovementType = movementType,
+            Notes = notes,
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        });
     }
 
     private static ProductQuantityDto MapQuantity(ProductQuantity row)

@@ -159,6 +159,9 @@ public class ProductAllottedLocationsController : BaseController
         if (resolvedLocation == null)
             return NotFound<PutAwayScanAssignmentResultDto>("Scanned location or bin was not found");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(product.Id);
+
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == product.Id);
         var currentQuantity = quantityRow?.CurrentQuantity ?? 0;
         var activeInwardRemainingQuantity = await _context.PoInvoices
@@ -203,6 +206,7 @@ public class ProductAllottedLocationsController : BaseController
 
         await ReduceInvoiceRemainingAllocation(product.Id, dto.Quantity, locationCode);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var totalAllocatedAfter = allocationRow.LocationJson.Values.Sum();
 
@@ -256,6 +260,9 @@ public class ProductAllottedLocationsController : BaseController
         var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
         if (product == null)
             return NotFound<ProductAllottedLocationDto>("Selected product does not exist");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(dto.ProductId);
 
         var srcInput = dto.SourceLocationCode.Trim();
         var destInput = dto.DestinationLocationCode.Trim();
@@ -337,6 +344,7 @@ public class ProductAllottedLocationsController : BaseController
 
         _context.ProductStockMovements.Add(movement);
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var updated = await _context.ProductAllottedLocations
             .Include(x => x.Product)
