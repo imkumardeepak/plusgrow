@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -126,17 +125,16 @@ public class TallyService
 		if (!File.Exists(xmlFilePath))
 			throw new FileNotFoundException("The specified XML file was not found.", xmlFilePath);
 
-		var xmlDocument = XDocument.Load(xmlFilePath, LoadOptions.PreserveWhitespace);
-		var fromDateElement = xmlDocument.Descendants().FirstOrDefault(x => x.Name.LocalName == "SVFROMDATE");
-		var toDateElement = xmlDocument.Descendants().FirstOrDefault(x => x.Name.LocalName == "SVTODATE");
+		string xmlContent = await File.ReadAllTextAsync(xmlFilePath);
 
-		if (fromDateElement is null || toDateElement is null)
-			throw new InvalidOperationException("GetVoucher.xml must contain SVFROMDATE and SVTODATE elements.");
+		if (!xmlContent.Contains("{fromdate}") || !xmlContent.Contains("{todate}"))
+			throw new InvalidOperationException("GetVoucher.xml must contain {fromdate} and {todate} placeholders.");
 
-		fromDateElement.Value = fromDate;
-		toDateElement.Value = toDate;
+		xmlContent = xmlContent
+			.Replace("{fromdate}", fromDate)
+			.Replace("{todate}", toDate);
 
-		return await GetVouchersFromXmlContentAsync(xmlDocument.ToString(SaveOptions.DisableFormatting));
+		return await GetVouchersFromXmlContentAsync(xmlContent);
 	}
 
 	private async Task<List<Voucher>> GetVouchersFromXmlContentAsync(string xmlContent)
