@@ -417,6 +417,8 @@ export interface OutwardOrder {
   mrp?: number | null;
   pickedQuantity: number;
   pendingQuantity: number;
+  packedCartonQuantity: number;
+  readyCartonQuantity: number;
   status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
   cartonId?: string | null;
   notes?: string | null;

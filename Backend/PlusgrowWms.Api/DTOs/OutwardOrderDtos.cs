@@ -22,6 +22,8 @@ public class OutwardOrderDto
     public decimal? Mrp { get; set; }
     public int PickedQuantity { get; set; }
     public int PendingQuantity { get; set; }
+    public int PackedCartonQuantity { get; set; }
+    public int ReadyCartonQuantity { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? CartonId { get; set; }
     public string? Notes { get; set; }

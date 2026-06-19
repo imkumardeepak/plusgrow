@@ -105,7 +105,9 @@ public class OutwardOrdersController : BaseController
             .Take(pageSize)
             .ToListAsync();
 
-        return Success(rows.Select(MapOrder).ToList(), page, pageSize, total);
+        var cartonQuantities = await GetCartonQuantitiesAsync(rows.Select(x => x.Id));
+
+        return Success(rows.Select(row => MapOrder(row, cartonQuantities)).ToList(), page, pageSize, total);
     }
 
     [HttpGet("quick-sale-products")]
@@ -137,13 +139,14 @@ public class OutwardOrdersController : BaseController
                 g.Key.SkuCode,
                 g.Key.ProductName,
                 g.Key.Alias,
-                TotalQuantity = g.Sum(x => x.Quantity),
+                TotalQuantity = g.Select(x => x.SalesOrderId).Distinct().Count(),
                 OrderCount = g.Select(x => x.SalesOrderId).Distinct().Count(),
                 CustomerCount = g.Select(x => x.SalesOrder!.CustomerName).Distinct().Count(),
                 LastSaleAt = g.Max(x => (DateTime?)x.SalesOrder!.OrderDate),
             })
-            .OrderByDescending(x => x.TotalQuantity)
-            .ThenByDescending(x => x.OrderCount)
+            .OrderByDescending(x => x.OrderCount)
+            .ThenByDescending(x => x.CustomerCount)
+            .ThenByDescending(x => x.LastSaleAt)
             .ThenBy(x => x.ProductName)
             .Take(safeLimit)
             .ToListAsync();
@@ -1471,9 +1474,37 @@ public class OutwardOrdersController : BaseController
         _context.SalesOrders.Update(header);
     }
 
-    private static OutwardOrderDto MapOrder(OutwardOrder row)
+    private async Task<Dictionary<int, CartonQuantitySummary>> GetCartonQuantitiesAsync(IEnumerable<int> outwardOrderIds)
+    {
+        var ids = outwardOrderIds.Distinct().ToList();
+        if (ids.Count == 0)
+            return new Dictionary<int, CartonQuantitySummary>();
+
+        var rows = await _context.PackingCartons
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.OutwardOrderId))
+            .GroupBy(x => x.OutwardOrderId)
+            .Select(g => new
+            {
+                OutwardOrderId = g.Key,
+                PackedQuantity = g.Sum(x => x.Quantity),
+                ReadyQuantity = g
+                    .Where(x => x.Status == "Ready" || x.Status == "Dispatched")
+                    .Sum(x => x.Quantity),
+            })
+            .ToListAsync();
+
+        return rows.ToDictionary(
+            row => row.OutwardOrderId,
+            row => new CartonQuantitySummary(row.PackedQuantity, row.ReadyQuantity));
+    }
+
+    private static OutwardOrderDto MapOrder(
+        OutwardOrder row,
+        IReadOnlyDictionary<int, CartonQuantitySummary>? cartonQuantities = null)
     {
         var salesOrder = row.SalesOrder;
+        cartonQuantities?.TryGetValue(row.Id, out var cartonQuantity);
         return new OutwardOrderDto
         {
             Id = row.Id,
@@ -1496,6 +1527,8 @@ public class OutwardOrdersController : BaseController
             Mrp = row.Mrp,
             PickedQuantity = row.PickedQuantity,
             PendingQuantity = Math.Max(row.Quantity - row.PickedQuantity, 0),
+            PackedCartonQuantity = cartonQuantity?.PackedQuantity ?? 0,
+            ReadyCartonQuantity = cartonQuantity?.ReadyQuantity ?? 0,
             Status = row.Status,
             CartonId = row.CartonId,
             Notes = row.Notes,
@@ -1504,6 +1537,8 @@ public class OutwardOrdersController : BaseController
             DispatchedAt = row.DispatchedAt,
         };
     }
+
+    private sealed record CartonQuantitySummary(int PackedQuantity, int ReadyQuantity);
 
     private static SalesOrderDto MapSalesOrder(SalesOrder row)
     {
