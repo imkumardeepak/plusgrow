@@ -182,9 +182,9 @@ export const Picking = memo(function Picking() {
     return orders.filter(
       (order) =>
         !isCanceledOrder(order) &&
+        order.pendingQuantity > 0 &&
         (order.status === "Open" ||
-          order.status === "Picking" ||
-          order.status === "Packed") &&
+          order.status === "Picking") &&
         (order.orderNumber.toLowerCase().includes(query) ||
           order.customerName.toLowerCase().includes(query) ||
           order.skuCode.toLowerCase().includes(query) ||
@@ -291,15 +291,24 @@ export const Picking = memo(function Picking() {
     ? getLocationSummary(activeItem.productId)
     : "Not mapped";
 
-  const readyOrders = openOrderGroups.filter(
-    (row) => row.status === "Packed",
-  ).length;
-  const pickedOrders = openOrderGroups.filter(
-    (row) => row.pendingQuantity === 0,
-  ).length;
+  const readyOrders = useMemo(
+    () =>
+      new Set(
+        orders
+          .filter(
+            (order) =>
+              !isCanceledOrder(order) &&
+              order.status === "Packed" &&
+              order.pendingQuantity === 0,
+          )
+          .map((order) => order.salesOrderId),
+      ).size,
+    [orders],
+  );
+  const activeOrderCount = openOrderGroups.length;
   const progress =
-    openOrderGroups.length > 0
-      ? Math.round((pickedOrders / openOrderGroups.length) * 100)
+    activeOrderCount + readyOrders > 0
+      ? Math.round((readyOrders / (activeOrderCount + readyOrders)) * 100)
       : 0;
   const isFullyPicked = activeGroup ? activeGroup.pendingQuantity === 0 : false;
 
@@ -1108,7 +1117,7 @@ export const Picking = memo(function Picking() {
                           rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
                           className="h-9 w-full"
                         >
-                          Move to Packing
+                          Open Packing
                         </Button>
                       )}
                     </div>

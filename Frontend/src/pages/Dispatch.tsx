@@ -22,6 +22,9 @@ type DispatchOrderGroup = {
 const isCanceledOrder = (order: OutwardOrder) =>
   order.status === "Canceled" || order.salesOrderStatus === "Canceled";
 
+const isReadyForDispatch = (order: OutwardOrder) =>
+  order.status === "Packed" && (order.readyCartonQuantity ?? 0) >= order.quantity;
+
 export const Dispatch = memo(function Dispatch() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
   const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
@@ -49,7 +52,9 @@ export const Dispatch = memo(function Dispatch() {
     const query = searchQuery.toLowerCase();
     const groups = new Map<number, DispatchOrderGroup>();
 
-    orders.filter((order) => !isCanceledOrder(order)).forEach((order) => {
+    orders
+      .filter((order) => !isCanceledOrder(order) && order.status !== "Dispatched")
+      .forEach((order) => {
       const salesOrderId = order.salesOrderId ?? 0;
       const current = groups.get(salesOrderId);
       if (current) {
@@ -65,7 +70,7 @@ export const Dispatch = memo(function Dispatch() {
         items: [order],
         totalQuantity: order.quantity,
       });
-    });
+      });
 
     return Array.from(groups.values()).filter((group) => {
       const matchesSearch =
@@ -74,8 +79,8 @@ export const Dispatch = memo(function Dispatch() {
         group.customerName.toLowerCase().includes(query) ||
         group.items.some((item) => item.skuCode.toLowerCase().includes(query));
 
-      const allPacked = group.items.every((item) => item.status === "Packed");
-      return matchesSearch && allPacked;
+      const allReadyForDispatch = group.items.every(isReadyForDispatch);
+      return matchesSearch && allReadyForDispatch;
     });
   }, [orders, searchQuery]);
 

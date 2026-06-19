@@ -6,7 +6,6 @@ import {
   Group,
   NumberInput,
   Paper,
-  Select,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -168,15 +167,6 @@ export const Outward = memo(function Outward() {
   useEffect(() => {
     void loadOrders();
   }, [loadOrders]);
-
-  const productOptions = useMemo(
-    () =>
-      products.map((product) => ({
-        value: String(product.id),
-        label: formatProductOptionLabel(product),
-      })),
-    [products],
-  );
 
   const filteredGroups = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -412,10 +402,9 @@ export const Outward = memo(function Outward() {
     }));
   };
 
-  const selectOrderProduct = (itemId: string, productId: number) => {
-    const product = products.find((row) => row.id === productId);
+  const selectOrderProduct = (itemId: string, product: Product | null) => {
     updateOrderItem(itemId, {
-      productId: product ? productId : 0,
+      productId: product?.id ?? 0,
       mrp: product?.mrp ?? "",
     });
     setProductSearchByItemId((current) => ({
@@ -428,7 +417,10 @@ export const Outward = memo(function Outward() {
     setProductSearchByItemId((current) => ({ ...current, [itemId]: value }));
 
     const normalized = normalizeProductScan(value.split("#")[0]);
-    if (!normalized) return;
+    if (!normalized) {
+      updateOrderItem(itemId, { productId: 0, mrp: "" });
+      return;
+    }
 
     const product = products.find(
       (row) =>
@@ -437,8 +429,11 @@ export const Outward = memo(function Outward() {
     );
 
     if (product) {
-      selectOrderProduct(itemId, product.id);
+      selectOrderProduct(itemId, product);
+      return;
     }
+
+    updateOrderItem(itemId, { productId: 0, mrp: "" });
   };
 
   const addOrderItem = () => {
@@ -469,7 +464,7 @@ export const Outward = memo(function Outward() {
     }
 
     if (orderForm.items.some((item) => item.productId <= 0)) {
-      toast.error("Select product for every item");
+      toast.error("Scan valid SKU or alias for every item");
       return;
     }
 
@@ -926,18 +921,17 @@ export const Outward = memo(function Outward() {
                   return (
                   <Stack key={item.id} gap={4}>
                     <Group wrap="nowrap" align="flex-end" gap="sm">
-                      <Select
+                      <TextInput
                         label={index === 0 ? "Scan SKU / Alias" : undefined}
-                        placeholder="Scan or type SKU/Alias"
-                        searchable
-                        data={productOptions}
-                        searchValue={productSearchByItemId[item.id] || ""}
-                        onSearchChange={(value) =>
-                          handleOrderProductSearchChange(item.id, value)
+                        placeholder="Scan SKU or alias"
+                        value={productSearchByItemId[item.id] || ""}
+                        onChange={(event) =>
+                          handleOrderProductSearchChange(item.id, event.currentTarget.value)
                         }
-                        value={item.productId > 0 ? String(item.productId) : null}
-                        onChange={(value) =>
-                          selectOrderProduct(item.id, value ? Number(value) : 0)
+                        error={
+                          productSearchByItemId[item.id] && item.productId <= 0
+                            ? "SKU or alias not found"
+                            : undefined
                         }
                         style={{ flex: 1 }}
                       />
@@ -990,23 +984,29 @@ export const Outward = memo(function Outward() {
                         <Trash2 size={16} />
                       </ActionIcon>
                     </Group>
-                    {/* Stock warning row */}
-                    {selectedProduct && availableStock !== null && (
+                    {selectedProduct ? (
                       <Group gap={6} pl={4}>
-                        {stockExceeded ? (
+                        <Text size="10px" c="cyan.3" fw={700}>
+                          {selectedProduct.sku || "-"}
+                          {selectedProduct.alias ? ` / ${selectedProduct.alias}` : ""}
+                        </Text>
+                        <Text size="10px" c="dimmed" lineClamp={1}>
+                          {selectedProduct.name}
+                        </Text>
+                        {availableStock !== null && stockExceeded ? (
                           <>
                             <AlertTriangle size={12} color="var(--mantine-color-red-5)" />
                             <Text size="10px" c="red.4">
-                              Only {availableStock} in stock — reduce quantity
+                              Only {availableStock} in stock, reduce quantity
                             </Text>
                           </>
-                        ) : (
+                        ) : availableStock !== null ? (
                           <Text size="10px" c="dimmed">
                             In stock: <Text component="span" fw={700} c={availableStock === 0 ? "red.4" : availableStock <= 5 ? "yellow.4" : "green.4"}>{availableStock}</Text>
                           </Text>
-                        )}
+                        ) : null}
                       </Group>
-                    )}
+                    ) : null}
                   </Stack>
                   );
                 })}

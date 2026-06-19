@@ -809,7 +809,7 @@ public class OutwardOrdersController : BaseController
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        var responses = createdOrders.Select(MapOrder).ToList();
+        var responses = createdOrders.Select(row => MapOrder(row)).ToList();
         
         await SendNotificationAsync(new RealtimeNotificationDto
         {
@@ -923,7 +923,7 @@ public class OutwardOrdersController : BaseController
             SalesOrderId = salesOrderId,
             OrderNumber = salesOrder.OrderNumber,
             DispatchedItemCount = pendingOrders.Count,
-            Items = pendingOrders.Select(MapOrder).ToList(),
+            Items = pendingOrders.Select(row => MapOrder(row)).ToList(),
         };
 
         return Success(response, pendingOrders.Count > 1
@@ -1413,6 +1413,15 @@ public class OutwardOrdersController : BaseController
         if (order.PickedQuantity < order.Quantity)
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully picked before dispatch");
 
+        var readyCartonQuantity = await _context.PackingCartons
+            .Where(x =>
+                x.OutwardOrderId == order.Id &&
+                (x.Status == "Ready" || x.Status == "Dispatched"))
+            .SumAsync(x => x.Quantity);
+
+        if (readyCartonQuantity < order.Quantity)
+            return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully packed before dispatch");
+
         // Product stock and the per-location quantity are already reduced (and a stock movement
         // logged) at pick time. Dispatch is status-only and must not reduce stock again.
         order.Status = "Dispatched";
@@ -1504,7 +1513,8 @@ public class OutwardOrdersController : BaseController
         IReadOnlyDictionary<int, CartonQuantitySummary>? cartonQuantities = null)
     {
         var salesOrder = row.SalesOrder;
-        cartonQuantities?.TryGetValue(row.Id, out var cartonQuantity);
+        CartonQuantitySummary? cartonQuantity = null;
+        cartonQuantities?.TryGetValue(row.Id, out cartonQuantity);
         return new OutwardOrderDto
         {
             Id = row.Id,
@@ -1544,7 +1554,7 @@ public class OutwardOrdersController : BaseController
     {
         var items = row.Items
             .OrderBy(x => x.Id)
-            .Select(MapOrder)
+            .Select(item => MapOrder(item))
             .ToList();
 
         return new SalesOrderDto
