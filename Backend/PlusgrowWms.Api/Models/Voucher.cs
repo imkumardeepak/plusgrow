@@ -6,6 +6,7 @@
 		public string VoucherType { get; set; }
 		public string Date { get; set; }
 		public string PartyName { get; set; }
+		public string Reference { get; set; } = "NA";
 		public string AccountType { get; set; }
 		public string overallamount { get; set; } = "NA";
 		public List<ItemDetails> Items { get; set; }  // List of items

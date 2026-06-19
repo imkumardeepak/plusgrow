@@ -187,6 +187,7 @@ public class TallyService
 							VoucherType = voucherData["@VCHTYPE"]?.ToString() ?? "NA",
 							Date = voucherData["DATE"]?.ToString() ?? "NA",
 							PartyName = voucherData["PARTYNAME"]?.ToString() ?? "NA",
+							Reference = voucherData["REFERENCE"]?.ToString() ?? "NA",
 							AccountType = voucherTypeName,
 							overallamount = overallAmount,
 							Items = new List<ItemDetails>()

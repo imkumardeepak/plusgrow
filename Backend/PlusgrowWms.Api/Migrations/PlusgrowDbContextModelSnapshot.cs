@@ -1049,60 +1049,6 @@ namespace PlusgrowWms.Api.Migrations
                     b.ToTable("stock_check_reports");
                 });
 
-            modelBuilder.Entity("PlusgrowWms.Api.Models.TallyVoucher", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AccountType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<List<ItemDetails>>("Items")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime>("LastUpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("OverallAmount")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PartyName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("RemoteId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("SyncedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("VoucherDate")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("VoucherType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RemoteId")
-                        .IsUnique();
-
-                    b.HasIndex("SyncedAt");
-
-                    b.HasIndex("VoucherDate");
-
-                    b.ToTable("tallyvouchers");
-                });
-
             modelBuilder.Entity("PlusgrowWms.Api.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1336,6 +1282,7 @@ namespace PlusgrowWms.Api.Migrations
                 {
                     b.Navigation("Items");
                 });
+
 #pragma warning restore 612, 618
         }
     }

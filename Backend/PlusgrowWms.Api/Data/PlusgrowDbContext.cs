@@ -76,7 +76,6 @@ public class PlusgrowDbContext : DbContext
     public DbSet<StockCheckReport> StockCheckReports => Set<StockCheckReport>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PoInvoiceLocation> PoInvoiceLocations => Set<PoInvoiceLocation>();
-    public DbSet<TallyVoucher> TallyVouchers => Set<TallyVoucher>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -303,20 +302,6 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<AuditLog>()
             .HasIndex(x => x.Timestamp);
 
-        modelBuilder.Entity<TallyVoucher>()
-            .HasIndex(x => x.RemoteId)
-            .IsUnique();
-
-        modelBuilder.Entity<TallyVoucher>()
-            .HasIndex(x => x.SyncedAt);
-
-        modelBuilder.Entity<TallyVoucher>()
-            .HasIndex(x => x.VoucherDate);
-
-        // Store Items list as jsonb column in PostgreSQL
-        modelBuilder.Entity<TallyVoucher>()
-            .Property(x => x.Items)
-            .HasColumnType("jsonb");
     }
 
     private void NormalizeDateTimeKinds()
