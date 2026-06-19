@@ -7,6 +7,9 @@ using Serilog;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using AutoMapper;
+using Hangfire;
+using Hangfire.PostgreSql;
+using PlusgrowWms.Api.Configuration;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Hubs;
 using PlusgrowWms.Api.Mappings;
@@ -79,7 +82,16 @@ builder.Services.AddHttpClient<TallyService>();
 
 // Tally sync
 builder.Services.AddScoped<ITallySyncService, TallySyncService>();
-// builder.Services.AddHostedService<TallySyncBackgroundService>();
+
+// Hangfire (recurring jobs + dashboard)
+builder.Services.AddHangfire(config =>
+    config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(options =>
+            options.UseNpgsqlConnection(connectionString)));
+builder.Services.AddHangfireServer();
 
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -189,6 +201,15 @@ app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+
+// Hangfire Dashboard — placed before UseAuthorization so the global
+// FallbackPolicy doesn't block it. Hangfire uses its own auth filter.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() },
+    DashboardTitle = "PlusGrow WMS - Background Jobs"
+});
+
 app.UseAuthorization();
 
 // Handle OPTIONS requests for all routes
@@ -212,5 +233,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 Log.Information("Plusgrow WMS API starting up...");
+
+// Register Hangfire recurring jobs
+RecurringJob.AddOrUpdate<ITallySyncService>(
+    "tally-sync-every-2-min",
+    service => service.SyncTodayVouchersAsync(CancellationToken.None),
+    "*/2 * * * *"); // Every 2 minutes
 
 app.Run();

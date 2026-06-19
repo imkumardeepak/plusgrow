@@ -17,12 +17,14 @@ public class TallyService
 {
 	private readonly HttpClient _httpClient;
 	private readonly IConfiguration _configuration;
+	private readonly IWebHostEnvironment _environment;
 	private readonly ILogger<TallyService> _logger;
 
-	public TallyService(HttpClient httpClient, IConfiguration configuration, ILogger<TallyService> logger)
+	public TallyService(HttpClient httpClient, IConfiguration configuration, IWebHostEnvironment environment, ILogger<TallyService> logger)
 	{
 		_httpClient = httpClient;
 		_configuration = configuration;
+		_environment = environment;
 		_logger = logger;
 	}
 	public async Task<bool> GetTestConnection()
@@ -112,33 +114,29 @@ public class TallyService
 	}
 
 	/// <summary>
-	/// Fetch vouchers for a date range without a static XML file.
+	/// Fetch vouchers using the static GetVoucher.xml template, replacing only the date range.
 	/// Tally date format is yyyyMMdd.
 	/// </summary>
 	public async Task<List<Voucher>> GetVoucherByDateRangeAsync(DateTime from, DateTime to)
 	{
 		string fromDate = from.ToString("yyyyMMdd");
 		string toDate = to.ToString("yyyyMMdd");
+		string xmlFilePath = Path.Combine(_environment.ContentRootPath, "wwwroot", "TallyXML", "GetVoucher.xml");
 
-		string xml = $@"<ENVELOPE>
-  <HEADER>
-    <VERSION>1</VERSION>
-    <TALLYREQUEST>Export</TALLYREQUEST>
-    <TYPE>Object</TYPE>
-    <SUBTYPE>Vouchers</SUBTYPE>
-  </HEADER>
-  <BODY>
-    <DESC>
-      <STATICVARIABLES>
-        <SVFROMDATE>{fromDate}</SVFROMDATE>
-        <SVTODATE>{toDate}</SVTODATE>
-        <EXPLODEFLAG>Yes</EXPLODEFLAG>
-      </STATICVARIABLES>
-    </DESC>
-  </BODY>
-</ENVELOPE>";
+		if (!File.Exists(xmlFilePath))
+			throw new FileNotFoundException("The specified XML file was not found.", xmlFilePath);
 
-		return await GetVouchersFromXmlContentAsync(xml);
+		var xmlDocument = XDocument.Load(xmlFilePath, LoadOptions.PreserveWhitespace);
+		var fromDateElement = xmlDocument.Descendants().FirstOrDefault(x => x.Name.LocalName == "SVFROMDATE");
+		var toDateElement = xmlDocument.Descendants().FirstOrDefault(x => x.Name.LocalName == "SVTODATE");
+
+		if (fromDateElement is null || toDateElement is null)
+			throw new InvalidOperationException("GetVoucher.xml must contain SVFROMDATE and SVTODATE elements.");
+
+		fromDateElement.Value = fromDate;
+		toDateElement.Value = toDate;
+
+		return await GetVouchersFromXmlContentAsync(xmlDocument.ToString(SaveOptions.DisableFormatting));
 	}
 
 	private async Task<List<Voucher>> GetVouchersFromXmlContentAsync(string xmlContent)
