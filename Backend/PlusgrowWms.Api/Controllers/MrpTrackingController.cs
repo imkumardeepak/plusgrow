@@ -33,6 +33,7 @@ public class MrpTrackingController : BaseController
             query = query.Where(x => 
                 (x.PoInvoice!.Product!.Name != null && x.PoInvoice.Product.Name.ToLower().Contains(s)) ||
                 (x.PoInvoice!.Product!.Sku != null && x.PoInvoice.Product.Sku.ToLower().Contains(s)) ||
+                (x.PoInvoice!.Product!.Alias != null && x.PoInvoice.Product.Alias.ToLower().Contains(s)) ||
                 (x.PoInvoice!.Header!.InvoiceNumber != null && x.PoInvoice.Header.InvoiceNumber.ToLower().Contains(s))
             );
         }
@@ -47,6 +48,7 @@ public class MrpTrackingController : BaseController
                 ProductId = x.PoInvoice!.ProductId,
                 ProductName = x.PoInvoice.Product!.Name,
                 Sku = x.PoInvoice.Product.Sku,
+                Alias = x.PoInvoice.Product.Alias,
                 InvoiceNumber = x.PoInvoice.Header!.InvoiceNumber,
                 InvoiceDate = x.PoInvoice.Header.InvoiceDate,
                 Mrp = x.PoInvoice.Mrp,
@@ -75,6 +77,7 @@ public class MrpTrackingController : BaseController
             query = query.Where(x =>
                 (x.PoInvoice!.Product!.Name != null && x.PoInvoice.Product.Name.ToLower().Contains(s)) ||
                 (x.PoInvoice!.Product!.Sku != null && x.PoInvoice.Product.Sku.ToLower().Contains(s)) ||
+                (x.PoInvoice!.Product!.Alias != null && x.PoInvoice.Product.Alias.ToLower().Contains(s)) ||
                 (x.PoInvoice!.Header!.InvoiceNumber != null && x.PoInvoice.Header.InvoiceNumber.ToLower().Contains(s)));
         }
 
@@ -84,6 +87,7 @@ public class MrpTrackingController : BaseController
                 x.PoInvoice!.ProductId,
                 x.PoInvoice.Product!.Name,
                 x.PoInvoice.Product.Sku,
+                x.PoInvoice.Product.Alias,
                 x.PoInvoice.Header!.InvoiceNumber,
                 x.PoInvoice.Header.InvoiceDate,
                 x.PoInvoice.Header.PartyName,
@@ -95,6 +99,7 @@ public class MrpTrackingController : BaseController
                 ProductId = g.Key.ProductId,
                 ProductName = g.Key.Name,
                 Sku = g.Key.Sku,
+                Alias = g.Key.Alias,
                 InvoiceNumber = g.Key.InvoiceNumber,
                 InvoiceDate = g.Key.InvoiceDate,
                 PartyName = g.Key.PartyName,
@@ -126,6 +131,7 @@ public class MrpTrackingController : BaseController
             query = query.Where(x =>
                 (x.Product!.Name != null && x.Product.Name.ToLower().Contains(s)) ||
                 (x.Product!.Sku != null && x.Product.Sku.ToLower().Contains(s)) ||
+                (x.Product!.Alias != null && x.Product.Alias.ToLower().Contains(s)) ||
                 (x.Header!.InvoiceNumber != null && x.Header.InvoiceNumber.ToLower().Contains(s)));
         }
 
@@ -142,6 +148,7 @@ public class MrpTrackingController : BaseController
                 ProductId = x.ProductId,
                 ProductName = x.Product!.Name,
                 Sku = x.Product.Sku,
+                Alias = x.Product.Alias,
                 BaseMrp = x.Product.Mrp,
                 InwardMrp = x.Mrp,
                 Difference = x.Product.Mrp.HasValue && x.Mrp.HasValue

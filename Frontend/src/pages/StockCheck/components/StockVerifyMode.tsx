@@ -465,6 +465,57 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
               <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
                 <Group justify="space-between" mb="xs">
+                  <MetricLabel icon={History} label="Stock Adjustment / Movement History" />
+                  <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.movements.length, TABLE_ROW_LIMIT)} of {lookupResult.movements.length}</Badge>
+                </Group>
+                {lookupResult.movements.length === 0 ? (
+                  <EmptyInline message="No stock adjustment or movement history found for this SKU." />
+                ) : (
+                  <ScrollArea type="auto" h={TABLE_SECTION_HEIGHT - 58}>
+                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Date</Table.Th>
+                          <Table.Th>Type</Table.Th>
+                          <Table.Th>Change</Table.Th>
+                          <Table.Th>Before</Table.Th>
+                          <Table.Th>After</Table.Th>
+                          <Table.Th>Reason</Table.Th>
+                          <Table.Th>By</Table.Th>
+                          <Table.Th>Notes</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        {visibleMovements.map((movement) => (
+                          <Table.Tr key={movement.id}>
+                            <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
+                            <Table.Td>
+                              <Badge size="sm" radius="md" variant={movement.quantityChange >= 0 ? "success" : "warning"}>
+                                {movement.movementType || (movement.quantityChange >= 0 ? "increase" : "decrease")}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="12px" fw={900} ff="monospace" c={movement.quantityChange >= 0 ? "green.3" : "orange.3"}>
+                                {movement.quantityChange > 0 ? "+" : ""}{movement.quantityChange}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>{movement.quantityBefore}</Table.Td>
+                            <Table.Td>{movement.quantityAfter}</Table.Td>
+                            <Table.Td>{movement.reason}</Table.Td>
+                            <Table.Td>{movement.performedByName || "-"}</Table.Td>
+                            <Table.Td>
+                              <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))}
+                      </Table.Tbody>
+                    </Table>
+                  </ScrollArea>
+                )}
+              </Paper>
+
+              <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
+                <Group justify="space-between" mb="xs">
                   <MetricLabel icon={FileText} label="Purchase Invoices" />
                   <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.invoices.length, TABLE_ROW_LIMIT)} of {lookupResult.invoices.length}</Badge>
                 </Group>
@@ -556,56 +607,6 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                 )}
               </Paper>
 
-              <Paper radius="lg" p="sm" withBorder bg="transparent" style={{ height: TABLE_SECTION_HEIGHT }}>
-                <Group justify="space-between" mb="xs">
-                  <MetricLabel icon={History} label="Stock Adjustment / Movement History" />
-                  <Badge size="sm" radius="md" variant="default" color="gray">Showing top {Math.min(lookupResult.movements.length, TABLE_ROW_LIMIT)} of {lookupResult.movements.length}</Badge>
-                </Group>
-                {lookupResult.movements.length === 0 ? (
-                  <EmptyInline message="No stock adjustment or movement history found for this SKU." />
-                ) : (
-                  <ScrollArea type="auto" h={TABLE_SECTION_HEIGHT - 58}>
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Date</Table.Th>
-                          <Table.Th>Type</Table.Th>
-                          <Table.Th>Change</Table.Th>
-                          <Table.Th>Before</Table.Th>
-                          <Table.Th>After</Table.Th>
-                          <Table.Th>Reason</Table.Th>
-                          <Table.Th>By</Table.Th>
-                          <Table.Th>Notes</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {visibleMovements.map((movement) => (
-                          <Table.Tr key={movement.id}>
-                            <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
-                            <Table.Td>
-                              <Badge size="sm" radius="md" variant={movement.quantityChange >= 0 ? "success" : "warning"}>
-                                {movement.movementType || (movement.quantityChange >= 0 ? "increase" : "decrease")}
-                              </Badge>
-                            </Table.Td>
-                            <Table.Td>
-                              <Text size="12px" fw={900} ff="monospace" c={movement.quantityChange >= 0 ? "green.3" : "orange.3"}>
-                                {movement.quantityChange > 0 ? "+" : ""}{movement.quantityChange}
-                              </Text>
-                            </Table.Td>
-                            <Table.Td>{movement.quantityBefore}</Table.Td>
-                            <Table.Td>{movement.quantityAfter}</Table.Td>
-                            <Table.Td>{movement.reason}</Table.Td>
-                            <Table.Td>{movement.performedByName || "-"}</Table.Td>
-                            <Table.Td>
-                              <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
-              </Paper>
             </Stack>
           )}
         </OperationsPanel>

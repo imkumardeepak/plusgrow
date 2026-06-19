@@ -51,10 +51,13 @@ const formatMoney = (value?: number | null) =>
 const getBatchTime = (row: MrpWiseStockSummary) =>
   row.invoiceDate ? new Date(row.invoiceDate).getTime() : 0;
 
+const normalizeScanSearch = (value: string) => value.trim().split('#')[0].trim();
+
 type ProductMrpGroup = {
   productId: number;
   productName: string;
   sku: string;
+  alias?: string | null;
   totalQty: number;
   batchCount: number;
   mrpCount: number;
@@ -91,13 +94,14 @@ export default function MrpTracking() {
   };
 
   const loadQuantity = async (q: string) => {
-    if (!q.trim()) {
-      toast.error('Please enter a search query (Product Name or SKU)');
+    const normalizedQuery = normalizeScanSearch(q);
+    if (!normalizedQuery) {
+      toast.error('Please enter a search query (Product Name, SKU, or Alias)');
       return;
     }
     try {
       setQtyLoading(true);
-      const result = await mrpTrackingApi.getMrpWiseStockSummary(q);
+      const result = await mrpTrackingApi.getMrpWiseStockSummary(normalizedQuery);
       setQtyData(result || []);
     } catch {
       toast.error('Failed to load MRP batches');
@@ -107,8 +111,10 @@ export default function MrpTracking() {
   };
 
   const handleSearch = () => {
-    if (activeTab === 'changes') void loadChanges(search);
-    else void loadQuantity(search);
+    const normalizedQuery = normalizeScanSearch(search);
+    setSearch(normalizedQuery);
+    if (activeTab === 'changes') void loadChanges(normalizedQuery);
+    else void loadQuantity(normalizedQuery);
   };
 
   // ---- derived data for changes tab ----
@@ -137,6 +143,7 @@ export default function MrpTracking() {
         productId: row.productId,
         productName: row.productName || 'Unknown Product',
         sku: row.sku || '-',
+        alias: row.alias,
         totalQty: 0,
         batchCount: 0,
         mrpCount: 0,
@@ -242,7 +249,7 @@ export default function MrpTracking() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSearch();
                 }}
-                placeholder="Product, SKU, Invoice..."
+                placeholder="Product, SKU, Alias, Invoice..."
                 leftSection={<Search size={14} />}
               />
               <Button
@@ -339,7 +346,7 @@ function ChangesTab({ data, loading }: { data: MrpChange[] | null; loading: bool
           </ThemeIcon>
           <Text fw={800} size="lg" c="white">Search to detect MRP Changes</Text>
           <Text size="sm" c="dimmed" maw={420} ta="center">
-            Enter a Product Name, SKU, or Invoice number to find products whose MRP changed between upload and inward. Leave empty and search to see all changes.
+            Enter a Product Name, SKU, Alias, or Invoice number to find products whose MRP changed between upload and inward. Leave empty and search to see all changes.
           </Text>
         </Stack>
       </Center>
@@ -382,6 +389,9 @@ function ChangesTab({ data, loading }: { data: MrpChange[] | null; loading: bool
                   <Box>
                     <Text size="sm" fw={700} c="white" lineClamp={1}>{row.productName || 'Unknown'}</Text>
                     <Text size="10px" c="dimmed" ff="monospace">{row.sku || '-'}</Text>
+                    {row.alias ? (
+                      <Text size="10px" c="violet.3" ff="monospace">Alias: {row.alias}</Text>
+                    ) : null}
                   </Box>
                 </Table.Td>
                 <Table.Td ta="right">
@@ -481,7 +491,7 @@ function QuantityTab({
           </ThemeIcon>
           <Text fw={800} size="lg" c="white">Search to view MRP Batches</Text>
           <Text size="sm" c="dimmed" maw={400} ta="center">
-            Enter a Product Name or SKU above to search for its active MRP batches.
+            Enter a Product Name, SKU, or Alias above to search for its active MRP batches.
           </Text>
         </Stack>
       </Center>
@@ -513,6 +523,9 @@ function QuantityTab({
                     <Text size="sm" fw={900} c="white" truncate>{product.productName}</Text>
                     <Group gap={6} wrap="wrap" mt={4}>
                       <Badge size="xs" variant="light" color="gray" radius="sm">SKU: {product.sku}</Badge>
+                      {product.alias ? (
+                        <Badge size="xs" variant="light" color="violet" radius="sm">Alias: {product.alias}</Badge>
+                      ) : null}
                       <Badge size="xs" variant="light" color="cyan" radius="sm">{product.batchCount} Batches</Badge>
                       <Badge size="xs" variant="light" color="blue" radius="sm">{product.mrpCount} MRPs</Badge>
                     </Group>

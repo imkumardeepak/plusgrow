@@ -6,6 +6,7 @@ export interface MrpTrackingResult {
   productId: number;
   productName: string;
   sku: string;
+  alias?: string | null;
   invoiceNumber: string;
   invoiceDate: string;
   mrp: number | null;
@@ -17,6 +18,7 @@ export interface MrpWiseStockSummary {
   productId: number;
   productName: string;
   sku: string;
+  alias?: string | null;
   invoiceNumber: string | null;
   invoiceDate: string | null;
   partyName: string | null;
@@ -29,6 +31,7 @@ export interface MrpChange {
   productId: number;
   productName: string | null;
   sku: string | null;
+  alias?: string | null;
   baseMrp: number | null;
   inwardMrp: number | null;
   difference: number | null;
