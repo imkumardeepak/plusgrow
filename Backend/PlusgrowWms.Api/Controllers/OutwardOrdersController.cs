@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using ClosedXML.Excel;
+using System.Globalization;
 using System.Security.Claims;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
@@ -280,6 +282,241 @@ public class OutwardOrdersController : BaseController
             : "Outward order created successfully");
     }
 
+    [HttpPost("sales-orders/upload")]
+    public async Task<ActionResult<ApiResponse<ImportResultDto>>> UploadSalesOrders(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest<ImportResultDto>("Please upload a valid Excel file");
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (extension != ".xlsx" && extension != ".xls")
+            return BadRequest<ImportResultDto>("Only Excel files (.xlsx, .xls) are allowed");
+
+        var result = new ImportResultDto();
+
+        try
+        {
+            using var stream = new MemoryStream();
+            await file.CopyToAsync(stream);
+            stream.Position = 0;
+
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheets.First();
+            var headerRow = worksheet.FirstRowUsed();
+            if (headerRow == null)
+                return BadRequest<ImportResultDto>("The uploaded file does not contain a header row");
+
+            var headerMap = BuildUploadHeaderMap(headerRow);
+            var requiredHeaders = new[]
+            {
+                "invoiceno",
+                "invdate",
+                "partyname",
+                "partno",
+                "mrp",
+                "itemname",
+                "billedqty",
+            };
+
+            var missingHeaders = requiredHeaders.Where(header => !headerMap.ContainsKey(header)).ToList();
+            if (missingHeaders.Count > 0)
+                return BadRequest<ImportResultDto>($"Missing required columns: {string.Join(", ", missingHeaders)}");
+
+            var uploadRows = new List<SalesOrderUploadRow>();
+            foreach (var row in worksheet.RowsUsed().Skip(headerRow.RowNumber()))
+            {
+                try
+                {
+                    var referenceNumber = row.Cell(headerMap["invoiceno"]).GetString().Trim();
+                    var orderDateCell = row.Cell(headerMap["invdate"]);
+                    var customerName = row.Cell(headerMap["partyname"]).GetString().Trim();
+                    var partNo = row.Cell(headerMap["partno"]).GetString().Trim();
+                    var itemName = row.Cell(headerMap["itemname"]).GetString().Trim();
+                    var quantity = ReadIntCell(row.Cell(headerMap["billedqty"]));
+                    var mrp = ReadDecimalCell(row.Cell(headerMap["mrp"]));
+
+                    if (string.IsNullOrWhiteSpace(referenceNumber) &&
+                        string.IsNullOrWhiteSpace(customerName) &&
+                        string.IsNullOrWhiteSpace(partNo) &&
+                        string.IsNullOrWhiteSpace(itemName))
+                    {
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(referenceNumber))
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Invoice No. is required.");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(customerName))
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Party Name is required.");
+                        continue;
+                    }
+
+                    var orderDate = TryParseUploadDate(orderDateCell);
+                    if (orderDate == null)
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Inv. Date is invalid.");
+                        continue;
+                    }
+
+                    if (quantity <= 0)
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Billed Qty. must be greater than zero.");
+                        continue;
+                    }
+
+                    var product = await FindUploadProductAsync(partNo, itemName);
+                    if (product == null)
+                    {
+                        result.Errors.Add($"Row {row.RowNumber()}: Product not found in Product Master for Part No. '{partNo}' or Item Name '{itemName}'.");
+                        continue;
+                    }
+
+                    uploadRows.Add(new SalesOrderUploadRow(
+                        row.RowNumber(),
+                        referenceNumber,
+                        orderDate.Value,
+                        customerName,
+                        product,
+                        quantity,
+                        mrp > 0 ? mrp : product.Mrp));
+                }
+                catch (Exception ex)
+                {
+                    result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
+                }
+            }
+
+            var groupedRows = uploadRows
+                .GroupBy(row => row.ReferenceNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var incomingReferences = groupedRows.Select(group => group.Key).ToList();
+            var existingReferences = await _context.SalesOrders
+                .AsNoTracking()
+                .Where(x => x.ReferenceNumber != null && incomingReferences.Contains(x.ReferenceNumber))
+                .Select(x => new { x.ReferenceNumber, x.Status })
+                .ToListAsync();
+
+            var activeReferenceSet = new HashSet<string>(
+                existingReferences
+                    .Where(x => !string.Equals(x.Status, "Canceled", StringComparison.OrdinalIgnoreCase))
+                    .Select(x => x.ReferenceNumber!)
+                    .Where(x => !string.IsNullOrWhiteSpace(x)),
+                StringComparer.OrdinalIgnoreCase);
+
+            var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            var orderNumberPrefix = $"SO-{DateTime.Now:yyMMdd}";
+            var nextOrderSequence = await GetNextOrderSequenceAsync(orderNumberPrefix);
+
+            foreach (var group in groupedRows)
+            {
+                if (activeReferenceSet.Contains(group.Key))
+                {
+                    result.Errors.Add($"Invoice {group.Key}: Sales order already exists for this reference.");
+                    continue;
+                }
+
+                var rows = group.ToList();
+                var firstRow = rows.First();
+                var groupedItems = rows
+                    .GroupBy(row => new { row.Product.Id, Mrp = decimal.Round(row.Mrp ?? 0m, 2) })
+                    .Select(itemGroup => new
+                    {
+                        Product = itemGroup.First().Product,
+                        Quantity = itemGroup.Sum(row => row.Quantity),
+                        Mrp = itemGroup.First().Mrp,
+                    })
+                    .ToList();
+
+                var productIds = groupedItems.Select(item => item.Product.Id).ToList();
+                var stockQtyMap = await _context.ProductQuantities
+                    .AsNoTracking()
+                    .Where(q => productIds.Contains(q.ProductId))
+                    .ToDictionaryAsync(q => q.ProductId, q => q.CurrentQuantity);
+
+                var stockErrors = groupedItems
+                    .Where(item => item.Quantity > stockQtyMap.GetValueOrDefault(item.Product.Id, 0))
+                    .Select(item =>
+                    {
+                        var available = stockQtyMap.GetValueOrDefault(item.Product.Id, 0);
+                        var label = !string.IsNullOrWhiteSpace(item.Product.Sku)
+                            ? $"{item.Product.Sku} - {item.Product.Name}"
+                            : item.Product.Name;
+                        return $"Invoice {group.Key}: Insufficient stock for '{label}'. Available: {available}, Requested: {item.Quantity}.";
+                    })
+                    .ToList();
+
+                if (stockErrors.Count > 0)
+                {
+                    result.Errors.AddRange(stockErrors);
+                    continue;
+                }
+
+                var salesOrder = new SalesOrder
+                {
+                    OrderNumber = $"{orderNumberPrefix}-{nextOrderSequence++:000}",
+                    OrderDate = firstRow.OrderDate,
+                    CustomerName = firstRow.CustomerName.Trim(),
+                    Status = "Open",
+                    Notes = "Imported from Excel",
+                    ReferenceNumber = group.Key,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Items = groupedItems.Select(item => new OutwardOrder
+                    {
+                        ProductId = item.Product.Id,
+                        Quantity = item.Quantity,
+                        Mrp = item.Mrp,
+                        PickedQuantity = 0,
+                        Status = "Open",
+                        Notes = "Imported from Excel",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    }).ToList(),
+                };
+
+                _context.SalesOrders.Add(salesOrder);
+                result.ImportedCount += rows.Count;
+                activeReferenceSet.Add(group.Key);
+            }
+
+            await _context.SaveChangesAsync();
+            result.Success = true;
+
+            if (result.ImportedCount > 0)
+            {
+                await SendNotificationAsync(new RealtimeNotificationDto
+                {
+                    Type = "sales_order.imported",
+                    Title = "Sales orders imported",
+                    Message = result.Errors.Count > 0
+                        ? $"{result.ImportedCount} sales order rows imported, {result.Errors.Count} skipped."
+                        : $"{result.ImportedCount} sales order rows were imported.",
+                    Severity = "success",
+                    Data = new Dictionary<string, object?>
+                    {
+                        ["importedCount"] = result.ImportedCount,
+                        ["errorCount"] = result.Errors.Count,
+                    },
+                });
+            }
+
+            var message = result.ImportedCount > 0
+                ? $"Imported {result.ImportedCount} sales order rows successfully"
+                : "No rows were imported. Check skipped rows for details.";
+
+            return Success(result, message);
+        }
+        catch (Exception ex)
+        {
+            return Error<ImportResultDto>($"Error processing file: {ex.Message}");
+        }
+    }
+
     [HttpPost("{id}/pick")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> PickOrder(int id, [FromBody] UpdateOutwardPickingDto dto)
     {
@@ -334,10 +571,12 @@ public class OutwardOrdersController : BaseController
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
+        AddPickedLocation(order, reduceLocationResult.LocationCode!, pickQty);
         order.PickedQuantity = nextPicked;
         order.Status = order.PickedQuantity >= order.Quantity ? "Packed" : "Picking";
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         order.CartonId ??= BuildCartonId(order);
+        _context.Entry(order).Property(x => x.PickedLocationJson).IsModified = true;
 
         await _context.SaveChangesAsync();
         if (order.SalesOrderId > 0)
@@ -436,6 +675,10 @@ public class OutwardOrdersController : BaseController
             Quantity = pickQty,
             Mrp = effectiveMrp,
             PickedQuantity = pickQty,
+            PickedLocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                [reduceLocationResult.LocationCode!] = pickQty,
+            },
             Status = "Packed",
             Notes = salesOrder.Notes,
             CreatedAt = now,
@@ -545,6 +788,10 @@ public class OutwardOrdersController : BaseController
                 Quantity = pickQty,
                 Mrp = effectiveMrp,
                 PickedQuantity = pickQty,
+                PickedLocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [reduceLocationResult.LocationCode!] = pickQty,
+                },
                 Status = "Packed",
                 Notes = salesOrder.Notes,
                 CreatedAt = now,
@@ -698,17 +945,30 @@ public class OutwardOrdersController : BaseController
         if (string.IsNullOrWhiteSpace(dto.Remark))
             return BadRequest<SalesOrderDto>("Cancel remark is required");
 
-        if (salesOrder.Items.Any(item => item.PickedQuantity > 0 || item.Status != "Open"))
-            return BadRequest<SalesOrderDto>("Cannot cancel sales order after picking, packing, or dispatch has started");
+        if (salesOrder.Status == "Dispatched" || salesOrder.Items.Any(item => item.Status == "Dispatched"))
+            return BadRequest<SalesOrderDto>("Cannot cancel sales order after dispatch");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var (cancelUserId, cancelUserName) = ResolvePerformedBy();
+
+        foreach (var item in salesOrder.Items.Where(item => item.PickedQuantity > 0))
+        {
+            await RestoreCanceledPickAsync(item, cancelUserId, cancelUserName);
+        }
 
         salesOrder.Status = "Canceled";
         salesOrder.CancelRemark = dto.Remark.Trim();
-        salesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        salesOrder.UpdatedAt = now;
         salesOrder.DispatchedAt = null;
 
         foreach (var item in salesOrder.Items)
         {
             item.Status = "Canceled";
+            item.PickedQuantity = 0;
+            item.PickedLocationJson = null;
+            item.CartonId = null;
+            item.DispatchedAt = null;
             item.Notes = string.IsNullOrWhiteSpace(item.Notes)
                 ? $"Canceled: {dto.Remark.Trim()}"
                 : $"{item.Notes} | Canceled: {dto.Remark.Trim()}";
@@ -716,6 +976,7 @@ public class OutwardOrdersController : BaseController
         }
 
         await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         await _auditLogService.LogCustomActionAsync(
             "CancelSalesOrder",
@@ -778,6 +1039,13 @@ public class OutwardOrdersController : BaseController
     private async Task<string> GenerateOrderNumberAsync()
     {
         var prefix = $"SO-{DateTime.Now:yyMMdd}";
+        var nextSequence = await GetNextOrderSequenceAsync(prefix);
+
+        return $"{prefix}-{nextSequence:000}";
+    }
+
+    private async Task<int> GetNextOrderSequenceAsync(string prefix)
+    {
         var lastOrder = await _context.SalesOrders
             .Where(x => x.OrderNumber.StartsWith(prefix))
             .OrderByDescending(x => x.OrderNumber)
@@ -791,7 +1059,142 @@ public class OutwardOrdersController : BaseController
                 nextSequence = parsed + 1;
         }
 
-        return $"{prefix}-{nextSequence:000}";
+        return nextSequence;
+    }
+
+    private async Task<Product?> FindUploadProductAsync(string partNo, string itemName)
+    {
+        if (!string.IsNullOrWhiteSpace(partNo))
+        {
+            var normalizedPartNo = partNo.Trim().ToLower();
+            var product = await _context.Products.FirstOrDefaultAsync(x =>
+                (x.Sku != null && x.Sku.ToLower() == normalizedPartNo) ||
+                (x.Alias != null && x.Alias.ToLower() == normalizedPartNo));
+
+            if (product != null)
+                return product;
+        }
+
+        if (!string.IsNullOrWhiteSpace(itemName))
+        {
+            var normalizedItemName = itemName.Trim().ToLower();
+            return await _context.Products.FirstOrDefaultAsync(x => x.Name.ToLower() == normalizedItemName);
+        }
+
+        return null;
+    }
+
+    private static string NormalizeUploadHeader(string value)
+    {
+        return new string(value.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+    }
+
+    private static Dictionary<string, int> BuildUploadHeaderMap(IXLRow headerRow)
+    {
+        var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var cell in headerRow.CellsUsed())
+        {
+            var normalizedHeader = NormalizeUploadHeader(cell.GetString());
+            if (!string.IsNullOrWhiteSpace(normalizedHeader) && !headerMap.ContainsKey(normalizedHeader))
+                headerMap[normalizedHeader] = cell.Address.ColumnNumber;
+        }
+
+        if (headerMap.Count > 1)
+            return headerMap;
+
+        var firstHeaderCell = headerRow.CellsUsed().FirstOrDefault();
+        if (firstHeaderCell == null)
+            return headerMap;
+
+        var concatenatedHeader = NormalizeUploadHeader(firstHeaderCell.GetString());
+        var expectedHeaders = new[]
+        {
+            "invoiceno",
+            "invdate",
+            "partyname",
+            "partno",
+            "mrp",
+            "itemname",
+            "billedqty",
+        };
+
+        var expectedConcatenatedHeader = string.Concat(expectedHeaders);
+        if (!string.Equals(concatenatedHeader, expectedConcatenatedHeader, StringComparison.OrdinalIgnoreCase))
+            return headerMap;
+
+        var startColumn = firstHeaderCell.Address.ColumnNumber;
+        return expectedHeaders
+            .Select((header, index) => new { header, column = startColumn + index })
+            .ToDictionary(item => item.header, item => item.column, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static DateTime NormalizeUploadDate(DateTime value)
+    {
+        return DateTime.SpecifyKind(value.Date, DateTimeKind.Unspecified);
+    }
+
+    private static DateTime? TryParseUploadDate(IXLCell cell)
+    {
+        if (cell.TryGetValue<DateTime>(out var date))
+            return NormalizeUploadDate(date);
+
+        var raw = cell.GetString().Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var formats = new[]
+        {
+            "dd-MMM-yy",
+            "d-MMM-yy",
+            "dd/MM/yyyy",
+            "d/M/yyyy",
+            "dd-MM-yyyy",
+            "d-M-yyyy",
+            "yyyy-MM-dd",
+        };
+
+        if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+            return NormalizeUploadDate(parsed);
+
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsed))
+            return NormalizeUploadDate(parsed);
+
+        return null;
+    }
+
+    private static decimal ReadDecimalCell(IXLCell cell)
+    {
+        var text = cell.GetString().Trim();
+        if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+
+        try
+        {
+            return (decimal)cell.GetDouble();
+        }
+        catch
+        {
+            return 0m;
+        }
+    }
+
+    private static int ReadIntCell(IXLCell cell)
+    {
+        var text = cell.GetString().Trim();
+        if (int.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed))
+            return parsed;
+
+        if (decimal.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var decimalParsed))
+            return Convert.ToInt32(decimalParsed);
+
+        try
+        {
+            return Convert.ToInt32(cell.GetDouble());
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private async Task<string> GenerateDirectOrderNumberAsync()
@@ -831,7 +1234,7 @@ public class OutwardOrdersController : BaseController
         return binLocation?.LocationCode;
     }
 
-    private async Task<(bool Success, string? Message)> ReduceAllocatedLocationAsync(
+    private async Task<(bool Success, string? Message, string? LocationCode)> ReduceAllocatedLocationAsync(
         int productId,
         string resolvedLocationCode,
         int quantity,
@@ -842,24 +1245,24 @@ public class OutwardOrdersController : BaseController
     {
         var row = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
-            return (false, "No allotted location stock found for this product");
+            return (false, "No allotted location stock found for this product", null);
 
         var matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
             string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
 
         if (matchingKey == null)
-            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU");
+            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU", null);
 
         var available = row.LocationJson[matchingKey];
         if (available < quantity)
-            return (false, $"Only {available} units are available in {matchingKey}");
+            return (false, $"Only {available} units are available in {matchingKey}", null);
 
         var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (quantityRow == null)
-            return (false, "Stock quantity row is missing for this product");
+            return (false, "Stock quantity row is missing for this product", null);
 
         if (quantityRow.CurrentQuantity < quantity)
-            return (false, $"Only {quantityRow.CurrentQuantity} units are available in product stock");
+            return (false, $"Only {quantityRow.CurrentQuantity} units are available in product stock", null);
 
         var nextQty = available - quantity;
         if (nextQty <= 0)
@@ -890,7 +1293,90 @@ public class OutwardOrdersController : BaseController
             CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
         });
 
-        return (true, null);
+        return (true, null, matchingKey);
+    }
+
+    private async Task RestoreCanceledPickAsync(OutwardOrder order, int? performedByUserId, string performedByName)
+    {
+        var pickedQuantity = order.PickedQuantity;
+        if (pickedQuantity <= 0)
+            return;
+
+        await _context.LockProductAsync(order.ProductId);
+
+        var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
+        if (quantityRow == null)
+        {
+            quantityRow = new ProductQuantity
+            {
+                ProductId = order.ProductId,
+                CurrentQuantity = 0,
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            };
+            _context.ProductQuantities.Add(quantityRow);
+        }
+
+        var quantityBefore = quantityRow.CurrentQuantity;
+        quantityRow.CurrentQuantity += pickedQuantity;
+        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        var pickedLocations = order.PickedLocationJson is { Count: > 0 }
+            ? new Dictionary<string, int>(order.PickedLocationJson, StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                [Location.DefaultLocationCode] = pickedQuantity,
+            };
+
+        var allocationRow = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
+        if (allocationRow == null)
+        {
+            allocationRow = new ProductAllottedLocation
+            {
+                ProductId = order.ProductId,
+                LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            };
+            _context.ProductAllottedLocations.Add(allocationRow);
+        }
+        else if (allocationRow.LocationJson == null)
+        {
+            allocationRow.LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var locationJson = new Dictionary<string, int>(allocationRow.LocationJson, StringComparer.OrdinalIgnoreCase);
+        foreach (var pickedLocation in pickedLocations)
+        {
+            if (pickedLocation.Value <= 0)
+                continue;
+
+            locationJson.TryGetValue(pickedLocation.Key, out var existingQty);
+            locationJson[pickedLocation.Key] = existingQty + pickedLocation.Value;
+        }
+
+        allocationRow.LocationJson = locationJson;
+        allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
+
+        _context.ProductStockMovements.Add(new ProductStockMovement
+        {
+            ProductId = order.ProductId,
+            QuantityChange = pickedQuantity,
+            QuantityBefore = quantityBefore,
+            QuantityAfter = quantityRow.CurrentQuantity,
+            Reason = "Sales Order Cancel",
+            MovementType = "cancel",
+            Notes = $"Restored {pickedQuantity} units after canceling sales order {order.SalesOrder?.OrderNumber ?? order.SalesOrderId.ToString()}",
+            PerformedByUserId = performedByUserId,
+            PerformedByName = performedByName,
+            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+        });
+    }
+
+    private static void AddPickedLocation(OutwardOrder order, string locationCode, int quantity)
+    {
+        order.PickedLocationJson ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        order.PickedLocationJson.TryGetValue(locationCode, out var existingQty);
+        order.PickedLocationJson[locationCode] = existingQty + quantity;
     }
 
     private (int? UserId, string Name) ResolvePerformedBy()
@@ -1073,4 +1559,13 @@ public class OutwardOrdersController : BaseController
 
         return [];
     }
+
+    private sealed record SalesOrderUploadRow(
+        int RowNumber,
+        string ReferenceNumber,
+        DateTime OrderDate,
+        string CustomerName,
+        Product Product,
+        int Quantity,
+        decimal? Mrp);
 }

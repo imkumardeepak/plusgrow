@@ -5,6 +5,7 @@ import {
   Badge,
   Group,
   NumberInput,
+  Paper,
   Select,
   SegmentedControl,
   SimpleGrid,
@@ -26,6 +27,7 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  Upload,
 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
@@ -115,6 +117,10 @@ export const Outward = memo(function Outward() {
   const [isCanceling, setIsCanceling] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadSkippedErrors, setUploadSkippedErrors] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [orderForm, setOrderForm] = useState(emptyOrderForm());
   const [productSearchByItemId, setProductSearchByItemId] = useState<Record<string, string>>({});
 
@@ -207,13 +213,18 @@ export const Outward = memo(function Outward() {
   const columns: DataTableColumn<SalesOrderRecord>[] = [
     {
       key: "orderNumber",
-      header: "Order No.",
+      header: "Order / Ref No.",
       sortable: true,
       sortAccessor: (row) => row.orderNumber,
       render: (row) => (
-        <Text size={isLargeScreen ? "sm" : "11px"} ff="monospace" c="cyan.2" fw={700}>
-          {row.orderNumber}
-        </Text>
+        <Stack gap={2}>
+          <Text size={isLargeScreen ? "sm" : "11px"} ff="monospace" c="cyan.2" fw={700}>
+            {row.orderNumber}
+          </Text>
+          <Text size="10px" ff="monospace" c="dimmed" lineClamp={1}>
+            {row.referenceNumber || "-"}
+          </Text>
+        </Stack>
       ),
       width: 150,
     },
@@ -610,6 +621,54 @@ export const Outward = memo(function Outward() {
     }
   };
 
+  const handleDownloadUploadTemplate = () => {
+    outwardOrdersApi.downloadSalesOrderTemplate();
+    toast.success("Sales order template downloaded");
+  };
+
+  const handleUploadFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.error("Please upload a valid Excel file");
+      return;
+    }
+
+    setUploadFile(file);
+    setUploadSkippedErrors([]);
+  };
+
+  const handleSalesOrderUpload = async () => {
+    if (!uploadFile) return;
+
+    try {
+      setIsUploading(true);
+      const result = await outwardOrdersApi.uploadSalesOrdersExcel(uploadFile);
+      const errors = result.errors || [];
+      setUploadSkippedErrors(errors);
+
+      if (result.importedCount > 0) {
+        toast.success(
+          errors.length > 0
+            ? `Imported ${result.importedCount} rows, skipped ${errors.length}`
+            : `Imported ${result.importedCount} sales order rows`,
+        );
+        setUploadFile(null);
+        setIsUploadOpen(errors.length > 0);
+        await loadOrders();
+      } else if (errors.length > 0) {
+        toast.warning(`No rows imported. ${errors.length} rows skipped.`);
+      } else {
+        toast.warning("No valid rows found in uploaded file");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload sales order file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <OperationsPage
       title="Outward Orders"
@@ -672,6 +731,14 @@ export const Outward = memo(function Outward() {
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              leftIcon={<Upload className="h-3.5 w-3.5" />}
+              onClick={() => setIsUploadOpen(true)}
+            >
+              Import Excel
+            </Button>
+            <Button
+              size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               onClick={() => {
                 setOrderForm(emptyOrderForm());
@@ -701,6 +768,80 @@ export const Outward = memo(function Outward() {
           emptyDescription="Create a sales order to start the outward workflow."
         />
       </OperationsPanel>
+
+      <Modal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        title="Import Sales Orders from Excel"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Paper radius="md" p="md" withBorder bg="transparent">
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={4}>
+                <Text fw={700}>Sales Order Import Template</Text>
+                <Text size="sm" c="dimmed">
+                  Invoice No. is saved as Ref No. Repeated invoice numbers become one sales order with multiple items.
+                </Text>
+              </Stack>
+              <Button
+                variant="outline"
+                leftIcon={<Download size={14} />}
+                onClick={handleDownloadUploadTemplate}
+              >
+                Download Template
+              </Button>
+            </Group>
+          </Paper>
+
+          <Paper radius="md" p="md" withBorder bg="transparent">
+            <Stack gap="sm">
+              <Text size="11px" fw={800} c="dimmed" tt="uppercase">
+                Excel File
+              </Text>
+              <input type="file" accept=".xlsx,.xls" onChange={handleUploadFileSelect} />
+              {uploadFile ? (
+                <Text size="sm" fw={700}>
+                  {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
+                </Text>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  Required columns: Invoice No., Inv. Date, Party Name, Part No., MRP, Item Name, Billed Qty.
+                </Text>
+              )}
+            </Stack>
+          </Paper>
+
+          {uploadSkippedErrors.length > 0 ? (
+            <Paper radius="md" p="sm" withBorder bg="rgba(239, 68, 68, 0.08)">
+              <Stack gap="xs" mah={220} style={{ overflowY: "auto" }}>
+                <Text size="xs" fw={800} c="red.3">
+                  Skipped rows ({uploadSkippedErrors.length})
+                </Text>
+                {uploadSkippedErrors.map((error, index) => (
+                  <Text key={`${error}-${index}`} size="xs" c="red.3">
+                    {error}
+                  </Text>
+                ))}
+              </Stack>
+            </Paper>
+          ) : null}
+
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setIsUploadOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              leftIcon={<Upload size={14} />}
+              disabled={!uploadFile}
+              loading={isUploading}
+              onClick={() => void handleSalesOrderUpload()}
+            >
+              Import Sales Orders
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         isOpen={isCreateOpen}
@@ -888,8 +1029,7 @@ export const Outward = memo(function Outward() {
               disabled={
                 !selectedGroup ||
                 selectedGroup.status === "Canceled" ||
-                selectedGroup.totalPickedQuantity > 0 ||
-                selectedGroup.status !== "Open"
+                selectedGroup.status === "Dispatched"
               }
               onClick={() => {
                 setCancelGroup(selectedGroup);

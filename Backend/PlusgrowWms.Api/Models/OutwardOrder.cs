@@ -37,6 +37,9 @@ public class OutwardOrder
     [Column("carton_id")]
     public string? CartonId { get; set; }
 
+    [Column("picked_location_json", TypeName = "jsonb")]
+    public Dictionary<string, int>? PickedLocationJson { get; set; }
+
     [Column("notes")]
     public string? Notes { get; set; }
 

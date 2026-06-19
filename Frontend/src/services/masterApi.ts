@@ -1429,6 +1429,45 @@ export const outwardOrdersApi = {
     if (!response.data.success) throw new Error(response.data.message || 'Error updating sales order');
     return response.data.data!;
   },
+
+  uploadSalesOrdersExcel: async (file: File): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post<ApiResponse<ImportResult>>('/outwardorders/sales-orders/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    if (!response.data.success) throw new Error(response.data.message || 'Error uploading sales orders');
+    return response.data.data!;
+  },
+
+  downloadSalesOrderTemplate: (): void => {
+    const wb = XLSX.utils.book_new();
+    const templateData = [
+      {
+        'Invoice No.': '',
+        'Inv. Date': '',
+        'Party Name': '',
+        'Part No.': '',
+        'MRP': '',
+        'Item Name': '',
+        'Billed Qty.': '',
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    ws['!cols'] = [
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 12 },
+      { wch: 35 },
+      { wch: 12 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Order Template');
+    XLSX.writeFile(wb, 'Sales_Order_Template.xlsx');
+  },
 };
 
 export const packingCartonsApi = {
