@@ -141,7 +141,7 @@ export function StockCheckHub({
         </Paper>
       )}
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
         {cards.map((card) => (
           <Paper
             key={card.mode ?? card.href}
