@@ -25,7 +25,6 @@ import {
 import {
   OutwardOrder,
   outwardOrdersApi,
-  packingCartonsApi,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 
@@ -41,9 +40,6 @@ type PackingOrderGroup = {
 const isCanceledOrder = (order: OutwardOrder) =>
   order.status === "Canceled" || order.salesOrderStatus === "Canceled";
 
-const isPackingComplete = (order: OutwardOrder) =>
-  (order.readyCartonQuantity ?? 0) >= order.quantity;
-
 export const Packing = memo(function Packing() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
@@ -56,7 +52,7 @@ export const Packing = memo(function Packing() {
   const loadOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const ordersData = await outwardOrdersApi.getAll({ status: "packed" });
+      const ordersData = await outwardOrdersApi.getAll({ status: "picked" });
       setOrders(ordersData);
     } catch {
       toast.error("Failed to load orders");
@@ -74,8 +70,7 @@ export const Packing = memo(function Packing() {
     const activeOrders = orders.filter(
       (order) =>
         !isCanceledOrder(order) &&
-        order.status === "Packed" &&
-        !isPackingComplete(order),
+        order.status === "Picked",
     );
     if (!query) return activeOrders;
     return activeOrders.filter(
@@ -150,7 +145,7 @@ export const Packing = memo(function Packing() {
 
     try {
       setIsMarkingPacked(true);
-      await packingCartonsApi.markOrderPacked(activeOrder.id);
+      await outwardOrdersApi.markPacked(activeOrder.id);
       setOrders((current) => current.filter((item) => item.id !== activeOrder.id));
       toast.success(`${activeOrder.skuCode} marked as packed`);
     } catch (error: any) {

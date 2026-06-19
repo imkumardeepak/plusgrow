@@ -400,7 +400,7 @@ export interface OutwardOrder {
   id: number;
   orderNumber: string;
   salesOrderId: number;
-  salesOrderStatus: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
+  salesOrderStatus: "Open" | "Picking" | "Picked" | "Packed" | "Dispatched" | "Canceled";
   salesOrderNotes?: string | null;
   salesOrderCreatedAt: string;
   salesOrderUpdatedAt: string;
@@ -417,10 +417,7 @@ export interface OutwardOrder {
   mrp?: number | null;
   pickedQuantity: number;
   pendingQuantity: number;
-  packedCartonQuantity: number;
-  readyCartonQuantity: number;
-  status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
-  cartonId?: string | null;
+  status: "Open" | "Picking" | "Picked" | "Packed" | "Dispatched" | "Canceled";
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -444,7 +441,7 @@ export interface SalesOrderRecord {
   orderNumber: string;
   orderDate: string;
   customerName: string;
-  status: "Open" | "Picking" | "Packed" | "Dispatched" | "Canceled";
+  status: "Open" | "Picking" | "Picked" | "Packed" | "Dispatched" | "Canceled";
   notes?: string | null;
   referenceNumber?: string | null;
   cancelRemark?: string | null;
@@ -475,7 +472,7 @@ export interface CreateOutwardOrderItemDto {
 
 export interface OutwardOrderFilters {
   search?: string;
-  status?: "all" | "open" | "picking" | "packed" | "dispatched" | "canceled" | "Canceled";
+  status?: "all" | "open" | "picking" | "picked" | "packed" | "dispatched" | "canceled" | "Canceled";
   page?: number;
   pageSize?: number;
 }
@@ -515,7 +512,6 @@ export interface BulkDirectOutwardPickDto {
 }
 
 export interface DispatchOutwardOrderDto {
-  cartonId?: string | null;
 }
 
 export interface DispatchSalesOrderResult {
@@ -523,16 +519,6 @@ export interface DispatchSalesOrderResult {
   orderNumber: string;
   dispatchedItemCount: number;
   items: OutwardOrder[];
-}
-
-export interface PackingCarton {
-  id: number;
-  outwardOrderId: number;
-  cartonNumber: string;
-  quantity: number;
-  status: "Open" | "Ready" | "Dispatched";
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface ListQuery {
@@ -1405,6 +1391,12 @@ export const outwardOrdersApi = {
     return response.data.data!;
   },
 
+  markPacked: async (id: number): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/mark-packed`);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
   dispatch: async (id: number, data: DispatchOutwardOrderDto): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
     if (!response.data.success) throw new Error(response.data.message);
@@ -1469,41 +1461,6 @@ export const outwardOrdersApi = {
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Sales Order Template');
     XLSX.writeFile(wb, 'Sales_Order_Template.xlsx');
-  },
-};
-
-export const packingCartonsApi = {
-  getByOrder: async (orderId: number): Promise<PackingCarton[]> => {
-    const response = await api.get<ApiResponse<PackingCarton[]>>(`/packingcartons/by-order/${orderId}`);
-    return response.data.data || [];
-  },
-
-  create: async (orderId: number): Promise<PackingCarton> => {
-    const response = await api.post<ApiResponse<PackingCarton>>('/packingcartons', { outwardOrderId: orderId });
-    if (!response.data.success) throw new Error(response.data.message);
-    return response.data.data!;
-  },
-
-  packItem: async (cartonId: number, skuCode: string): Promise<PackingCarton> => {
-    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/${cartonId}/pack`, { skuCode });
-    if (!response.data.success) throw new Error(response.data.message);
-    return response.data.data!;
-  },
-
-  markReady: async (cartonId: number): Promise<PackingCarton> => {
-    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/${cartonId}/ready`);
-    if (!response.data.success) throw new Error(response.data.message);
-    return response.data.data!;
-  },
-
-  markOrderPacked: async (orderId: number): Promise<PackingCarton> => {
-    const response = await api.post<ApiResponse<PackingCarton>>(`/packingcartons/by-order/${orderId}/mark-packed`);
-    if (!response.data.success) throw new Error(response.data.message);
-    return response.data.data!;
-  },
-
-  delete: async (cartonId: number): Promise<void> => {
-    await api.delete(`/packingcartons/${cartonId}`);
   },
 };
 

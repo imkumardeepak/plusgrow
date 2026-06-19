@@ -204,8 +204,8 @@ export const Picking = memo(function Picking() {
         existing.totalPickedQuantity += order.pickedQuantity;
         existing.pendingQuantity += order.pendingQuantity;
         existing.status =
-          existing.items.every((item) => item.pendingQuantity === 0 || item.status === "Packed")
-            ? "Packed"
+          existing.items.every((item) => item.pendingQuantity === 0 || item.status === "Picked")
+            ? "Picked"
             : existing.items.some((item) => item.pickedQuantity > 0 || item.status === "Picking")
               ? "Picking"
               : "Open";
@@ -217,7 +217,7 @@ export const Picking = memo(function Picking() {
         orderNumber: order.orderNumber,
         orderDate: order.orderDate,
         customerName: order.customerName,
-        status: order.pendingQuantity === 0 || order.status === "Packed" ? "Packed" : order.status,
+        status: order.pendingQuantity === 0 || order.status === "Picked" ? "Picked" : order.status,
         items: [order],
         totalQuantity: order.quantity,
         totalPickedQuantity: order.pickedQuantity,
@@ -298,7 +298,7 @@ export const Picking = memo(function Picking() {
           .filter(
             (order) =>
               !isCanceledOrder(order) &&
-              order.status === "Packed" &&
+              order.status === "Picked" &&
               order.pendingQuantity === 0,
           )
           .map((order) => order.salesOrderId),
@@ -909,7 +909,7 @@ export const Picking = memo(function Picking() {
                         shape="pill"
                         className="border-none"
                       >
-                        {isFullyPicked ? "Packed" : activeGroup.status}
+                        {isFullyPicked ? "Picked" : activeGroup.status}
                       </Badge>
                     </div>
                   </div>

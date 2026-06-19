@@ -23,7 +23,7 @@ const isCanceledOrder = (order: OutwardOrder) =>
   order.status === "Canceled" || order.salesOrderStatus === "Canceled";
 
 const isReadyForDispatch = (order: OutwardOrder) =>
-  order.status === "Packed" && (order.readyCartonQuantity ?? 0) >= order.quantity;
+  order.status === "Packed";
 
 export const Dispatch = memo(function Dispatch() {
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
@@ -268,9 +268,6 @@ export const Dispatch = memo(function Dispatch() {
                           {item.quantity} units
                         </Badge>
                       </div>
-                      <p className="mt-2 text-xs text-neutral-400">
-                        Carton: {item.cartonId || `CTN-${item.orderNumber.replace("SO-", "")}`}
-                      </p>
                     </div>
                   ))}
                 </div>
@@ -282,7 +279,7 @@ export const Dispatch = memo(function Dispatch() {
                   <p className="text-sm font-semibold text-white">Dispatch Rule</p>
                 </div>
                 <p className="text-sm text-neutral-400">
-                  Dispatch will close every packed item in this sales order, reduce live stock quantity, and update the sales-order header status.
+                  Dispatch will close every packed item in this sales order and update the sales-order header status.
                 </p>
               </div>
 

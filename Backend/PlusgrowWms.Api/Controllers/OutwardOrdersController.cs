@@ -105,9 +105,7 @@ public class OutwardOrdersController : BaseController
             .Take(pageSize)
             .ToListAsync();
 
-        var cartonQuantities = await GetCartonQuantitiesAsync(rows.Select(x => x.Id));
-
-        return Success(rows.Select(row => MapOrder(row, cartonQuantities)).ToList(), page, pageSize, total);
+        return Success(rows.Select(MapOrder).ToList(), page, pageSize, total);
     }
 
     [HttpGet("quick-sale-products")]
@@ -576,9 +574,8 @@ public class OutwardOrdersController : BaseController
 
         AddPickedLocation(order, reduceLocationResult.LocationCode!, pickQty);
         order.PickedQuantity = nextPicked;
-        order.Status = order.PickedQuantity >= order.Quantity ? "Packed" : "Picking";
+        order.Status = order.PickedQuantity >= order.Quantity ? "Picked" : "Picking";
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        order.CartonId ??= BuildCartonId(order);
         _context.Entry(order).Property(x => x.PickedLocationJson).IsModified = true;
 
         await _context.SaveChangesAsync();
@@ -591,13 +588,13 @@ public class OutwardOrdersController : BaseController
 
         var response = MapOrder(order);
 
-        if (order.Status == "Packed")
+        if (order.Status == "Picked")
         {
             await SendNotificationAsync(new RealtimeNotificationDto
             {
-                Type = "outward.packed",
-                Title = "Order packed",
-                Message = $"{response.OrderNumber} is ready for dispatch.",
+                Type = "outward.picked",
+                Title = "Order picked",
+                Message = $"{response.OrderNumber} is ready for packing.",
                 Severity = "success",
                 Data = new Dictionary<string, object?>
                 {
@@ -664,7 +661,7 @@ public class OutwardOrdersController : BaseController
             OrderNumber = orderNumber,
             OrderDate = now.Date,
             CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? "Direct Outward" : dto.CustomerName.Trim(),
-            Status = "Packed",
+            Status = "Picked",
             Notes = $"Direct outward pick. Remark: {dto.Remark.Trim()}",
             CreatedAt = now,
             UpdatedAt = now,
@@ -682,12 +679,11 @@ public class OutwardOrdersController : BaseController
             {
                 [reduceLocationResult.LocationCode!] = pickQty,
             },
-            Status = "Packed",
+            Status = "Picked",
             Notes = salesOrder.Notes,
             CreatedAt = now,
             UpdatedAt = now,
         };
-        order.CartonId = BuildCartonId(order);
 
         _context.SalesOrders.Add(salesOrder);
         _context.OutwardOrders.Add(order);
@@ -731,7 +727,7 @@ public class OutwardOrdersController : BaseController
             OrderNumber = orderNumber,
             OrderDate = now.Date,
             CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? "Direct Outward" : dto.CustomerName.Trim(),
-            Status = "Packed",
+            Status = "Picked",
             Notes = $"Direct outward pick. Remark: {dto.Remark.Trim()}",
             CreatedAt = now,
             UpdatedAt = now,
@@ -795,12 +791,11 @@ public class OutwardOrdersController : BaseController
                 {
                     [reduceLocationResult.LocationCode!] = pickQty,
                 },
-                Status = "Packed",
+                Status = "Picked",
                 Notes = salesOrder.Notes,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
-            order.CartonId = BuildCartonId(order);
             createdOrders.Add(order);
         }
 
@@ -828,6 +823,56 @@ public class OutwardOrdersController : BaseController
         return Success(responses, $"Direct outward picked successfully with {createdOrders.Count} items");
     }
 
+    [HttpPost("{id}/mark-packed")]
+    public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> MarkPacked(int id)
+    {
+        var order = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .FirstOrDefaultAsync(x => x.Id == id);
+        if (order == null)
+            return NotFound<OutwardOrderDto>("Outward order not found");
+
+        if (order.Status == "Dispatched")
+            return BadRequest<OutwardOrderDto>("Dispatched orders cannot be packed");
+
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return BadRequest<OutwardOrderDto>("Canceled orders cannot be packed");
+
+        if (order.PickedQuantity < order.Quantity)
+            return BadRequest<OutwardOrderDto>("Order must be fully picked before it can be packed");
+
+        if (order.Status != "Packed")
+        {
+            order.Status = "Packed";
+            order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            await _context.SaveChangesAsync();
+
+            if (order.SalesOrderId > 0)
+            {
+                await UpdateSalesOrderStatusAsync(order.SalesOrderId);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        var response = MapOrder(order);
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "outward.packed",
+            Title = "Order packed",
+            Message = $"{response.OrderNumber} is ready for dispatch.",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["orderId"] = response.Id,
+                ["orderNumber"] = response.OrderNumber,
+                ["customerName"] = response.CustomerName,
+            },
+        });
+
+        return Success(response, "Order marked as packed");
+    }
+
     [HttpPost("{id}/dispatch")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DispatchOrder(int id, [FromBody] DispatchOutwardOrderDto dto)
     {
@@ -844,7 +889,7 @@ public class OutwardOrdersController : BaseController
             ?? User.Identity?.Name
             ?? "System User";
 
-        var dispatchResult = await DispatchOrderInternalAsync(order, dto.CartonId, performedByUserId, performedByName);
+        var dispatchResult = await DispatchOrderInternalAsync(order, performedByUserId, performedByName);
         if (!dispatchResult.Success)
             return BadRequest<OutwardOrderDto>(dispatchResult.Message!);
 
@@ -870,7 +915,6 @@ public class OutwardOrdersController : BaseController
                 ["customerName"] = response.CustomerName,
                 ["skuCode"] = response.SkuCode,
                 ["quantity"] = response.Quantity,
-                ["cartonId"] = response.CartonId,
             },
         });
 
@@ -909,7 +953,7 @@ public class OutwardOrdersController : BaseController
 
         foreach (var order in pendingOrders)
         {
-            var dispatchResult = await DispatchOrderInternalAsync(order, null, performedByUserId, performedByName);
+            var dispatchResult = await DispatchOrderInternalAsync(order, performedByUserId, performedByName);
             if (!dispatchResult.Success)
                 return BadRequest<DispatchSalesOrderResultDto>(dispatchResult.Message!);
         }
@@ -970,7 +1014,6 @@ public class OutwardOrdersController : BaseController
             item.Status = "Canceled";
             item.PickedQuantity = 0;
             item.PickedLocationJson = null;
-            item.CartonId = null;
             item.DispatchedAt = null;
             item.Notes = string.IsNullOrWhiteSpace(item.Notes)
                 ? $"Canceled: {dto.Remark.Trim()}"
@@ -1392,15 +1435,8 @@ public class OutwardOrdersController : BaseController
         return (performedByUserId, performedByName);
     }
 
-    private static string BuildCartonId(OutwardOrder order)
-    {
-        var orderNumber = order.SalesOrder?.OrderNumber ?? $"ORD-{order.Id}";
-        return $"CTN-{orderNumber.Replace("SO-", string.Empty).Replace("DO-", string.Empty)}";
-    }
-
     private async Task<(bool Success, string? Message)> DispatchOrderInternalAsync(
         OutwardOrder order,
-        string? cartonIdOverride,
         int? performedByUserId,
         string performedByName)
     {
@@ -1413,21 +1449,12 @@ public class OutwardOrdersController : BaseController
         if (order.PickedQuantity < order.Quantity)
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully picked before dispatch");
 
-        var readyCartonQuantity = await _context.PackingCartons
-            .Where(x =>
-                x.OutwardOrderId == order.Id &&
-                (x.Status == "Ready" || x.Status == "Dispatched"))
-            .SumAsync(x => x.Quantity);
-
-        if (readyCartonQuantity < order.Quantity)
+        if (order.Status != "Packed")
             return (false, $"Order {order.SalesOrder?.OrderNumber ?? order.Id.ToString()} must be fully packed before dispatch");
 
         // Product stock and the per-location quantity are already reduced (and a stock movement
         // logged) at pick time. Dispatch is status-only and must not reduce stock again.
         order.Status = "Dispatched";
-        order.CartonId = string.IsNullOrWhiteSpace(cartonIdOverride)
-            ? (order.CartonId ?? BuildCartonId(order))
-            : cartonIdOverride.Trim();
         order.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
@@ -1463,12 +1490,17 @@ public class OutwardOrdersController : BaseController
             header.Status = "Dispatched";
             header.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         }
-        else if (items.All(item => item.Status == "Packed" || item.PickedQuantity >= item.Quantity))
+        else if (items.All(item => item.Status == "Packed"))
         {
             header.Status = "Packed";
             header.DispatchedAt = null;
         }
-        else if (items.Any(item => item.Status == "Picking" || item.PickedQuantity > 0))
+        else if (items.All(item => item.Status == "Picked" || item.Status == "Packed"))
+        {
+            header.Status = "Picked";
+            header.DispatchedAt = null;
+        }
+        else if (items.Any(item => item.Status == "Picking" || item.Status == "Picked" || item.PickedQuantity > 0))
         {
             header.Status = "Picking";
             header.DispatchedAt = null;
@@ -1483,38 +1515,9 @@ public class OutwardOrdersController : BaseController
         _context.SalesOrders.Update(header);
     }
 
-    private async Task<Dictionary<int, CartonQuantitySummary>> GetCartonQuantitiesAsync(IEnumerable<int> outwardOrderIds)
-    {
-        var ids = outwardOrderIds.Distinct().ToList();
-        if (ids.Count == 0)
-            return new Dictionary<int, CartonQuantitySummary>();
-
-        var rows = await _context.PackingCartons
-            .AsNoTracking()
-            .Where(x => ids.Contains(x.OutwardOrderId))
-            .GroupBy(x => x.OutwardOrderId)
-            .Select(g => new
-            {
-                OutwardOrderId = g.Key,
-                PackedQuantity = g.Sum(x => x.Quantity),
-                ReadyQuantity = g
-                    .Where(x => x.Status == "Ready" || x.Status == "Dispatched")
-                    .Sum(x => x.Quantity),
-            })
-            .ToListAsync();
-
-        return rows.ToDictionary(
-            row => row.OutwardOrderId,
-            row => new CartonQuantitySummary(row.PackedQuantity, row.ReadyQuantity));
-    }
-
-    private static OutwardOrderDto MapOrder(
-        OutwardOrder row,
-        IReadOnlyDictionary<int, CartonQuantitySummary>? cartonQuantities = null)
+    private static OutwardOrderDto MapOrder(OutwardOrder row)
     {
         var salesOrder = row.SalesOrder;
-        CartonQuantitySummary? cartonQuantity = null;
-        cartonQuantities?.TryGetValue(row.Id, out cartonQuantity);
         return new OutwardOrderDto
         {
             Id = row.Id,
@@ -1537,18 +1540,13 @@ public class OutwardOrdersController : BaseController
             Mrp = row.Mrp,
             PickedQuantity = row.PickedQuantity,
             PendingQuantity = Math.Max(row.Quantity - row.PickedQuantity, 0),
-            PackedCartonQuantity = cartonQuantity?.PackedQuantity ?? 0,
-            ReadyCartonQuantity = cartonQuantity?.ReadyQuantity ?? 0,
             Status = row.Status,
-            CartonId = row.CartonId,
             Notes = row.Notes,
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             DispatchedAt = row.DispatchedAt,
         };
     }
-
-    private sealed record CartonQuantitySummary(int PackedQuantity, int ReadyQuantity);
 
     private static SalesOrderDto MapSalesOrder(SalesOrder row)
     {
