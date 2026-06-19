@@ -235,9 +235,17 @@ using (var scope = app.Services.CreateScope())
 Log.Information("Plusgrow WMS API starting up...");
 
 // Register Hangfire recurring jobs
-RecurringJob.AddOrUpdate<ITallySyncService>(
-    "tally-sync-every-2-min",
-    service => service.SyncTodayVouchersAsync(CancellationToken.None),
-    "*/2 * * * *"); // Every 2 minutes
+var tallySyncEnabled = builder.Configuration.GetValue("TallySettings:TallySyncEnabled", false);
+if (tallySyncEnabled)
+{
+    RecurringJob.AddOrUpdate<ITallySyncService>(
+        "tally-sync-every-2-min",
+        service => service.SyncTodayVouchersAsync(CancellationToken.None),
+        "*/2 * * * *"); // Every 2 minutes
+}
+else
+{
+    RecurringJob.RemoveIfExists("tally-sync-every-2-min");
+}
 
 app.Run();
