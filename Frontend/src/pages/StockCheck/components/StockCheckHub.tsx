@@ -146,7 +146,7 @@ export function StockCheckHub({
           <Paper
             key={card.mode ?? card.href}
             radius="xl"
-            p={isMobile ? "md" : "lg"}
+            p={isMobile ? "lg" : "xl"}
             withBorder
             onClick={() => card.href ? navigate(card.href) : onSelectMode(card.mode!)}
             style={{
@@ -155,13 +155,14 @@ export function StockCheckHub({
               borderColor: card.color.replace("0.8", "0.25"),
               transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
               boxShadow: `0 4px 24px ${card.color.replace("0.8", "0.12")}`,
+              minHeight: isMobile ? 178 : 210,
             }}
             className="hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
           >
-            <Stack gap="sm">
+            <Stack gap="md">
               <Group justify="space-between" align="flex-start">
                 <ThemeIcon
-                  size={isMobile ? 40 : 48}
+                  size={isMobile ? 44 : 52}
                   radius="xl"
                   style={{
                     background: card.color.replace("0.8", "0.2"),
@@ -169,15 +170,15 @@ export function StockCheckHub({
                     color: card.color.replace("0.8", "1"),
                   }}
                 >
-                  <card.icon size={isMobile ? 20 : 24} />
+                  <card.icon size={isMobile ? 22 : 26} />
                 </ThemeIcon>
                 <ChevronRight size={18} color="rgba(255,255,255,0.3)" />
               </Group>
               <Box>
-                <Text fw={800} size={isMobile ? "sm" : "md"} c="white" mb={4}>
+                <Text fw={800} size={isMobile ? "md" : "lg"} c="white" mb={6}>
                   {card.title}
                 </Text>
-                <Text size="xs" c="dimmed" style={{ lineHeight: 1.55 }}>
+                <Text size={isMobile ? "xs" : "sm"} c="dimmed" style={{ lineHeight: 1.55 }}>
                   {card.description}
                 </Text>
               </Box>
