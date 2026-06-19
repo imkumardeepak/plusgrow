@@ -178,20 +178,8 @@ public class TallyService
 						var voucherData = entry["VOUCHER"];
 						var itemData = voucherData["ALLINVENTORYENTRIES.LIST"];
 
-						string voucherTypeName = "NA";
-
-						if (itemData is JObject itemDataObject &&
-							itemDataObject["ACCOUNTINGALLOCATIONS.LIST"] is JArray accountingArray)
-						{
-							var firstAccountingEntry = accountingArray.FirstOrDefault() as JObject;
-							if (firstAccountingEntry != null)
-								voucherTypeName = firstAccountingEntry["LEDGERNAME"]?.ToString() ?? "NA";
-						}
-						else if (itemData is JObject singleAccountingEntry &&
-								 singleAccountingEntry["ACCOUNTINGALLOCATIONS.LIST"] is JObject singleAccountingObject)
-						{
-							voucherTypeName = singleAccountingObject["LEDGERNAME"]?.ToString() ?? "NA";
-						}
+						string voucherTypeName = GetInventoryLedgerName(itemData);
+						string overallAmount = GetPartyLedgerAmount(voucherData["LEDGERENTRIES.LIST"]);
 
 						var voucher = new Voucher
 						{
@@ -200,28 +188,39 @@ public class TallyService
 							Date = voucherData["DATE"]?.ToString() ?? "NA",
 							PartyName = voucherData["PARTYNAME"]?.ToString() ?? "NA",
 							AccountType = voucherTypeName,
+							overallamount = overallAmount,
 							Items = new List<ItemDetails>()
 						};
 
 						if (itemData is JArray itemArray)
 						{
 							foreach (var item in itemArray)
+							{
+								var actualQty = item["ACTUALQTY"]?.ToString() ?? "NA";
+								var rate = item["RATE"]?.ToString() ?? "NA";
+
 								voucher.Items.Add(new ItemDetails
 								{
 									StockItemName = item["STOCKITEMNAME"]?.ToString() ?? "NA",
-									Rate = item["RATE"]?.ToString() ?? "NA",
+									Rate = rate,
 									Amount = item["AMOUNT"]?.ToString() ?? "NA",
-									ActualQty = item["ACTUALQTY"]?.ToString() ?? "NA"
+									ActualQty = actualQty,
+									Unit = GetUnit(actualQty, rate)
 								});
+							}
 						}
 						else if (itemData is JObject singleItem)
 						{
+							var actualQty = singleItem["ACTUALQTY"]?.ToString() ?? "NA";
+							var rate = singleItem["RATE"]?.ToString() ?? "NA";
+
 							voucher.Items.Add(new ItemDetails
 							{
 								StockItemName = singleItem["STOCKITEMNAME"]?.ToString() ?? "NA",
-								Rate = singleItem["RATE"]?.ToString() ?? "NA",
+								Rate = rate,
 								Amount = singleItem["AMOUNT"]?.ToString() ?? "NA",
-								ActualQty = singleItem["ACTUALQTY"]?.ToString() ?? "NA"
+								ActualQty = actualQty,
+								Unit = GetUnit(actualQty, rate)
 							});
 						}
 
@@ -238,6 +237,83 @@ public class TallyService
 			throw;
 		}
 	}
+
+	private string GetInventoryLedgerName(dynamic itemData)
+	{
+		if (itemData is JArray itemArray)
+		{
+			foreach (var item in itemArray.OfType<JObject>())
+			{
+				var ledgerName = GetAccountingLedgerName(item["ACCOUNTINGALLOCATIONS.LIST"]);
+				if (ledgerName != "NA")
+					return ledgerName;
+			}
+		}
+
+		if (itemData is JObject itemObject)
+			return GetAccountingLedgerName(itemObject["ACCOUNTINGALLOCATIONS.LIST"]);
+
+		return "NA";
+	}
+
+	private string GetAccountingLedgerName(JToken accountingAllocations)
+	{
+		if (accountingAllocations is JArray accountingArray)
+		{
+			var firstAccountingEntry = accountingArray.FirstOrDefault() as JObject;
+			return firstAccountingEntry?["LEDGERNAME"]?.ToString() ?? "NA";
+		}
+
+		if (accountingAllocations is JObject accountingObject)
+			return accountingObject["LEDGERNAME"]?.ToString() ?? "NA";
+
+		return "NA";
+	}
+
+	private string GetPartyLedgerAmount(dynamic ledgerEntries)
+	{
+		if (ledgerEntries is JArray ledgerArray)
+		{
+			foreach (var ledger in ledgerArray.OfType<JObject>())
+			{
+				if (ledger["ISPARTYLEDGER"]?.ToString() == "Yes")
+					return CleanAmount(ledger["AMOUNT"]?.ToString());
+			}
+		}
+
+		if (ledgerEntries is JObject ledgerObject && ledgerObject["ISPARTYLEDGER"]?.ToString() == "Yes")
+			return CleanAmount(ledgerObject["AMOUNT"]?.ToString());
+
+		return "NA";
+	}
+
+	private string CleanAmount(string amount)
+	{
+		if (string.IsNullOrWhiteSpace(amount))
+			return "NA";
+
+		return amount.Trim().TrimStart('-');
+	}
+
+	private string GetUnit(string actualQty, string rate)
+	{
+		if (!string.IsNullOrWhiteSpace(actualQty) && actualQty != "NA")
+		{
+			var actualQtyMatch = Regex.Match(actualQty.Trim(), @"^[\d.,\s-]+(.+)$");
+			if (actualQtyMatch.Success)
+				return actualQtyMatch.Groups[1].Value.Trim();
+		}
+
+		if (!string.IsNullOrWhiteSpace(rate) && rate != "NA")
+		{
+			var rateParts = rate.Split('/', 2);
+			if (rateParts.Length == 2 && !string.IsNullOrWhiteSpace(rateParts[1]))
+				return rateParts[1].Trim();
+		}
+
+		return "NA";
+	}
+
 	public string RemoveInvalidCharacters(string input)
 	{
 		string pattern = @"[\u0000-\u001F]";
