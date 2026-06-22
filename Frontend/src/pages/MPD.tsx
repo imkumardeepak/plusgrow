@@ -473,6 +473,7 @@ export const MPD = memo(function MPD() {
             sheetName: "Products",
             data: enrichedProducts,
             columns: [
+              // ── Import template columns (same order as import file) ──
               { header: "Name", accessor: (row) => row.name },
               { header: "SKU", accessor: (row) => row.sku || "" },
               { header: "Country of Origin", accessor: (row) => row.countryOfOrigin || "" },
@@ -489,6 +490,10 @@ export const MPD = memo(function MPD() {
               { header: "Weight", accessor: (row) => formatExcelNumber(row.weight), format: "number" },
               { header: "Ownership", accessor: (row) => row.ownership || "" },
               { header: "Note", accessor: (row) => row.note || "" },
+              // ── Additional columns (not in import template) ──
+              { header: "Carton QR", accessor: (row) => row.cartonQr || "" },
+              { header: "Carton Per Item", accessor: (row) => row.cartonPerItem || "", format: "number" },
+              { header: "Location Summary", accessor: (row) => row.locationSummary || "" },
             ],
           },
           {
@@ -583,8 +588,8 @@ export const MPD = memo(function MPD() {
     const savedOwnership = formData.ownership?.trim();
     const hasSavedOwnership = savedOwnership
       ? options.some(
-          (option) => option.value.toLowerCase() === savedOwnership.toLowerCase(),
-        )
+        (option) => option.value.toLowerCase() === savedOwnership.toLowerCase(),
+      )
       : true;
 
     if (savedOwnership && !hasSavedOwnership) {
@@ -1163,8 +1168,8 @@ export const MPD = memo(function MPD() {
                         return {
                           ...prev,
                           manufacturerId: mfgId,
-                          countryOfOrigin: (selectedMfg?.country && isDefaultCountry) 
-                            ? selectedMfg.country 
+                          countryOfOrigin: (selectedMfg?.country && isDefaultCountry)
+                            ? selectedMfg.country
                             : prev.countryOfOrigin,
                         };
                       });
