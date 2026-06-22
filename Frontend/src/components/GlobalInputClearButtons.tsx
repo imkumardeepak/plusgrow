@@ -13,7 +13,9 @@ const CLEARABLE_INPUT_SELECTOR = [
 const NUMERIC_INPUT_SELECTOR = [
   'input[type="number"]:not([data-no-stepper])',
   'input[inputmode="numeric"]:not([data-no-stepper])',
+  'input[inputmode="decimal"]:not([data-no-stepper])',
   'input[role="spinbutton"]:not([data-no-stepper])',
+  'input[aria-valuenow]:not([data-no-stepper])',
 ].join(",");
 
 const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -57,6 +59,12 @@ function syncStepperButtons(input: HTMLInputElement) {
     (Number.isFinite(min) && Number.isFinite(currentValue) && currentValue <= min);
 }
 
+function getDecimalPlaces(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  const [, decimalPart = ""] = String(value).split(".");
+  return decimalPart.length;
+}
+
 function getStepValue(input: HTMLInputElement, direction: 1 | -1) {
   const currentValue = Number(input.value || 0);
   const step = input.step && input.step !== "any" ? Number(input.step) : 1;
@@ -64,11 +72,18 @@ function getStepValue(input: HTMLInputElement, direction: 1 | -1) {
   const max = input.max === "" ? null : Number(input.max);
   const fallback = Number.isFinite(min) && direction > 0 ? Number(min) : 0;
   const baseValue = Number.isFinite(currentValue) ? currentValue : fallback;
-  const nextValue = Math.round(baseValue + (Number.isFinite(step) ? step : 1) * direction);
+  const resolvedStep = Number.isFinite(step) ? step : 1;
+  const decimalPlaces = Math.max(
+    getDecimalPlaces(baseValue),
+    getDecimalPlaces(resolvedStep),
+  );
+  const nextValue = Number(
+    (baseValue + resolvedStep * direction).toFixed(decimalPlaces),
+  );
 
   if (Number.isFinite(min) && nextValue < Number(min)) return Number(min);
   if (Number.isFinite(max) && nextValue > Number(max)) return Number(max);
-  return Math.max(nextValue, 0);
+  return nextValue;
 }
 
 function createInputButton(className: string, label: string, text: string) {

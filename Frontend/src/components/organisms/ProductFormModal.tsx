@@ -463,6 +463,7 @@ export function ProductFormModal({
                   label="MRP"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={String(formData.mrp ?? 0)}
                   onChange={(event) =>
                     setFormData((prev) => ({

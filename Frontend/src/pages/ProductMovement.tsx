@@ -7,11 +7,14 @@ import {
   ScanLine,
   Search,
   ArrowLeft,
-  Loader2,
   FileText,
   AlertTriangle,
+  Minus,
+  Plus,
+  X,
 } from "lucide-react";
 import {
+  ActionIcon,
   Group,
   Paper,
   Stack,
@@ -21,8 +24,8 @@ import {
   Badge,
   Select,
   NumberInput,
-  Textarea,
   SimpleGrid,
+  Tooltip,
 } from "@mantine/core";
 import { Button } from "../components/atoms/Button";
 import { toast } from "../lib/toast";
@@ -136,6 +139,29 @@ export const ProductMovement = memo(function ProductMovement() {
   const sourceQty = productData?.locations.find(
     (loc) => loc.locationCode === sourceLoc
   )?.quantity || 0;
+
+  const clampMoveQuantity = (value: number | "") => {
+    if (value === "") return "";
+    const numericValue = Math.trunc(value);
+    if (!Number.isFinite(numericValue)) return "";
+    return Math.max(1, Math.min(numericValue, sourceQty || 1));
+  };
+
+  const updateMoveQuantity = (value: number | string) => {
+    if (value === "") {
+      setQuantity("");
+      return;
+    }
+
+    const numericValue = typeof value === "number" ? value : Number(value);
+    setQuantity(clampMoveQuantity(numericValue));
+  };
+
+  const stepMoveQuantity = (direction: 1 | -1) => {
+    const currentValue = typeof quantity === "number" ? quantity : 0;
+    setQuantity(clampMoveQuantity(currentValue + direction));
+    qtyInputRef.current?.focus();
+  };
 
   const handleMoveStock = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -366,11 +392,74 @@ export const ProductMovement = memo(function ProductMovement() {
                     min={1}
                     max={sourceQty || 1}
                     value={quantity}
-                    onChange={setQuantity}
+                    onChange={updateMoveQuantity}
                     required
+                    hideControls
+                    data-no-clear
+                    data-no-stepper
                     leftSection={<Boxes size={16} />}
+                    rightSectionPointerEvents="all"
+                    rightSectionWidth={104}
+                    rightSection={
+                      <Group gap={3} wrap="nowrap" pr={4}>
+                        <Tooltip label="Clear quantity">
+                          <ActionIcon
+                            type="button"
+                            size="sm"
+                            radius="md"
+                            variant="subtle"
+                            color="gray"
+                            aria-label="Clear quantity"
+                            disabled={!sourceLoc || quantity === ""}
+                            onClick={() => {
+                              setQuantity("");
+                              qtyInputRef.current?.focus();
+                            }}
+                          >
+                            <X size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Decrease quantity">
+                          <ActionIcon
+                            type="button"
+                            size="sm"
+                            radius="md"
+                            variant="subtle"
+                            color="red"
+                            aria-label="Decrease quantity"
+                            disabled={!sourceLoc || quantity === "" || quantity <= 1}
+                            onClick={() => stepMoveQuantity(-1)}
+                          >
+                            <Minus size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                        <Tooltip label="Increase quantity">
+                          <ActionIcon
+                            type="button"
+                            size="sm"
+                            radius="md"
+                            variant="subtle"
+                            color="green"
+                            aria-label="Increase quantity"
+                            disabled={
+                              !sourceLoc ||
+                              sourceQty <= 0 ||
+                              (typeof quantity === "number" && quantity >= sourceQty)
+                            }
+                            onClick={() => stepMoveQuantity(1)}
+                          >
+                            <Plus size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    }
                     disabled={!sourceLoc}
                     description={sourceLoc ? `Max available: ${sourceQty}` : "Select source first"}
+                    styles={{
+                      input: {
+                        paddingRight: 108,
+                      },
+                    }}
                   />
                 </SimpleGrid>
 

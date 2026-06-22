@@ -619,6 +619,7 @@ export const MPD = memo(function MPD() {
     (item) => Number(item.mrp || 0) > 0,
   ).length;
   const unpricedProducts = products.length - withPricing;
+  const isMrpMissing = (product: Product) => Number(product.mrp || 0) <= 0;
 
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -731,11 +732,16 @@ export const MPD = memo(function MPD() {
       align: "right",
       sortable: true,
       sortAccessor: (row) => row.mrp,
-      render: (row) => (
-        <Text size="xs" fw={800} c="green.3">
-          Rs {Number(row.mrp || 0).toFixed(2)}
-        </Text>
-      ),
+      render: (row) =>
+        isMrpMissing(row) ? (
+          <Badge size="sm" radius="md" variant="light" color="orange">
+            Missing
+          </Badge>
+        ) : (
+          <Text size="xs" fw={800} c="green.3">
+            Rs {Number(row.mrp || 0).toFixed(2)}
+          </Text>
+        ),
       width: 110,
     },
     {
@@ -927,6 +933,12 @@ export const MPD = memo(function MPD() {
               emptyTitle="No product rows"
               emptyDescription="No products match current search or filter."
               itemLabel="products"
+              pageSize={100}
+              rowClassName={(row) =>
+                isMrpMissing(row)
+                  ? "bg-orange-500/10 hover:bg-orange-500/15"
+                  : undefined
+              }
               resetPageKey={`${search}-${filterMode}`}
             />
           </OperationsPanel>
@@ -1237,6 +1249,7 @@ export const MPD = memo(function MPD() {
                     label="MRP"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={String(formData.mrp ?? 0)}
                     onChange={(event) =>
                       setFormData((prev) => ({
