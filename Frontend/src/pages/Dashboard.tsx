@@ -327,13 +327,15 @@ export const Dashboard = memo(function Dashboard() {
                 >
                   <card.icon size={13} />
                 </ThemeIcon>
-                <Text size="sm" fw={700} c="white" style={{ flex: 1 }} lineClamp={1}>
+                <Text size="sm" fw={700} c="white" style={{ flex: 1 }} lineClamp={isMobile ? 2 : 1}>
                   {card.title}
                 </Text>
               </Group>
-              <Text size="xs" c="dimmed" lineClamp={1}>
-                {card.description}
-              </Text>
+              {!isMobile && (
+                <Text size="xs" c="dimmed" lineClamp={1}>
+                  {card.description}
+                </Text>
+              )}
             </Card>
           </Link>
         </motion.div>

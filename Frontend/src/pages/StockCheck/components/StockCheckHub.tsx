@@ -141,12 +141,12 @@ export function StockCheckHub({
         </Paper>
       )}
 
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+      <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
         {cards.map((card) => (
           <Paper
             key={card.mode ?? card.href}
             radius="xl"
-            p={isMobile ? "lg" : "xl"}
+            p={isMobile ? "md" : "lg"}
             withBorder
             onClick={() => card.href ? navigate(card.href) : onSelectMode(card.mode!)}
             style={{
@@ -155,7 +155,7 @@ export function StockCheckHub({
               borderColor: card.color.replace("0.8", "0.25"),
               transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
               boxShadow: `0 4px 24px ${card.color.replace("0.8", "0.12")}`,
-              minHeight: isMobile ? 178 : 210,
+              minHeight: isMobile ? 150 : 170,
             }}
             className="hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
           >
