@@ -3,9 +3,10 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { Box, Group, Paper, Stack, Text } from "@mantine/core";
+import { Box, Group, Paper, Stack, Text, TextInput } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
   Archive,
@@ -13,6 +14,7 @@ import {
   Box as BoxIcon,
   CheckCircle2,
   ClipboardList,
+  ScanLine,
 } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
@@ -40,6 +42,22 @@ type PackingOrderGroup = {
 const isCanceledOrder = (order: OutwardOrder) =>
   order.status === "Canceled" || order.salesOrderStatus === "Canceled";
 
+/** Normalize a code string for comparison (trim + uppercase) */
+const normalizeCode = (value?: string | null) => (value || "").trim().toUpperCase();
+
+/** Extract all possible tokens from a scanned string (handles multi-part QR codes) */
+const extractTokens = (raw: string) => {
+  const upper = normalizeCode(raw);
+  const tokens = new Set<string>();
+  if (upper) tokens.add(upper);
+  upper
+    .split(/[\s#|,;:/\\?&=]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .forEach((t) => tokens.add(t));
+  return Array.from(tokens);
+};
+
 export const Packing = memo(function Packing() {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
@@ -48,6 +66,9 @@ export const Packing = memo(function Packing() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isMarkingPacked, setIsMarkingPacked] = useState(false);
+  const [scanInput, setScanInput] = useState("");
+  const [isScanPacking, setIsScanPacking] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -152,6 +173,65 @@ export const Packing = memo(function Packing() {
       toast.error(error.message || "Failed to mark packed");
     } finally {
       setIsMarkingPacked(false);
+    }
+  };
+
+  // ── Scanner: build lookup from active group items by SKU / Alias / Carton QR ──
+  const itemLookup = useMemo(() => {
+    const map = new Map<string, OutwardOrder>();
+    if (!activeGroup) return map;
+    for (const item of activeGroup.items) {
+      if (item.skuCode) map.set(normalizeCode(item.skuCode), item);
+      if (item.alias) map.set(normalizeCode(item.alias), item);
+      if (item.cartonQr) map.set(normalizeCode(item.cartonQr), item);
+    }
+    return map;
+  }, [activeGroup]);
+
+  const focusScanner = () => {
+    setTimeout(() => scanInputRef.current?.focus(), 10);
+  };
+
+  const handleScanPack = async () => {
+    const raw = scanInput.trim();
+    if (!raw) return;
+
+    if (!activeGroup) {
+      toast.warning("Select an order first");
+      setScanInput("");
+      return;
+    }
+
+    // Resolve scanned code to an item
+    const tokens = extractTokens(raw);
+    let matchedItem: OutwardOrder | undefined;
+    for (const token of tokens) {
+      const found = itemLookup.get(token);
+      if (found) {
+        matchedItem = found;
+        break;
+      }
+    }
+
+    setScanInput("");
+
+    if (!matchedItem) {
+      toast.error("Scanned code does not match any item in this order");
+      focusScanner();
+      return;
+    }
+
+    // Mark the matched item as packed
+    try {
+      setIsScanPacking(true);
+      await outwardOrdersApi.markPacked(matchedItem.id);
+      setOrders((current) => current.filter((item) => item.id !== matchedItem!.id));
+      toast.success(`${matchedItem.skuCode} marked as packed via scan`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to mark packed");
+    } finally {
+      setIsScanPacking(false);
+      focusScanner();
     }
   };
 
@@ -351,6 +431,43 @@ export const Packing = memo(function Packing() {
                     </Stack>
                   </Paper>
                 )}
+
+                {/* Scan to Pack */}
+                <Paper radius="md" p="sm" withBorder style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}>
+                  <Group gap="xs" mb="xs">
+                    <ScanLine size={16} color="var(--mantine-color-cyan-4)" />
+                    <Text size="xs" fw={700} c="white">
+                      Scan to Pack
+                    </Text>
+                  </Group>
+                  <Text size="11px" c="dimmed" mb="xs">
+                    Scan SKU, Alias, or Carton QR to mark item as packed.
+                  </Text>
+                  <TextInput
+                    ref={scanInputRef}
+                    size={isMobile ? "sm" : "md"}
+                    placeholder="Scan SKU / Alias / Carton QR..."
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleScanPack();
+                    }}
+                    leftSection={<ScanLine size={16} />}
+                    disabled={isScanPacking}
+                    autoFocus
+                  />
+                  <Button
+                    size="xs"
+                    fullWidth
+                    mt="xs"
+                    onClick={() => void handleScanPack()}
+                    loading={isScanPacking}
+                    leftIcon={<ScanLine size={14} />}
+                    variant="light"
+                  >
+                    Confirm Scan
+                  </Button>
+                </Paper>
 
                 {/* Mark Packed */}
                 <Paper radius="md" p="sm" withBorder>
