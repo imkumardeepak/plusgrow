@@ -48,4 +48,10 @@ public class OutwardOrder
 
     [Column("dispatched_at")]
     public DateTime? DispatchedAt { get; set; }
+
+    [Column("picked_at")]
+    public DateTime? PickedAt { get; set; }
+
+    [Column("packed_at")]
+    public DateTime? PackedAt { get; set; }
 }

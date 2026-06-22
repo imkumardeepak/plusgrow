@@ -1,5 +1,5 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Send, Truck, User } from "lucide-react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle2, ClipboardList, ScanLine, Send, Truck, User } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
@@ -31,6 +31,8 @@ export const Dispatch = memo(function Dispatch() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const trackingInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -95,6 +97,11 @@ export const Dispatch = memo(function Dispatch() {
     }
   }, [activeOrder]);
 
+  // Clear tracking number when switching orders
+  useEffect(() => {
+    setTrackingNumber("");
+  }, [selectedSalesOrderId]);
+
   useEffect(() => {
     if (!selectedSalesOrderId && dispatchQueue.length > 0) {
       setSelectedSalesOrderId(dispatchQueue[0].salesOrderId);
@@ -113,9 +120,13 @@ export const Dispatch = memo(function Dispatch() {
 
     try {
       setIsDispatching(true);
-      await outwardOrdersApi.dispatchSalesOrder(activeOrder.salesOrderId);
+      await outwardOrdersApi.dispatchSalesOrder(
+        activeOrder.salesOrderId,
+        trackingNumber.trim() || undefined,
+      );
       toast.success(`Order ${activeOrder.orderNumber} dispatched`);
       setSelectedSalesOrderId(null);
+      setTrackingNumber("");
       await loadData();
     } catch (error: any) {
       toast.error(error.message || "Failed to dispatch order");
@@ -281,6 +292,31 @@ export const Dispatch = memo(function Dispatch() {
                 <p className="text-sm text-neutral-400">
                   Dispatch will close every packed item in this sales order and update the sales-order header status.
                 </p>
+              </div>
+
+              {/* Tracking Number Input */}
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <ScanLine className="h-4 w-4 text-brand-400" />
+                  <p className="text-sm font-semibold text-white">Tracking Number</p>
+                  <span className="ml-auto text-[10px] uppercase tracking-wider text-neutral-500">Optional</span>
+                </div>
+                <p className="mb-2 text-xs text-neutral-400">
+                  Scan tracking QR or enter manually. You can skip this field.
+                </p>
+                <input
+                  ref={trackingInputRef}
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && trackingNumber.trim()) {
+                      e.preventDefault();
+                      void handleDispatch();
+                    }
+                  }}
+                  placeholder="Scan or enter tracking number..."
+                  className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                />
               </div>
 
               <Button

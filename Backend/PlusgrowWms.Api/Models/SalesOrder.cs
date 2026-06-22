@@ -40,5 +40,8 @@ public class SalesOrder
     [Column("dispatched_at")]
     public DateTime? DispatchedAt { get; set; }
 
+    [Column("tracking_number")]
+    public string? TrackingNumber { get; set; }
+
     public ICollection<OutwardOrder> Items { get; set; } = [];
 }

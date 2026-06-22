@@ -422,6 +422,9 @@ export interface OutwardOrder {
   createdAt: string;
   updatedAt: string;
   dispatchedAt?: string | null;
+  pickedAt?: string | null;
+  packedAt?: string | null;
+  trackingNumber?: string | null;
 }
 
 export interface QuickSaleProductRecord {
@@ -445,6 +448,7 @@ export interface SalesOrderRecord {
   notes?: string | null;
   referenceNumber?: string | null;
   cancelRemark?: string | null;
+  trackingNumber?: string | null;
   itemCount: number;
   totalQuantity: number;
   totalPickedQuantity: number;
@@ -1403,8 +1407,10 @@ export const outwardOrdersApi = {
     return response.data.data!;
   },
 
-  dispatchSalesOrder: async (salesOrderId: number): Promise<DispatchSalesOrderResult> => {
-    const response = await api.post<ApiResponse<DispatchSalesOrderResult>>(`/outwardorders/sales-orders/${salesOrderId}/dispatch`);
+  dispatchSalesOrder: async (salesOrderId: number, trackingNumber?: string): Promise<DispatchSalesOrderResult> => {
+    const response = await api.post<ApiResponse<DispatchSalesOrderResult>>(`/outwardorders/sales-orders/${salesOrderId}/dispatch`, {
+      trackingNumber: trackingNumber || null,
+    });
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

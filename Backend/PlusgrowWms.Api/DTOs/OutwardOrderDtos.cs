@@ -27,6 +27,9 @@ public class OutwardOrderDto
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DispatchedAt { get; set; }
+    public DateTime? PickedAt { get; set; }
+    public DateTime? PackedAt { get; set; }
+    public string? TrackingNumber { get; set; }
 }
 
 public class OutwardOrderFilterDto
@@ -107,6 +110,7 @@ public class BulkDirectOutwardPickDto
 
 public class DispatchOutwardOrderDto
 {
+    public string? TrackingNumber { get; set; }
 }
 
 public class DispatchSalesOrderResultDto
@@ -115,4 +119,9 @@ public class DispatchSalesOrderResultDto
     public string OrderNumber { get; set; } = string.Empty;
     public int DispatchedItemCount { get; set; }
     public List<OutwardOrderDto> Items { get; set; } = [];
+}
+
+public class DispatchSalesOrderDto
+{
+    public string? TrackingNumber { get; set; }
 }

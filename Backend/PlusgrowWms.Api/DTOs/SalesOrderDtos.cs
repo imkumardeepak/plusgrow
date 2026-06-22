@@ -10,6 +10,7 @@ public class SalesOrderDto
     public string? Notes { get; set; }
     public string? ReferenceNumber { get; set; }
     public string? CancelRemark { get; set; }
+    public string? TrackingNumber { get; set; }
     public int ItemCount { get; set; }
     public int TotalQuantity { get; set; }
     public int TotalPickedQuantity { get; set; }

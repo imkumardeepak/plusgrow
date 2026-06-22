@@ -576,6 +576,8 @@ public class OutwardOrdersController : BaseController
         order.PickedQuantity = nextPicked;
         order.Status = order.PickedQuantity >= order.Quantity ? "Picked" : "Picking";
         order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        if (order.Status == "Picked" && order.PickedAt == null)
+            order.PickedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(order).Property(x => x.PickedLocationJson).IsModified = true;
 
         await _context.SaveChangesAsync();
@@ -683,6 +685,7 @@ public class OutwardOrdersController : BaseController
             Notes = salesOrder.Notes,
             CreatedAt = now,
             UpdatedAt = now,
+            PickedAt = now,
         };
 
         _context.SalesOrders.Add(salesOrder);
@@ -795,6 +798,7 @@ public class OutwardOrdersController : BaseController
                 Notes = salesOrder.Notes,
                 CreatedAt = now,
                 UpdatedAt = now,
+                PickedAt = now,
             };
             createdOrders.Add(order);
         }
@@ -845,6 +849,7 @@ public class OutwardOrdersController : BaseController
         if (order.Status != "Packed")
         {
             order.Status = "Packed";
+            order.PackedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
             order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
             await _context.SaveChangesAsync();
 
@@ -893,6 +898,13 @@ public class OutwardOrdersController : BaseController
         if (!dispatchResult.Success)
             return BadRequest<OutwardOrderDto>(dispatchResult.Message!);
 
+        // Save tracking number if provided
+        if (!string.IsNullOrWhiteSpace(dto?.TrackingNumber) && order.SalesOrder != null)
+        {
+            order.SalesOrder.TrackingNumber = dto.TrackingNumber.Trim();
+            order.SalesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        }
+
         await _context.SaveChangesAsync();
         if (order.SalesOrderId > 0)
         {
@@ -922,7 +934,7 @@ public class OutwardOrdersController : BaseController
     }
 
     [HttpPost("sales-orders/{salesOrderId}/dispatch")]
-    public async Task<ActionResult<ApiResponse<DispatchSalesOrderResultDto>>> DispatchSalesOrder(int salesOrderId)
+    public async Task<ActionResult<ApiResponse<DispatchSalesOrderResultDto>>> DispatchSalesOrder(int salesOrderId, [FromBody] DispatchSalesOrderDto? dto)
     {
         var salesOrder = await _context.SalesOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == salesOrderId);
         if (salesOrder == null)
@@ -959,6 +971,19 @@ public class OutwardOrdersController : BaseController
         }
 
         await _context.SaveChangesAsync();
+
+        // Save tracking number if provided
+        var trackingNumber = dto?.TrackingNumber?.Trim();
+        if (!string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            var salesOrderEntity = await _context.SalesOrders.FirstOrDefaultAsync(x => x.Id == salesOrderId);
+            if (salesOrderEntity != null)
+            {
+                salesOrderEntity.TrackingNumber = trackingNumber;
+                salesOrderEntity.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            }
+        }
+
         await UpdateSalesOrderStatusAsync(salesOrderId);
         await _context.SaveChangesAsync();
 
@@ -1545,6 +1570,9 @@ public class OutwardOrdersController : BaseController
             CreatedAt = row.CreatedAt,
             UpdatedAt = row.UpdatedAt,
             DispatchedAt = row.DispatchedAt,
+            PickedAt = row.PickedAt,
+            PackedAt = row.PackedAt,
+            TrackingNumber = salesOrder?.TrackingNumber,
         };
     }
 
@@ -1565,6 +1593,7 @@ public class OutwardOrdersController : BaseController
             Notes = row.Notes,
             ReferenceNumber = row.ReferenceNumber,
             CancelRemark = row.CancelRemark,
+            TrackingNumber = row.TrackingNumber,
             ItemCount = items.Count,
             TotalQuantity = items.Sum(x => x.Quantity),
             TotalPickedQuantity = items.Sum(x => x.PickedQuantity),
