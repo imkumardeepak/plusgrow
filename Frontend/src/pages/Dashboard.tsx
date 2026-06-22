@@ -35,6 +35,7 @@ import {
   IconShieldCheck,
   IconQrcode,
   IconMap2,
+  IconReportAnalytics,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -58,6 +59,15 @@ export const Dashboard = memo(function Dashboard() {
           icon: IconSearch,
           color: "blue",
           href: "/product-query",
+          visible: true,
+        },
+        {
+          key: "today-operations",
+          title: "Today's Operations",
+          description: "Inward & outward activity report.",
+          icon: IconReportAnalytics,
+          color: "cyan",
+          href: "/today-operations",
           visible: true,
         },
         {

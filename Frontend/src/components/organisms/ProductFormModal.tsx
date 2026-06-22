@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { ActionIcon, Center, Group, Image, Paper, Select, SimpleGrid, Stack, Text, Tooltip } from "@mantine/core";
-import { Globe, IndianRupee, MapPin, Package, Printer, QrCode, Tag, Trash2 } from "lucide-react";
+import { Globe, IndianRupee, MapPin, Package, Printer, QrCode, Search, Tag, Trash2 } from "lucide-react";
 import { Input } from "../atoms/Input";
 import { Button } from "../atoms/Button";
 import { Modal } from "../atoms/Modal";
@@ -47,6 +48,7 @@ export function ProductFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [skuQrDataUrl, setSkuQrDataUrl] = useState<string | null>(null);
   const [isSkuQrModalOpen, setIsSkuQrModalOpen] = useState(false);
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<CreateProductDto>({
     name: "",
     sku: "",
@@ -258,6 +260,22 @@ export function ProductFormModal({
                 aria-label="SKU QR code"
               >
                 <QrCode size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Open in Product Query">
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="blue"
+                disabled={!formData.sku?.trim()}
+                onClick={() => {
+                  const sku = formData.sku?.trim();
+                  if (sku) navigate(`/product-query?search=${encodeURIComponent(sku)}`);
+                }}
+                aria-label="Product Query"
+              >
+                <Search size={18} />
               </ActionIcon>
             </Tooltip>
           {product ? (

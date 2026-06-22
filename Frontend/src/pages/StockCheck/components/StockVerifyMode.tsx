@@ -13,7 +13,7 @@ import {
   Search,
 } from "lucide-react";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Divider,
   Group,
@@ -70,6 +70,8 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSearchRef = useRef(searchParams.get("search") || "");
 
   const openProductFromSku = useCallback((sku?: string | null, productName?: string | null) => {
     const normalizedSku = normalizeSku(sku);
@@ -111,6 +113,21 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
   useEffect(() => { void loadData(); }, []);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // Auto-search if navigated with ?search=SKU param
+  useEffect(() => {
+    const term = initialSearchRef.current;
+    if (term && !isLoading && products.length > 0 && !lookupResult) {
+      setScanInput(term);
+      // Clear the param from URL to avoid re-triggering
+      setSearchParams({}, { replace: true });
+      // Trigger lookup programmatically after a tick
+      setTimeout(() => {
+        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+        handleLookupRef.current?.(fakeEvent);
+      }, 100);
+    }
+  }, [isLoading, products, lookupResult, setSearchParams]);
 
   const focusScanner = () => {
     setTimeout(() => inputRef.current?.focus(), 10);
@@ -199,7 +216,8 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
     }
   };
 
-  const productTitle =
+  const handleLookupRef = useRef(handleLookup);
+  handleLookupRef.current = handleLookup;  const productTitle =
     lookupResult?.product?.name ||
     lookupResult?.quantityRow?.productName ||
     "Product Details";

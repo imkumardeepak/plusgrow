@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
@@ -102,6 +102,7 @@ const createDefaultProductForm = (): CreateProductDto => ({
 
 export const MPD = memo(function MPD() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [commodities, setCommodities] = useState<Commodity[]>([]);
@@ -1043,6 +1044,22 @@ export const MPD = memo(function MPD() {
                 aria-label="SKU QR code"
               >
                 <QrCode size={18} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Open in Product Query">
+              <ActionIcon
+                size="md"
+                radius="md"
+                variant="light"
+                color="blue"
+                disabled={!formData.sku?.trim()}
+                onClick={() => {
+                  const sku = formData.sku?.trim();
+                  if (sku) navigate(`/product-query?search=${encodeURIComponent(sku)}`);
+                }}
+                aria-label="Product Query"
+              >
+                <Search size={18} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label={isEditing ? "View product locations" : "Save product first to view locations"}>
