@@ -19,6 +19,9 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import {
   Badge,
@@ -32,6 +35,7 @@ import {
   Text,
   TextInput,
   ThemeIcon,
+  Grid,
 } from "@mantine/core";
 
 import { Button } from "../../../components/atoms/Button";
@@ -275,13 +279,19 @@ export function QuickSaleMode({
 
   const chartRows = useMemo(
     () =>
-      filteredRows.map((row, index) => ({
+      filteredRows.slice(0, 10).map((row, index) => ({
         ...row,
         rankLabel: `#${index + 1}`,
-        chartLabel: shortenLabel(row.productName || row.skuCode || `Product ${index + 1}`),
+        chartLabel:
+          row.productName && row.productName.length > 20
+            ? row.productName.substring(0, 18) + "..."
+            : row.productName || row.skuCode || `Product ${index + 1}`,
       })),
     [filteredRows],
   );
+
+  const pieChartRows = useMemo(() => filteredRows.slice(0, 5), [filteredRows]);
+  const COLORS = ["#facc15", "#38bdf8", "#4ade80", "#fb923c", "#c084fc"];
 
   const topOrderCount = Math.max(...filteredRows.map((row) => row.orderCount), 0);
   const totalOrders = filteredRows.reduce((sum, row) => sum + row.orderCount, 0);
@@ -378,48 +388,83 @@ export function QuickSaleMode({
         </Paper>
       ) : filteredRows.length > 0 ? (
         <Stack gap="xs">
-          <Paper radius="lg" p={isMobile ? "xs" : "sm"} withBorder bg="rgba(15,23,42,0.5)">
-            <Group justify="space-between" mb="xs" wrap="nowrap">
-              <Box className="min-w-0">
-                <Text fw={900} size="sm" c="white">
-                  Sales Order Count Bar Graph
-                </Text>
-                <Text size="11px" c="dimmed" truncate>
-                  Highest: {topProduct?.productName || "-"} ({formatNumber(topProduct?.orderCount ?? 0)} orders)
-                </Text>
-              </Box>
-              <Badge size="sm" variant="light" color="cyan">
-                {activeTimeframe.label}
-              </Badge>
-            </Group>
-            <Box h={isMobile ? 300 : 360} style={{ overflowX: "auto", overflowY: "hidden" }}>
-              <Box h="100%" style={{ minWidth: Math.max(chartRows.length * 30, 600) }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartRows} margin={{ top: 12, right: 10, left: -22, bottom: isMobile ? 54 : 42 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" vertical={false} />
-                    <XAxis
-                      dataKey="chartLabel"
-                      angle={isMobile ? -55 : -45}
-                      textAnchor="end"
-                      interval={0}
-                      height={isMobile ? 70 : 58}
-                      tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 9 }}
-                      axisLine={{ stroke: "rgba(148,163,184,0.22)" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 10 }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                    />
-                    <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} content={<OrderChartTooltip />} />
-                    <Bar dataKey="orderCount" name="Sales Orders" fill="#facc15" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </Box>
-          </Paper>
+          <Grid gutter="xs">
+            <Grid.Col span={{ base: 12, md: 9 }}>
+              <Paper radius="lg" p={isMobile ? "xs" : "sm"} withBorder bg="rgba(15,23,42,0.5)" h="100%">
+                <Group justify="space-between" mb="xs" wrap="nowrap">
+                  <Box className="min-w-0">
+                    <Text fw={900} size="sm" c="white">
+                      Sales Order Count Bar Graph (Top 10)
+                    </Text>
+                    <Text size="11px" c="dimmed" truncate>
+                      Highest: {topProduct?.productName || "-"} ({formatNumber(topProduct?.orderCount ?? 0)} orders)
+                    </Text>
+                  </Box>
+                  <Badge size="sm" variant="light" color="cyan">
+                    {activeTimeframe.label}
+                  </Badge>
+                </Group>
+                <Box h={isMobile ? 300 : 360} style={{ overflowX: "auto", overflowY: "hidden" }}>
+                  <Box h="100%" style={{ minWidth: Math.max(chartRows.length * 30, 600) }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartRows} margin={{ top: 12, right: 10, left: -22, bottom: isMobile ? 54 : 42 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" vertical={false} />
+                        <XAxis
+                          dataKey="chartLabel"
+                          angle={isMobile ? -55 : -45}
+                          textAnchor="end"
+                          interval={0}
+                          height={isMobile ? 70 : 58}
+                          tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 9 }}
+                          axisLine={{ stroke: "rgba(148,163,184,0.22)" }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                          allowDecimals={false}
+                        />
+                        <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} content={<OrderChartTooltip />} />
+                        <Bar dataKey="orderCount" name="Sales Orders" fill="#facc15" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 3 }}>
+              <Paper radius="lg" p={isMobile ? "xs" : "sm"} withBorder bg="rgba(15,23,42,0.5)" h="100%">
+                <Box mb="xs">
+                  <Text fw={900} size="sm" c="white">
+                    Top 5 Split
+                  </Text>
+                </Box>
+                <Box h={isMobile ? 300 : 360}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartRows}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={isMobile ? 60 : 70}
+                        outerRadius={isMobile ? 80 : 90}
+                        paddingAngle={5}
+                        dataKey="orderCount"
+                        stroke="none"
+                      >
+                        {pieChartRows.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<OrderChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Paper>
+            </Grid.Col>
+          </Grid>
 
           <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }} spacing="xs">
             {filteredRows.map((row, index) => (
