@@ -346,7 +346,7 @@ function StockCheckHub({
         </Paper>
       )}
 
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 6 }} spacing={isMobile ? "xs" : "sm"}>
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={isMobile ? "xs" : "sm"}>
         {cards.map((card) => (
           <Paper
             key={card.mode ?? card.href}
