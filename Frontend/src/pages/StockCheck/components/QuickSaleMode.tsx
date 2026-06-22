@@ -292,6 +292,10 @@ export function QuickSaleMode({
 
   const pieChartRows = useMemo(() => filteredRows.slice(0, 5), [filteredRows]);
   const COLORS = ["#facc15", "#38bdf8", "#4ade80", "#fb923c", "#c084fc"];
+  const BAR_COLORS = [
+    "#facc15", "#38bdf8", "#4ade80", "#fb923c", "#c084fc",
+    "#f472b6", "#22d3ee", "#a3e635", "#f87171", "#818cf8",
+  ];
 
   const topOrderCount = Math.max(...filteredRows.map((row) => row.orderCount), 0);
   const totalOrders = filteredRows.reduce((sum, row) => sum + row.orderCount, 0);
@@ -426,7 +430,11 @@ export function QuickSaleMode({
                           allowDecimals={false}
                         />
                         <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} content={<OrderChartTooltip />} />
-                        <Bar dataKey="orderCount" name="Sales Orders" fill="#facc15" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="orderCount" name="Sales Orders" radius={[6, 6, 0, 0]}>
+                          {chartRows.map((_, index) => (
+                            <Cell key={`bar-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </Box>
@@ -441,15 +449,15 @@ export function QuickSaleMode({
                     Top 5 Split
                   </Text>
                 </Box>
-                <Box h={isMobile ? 300 : 360}>
+                <Box h={isMobile ? 180 : 220}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={pieChartRows}
                         cx="50%"
-                        cy="45%"
-                        innerRadius={isMobile ? 60 : 70}
-                        outerRadius={isMobile ? 80 : 90}
+                        cy="50%"
+                        innerRadius={isMobile ? 45 : 55}
+                        outerRadius={isMobile ? 65 : 75}
                         paddingAngle={5}
                         dataKey="orderCount"
                         stroke="none"
@@ -462,6 +470,31 @@ export function QuickSaleMode({
                     </PieChart>
                   </ResponsiveContainer>
                 </Box>
+                <Stack gap={6} mt="sm">
+                  {pieChartRows.map((row, index) => {
+                    const total = pieChartRows.reduce((s, r) => s + r.orderCount, 0);
+                    const pct = total > 0 ? ((row.orderCount / total) * 100).toFixed(1) : "0";
+                    return (
+                      <Group key={row.productId} gap={8} wrap="nowrap">
+                        <Box
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            backgroundColor: COLORS[index % COLORS.length],
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Text size="xs" c="gray.4" lineClamp={1} style={{ flex: 1 }}>
+                          {row.productName}
+                        </Text>
+                        <Text size="xs" fw={700} c="white" style={{ flexShrink: 0 }}>
+                          {row.orderCount} ({pct}%)
+                        </Text>
+                      </Group>
+                    );
+                  })}
+                </Stack>
               </Paper>
             </Grid.Col>
           </Grid>
