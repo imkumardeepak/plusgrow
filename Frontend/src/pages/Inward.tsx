@@ -26,6 +26,8 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import {
   ArrowDownToLine,
+  CircleCheck,
+  CircleX,
   Download,
   Eye,
   FileText,
@@ -630,6 +632,28 @@ export const Inward = memo(function Inward() {
         </Text>
       ),
       width: 140,
+    },
+    {
+      key: "missing",
+      header: "Data",
+      align: "center",
+      sortable: true,
+      sortAccessor: (row) => (row.items.some((item) => item.hasMissingData) ? 1 : 0),
+      render: (row) => {
+        const hasMissing = row.items.some((item) => item.hasMissingData);
+        return (
+          <Tooltip label={hasMissing ? "Some products have missing sticker data" : "All products ready for printing"}>
+            <Center>
+              {hasMissing ? (
+                <CircleX size={18} color="var(--mantine-color-red-5)" />
+              ) : (
+                <CircleCheck size={18} color="var(--mantine-color-green-5)" />
+              )}
+            </Center>
+          </Tooltip>
+        );
+      },
+      width: 60,
     },
     {
       key: "printed",
@@ -1911,6 +1935,25 @@ export const Inward = memo(function Inward() {
                     </Text>
                   ),
                   width: 90,
+                },
+                {
+                  key: "missing",
+                  header: "Data",
+                  align: "center",
+                  sortable: true,
+                  sortAccessor: (row) => (row.hasMissingData ? 1 : 0),
+                  render: (row) => (
+                    <Tooltip label={row.hasMissingData ? "Missing sticker data" : "Ready for printing"}>
+                      <Center>
+                        {row.hasMissingData ? (
+                          <CircleX size={18} color="var(--mantine-color-red-5)" />
+                        ) : (
+                          <CircleCheck size={18} color="var(--mantine-color-green-5)" />
+                        )}
+                      </Center>
+                    </Tooltip>
+                  ),
+                  width: 60,
                 },
                 {
                   key: "status",
