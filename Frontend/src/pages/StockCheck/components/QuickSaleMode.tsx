@@ -57,7 +57,7 @@ const TIMEFRAMES: TimeframeOption[] = [
   { value: "365", days: 365, label: "1Y", caption: "Year" },
 ];
 
-const TOP_LIMIT = 10;
+const TOP_LIMIT = 100;
 
 const formatNumber = (value: number) =>
   new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(value);
@@ -325,7 +325,7 @@ export function QuickSaleMode({
               </ThemeIcon>
               <Box className="min-w-0">
                 <Text fw={900} size={isMobile ? "sm" : "md"} c="white">
-                  Top 10 Products by Sales Order Count
+                  Top 100 Products by Sales Order Count
                 </Text>
                 <Text size="11px" c="dimmed">
                   Ranking uses how many sales orders include each product.
@@ -392,30 +392,32 @@ export function QuickSaleMode({
                 {activeTimeframe.label}
               </Badge>
             </Group>
-            <Box h={isMobile ? 240 : 290}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartRows} margin={{ top: 12, right: 10, left: -22, bottom: isMobile ? 54 : 42 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" vertical={false} />
-                  <XAxis
-                    dataKey="chartLabel"
-                    angle={isMobile ? -55 : -35}
-                    textAnchor="end"
-                    interval={0}
-                    height={isMobile ? 70 : 58}
-                    tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 10 }}
-                    axisLine={{ stroke: "rgba(148,163,184,0.22)" }}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} content={<OrderChartTooltip />} />
-                  <Bar dataKey="orderCount" name="Sales Orders" fill="#facc15" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+            <Box h={isMobile ? 300 : 360} style={{ overflowX: "auto", overflowY: "hidden" }}>
+              <Box h="100%" style={{ minWidth: Math.max(chartRows.length * 30, 600) }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartRows} margin={{ top: 12, right: 10, left: -22, bottom: isMobile ? 54 : 42 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.16)" vertical={false} />
+                    <XAxis
+                      dataKey="chartLabel"
+                      angle={isMobile ? -55 : -45}
+                      textAnchor="end"
+                      interval={0}
+                      height={isMobile ? 70 : 58}
+                      tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 9 }}
+                      axisLine={{ stroke: "rgba(148,163,184,0.22)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "rgba(226,232,240,0.72)", fontSize: 10 }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip cursor={{ fill: "rgba(255,255,255,0.04)" }} content={<OrderChartTooltip />} />
+                    <Bar dataKey="orderCount" name="Sales Orders" fill="#facc15" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
             </Box>
           </Paper>
 
@@ -442,7 +444,7 @@ export function QuickSaleMode({
                 No sale-order products found
               </Text>
               <Text size="xs" c="dimmed">
-                Create sales orders, then return here to see the top 10 products by sales-order count.
+                Create sales orders, then return here to see the top 100 products by sales-order count.
               </Text>
             </Box>
           </Group>
