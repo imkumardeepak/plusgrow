@@ -1689,5 +1689,10 @@ export const tallySyncApi = {
     const response = await api.post<ApiResponse<boolean>>('/TallySync/sync-today');
     if (!response.data.success) throw new Error(response.data.message || 'Tally sync failed');
     return response.data.success;
+  },
+  getStockItems: async (): Promise<any[]> => {
+    const response = await api.get<ApiResponse<any[]>>('/StockItems');
+    if (!response.data.success) throw new Error(response.data.message || 'Error fetching Tally stock items');
+    return response.data.data || [];
   }
 };
