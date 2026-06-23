@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -163,9 +163,14 @@ public class TallyService
 			var jsonObject = JsonConvert.DeserializeObject<JObject>(jsonData);
 			RemoveEmptyValues(jsonObject);
 
-			var tallyMessageArray = jsonObject["ENVELOPE"]?["BODY"]?["IMPORTDATA"]?["REQUESTDATA"]?["TALLYMESSAGE"];
+			var tallyMessageNode = jsonObject["ENVELOPE"]?["BODY"]?["IMPORTDATA"]?["REQUESTDATA"]?["TALLYMESSAGE"];
 
-			string tallyMessageJson = JsonConvert.SerializeObject(tallyMessageArray, Newtonsoft.Json.Formatting.Indented);
+			if (tallyMessageNode != null && tallyMessageNode.Type == JTokenType.Object)
+			{
+				tallyMessageNode = new JArray(tallyMessageNode);
+			}
+
+			string tallyMessageJson = JsonConvert.SerializeObject(tallyMessageNode, Newtonsoft.Json.Formatting.Indented);
 			var data = JsonConvert.DeserializeObject<List<Dictionary<string, dynamic>>>(tallyMessageJson);
 
 			var voucherList = new List<Voucher>();
