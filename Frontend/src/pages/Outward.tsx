@@ -746,6 +746,17 @@ export const Outward = memo(function Outward() {
           </Group>
         }
       >
+        {orders.length >= 200 && (
+          <Box px="md" pt="xs">
+            <Group gap="xs" align="center" p="xs" style={{ background: "rgba(250,176,5,0.08)", borderRadius: 8, border: "1px solid rgba(250,176,5,0.25)" }}>
+              <AlertTriangle size={14} color="#f59f00" />
+              <Text size="xs" c="yellow.5">
+                Showing the latest <strong>{orders.length}</strong> orders. Older orders are not displayed.
+                Use the <strong>Search</strong> box or <strong>Status</strong> filter to find specific orders.
+              </Text>
+            </Group>
+          </Box>
+        )}
         <MantineDataTable
           data={filteredGroups}
           columns={columns}

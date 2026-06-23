@@ -30,7 +30,7 @@ public class OutwardOrdersController : BaseController
     public async Task<ActionResult<ApiResponse<List<SalesOrderDto>>>> GetSalesOrders([FromQuery] SalesOrderFilterDto filter)
     {
         var page = Math.Max(filter.Page, 1);
-        var pageSize = Math.Clamp(filter.PageSize, 1, 200);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 500);
         var query = _context.SalesOrders
             .Include(x => x.Items)
                 .ThenInclude(x => x.Product)
