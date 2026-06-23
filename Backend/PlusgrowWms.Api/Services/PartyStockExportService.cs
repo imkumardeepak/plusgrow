@@ -121,10 +121,14 @@ public class PartyStockExportService : IPartyStockExportService
             : EnsureXlsxExtension(fileNameSetting.Trim());
         var fullPath = Path.Combine(folderPath, fileName);
 
-        // Save to a temp file in the same folder first, then atomically replace the target file.
-        // This prevents the Dropbox client from picking up a half-written spreadsheet.
-        var tempPath = Path.Combine(folderPath, $".{Guid.NewGuid():N}.xlsx.tmp");
+        // Save to a local temp folder first, then atomically replace the target file in Dropbox.
+        // This prevents the Dropbox client from picking up a half-written spreadsheet and avoids ClosedXML extension errors.
+        var localTempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempExcelExports");
+        Directory.CreateDirectory(localTempFolder);
+        
+        var tempPath = Path.Combine(localTempFolder, $"{Guid.NewGuid():N}.xlsx");
         workbook.SaveAs(tempPath);
+        
         File.Move(tempPath, fullPath, overwrite: true);
 
         _logger.LogInformation(
