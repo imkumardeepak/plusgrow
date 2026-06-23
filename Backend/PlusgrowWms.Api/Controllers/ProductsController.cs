@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
@@ -166,7 +166,7 @@ public class ProductsController : BaseController
 			}
 			var rows = rangeUsed.RowsUsed().Skip(1).ToList();
 
-			// ─── 1. COLLECT all unique names from the sheet up front ───────────────
+			// â”€â”€â”€ 1. COLLECT all unique names from the sheet up front â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			var allManufacturerNames = rows
 				.Select(r => GetCell(r, "Manufacturer Name").GetString()?.Trim())
 				.Where(n => !string.IsNullOrEmpty(n))
@@ -189,7 +189,7 @@ public class ProductsController : BaseController
 				.Select(n => n!.ToUpperInvariant())
 				.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-			// ─── 2. BULK LOAD existing data ──────────────────────────────────────
+			// â”€â”€â”€ 2. BULK LOAD existing data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			// Load ALL manufacturers & commodities to avoid case-sensitivity mismatches
 			// with PostgreSQL's unique index (IX_commodities_name, etc.)
 			var existingManufacturers = await _context.Manufacturers
@@ -208,7 +208,7 @@ public class ProductsController : BaseController
 				.Select(p => p.Name.ToUpper())
 				.ToHashSetAsync(StringComparer.OrdinalIgnoreCase);
 
-			// ─── 3. CREATE missing manufacturers & commodities in bulk ─────────────
+			// â”€â”€â”€ 3. CREATE missing manufacturers & commodities in bulk â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			var newManufacturers = allManufacturerNames
 				.Where(n => !existingManufacturers.ContainsKey(n!))
 				.Select(n => new Manufacturer { Name = n! })
@@ -235,7 +235,7 @@ public class ProductsController : BaseController
 					existingCommodities[c.Name!] = c;
 			}
 
-			// ─── 4. BUILD all Product objects in memory (no DB calls in loop) ──────
+			// â”€â”€â”€ 4. BUILD all Product objects in memory (no DB calls in loop) â”€â”€â”€â”€â”€â”€
 			var newProducts = new List<Product>();
 			var rowProductMap = new List<(IXLRangeRow Row, Product Product)>();
 			var processedSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -368,7 +368,7 @@ public class ProductsController : BaseController
 				}
 			}
 
-			// ─── 5. BULK INSERT all products in one shot ───────────────────────────
+			// â”€â”€â”€ 5. BULK INSERT all products in one shot â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 			if (newProducts.Any())
 			{
 				await _context.Products.AddRangeAsync(newProducts);
@@ -376,7 +376,7 @@ public class ProductsController : BaseController
 				result.ImportedCount = newProducts.Count;
 			}
 
-			// ─── 6. BULK UPSERT stock quantities and default location allotments ───
+			// â”€â”€â”€ 6. BULK UPSERT stock quantities and default location allotments â”€â”€â”€
 			var productIds = newProducts.Select(p => p.Id).ToList();
 			var existingQtys = await _context.ProductQuantities
 				.Where(pq => productIds.Contains(pq.ProductId))
@@ -400,10 +400,8 @@ public class ProductsController : BaseController
 			{
 				var stockQntyStr = GetCell(row, "Stock", "Stock Qnty").GetString()?.Trim();
 
-				// Skip blank or zero — only process rows with stock > 0
-				if (string.IsNullOrEmpty(stockQntyStr) ||
-					!int.TryParse(stockQntyStr, out int stockQnty) || stockQnty <= 0) continue;
-
+				// Treat blank stock as 0; skip only if non-numeric or negative
+				if (!int.TryParse(string.IsNullOrEmpty(stockQntyStr) ? "0" : stockQntyStr, out int stockQnty) || stockQnty < 0) continue;
 				if (existingQtys.TryGetValue(product.Id, out var existing))
 				{
 					existing.CurrentQuantity = stockQnty;
@@ -695,8 +693,8 @@ public class ProductsController : BaseController
 					if (headers.ContainsKey("Stock Quantity"))
 					{
 						var stockStr = row.Cell(headers["Stock Quantity"]).GetString()?.Trim();
-						// Skip blank or zero — only update when stock > 0
-						if (int.TryParse(stockStr, out int stockQnty) && stockQnty > 0)
+						// Treat blank stock as 0; skip only if non-numeric or negative
+						if (int.TryParse(string.IsNullOrEmpty(stockStr) ? "0" : stockStr, out int stockQnty) && stockQnty >= 0)
 						{
 							var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
