@@ -34,20 +34,13 @@ public class TallyService
 			string tallyUrl = _configuration["TallySettings:TallyUrl"];
 			var response = await _httpClient.GetAsync(tallyUrl);
 
-			if (response.IsSuccessStatusCode)
-			{
-				// Server is running
-				return true;
-			}
-			else
-			{
-				// Server is reachable but returned an error
-				return false;
-			}
+			// Tally often returns a 400 Bad Request to a simple GET without XML payload.
+			// As long as we get a response (and no exception is thrown), Tally is reachable.
+			return true;
 		}
 		catch (Exception ex)
 		{
-
+			_logger.LogWarning(ex, "Tally Server is unreachable at {TallyUrl}", _configuration["TallySettings:TallyUrl"]);
 			return false;
 		}
 	}
