@@ -84,11 +84,35 @@ public class PartyStockExportService : IPartyStockExportService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("My Products");
 
-        for (var column = 0; column < Headers.Length; column++)
-            worksheet.Cell(1, column + 1).Value = Headers[column];
-        worksheet.Row(1).Style.Font.Bold = true;
+        // 1. Title Section
+        worksheet.Cell("A1").Value = $"Stock Report - {partyName}";
+        worksheet.Range("A1:P1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 16;
+        worksheet.Cell("A1").Style.Font.FontColor = XLColor.White;
+        worksheet.Cell("A1").Style.Fill.BackgroundColor = XLColor.MidnightBlue;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        var row = 2;
+        worksheet.Cell("A2").Value = $"Generated On: {DateTime.Now:yyyy-MM-dd HH:mm}";
+        worksheet.Range("A2:P2").Merge();
+        worksheet.Cell("A2").Style.Font.Italic = true;
+        worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+
+        // 2. Table Headers
+        var headerRow = 4;
+        for (var column = 0; column < Headers.Length; column++)
+        {
+            var cell = worksheet.Cell(headerRow, column + 1);
+            cell.Value = Headers[column];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.Teal;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        // 3. Data Rows
+        var dataStartRow = 5;
+        var row = dataStartRow;
         foreach (var product in products)
         {
             quantities.TryGetValue(product.Id, out var stockQty);
@@ -112,7 +136,15 @@ public class PartyStockExportService : IPartyStockExportService
             row++;
         }
 
+        // 4. Formatting: Auto-fit columns
         worksheet.Columns().AdjustToContents();
+
+        // 5. Borders and AutoFilter
+        var maxRow = row > dataStartRow ? row - 1 : dataStartRow;
+        var tableRange = worksheet.Range(headerRow, 1, maxRow, Headers.Length);
+        tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        tableRange.SetAutoFilter();
 
         Directory.CreateDirectory(folderPath);
 

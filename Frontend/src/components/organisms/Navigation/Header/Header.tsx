@@ -33,6 +33,7 @@ export interface HeaderProps {
   showMenuButton?: boolean;
   isSyncing?: boolean;
   onSync?: () => void;
+  onForceSync?: () => void;
   userName?: string;
   userRole?: string;
   userInitials?: string;
@@ -62,6 +63,7 @@ export function Header({
   showMenuButton = true,
   isSyncing = false,
   onSync,
+  onForceSync,
   userName = "John Doe",
   userRole = "Warehouse Manager",
   userInitials = "JD",
@@ -120,24 +122,41 @@ export function Header({
         </Group>
 
         <Group gap={6} wrap="nowrap">
-          <Button
-            visibleFrom="sm"
-            variant="light"
-            color="cyan"
-            radius="md"
-            size="xs"
-            px="sm"
-            leftSection={
-              <RefreshCw
-                size={14}
-                className={isSyncing ? "animate-spin" : undefined}
-              />
-            }
-            loading={isSyncing}
-            onClick={onSync}
-          >
-            Sync
-          </Button>
+          <Menu shadow="md" width={200} position="bottom-end" radius="md">
+            <Menu.Target>
+              <Button
+                visibleFrom="sm"
+                variant="light"
+                color="cyan"
+                radius="md"
+                size="xs"
+                px="sm"
+                leftSection={
+                  <RefreshCw
+                    size={14}
+                    className={isSyncing ? "animate-spin" : undefined}
+                  />
+                }
+                loading={isSyncing}
+              >
+                Sync
+              </Button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item
+                leftSection={<RefreshCw size={14} />}
+                onClick={onSync}
+              >
+                Refresh View
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<RefreshCw size={14} />}
+                onClick={onForceSync}
+              >
+                Sync Data from Tally
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
 
           <Menu shadow="lg" width={340} radius="lg" position="bottom-end">
             <Menu.Target>

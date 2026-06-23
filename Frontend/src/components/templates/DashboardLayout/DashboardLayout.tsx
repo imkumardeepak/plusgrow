@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import { AppShell, Box, Paper, Stack, Text } from "@mantine/core";
+import { AppShell, Box, Paper, Stack, Text, Modal, Progress } from "@mantine/core";
+import { RefreshCw } from "lucide-react";
 import { Sidebar } from "../../organisms/Navigation/Sidebar/Sidebar";
 import { Header } from "../../organisms/Navigation/Header/Header";
 import {
@@ -28,7 +29,7 @@ export function DashboardLayout({
   contentClassName,
 }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { refreshData, isLoading } = useWms();
+  const { refreshData, forceSyncData, isLoading, isTallySyncing } = useWms();
   const { user, logout } = useAuth();
   const {
     notifications,
@@ -91,6 +92,7 @@ export function DashboardLayout({
           onMenuClick={() => setMobileMenuOpen(true)}
           showMenuButton={!isPartyRole}
           onSync={refreshData}
+          onForceSync={forceSyncData}
           isSyncing={isLoading}
           userName={resolvedUserName}
           userRole={resolvedUserRole}
@@ -179,7 +181,61 @@ export function DashboardLayout({
           </Box>
         </Box>
       </AppShell.Main>
+      <TallySyncOverlay opened={isTallySyncing} />
     </AppShell>
+  );
+}
+
+function TallySyncOverlay({ opened }: { opened: boolean }) {
+  return (
+    <Modal
+      opened={opened}
+      onClose={() => {}}
+      withCloseButton={false}
+      closeOnClickOutside={false}
+      closeOnEscape={false}
+      overlayProps={{
+        backgroundOpacity: 0.85,
+        blur: 10,
+      }}
+      centered
+      radius="lg"
+      padding="xl"
+      styles={{
+        content: {
+          background: 'linear-gradient(145deg, rgba(15,23,42,0.95), rgba(8,14,25,0.98))',
+          border: '1px solid rgba(56,189,248,0.2)',
+          boxShadow: '0 0 40px rgba(56,189,248,0.1)',
+        }
+      }}
+    >
+      <Stack align="center" gap="lg" py="md">
+        <div className="relative">
+          <RefreshCw size={48} className="text-cyan-400 animate-spin" strokeWidth={1.5} />
+          <div className="absolute inset-0 bg-cyan-400 blur-xl opacity-20 rounded-full" />
+        </div>
+        
+        <Stack gap="xs" align="center" ta="center">
+          <Text size="xl" fw={900} c="white" style={{ letterSpacing: '-0.02em' }}>
+            Synchronizing with Tally ERP
+          </Text>
+          <Text size="sm" c="dimmed" maw={280}>
+            Please wait while we fetch the latest invoices, sales orders, and stock movements...
+          </Text>
+        </Stack>
+
+        <Box w="100%" mt="sm">
+          <Progress 
+            value={100} 
+            striped 
+            animated 
+            color="cyan.5" 
+            size="md" 
+            radius="xl"
+          />
+        </Box>
+      </Stack>
+    </Modal>
   );
 }
 

@@ -1683,3 +1683,11 @@ export const stockCheckReportsApi = {
     await api.delete(`/stockcheckreports/${id}`);
   },
 };
+
+export const tallySyncApi = {
+  syncToday: async (): Promise<boolean> => {
+    const response = await api.post<ApiResponse<boolean>>('/TallySync/sync-today');
+    if (!response.data.success) throw new Error(response.data.message || 'Tally sync failed');
+    return response.data.success;
+  }
+};

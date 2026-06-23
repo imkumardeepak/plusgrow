@@ -11,7 +11,9 @@ interface WmsContextType {
   stock: Stock[];
   activities: Activity[];
   isLoading: boolean;
+  isTallySyncing: boolean;
   refreshData: () => Promise<void>;
+  forceSyncData: () => Promise<void>;
   updateStock: (sku: string, qtyChange: number, description: string) => void;
   addPurchaseInvoice: (pi: PurchaseInvoice) => void;
   updatePurchaseInvoiceStatus: (id: string, status: 'Open' | 'Completed') => void;
@@ -33,6 +35,7 @@ export const WmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [stock, setStock] = useState<Stock[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTallySyncing, setIsTallySyncing] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -64,10 +67,24 @@ export const WmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const refreshData = async () => {
     toast.promise(loadData(), {
-      loading: 'Refreshing data from Tally...',
+      loading: 'Refreshing data from memory...',
       success: 'Data refreshed successfully!',
       error: 'Failed to refresh data',
     });
+  };
+
+  const forceSyncData = async () => {
+    setIsTallySyncing(true);
+    try {
+      const { tallySyncApi } = await import('../services/masterApi');
+      await tallySyncApi.syncToday();
+      await loadData();
+      toast.success('Tally data synced & UI refreshed!');
+    } catch (error) {
+      toast.error('Failed to sync Tally data');
+    } finally {
+      setIsTallySyncing(false);
+    }
   };
 
   const addActivity = (type: Activity['type'], description: string) => {
@@ -215,8 +232,8 @@ export const WmsProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <WmsContext.Provider value={{
-      products, customers, purchaseInvoices, salesInvoices, stock, activities, isLoading,
-      refreshData, updateStock, addPurchaseInvoice, updatePurchaseInvoiceStatus,
+      products, customers, purchaseInvoices, salesInvoices, stock, activities, isLoading, isTallySyncing,
+      refreshData, forceSyncData, updateStock, addPurchaseInvoice, updatePurchaseInvoiceStatus,
       addSalesInvoice, updateSalesInvoiceStatus, addCustomer, addProduct, assignBin, clearBin
     }}>
       {children}
