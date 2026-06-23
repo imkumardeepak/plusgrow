@@ -276,6 +276,7 @@ export interface PoInvoice {
   locationAllotted: boolean;
   createdAt: string;
   hasMissingData: boolean;
+  cancelRemark?: string | null;
 }
 
 export interface PoInvoiceHeaderSummary {

@@ -16,6 +16,7 @@ public class PoInvoiceDto
     public bool LocationAllotted { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool HasMissingData { get; set; }
+    public string? CancelRemark { get; set; }
 }
 
 public class PoInvoiceHeaderSummaryDto

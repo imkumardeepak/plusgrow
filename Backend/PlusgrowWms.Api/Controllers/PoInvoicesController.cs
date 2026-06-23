@@ -729,6 +729,7 @@ public class PoInvoicesController : BaseController
             LocationAllotted = invoice.LocationAllotted,
             CreatedAt = invoice.CreatedAt,
             HasMissingData = hasMissingData,
+            CancelRemark = invoice.Header?.CancelRemark,
         };
     }
 

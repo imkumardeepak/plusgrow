@@ -9,6 +9,7 @@ import {
   SimpleGrid,
   Stack,
   Table,
+  Tabs,
   Text,
   Tooltip,
 } from "@mantine/core";
@@ -28,7 +29,6 @@ import { format } from "date-fns";
 import { Button } from "../components/atoms/Button";
 import {
   OperationsPage,
-  OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
 import {
   OutwardOrder,
@@ -140,11 +140,11 @@ export const TodayOperations = memo(function TodayOperations() {
       icon={BarChart3}
       hideHeader
     >
-      <Stack gap="md">
+      <Stack gap="xs">
         {/* Header Bar */}
         <Paper
-          radius="md"
-          p={isMobile ? "xs" : "sm"}
+          radius="sm"
+          p="xs"
           withBorder
           style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}
         >
@@ -173,7 +173,7 @@ export const TodayOperations = memo(function TodayOperations() {
         </Paper>
 
         {/* Summary Stats */}
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
           <StatCard
             icon={ArrowDownLeft}
             label="Inward Qty"
@@ -206,14 +206,14 @@ export const TodayOperations = memo(function TodayOperations() {
 
         {/* Outward Pipeline Progress */}
         {todayOutward.length > 0 && (
-          <Paper radius="md" p="sm" withBorder style={{ background: "rgba(15,23,42,0.5)" }}>
-            <Text size="xs" fw={700} c="white" mb="xs">
+          <Paper radius="sm" p="xs" withBorder style={{ background: "rgba(15,23,42,0.5)" }}>
+            <Text size="11px" fw={700} c="white" mb={4} tt="uppercase">
               Outward Pipeline Progress
             </Text>
-            <Group gap="xs" mb={6}>
-              <Badge size="xs" variant="light" color="cyan">Picked {todayPicked.length}</Badge>
-              <Badge size="xs" variant="light" color="violet">Packed {todayPacked.length}</Badge>
-              <Badge size="xs" variant="light" color="green">Dispatched {todayDispatched.length}</Badge>
+            <Group gap="xs" mb={4}>
+              <Badge size="xs" variant="filled" color="cyan" c="slate.9" fw={900}>Picked {todayPicked.length}</Badge>
+              <Badge size="xs" variant="filled" color="violet" c="slate.9" fw={900}>Packed {todayPacked.length}</Badge>
+              <Badge size="xs" variant="filled" color="green" c="slate.9" fw={900}>Dispatched {todayDispatched.length}</Badge>
             </Group>
             <Progress.Root size="lg" radius="xl">
               <Tooltip label={`Picked: ${pickedPct}%`}>
@@ -229,16 +229,42 @@ export const TodayOperations = memo(function TodayOperations() {
           </Paper>
         )}
 
-        {/* Main Content Grid */}
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="sm">
-          {/* Inward Section */}
-          <OperationsPanel
-            title="Inward (Purchase Invoices)"
-            icon={ArrowDownLeft}
-            contentClassName="space-y-2"
-          >
+        {/* Tabs Section for Full-Width Data Display */}
+        <Tabs
+          defaultValue="inward"
+          variant="pills"
+          styles={{
+            root: { display: "flex", flexDirection: "column", flex: 1 },
+            panel: { flex: 1, display: "flex", flexDirection: "column" },
+            list: { backgroundColor: "rgba(15,23,42,0.4)", padding: 4, borderRadius: 8 },
+            tab: { fontWeight: 700, fontSize: "12px", padding: "6px 12px" },
+          }}
+        >
+          <Tabs.List mb="xs">
+            <Tabs.Tab value="inward" leftSection={<ArrowDownLeft size={14} />}>
+              Inward Invoices
+              <Badge size="xs" variant={todayInvoices.length > 0 ? "filled" : "outline"} color="cyan.5" c={todayInvoices.length > 0 ? "slate.9" : "gray.5"} fw={900} ml={6}>
+                {todayInvoices.length}
+              </Badge>
+            </Tabs.Tab>
+            <Tabs.Tab value="outward" leftSection={<ArrowUpRight size={14} />}>
+              Outward Sales
+              <Badge size="xs" variant={todayOutward.length > 0 ? "filled" : "outline"} color="teal.5" c={todayOutward.length > 0 ? "slate.9" : "gray.5"} fw={900} ml={6}>
+                {todayOutward.length}
+              </Badge>
+            </Tabs.Tab>
+            <Tabs.Tab value="movements" leftSection={<BarChart3 size={14} />}>
+              Stock Movements
+              <Badge size="xs" variant={todayMovements.length > 0 ? "filled" : "outline"} color="blue.5" c={todayMovements.length > 0 ? "slate.9" : "gray.5"} fw={900} ml={6}>
+                {todayMovements.length}
+              </Badge>
+            </Tabs.Tab>
+          </Tabs.List>
+
+          {/* ── Inward Tab ── */}
+          <Tabs.Panel value="inward">
             {todayInvoices.length > 0 ? (
-              <ScrollArea type="auto" style={{ maxHeight: 380 }}>
+              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayInvoices.map((inv) => (
@@ -252,7 +278,7 @@ export const TodayOperations = memo(function TodayOperations() {
                               {inv.partyName}
                             </Text>
                           </Box>
-                          <Badge size="xs" variant="light" color={inv.status === "Closed" ? "green" : inv.status === "Printed" ? "blue" : "yellow"}>
+                          <Badge size="xs" variant="filled" color={inv.status === "Closed" ? "green" : inv.status === "Printed" ? "blue" : "yellow"} c="slate.9" fw={900}>
                             {inv.status}
                           </Badge>
                         </Group>
@@ -270,13 +296,14 @@ export const TodayOperations = memo(function TodayOperations() {
                     ))}
                   </Stack>
                 ) : (
-                  <Table striped highlightOnHover withTableBorder withColumnBorders>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={800}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Invoice</Table.Th>
                         <Table.Th>Party</Table.Th>
                         <Table.Th style={{ textAlign: "right" }}>Qty</Table.Th>
                         <Table.Th style={{ textAlign: "right" }}>Products</Table.Th>
+                        <Table.Th>Notes</Table.Th>
                         <Table.Th>Status</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -284,19 +311,22 @@ export const TodayOperations = memo(function TodayOperations() {
                       {todayInvoices.map((inv) => (
                         <Table.Tr key={inv.id}>
                           <Table.Td>
-                            <Text size="xs" fw={700} c="cyan.3">{inv.invoiceNumber}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="cyan.3">{inv.invoiceNumber}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="xs" truncate maw={140}>{inv.partyName}</Text>
+                            <Text size="11px" truncate maw={140}>{inv.partyName}</Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
-                            <Text size="xs" fw={800}>{inv.totalBilledQty}</Text>
+                            <Text size="11px" fw={900} ff="monospace">{inv.totalBilledQty}</Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
-                            <Text size="xs">{inv.productCount}</Text>
+                            <Text size="11px" fw={900} ff="monospace">{inv.productCount}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Badge size="xs" variant="light" color={inv.status === "Closed" ? "green" : inv.status === "Printed" ? "blue" : "yellow"}>
+                            <Text size="10px" c="dimmed" truncate maw={100}>{inv.cancelRemark || "-"}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge size="xs" variant="filled" color={inv.status === "Closed" ? "green" : inv.status === "Printed" ? "blue" : "yellow"} c="slate.9" fw={900}>
                               {inv.status}
                             </Badge>
                           </Table.Td>
@@ -333,16 +363,12 @@ export const TodayOperations = memo(function TodayOperations() {
                 </Group>
               </Group>
             </Paper>
-          </OperationsPanel>
+          </Tabs.Panel>
 
-          {/* Outward Section */}
-          <OperationsPanel
-            title="Outward (Sales Orders)"
-            icon={ArrowUpRight}
-            contentClassName="space-y-2"
-          >
+          {/* ── Outward Tab ── */}
+          <Tabs.Panel value="outward">
             {todayOutward.length > 0 ? (
-              <ScrollArea type="auto" style={{ maxHeight: 380 }}>
+              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayOutward.map((order) => (
@@ -356,7 +382,7 @@ export const TodayOperations = memo(function TodayOperations() {
                               {order.customerName} &middot; {order.orderNumber}
                             </Text>
                           </Box>
-                          <Badge size="xs" variant="light" color={statusColor(order.status)}>
+                          <Badge size="xs" variant="filled" color={statusColor(order.status)} c="slate.9" fw={900}>
                             {order.status}
                           </Badge>
                         </Group>
@@ -388,7 +414,7 @@ export const TodayOperations = memo(function TodayOperations() {
                     ))}
                   </Stack>
                 ) : (
-                  <Table striped highlightOnHover withTableBorder withColumnBorders>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={900}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>SKU</Table.Th>
@@ -397,6 +423,7 @@ export const TodayOperations = memo(function TodayOperations() {
                         <Table.Th>Picked</Table.Th>
                         <Table.Th>Packed</Table.Th>
                         <Table.Th>Dispatched</Table.Th>
+                        <Table.Th>Notes</Table.Th>
                         <Table.Th>Status</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -404,13 +431,13 @@ export const TodayOperations = memo(function TodayOperations() {
                       {todayOutward.map((order) => (
                         <Table.Tr key={order.id}>
                           <Table.Td>
-                            <Text size="xs" fw={700} c="teal.3">{order.skuCode}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="teal.3">{order.skuCode}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="xs" truncate maw={120}>{order.customerName}</Text>
+                            <Text size="11px" truncate maw={120}>{order.customerName}</Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
-                            <Text size="xs" fw={800}>{order.quantity}</Text>
+                            <Text size="11px" fw={900} ff="monospace">{order.quantity}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="10px" c="cyan.3">{formatTime(order.pickedAt)}</Text>
@@ -422,7 +449,10 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="10px" c="green.3">{formatTime(order.dispatchedAt)}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Badge size="xs" variant="light" color={statusColor(order.status)}>
+                            <Text size="10px" c="dimmed" truncate maw={80}>{order.notes || "-"}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Badge size="xs" variant="filled" color={statusColor(order.status)} c="slate.9" fw={900}>
                               {order.status}
                             </Badge>
                           </Table.Td>
@@ -459,26 +489,21 @@ export const TodayOperations = memo(function TodayOperations() {
                 </Group>
               </Group>
             </Paper>
-          </OperationsPanel>
-        </SimpleGrid>
+          </Tabs.Panel>
 
-        {/* Stock Movements Section */}
-        <OperationsPanel
-          title="Stock Movements Today"
-          icon={BarChart3}
-          contentClassName="space-y-2"
-        >
+          {/* ── Movements Tab ── */}
+          <Tabs.Panel value="movements">
           {todayMovements.length > 0 ? (
             <>
               <Group gap="sm" mb="xs">
-                <Badge size="sm" variant="light" color="blue" leftSection={<ArrowDownLeft size={10} />}>
+                <Badge size="sm" variant="filled" color="blue" leftSection={<ArrowDownLeft size={10} />} c="slate.9" fw={900}>
                   {inwardMovements.length} Inward (+{inwardMovements.reduce((s, m) => s + m.quantityChange, 0)})
                 </Badge>
-                <Badge size="sm" variant="light" color="red" leftSection={<ArrowUpRight size={10} />}>
+                <Badge size="sm" variant="filled" color="red" leftSection={<ArrowUpRight size={10} />} c="slate.9" fw={900}>
                   {outwardMovements.length} Outward ({outwardMovements.reduce((s, m) => s + m.quantityChange, 0)})
                 </Badge>
               </Group>
-              <ScrollArea type="auto" style={{ maxHeight: 320 }}>
+              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayMovements.map((m) => (
@@ -501,7 +526,7 @@ export const TodayOperations = memo(function TodayOperations() {
                     ))}
                   </Stack>
                 ) : (
-                  <Table striped highlightOnHover withTableBorder withColumnBorders>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={800}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>Time</Table.Th>
@@ -520,21 +545,21 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="10px" c="dimmed">{formatTime(m.createdAt)}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="xs" fw={700} ff="monospace" c="cyan.3">{m.skuCode}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="cyan.3">{m.skuCode}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="xs" truncate maw={160}>{m.productName}</Text>
+                            <Text size="11px" truncate maw={160}>{m.productName}</Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
-                            <Text size="xs" fw={900} c={m.quantityChange > 0 ? "green.4" : "red.4"}>
+                            <Text size="11px" fw={900} ff="monospace" c={m.quantityChange > 0 ? "green.4" : "red.4"}>
                               {m.quantityChange > 0 ? "+" : ""}{m.quantityChange}
                             </Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
-                            <Text size="xs">{m.quantityAfter}</Text>
+                            <Text size="11px" fw={900} ff="monospace">{m.quantityAfter}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="xs" truncate maw={100}>{m.reason}</Text>
+                            <Text size="10px" truncate maw={100}>{m.reason}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="10px" c="dimmed">{m.performedByName || "—"}</Text>
@@ -554,7 +579,8 @@ export const TodayOperations = memo(function TodayOperations() {
               </Group>
             </Paper>
           )}
-        </OperationsPanel>
+          </Tabs.Panel>
+        </Tabs>
       </Stack>
     </OperationsPage>
   );
@@ -577,8 +603,8 @@ function StatCard({
 }) {
   return (
     <Paper
-      radius="md"
-      p="sm"
+      radius="sm"
+      p="xs"
       withBorder
       style={{
         background: "rgba(15,23,42,0.72)",
@@ -586,15 +612,15 @@ function StatCard({
       }}
     >
       <Group gap="xs" mb={4} wrap="nowrap">
-        <Icon size={16} color={`var(--mantine-color-${color}-4)`} />
-        <Text size="10px" fw={800} c="dimmed" tt="uppercase" style={{ letterSpacing: "0.08em" }}>
+        <Icon size={14} color={`var(--mantine-color-${color}-4)`} />
+        <Text size="9px" fw={800} c="dimmed" tt="uppercase" style={{ letterSpacing: "0.08em" }}>
           {label}
         </Text>
       </Group>
-      <Text size="xl" fw={900} c="white" ff="monospace">
+      <Text size="xl" fw={900} c="white" ff="monospace" style={{ lineHeight: 1 }}>
         {value.toLocaleString()}
       </Text>
-      <Text size="10px" c="dimmed" mt={2}>
+      <Text size="9px" c="dimmed" mt={4}>
         {sublabel}
       </Text>
     </Paper>
