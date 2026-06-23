@@ -68,7 +68,7 @@ public class TallySyncService : ITallySyncService
                     (x.ReferenceNumber != null && x.ReferenceNumber.ToLower() == referenceKey))
                 .ToListAsync(ct);
 
-            if (existingOrders.Count > 0 && existingOrders.Any(x => !IsCanceledStatus(x.Status)))
+            if (existingOrders.Count > 0)
             {
                 skipped++;
                 continue;
