@@ -39,6 +39,7 @@ import {
   partiesApi,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
+import ConsolidatedPick from "./ConsolidatedPick";
 
 export type DirectPickCartItem = {
   id: string;
@@ -136,7 +137,7 @@ export const Picking = memo(function Picking() {
   const [isPicking, setIsPicking] = useState(false);
 
   // --- DIRECT PICK STATES ---
-  const [pickingMode, setPickingMode] = useState<"sales_orders" | "direct_pick">("sales_orders");
+  const [pickingMode, setPickingMode] = useState<"sales_orders" | "direct_pick" | "consolidated">("sales_orders");
   const [parties, setParties] = useState<Party[]>([]);
   const [directPickCustomer, setDirectPickCustomer] = useState<string>("Self");
   const [directPickItems, setDirectPickItems] = useState<DirectPickCartItem[]>([]);
@@ -587,9 +588,10 @@ export const Picking = memo(function Picking() {
       <div className="mb-4">
         <SegmentedControl
           value={pickingMode}
-          onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick")}
+          onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick" | "consolidated")}
           data={[
             { label: "Sales Orders", value: "sales_orders" },
+            { label: "Consolidated", value: "consolidated" },
             { label: "Direct Pick", value: "direct_pick" },
           ]}
           fullWidth
@@ -597,7 +599,9 @@ export const Picking = memo(function Picking() {
         />
       </div>
 
-      {pickingMode === "direct_pick" ? (
+      {pickingMode === "consolidated" ? (
+        <ConsolidatedPick />
+      ) : pickingMode === "direct_pick" ? (
         <OperationsPanel
           title="Direct Pick"
           icon={Package}

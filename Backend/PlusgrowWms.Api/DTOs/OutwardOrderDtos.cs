@@ -125,3 +125,39 @@ public class DispatchSalesOrderDto
 {
     public string? TrackingNumber { get; set; }
 }
+
+public class ConsolidatedPickDto
+{
+    public List<int> SalesOrderIds { get; set; } = [];
+    public int ProductId { get; set; }
+    public int Quantity { get; set; } = 1;
+    public string? SkuCode { get; set; }
+    public string LocationCode { get; set; } = string.Empty;
+    public decimal? Mrp { get; set; }
+    public string? ImportDate { get; set; }
+}
+
+public class ConsolidatedPickAllocationDto
+{
+    public int OrderItemId { get; set; }
+    public int SalesOrderId { get; set; }
+    public string OrderNumber { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    public int AllocatedQuantity { get; set; }
+    public int PickedQuantity { get; set; }
+    public int Quantity { get; set; }
+    public int PendingQuantity { get; set; }
+    public string Status { get; set; } = string.Empty;
+}
+
+public class ConsolidatedPickResultDto
+{
+    public int ProductId { get; set; }
+    public string SkuCode { get; set; } = string.Empty;
+    public string ProductName { get; set; } = string.Empty;
+    public string LocationCode { get; set; } = string.Empty;
+    public int RequestedQuantity { get; set; }
+    public int PickedQuantity { get; set; }
+    public List<ConsolidatedPickAllocationDto> Allocations { get; set; } = [];
+    public List<OutwardOrderDto> UpdatedItems { get; set; } = [];
+}

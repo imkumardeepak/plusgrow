@@ -827,6 +827,179 @@ public class OutwardOrdersController : BaseController
         return Success(responses, $"Direct outward picked successfully with {createdOrders.Count} items");
     }
 
+    // Consolidated picking: pick the combined quantity of a single product across multiple
+    // selected (open/in-progress) sales orders from one location in a single action. The picked
+    // quantity is distributed across the contributing order lines oldest-first. This is additive
+    // and does not affect the existing per-item PickOrder or DirectPick flows.
+    [HttpPost("consolidated-pick")]
+    public async Task<ActionResult<ApiResponse<ConsolidatedPickResultDto>>> ConsolidatedPick([FromBody] ConsolidatedPickDto dto)
+    {
+        if (dto.ProductId <= 0)
+            return BadRequest<ConsolidatedPickResultDto>("Product is required");
+
+        if (dto.SalesOrderIds == null || dto.SalesOrderIds.Count == 0)
+            return BadRequest<ConsolidatedPickResultDto>("Select at least one sales order");
+
+        var requestedQty = dto.Quantity <= 0 ? 1 : dto.Quantity;
+
+        if (string.IsNullOrWhiteSpace(dto.LocationCode))
+            return BadRequest<ConsolidatedPickResultDto>("Location scan is required");
+
+        var product = await _context.Products.FirstOrDefaultAsync(x => x.Id == dto.ProductId);
+        if (product == null)
+            return BadRequest<ConsolidatedPickResultDto>("Selected product does not exist");
+
+        var expectedSku = product.Sku?.Trim();
+        var expectedAlias = product.Alias?.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.SkuCode))
+        {
+            var scanned = dto.SkuCode.Trim();
+            var matchesSku = !string.IsNullOrWhiteSpace(expectedSku) && string.Equals(expectedSku, scanned, StringComparison.OrdinalIgnoreCase);
+            var matchesAlias = !string.IsNullOrWhiteSpace(expectedAlias) && string.Equals(expectedAlias, scanned, StringComparison.OrdinalIgnoreCase);
+            if (!matchesSku && !matchesAlias)
+                return BadRequest<ConsolidatedPickResultDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
+        }
+
+        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        if (string.IsNullOrWhiteSpace(resolvedLocationCode))
+            return BadRequest<ConsolidatedPickResultDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
+
+        var salesOrderIds = dto.SalesOrderIds.Distinct().ToList();
+        var groupMrp = dto.Mrp ?? product.Mrp;
+        var (pickUserId, pickUserName) = ResolvePerformedBy();
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await _context.LockProductAsync(product.Id);
+
+        // Candidate lines: matching product, in the selected sales orders, still pending and not
+        // canceled/dispatched. Allocation order is oldest order first so earlier orders complete first.
+        var candidateLines = await _context.OutwardOrders
+            .Include(x => x.SalesOrder)
+            .Include(x => x.Product)
+            .Where(x =>
+                salesOrderIds.Contains(x.SalesOrderId) &&
+                x.ProductId == product.Id &&
+                x.Status != "Dispatched" &&
+                x.Status != "Canceled" &&
+                x.PickedQuantity < x.Quantity &&
+                (x.SalesOrder == null || x.SalesOrder.Status != "Canceled"))
+            .ToListAsync();
+
+        // Match the exact (raw) MRP of the selected product group so allocation lines up precisely
+        // with the grouping shown in the UI. A null-MRP group only fills null-MRP lines, and a
+        // priced group only fills lines with the same MRP. This preserves price integrity.
+        var orderedLines = candidateLines
+            .Where(line =>
+            {
+                if (!dto.Mrp.HasValue)
+                    return !line.Mrp.HasValue;
+                if (!line.Mrp.HasValue)
+                    return false;
+                return decimal.Round(line.Mrp.Value, 2) == decimal.Round(dto.Mrp.Value, 2);
+            })
+            .OrderBy(line => line.SalesOrder != null ? line.SalesOrder.OrderDate : line.CreatedAt)
+            .ThenBy(line => line.SalesOrder != null ? line.SalesOrder.OrderNumber : string.Empty)
+            .ThenBy(line => line.Id)
+            .ToList();
+
+        if (orderedLines.Count == 0)
+            return BadRequest<ConsolidatedPickResultDto>("No pending quantity for this product in the selected sales orders");
+
+        var totalPending = orderedLines.Sum(line => Math.Max(line.Quantity - line.PickedQuantity, 0));
+        if (totalPending <= 0)
+            return BadRequest<ConsolidatedPickResultDto>("No pending quantity for this product in the selected sales orders");
+
+        var pickQty = Math.Min(requestedQty, totalPending);
+
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, groupMrp, pickUserId, pickUserName, "consolidated");
+        if (!reduceLocationResult.Success)
+            return BadRequest<ConsolidatedPickResultDto>(reduceLocationResult.Message!);
+
+        var allocations = new List<ConsolidatedPickAllocationDto>();
+        var affectedSalesOrderIds = new HashSet<int>();
+        var remaining = pickQty;
+
+        foreach (var line in orderedLines)
+        {
+            if (remaining <= 0)
+                break;
+
+            var linePending = line.Quantity - line.PickedQuantity;
+            if (linePending <= 0)
+                continue;
+
+            var take = Math.Min(remaining, linePending);
+            line.PickedQuantity += take;
+            AddPickedLocation(line, reduceLocationResult.LocationCode!, take);
+            line.Status = line.PickedQuantity >= line.Quantity ? "Picked" : "Picking";
+            line.UpdatedAt = now;
+            if (line.Status == "Picked" && line.PickedAt == null)
+                line.PickedAt = now;
+            _context.Entry(line).Property(x => x.PickedLocationJson).IsModified = true;
+
+            remaining -= take;
+            affectedSalesOrderIds.Add(line.SalesOrderId);
+
+            allocations.Add(new ConsolidatedPickAllocationDto
+            {
+                OrderItemId = line.Id,
+                SalesOrderId = line.SalesOrderId,
+                OrderNumber = line.SalesOrder?.OrderNumber ?? string.Empty,
+                CustomerName = line.SalesOrder?.CustomerName ?? string.Empty,
+                AllocatedQuantity = take,
+                PickedQuantity = line.PickedQuantity,
+                Quantity = line.Quantity,
+                PendingQuantity = Math.Max(line.Quantity - line.PickedQuantity, 0),
+                Status = line.Status,
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        foreach (var salesOrderId in affectedSalesOrderIds)
+        {
+            await UpdateSalesOrderStatusAsync(salesOrderId);
+        }
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        var updatedItems = orderedLines
+            .Where(line => affectedSalesOrderIds.Contains(line.SalesOrderId) && allocations.Any(a => a.OrderItemId == line.Id))
+            .Select(MapOrder)
+            .ToList();
+
+        var result = new ConsolidatedPickResultDto
+        {
+            ProductId = product.Id,
+            SkuCode = product.Sku ?? string.Empty,
+            ProductName = product.Name,
+            LocationCode = reduceLocationResult.LocationCode!,
+            RequestedQuantity = requestedQty,
+            PickedQuantity = pickQty,
+            Allocations = allocations,
+            UpdatedItems = updatedItems,
+        };
+
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "outward.consolidated-picked",
+            Title = "Consolidated pick completed",
+            Message = $"Picked {pickQty} x {product.Sku ?? product.Name} from {reduceLocationResult.LocationCode} across {affectedSalesOrderIds.Count} order(s).",
+            Severity = "success",
+            Data = new Dictionary<string, object?>
+            {
+                ["productId"] = product.Id,
+                ["skuCode"] = product.Sku,
+                ["quantity"] = pickQty,
+                ["locationCode"] = reduceLocationResult.LocationCode,
+                ["orderCount"] = affectedSalesOrderIds.Count,
+            },
+        });
+
+        return Success(result, $"Picked {pickQty} unit(s) across {affectedSalesOrderIds.Count} sales order(s)");
+    }
+
     [HttpPost("{id}/mark-packed")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> MarkPacked(int id)
     {

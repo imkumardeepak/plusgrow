@@ -518,6 +518,39 @@ export interface BulkDirectOutwardPickDto {
 export interface DispatchOutwardOrderDto {
 }
 
+export interface ConsolidatedPickDto {
+  salesOrderIds: number[];
+  productId: number;
+  quantity: number;
+  skuCode?: string;
+  locationCode: string;
+  mrp?: number | null;
+  importDate?: string | null;
+}
+
+export interface ConsolidatedPickAllocation {
+  orderItemId: number;
+  salesOrderId: number;
+  orderNumber: string;
+  customerName: string;
+  allocatedQuantity: number;
+  pickedQuantity: number;
+  quantity: number;
+  pendingQuantity: number;
+  status: string;
+}
+
+export interface ConsolidatedPickResult {
+  productId: number;
+  skuCode: string;
+  productName: string;
+  locationCode: string;
+  requestedQuantity: number;
+  pickedQuantity: number;
+  allocations: ConsolidatedPickAllocation[];
+  updatedItems: OutwardOrder[];
+}
+
 export interface DispatchSalesOrderResult {
   salesOrderId: number;
   orderNumber: string;
@@ -1391,6 +1424,12 @@ export const outwardOrdersApi = {
 
   bulkDirectPick: async (data: BulkDirectOutwardPickDto): Promise<OutwardOrder[]> => {
     const response = await api.post<ApiResponse<OutwardOrder[]>>('/outwardorders/bulk-direct-pick', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  consolidatedPick: async (data: ConsolidatedPickDto): Promise<ConsolidatedPickResult> => {
+    const response = await api.post<ApiResponse<ConsolidatedPickResult>>('/outwardorders/consolidated-pick', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },
