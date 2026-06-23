@@ -187,6 +187,20 @@ export const Outward = memo(function Outward() {
         );
 
       return matchesStatus && matchesSearch;
+    }).sort((a, b) => {
+      const getStatusWeight = (status: string) => {
+        switch (status) {
+          case "Open": return 0;
+          case "Picking": return 1;
+          case "Packed": return 2;
+          case "Dispatched": return 3;
+          case "Canceled": return 4;
+          default: return 5;
+        }
+      };
+      const weightDiff = getStatusWeight(a.status) - getStatusWeight(b.status);
+      if (weightDiff !== 0) return weightDiff;
+      return new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
     });
   }, [orders, searchTerm, statusFilter]);
 
