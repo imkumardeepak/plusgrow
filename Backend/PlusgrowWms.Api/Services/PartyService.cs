@@ -137,6 +137,9 @@ public class PartyService : IPartyService
             existingParty.Country = party.Country;
             existingParty.Phone = party.Phone;
             existingParty.Email = newEmail;
+            existingParty.ExportEnabled = party.ExportEnabled;
+            existingParty.ExportFolderPath = string.IsNullOrWhiteSpace(party.ExportFolderPath) ? null : party.ExportFolderPath.Trim();
+            existingParty.ExportFileName = string.IsNullOrWhiteSpace(party.ExportFileName) ? null : party.ExportFileName.Trim();
 
             _repository.Update(existingParty);
             await _repository.SaveChangesAsync();

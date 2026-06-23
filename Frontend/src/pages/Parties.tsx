@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import {
   ActionIcon,
   Badge,
+  Checkbox,
   Group,
   Stack,
   Text,
@@ -57,6 +58,9 @@ export const Parties = memo(function Parties() {
     address: "",
     phone: "",
     email: "",
+    exportEnabled: false,
+    exportFolderPath: "",
+    exportFileName: "",
   });
 
   useEffect(() => {
@@ -109,7 +113,7 @@ export const Parties = memo(function Parties() {
   };
 
   const openCreateModal = () => {
-    setFormData({ name: "", country: "", address: "", phone: "", email: "" });
+    setFormData({ name: "", country: "", address: "", phone: "", email: "", exportEnabled: false, exportFolderPath: "", exportFileName: "" });
     setIsEditing(null);
     setIsModalOpen(true);
   };
@@ -121,6 +125,9 @@ export const Parties = memo(function Parties() {
       address: party.address || "",
       phone: party.phone || "",
       email: party.email,
+      exportEnabled: party.exportEnabled ?? false,
+      exportFolderPath: party.exportFolderPath || "",
+      exportFileName: party.exportFileName || "",
     });
     setIsEditing(party);
     setIsModalOpen(true);
@@ -129,7 +136,7 @@ export const Parties = memo(function Parties() {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsEditing(null);
-    setFormData({ name: "", country: "", address: "", phone: "", email: "" });
+    setFormData({ name: "", country: "", address: "", phone: "", email: "", exportEnabled: false, exportFolderPath: "", exportFileName: "" });
   };
 
   const handleDelete = async () => {
@@ -423,6 +430,40 @@ export const Parties = memo(function Parties() {
                 leftElement={<MapPin size={16} />}
               />
             </Group>
+            <Stack gap="xs" pt="xs" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              <Checkbox
+                label="Auto-export this party's stock to Dropbox (every 10 min)"
+                checked={!!formData.exportEnabled}
+                onChange={(event) =>
+                  setFormData((prev) => ({ ...prev, exportEnabled: event.currentTarget.checked }))
+                }
+              />
+              {formData.exportEnabled && (
+                <>
+                  <Input
+                    label="Dropbox Folder Path"
+                    placeholder="C:\\Users\\PlusGrow\\Dropbox\\Stocks - Naila"
+                    value={formData.exportFolderPath || ""}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, exportFolderPath: event.target.value }))
+                    }
+                    leftElement={<MapPin size={16} />}
+                  />
+                  <Input
+                    label="File Name (optional)"
+                    placeholder="Naila_Stock.xlsx"
+                    value={formData.exportFileName || ""}
+                    onChange={(event) =>
+                      setFormData((prev) => ({ ...prev, exportFileName: event.target.value }))
+                    }
+                    leftElement={<Download size={16} />}
+                  />
+                  <Text size="xs" c="dimmed">
+                    The export contains this party's mapped products and stock. Leave file name blank to default to "{(formData.name || "Party").trim().replace(/\s+/g, "_")}_Stock.xlsx".
+                  </Text>
+                </>
+              )}
+            </Stack>
             {!isEditing && (
               <Badge color="blue" variant="light" size="sm">
                 Creating this party automatically creates a user login with password "1234".

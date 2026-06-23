@@ -21,6 +21,9 @@ export interface Party {
   country?: string;
   phone?: string;
   email: string;
+  exportEnabled?: boolean;
+  exportFolderPath?: string | null;
+  exportFileName?: string | null;
   created_at: string;
 }
 
@@ -104,6 +107,9 @@ export interface CreatePartyDto {
   country?: string;
   phone?: string;
   email: string;
+  exportEnabled?: boolean;
+  exportFolderPath?: string | null;
+  exportFileName?: string | null;
 }
 
 export interface CreateCommodityDto {

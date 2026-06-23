@@ -83,6 +83,10 @@ builder.Services.AddHttpClient<TallyService>();
 // Tally sync
 builder.Services.AddScoped<ITallySyncService, TallySyncService>();
 
+// Party stock export to Dropbox (recurring job writes each enabled party's "Mapped Products"
+// Excel; per-party folder/file/enabled settings live in the parties table)
+builder.Services.AddScoped<IPartyStockExportService, PartyStockExportService>();
+
 // Hangfire (recurring jobs + dashboard)
 builder.Services.AddHangfire(config =>
     config
@@ -236,16 +240,25 @@ Log.Information("Plusgrow WMS API starting up...");
 
 // Register Hangfire recurring jobs
 var tallySyncEnabled = builder.Configuration.GetValue("TallySettings:TallySyncEnabled", false);
+// Remove the previous 2-minute job id so it does not linger in Hangfire storage after the rename.
+RecurringJob.RemoveIfExists("tally-sync-every-2-min");
 if (tallySyncEnabled)
 {
     RecurringJob.AddOrUpdate<ITallySyncService>(
-        "tally-sync-every-2-min",
+        "tally-sync-every-10-min",
         service => service.SyncTodayVouchersAsync(CancellationToken.None),
-        "*/2 * * * *"); // Every 2 minutes
+        "*/10 * * * *"); // Every 10 minutes
 }
 else
 {
-    RecurringJob.RemoveIfExists("tally-sync-every-2-min");
+    RecurringJob.RemoveIfExists("tally-sync-every-10-min");
 }
+
+// Party stock export -> Dropbox, every 10 minutes. Which parties actually export (and to where)
+// is controlled per party on the Parties page, so the job is always scheduled.
+RecurringJob.AddOrUpdate<IPartyStockExportService>(
+    "party-stock-export-every-10-min",
+    service => service.ExportAllAsync(CancellationToken.None),
+    "*/10 * * * *"); // Every 10 minutes
 
 app.Run();
