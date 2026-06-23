@@ -5,12 +5,14 @@ import {
   Box,
   Group,
   Paper,
+  Modal,
   ScrollArea,
   Select,
   SimpleGrid,
   Stack,
   Table,
   Text,
+  Textarea,
   TextInput,
   Tooltip,
 } from "@mantine/core";
@@ -98,6 +100,8 @@ export const InwardVerify = memo(function InwardVerify() {
   const [verifiedQtyByProduct, setVerifiedQtyByProduct] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [shortfallModalOpen, setShortfallModalOpen] = useState(false);
+  const [shortfallRemark, setShortfallRemark] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
@@ -367,32 +371,11 @@ export const InwardVerify = memo(function InwardVerify() {
     focusScanner();
   };
 
-  const handleSaveVerification = async () => {
-    if (!selectedInvoice) {
-      toast.warning("Select invoice number first");
-      return;
-    }
+  const shortfallLines = useMemo(() => lines.filter((line) => line.difference < 0), [lines]);
+  const totalShortfall = shortfallLines.reduce((sum, line) => sum + Math.abs(line.difference), 0);
 
-    if (scanEvents.length === 0) {
-      toast.warning("Scan stickers or adjust quantity before saving verification");
-      return;
-    }
-
-    const overLimitLine = lines.find((line) => line.scannedQty > line.expectedQty);
-    if (overLimitLine) {
-      toast.error(`Verified quantity for ${overLimitLine.skuCode} cannot be greater than invoice quantity`);
-      return;
-    }
-
-    if (extraCount > 0) {
-      toast.error("Remove extra/unmatched scans before saving verification");
-      return;
-    }
-
-    if (!isCorrect) {
-      toast.warning("Match every product quantity with invoice quantity before saving verification");
-      return;
-    }
+  const persistVerification = async (remark: string) => {
+    if (!selectedInvoice) return;
 
     try {
       setIsSaving(true);
@@ -422,6 +405,9 @@ export const InwardVerify = memo(function InwardVerify() {
         ...extraItems,
       ];
 
+      const isPartialVerification = shortfallLines.length > 0;
+      const trimmedRemark = remark.trim();
+
       await stockCheckReportsApi.create({
         checkType: "INWARD_VERIFY",
         referenceName: `${selectedInvoice.invoiceNumber} - ${selectedInvoice.partyName}`,
@@ -440,14 +426,28 @@ export const InwardVerify = memo(function InwardVerify() {
           invoiceDate: selectedInvoice.invoiceDate,
           totalScans: scanEvents.filter((event) => !event.isManual).length,
           totalVerifiedQty: totalScanned,
+          isPartialVerification,
+          shortfallQty: isPartialVerification ? totalShortfall : 0,
+          shortfallRemark: isPartialVerification ? trimmedRemark : null,
+          shortfallItems: isPartialVerification
+            ? shortfallLines.map((line) => ({
+                sku: line.skuCode,
+                productName: line.productName,
+                invoiceQty: line.expectedQty,
+                verifiedQty: line.scannedQty,
+                shortBy: Math.abs(line.difference),
+              }))
+            : [],
           savedAt: new Date().toISOString(),
         }),
       });
 
-      toast.success("Inward verification saved to report");
+      toast.success(isPartialVerification ? "Inward verification saved with shortage remark" : "Inward verification saved to report");
       setScanEvents([]);
       setVerifiedQtyByProduct({});
       setScanInput("");
+      setShortfallModalOpen(false);
+      setShortfallRemark("");
       setInvoices((prev) => prev.filter((invoice) => invoice.invoiceKey !== selectedInvoice.invoiceKey));
       setSelectedInvoiceKey(null);
       void loadData();
@@ -457,6 +457,47 @@ export const InwardVerify = memo(function InwardVerify() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleSaveVerification = () => {
+    if (!selectedInvoice) {
+      toast.warning("Select invoice number first");
+      return;
+    }
+
+    if (scanEvents.length === 0) {
+      toast.warning("Scan stickers or adjust quantity before saving verification");
+      return;
+    }
+
+    const overLimitLine = lines.find((line) => line.scannedQty > line.expectedQty);
+    if (overLimitLine) {
+      toast.error(`Verified quantity for ${overLimitLine.skuCode} cannot be greater than invoice quantity`);
+      return;
+    }
+
+    if (extraCount > 0) {
+      toast.error("Remove extra/unmatched scans before saving verification");
+      return;
+    }
+
+    // Verified quantity is less than invoice quantity on one or more lines.
+    // Require a remark explaining the shortage (e.g. damaged / missing stock) before saving.
+    if (shortfallLines.length > 0) {
+      setShortfallRemark("");
+      setShortfallModalOpen(true);
+      return;
+    }
+
+    void persistVerification("");
+  };
+
+  const handleConfirmShortfallSave = () => {
+    if (!shortfallRemark.trim()) {
+      toast.warning("Please add a remark explaining the short quantity before saving");
+      return;
+    }
+    void persistVerification(shortfallRemark);
   };
 
   const invoiceOptions = invoices.map((invoice) => ({
@@ -747,6 +788,61 @@ export const InwardVerify = memo(function InwardVerify() {
           </OperationsPanel>
         </SimpleGrid>
       </Stack>
+
+      <Modal
+        opened={shortfallModalOpen}
+        onClose={() => setShortfallModalOpen(false)}
+        title="Saving with short quantity"
+        centered
+        size="md"
+      >
+        <Stack gap="sm">
+          <Paper radius="md" p="sm" withBorder style={{ background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.24)" }}>
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+              <AlertTriangle size={18} color="var(--mantine-color-yellow-4)" />
+              <Text size="sm" c="dimmed">
+                Verified quantity is less than the invoice quantity by <Text span fw={900} c="yellow.4">{totalShortfall}</Text> unit(s).
+                Please add a remark explaining why (e.g. damaged, missing, short received).
+              </Text>
+            </Group>
+          </Paper>
+
+          <ScrollArea.Autosize mah={180}>
+            <Stack gap={6}>
+              {shortfallLines.map((line) => (
+                <Group key={line.id} justify="space-between" gap="xs" wrap="nowrap">
+                  <Box className="min-w-0" style={{ flex: 1 }}>
+                    <Text size="12px" fw={800} ff="monospace" c="cyan.3" truncate>{line.skuCode}</Text>
+                    <Text size="10px" c="dimmed" truncate>{line.productName}</Text>
+                  </Box>
+                  <Text size="11px" c="dimmed">Invoice {line.expectedQty} / Verified {line.scannedQty}</Text>
+                  <Badge size="sm" variant="light" color="red">Short {Math.abs(line.difference)}</Badge>
+                </Group>
+              ))}
+            </Stack>
+          </ScrollArea.Autosize>
+
+          <Textarea
+            label="Remark"
+            required
+            withAsterisk
+            autosize
+            minRows={3}
+            placeholder="e.g. 2 units damaged in transit, 1 unit short received from supplier"
+            value={shortfallRemark}
+            onChange={(event) => setShortfallRemark(event.currentTarget.value)}
+          />
+
+          <Group justify="flex-end" gap="xs">
+            <Button variant="subtle" color="gray" onClick={() => setShortfallModalOpen(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button color="green" leftIcon={<Save size={15} />} loading={isSaving} onClick={handleConfirmShortfallSave}>
+              Save with Remark
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </OperationsPage>
   );
 });
