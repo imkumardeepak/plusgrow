@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Models;
 using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace PlusgrowWms.Api.Services;
@@ -52,10 +53,33 @@ public class TallySyncService : ITallySyncService
                 continue;
             }
 
-            var mappedItems = MapSalesOrderItems(v.Items, productsByName);
-            if (mappedItems is null || mappedItems.Count == 0)
+            var mapResult = MapSalesOrderItems(v.Items, productsByName);
+            if (mapResult.Items is null || mapResult.Items.Count == 0)
             {
                 _logger.LogWarning("Tally sales order {OrderNumber} skipped because one or more products were not matched.", tallyReference);
+
+                // Log to audit table with unmatched product details
+                var unmatchedNames = mapResult.UnmatchedProducts;
+                var details = $"Tally sales order '{tallyReference}' skipped — unmatched products: {string.Join(", ", unmatchedNames)}";
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    UserId = null,
+                    Username = "TallySync",
+                    Action = "SyncSkipped",
+                    EntityType = "SalesOrder",
+                    EntityId = tallyReference,
+                    Details = details,
+                    Timestamp = now,
+                    NewValues = JsonSerializer.Serialize(new
+                    {
+                        OrderNumber = tallyReference,
+                        PartyName = NormalizeValue(v.PartyName),
+                        Date = v.Date,
+                        UnmatchedProducts = unmatchedNames,
+                        TotalItems = v.Items?.Count ?? 0,
+                    }),
+                });
+
                 skipped++;
                 continue;
             }
@@ -78,7 +102,7 @@ public class TallySyncService : ITallySyncService
                 ? tallyReference
                 : await BuildReplacementOrderNumberAsync(tallyReference, ct);
 
-            _context.SalesOrders.Add(CreateSalesOrder(v, mappedItems, orderNumber, tallyReference, now));
+            _context.SalesOrders.Add(CreateSalesOrder(v, mapResult.Items, orderNumber, tallyReference, now));
             added++;
         }
 
@@ -140,21 +164,36 @@ public class TallySyncService : ITallySyncService
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    private static List<OutwardOrder>? MapSalesOrderItems(List<TallyERPWebApi.Model.ItemDetails>? items, Dictionary<string, Product> productsByName)
+    /// <summary>
+    /// Result of mapping Tally voucher items to outward orders.
+    /// Items is null when one or more products could not be matched.
+    /// UnmatchedProducts contains the Tally stock item names that had no WMS product match.
+    /// </summary>
+    private record MapResult(List<OutwardOrder>? Items, List<string> UnmatchedProducts);
+
+    private static MapResult MapSalesOrderItems(List<TallyERPWebApi.Model.ItemDetails>? items, Dictionary<string, Product> productsByName)
     {
         if (items is null || items.Count == 0)
-            return null;
+            return new MapResult(null, new List<string>());
 
         var rows = new List<OutwardOrder>();
+        var unmatched = new List<string>();
+
         foreach (var item in items)
         {
             var productKey = NormalizeKey(item.StockItemName);
             if (!productsByName.TryGetValue(productKey, out var product))
-                return null;
+            {
+                unmatched.Add(item.StockItemName ?? "Unknown");
+                continue;
+            }
 
             var quantity = ParseTallyQuantity(item.ActualQty);
             if (quantity <= 0)
-                return null;
+            {
+                unmatched.Add($"{item.StockItemName} (invalid qty: {item.ActualQty})");
+                continue;
+            }
 
             rows.Add(new OutwardOrder
             {
@@ -169,7 +208,11 @@ public class TallySyncService : ITallySyncService
             });
         }
 
-        return rows;
+        // If any items were unmatched, reject the entire order
+        if (unmatched.Count > 0)
+            return new MapResult(null, unmatched);
+
+        return new MapResult(rows, new List<string>());
     }
 
     private static int ParseTallyQuantity(string? actualQty)
