@@ -136,6 +136,11 @@ export const Picking = memo(function Picking() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPicking, setIsPicking] = useState(false);
 
+  const [mrpMismatchScan, setMrpMismatchScan] = useState<{
+    matchedItem: OutwardOrder;
+    effectiveScan: StickerScan;
+  } | null>(null);
+
   const [isShortCloseModalOpen, setIsShortCloseModalOpen] = useState(false);
   const [shortCloseRemark, setShortCloseRemark] = useState("");
   const [isShortClosing, setIsShortClosing] = useState(false);
@@ -466,17 +471,26 @@ export const Picking = memo(function Picking() {
       matchedItem.mrp !== undefined &&
       Number(effectiveScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
     ) {
-      const message = `Price Mismatch Alert!\n\nSticker Price: Rs ${effectiveScan.mrp}\nSales Order Item Price: Rs ${matchedItem.mrp}\n\nDo you want to proceed with picking?`;
-      
-      if (!window.confirm(message)) {
-        setScanCode("");
-        window.setTimeout(() => scanInputRef.current?.focus(), 0);
-        return;
-      }
+      setMrpMismatchScan({ matchedItem, effectiveScan });
+      return;
     }
 
     setActiveItemId(matchedItem.id);
     await handlePick(matchedItem, effectiveScan);
+  };
+
+  const handleMrpConfirm = async () => {
+    if (!mrpMismatchScan) return;
+    const { matchedItem, effectiveScan } = mrpMismatchScan;
+    setMrpMismatchScan(null);
+    setActiveItemId(matchedItem.id);
+    await handlePick(matchedItem, effectiveScan);
+  };
+
+  const handleMrpReject = () => {
+    setMrpMismatchScan(null);
+    setScanCode("");
+    window.setTimeout(() => scanInputRef.current?.focus(), 0);
   };
 
   const handleDirectPickScan = useCallback(async () => {
@@ -1249,6 +1263,52 @@ export const Picking = memo(function Picking() {
           </Button>
         </div>
       </Modal>
+      <Modal
+        opened={!!mrpMismatchScan}
+        onClose={handleMrpReject}
+        title="Price Mismatch Alert"
+        centered
+        size="md"
+      >
+        {mrpMismatchScan && (
+          <div className="space-y-2">
+            <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-2.5">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="text-orange-400 mt-1" size={20} />
+                <div>
+                  <p className="text-sm text-neutral-300">
+                    The scanned item has a different price than the sales order.
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Scanned Price</p>
+                      <p className="text-base font-bold text-white">Rs {mrpMismatchScan.effectiveScan.mrp}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Expected Price</p>
+                      <p className="text-base font-bold text-white">Rs {mrpMismatchScan.matchedItem.mrp}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <p className="text-sm font-semibold text-white mt-2">
+              Do you want to proceed with picking this item?
+            </p>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" color="gray" size="sm" onClick={handleMrpReject}>
+                Reject
+              </Button>
+              <Button color="orange" size="sm" onClick={handleMrpConfirm}>
+                OK, Pick Item
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
     </OperationsPage>
   );
 });
