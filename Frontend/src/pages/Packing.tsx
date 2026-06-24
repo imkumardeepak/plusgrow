@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Box, Group, Paper, Stack, Text, TextInput } from "@mantine/core";
+import { Box, Group, Paper, Stack, Text, TextInput, Modal, Textarea, NumberInput } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
   Archive,
@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   ClipboardList,
   ScanLine,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
@@ -69,6 +70,11 @@ export const Packing = memo(function Packing() {
   const [scanInput, setScanInput] = useState("");
   const [isScanPacking, setIsScanPacking] = useState(false);
   const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const [isShortPackModalOpen, setIsShortPackModalOpen] = useState(false);
+  const [shortPackQty, setShortPackQty] = useState<number>(0);
+  const [shortPackRemark, setShortPackRemark] = useState("");
+  const [isShortPacking, setIsShortPacking] = useState(false);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -173,6 +179,40 @@ export const Packing = memo(function Packing() {
       toast.error(error.message || "Failed to mark packed");
     } finally {
       setIsMarkingPacked(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeOrder && isShortPackModalOpen) {
+      setShortPackQty(activeOrder.quantity);
+      setShortPackRemark("");
+    }
+  }, [activeOrder, isShortPackModalOpen]);
+
+  const handleShortPackSubmit = async () => {
+    if (!activeOrder) return;
+    if (shortPackQty < 0 || shortPackQty >= activeOrder.quantity) {
+      toast.error("Packed quantity must be less than picked quantity");
+      return;
+    }
+    if (!shortPackRemark.trim()) {
+      toast.error("Please enter a reason for the shortage");
+      return;
+    }
+
+    try {
+      setIsShortPacking(true);
+      await outwardOrdersApi.shortPack(activeOrder.id, {
+        packedQuantity: shortPackQty,
+        remark: shortPackRemark,
+      });
+      setOrders((current) => current.filter((item) => item.id !== activeOrder.id));
+      setIsShortPackModalOpen(false);
+      toast.success(`${activeOrder.skuCode} short-packed successfully`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to short-pack order");
+    } finally {
+      setIsShortPacking(false);
     }
   };
 
@@ -488,7 +528,17 @@ export const Packing = memo(function Packing() {
                     {activeOrder.skuCode}
                     {activeOrder.alias ? ` / ${activeOrder.alias}` : ""}
                   </Text>
-                  <Group justify="flex-end" mt="sm">
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      color="yellow"
+                      onClick={() => setIsShortPackModalOpen(true)}
+                      leftIcon={<AlertTriangle size={14} />}
+                      className={isMobile ? "w-full" : ""}
+                    >
+                      Report Damaged / Pack Partial
+                    </Button>
                     <Button
                       size="xs"
                       onClick={() => void handleMarkPacked()}
@@ -498,7 +548,7 @@ export const Packing = memo(function Packing() {
                     >
                       Mark Packed
                     </Button>
-                  </Group>
+                  </div>
                 </Paper>
               </Stack>
             ) : (
@@ -511,6 +561,45 @@ export const Packing = memo(function Packing() {
           </OperationsPanel>
         )}
       </div>
+
+      <Modal
+        opened={isShortPackModalOpen}
+        onClose={() => setIsShortPackModalOpen(false)}
+        title="Report Damaged / Short Pack"
+        centered
+      >
+        <Text size="sm" mb="md">
+          You are about to pack fewer items than what was originally picked. 
+          The missing items will be returned to stock as an adjustment.
+        </Text>
+        <Stack gap="sm">
+          <NumberInput
+            label={`Actual Quantity Packed (Picked: ${activeOrder?.quantity ?? 0})`}
+            value={shortPackQty}
+            onChange={(val) => setShortPackQty(typeof val === 'number' ? val : 0)}
+            min={0}
+            max={(activeOrder?.quantity ?? 1) - 1}
+            required
+          />
+          <Textarea
+            label="Reason for shortage"
+            placeholder="e.g. 1 item damaged, missing from bin, etc."
+            required
+            value={shortPackRemark}
+            onChange={(e) => setShortPackRemark(e.currentTarget.value)}
+            minRows={3}
+            data-autofocus
+          />
+        </Stack>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" color="gray" onClick={() => setIsShortPackModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleShortPackSubmit} loading={isShortPacking} color="yellow">
+            Save & Short Pack
+          </Button>
+        </div>
+      </Modal>
     </OperationsPage>
   );
 });

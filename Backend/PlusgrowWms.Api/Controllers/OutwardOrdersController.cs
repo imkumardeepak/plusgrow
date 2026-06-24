@@ -1131,6 +1131,124 @@ public class OutwardOrdersController : BaseController
         return Success(response, "Order marked as packed");
     }
 
+    [HttpPost("{id}/short-pack")]
+    public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> ShortPack(int id, [FromBody] ShortPackDto dto)
+    {
+        var order = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (order == null)
+            return NotFound<OutwardOrderDto>("Outward order not found");
+
+        if (order.Status == "Dispatched")
+            return BadRequest<OutwardOrderDto>("Dispatched orders cannot be short-packed");
+
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return BadRequest<OutwardOrderDto>("Canceled orders cannot be short-packed");
+
+        if (order.PickedQuantity < order.Quantity)
+            return BadRequest<OutwardOrderDto>("Order must be fully picked before it can be packed");
+
+        if (dto.PackedQuantity > order.PickedQuantity)
+            return BadRequest<OutwardOrderDto>("Packed quantity cannot exceed picked quantity");
+
+        if (dto.PackedQuantity == order.PickedQuantity)
+            return BadRequest<OutwardOrderDto>("Use the standard 'Mark Packed' operation for full quantities");
+
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
+            ?? User.Identity?.Name
+            ?? "System User";
+
+        var shortage = order.PickedQuantity - dto.PackedQuantity;
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        // Revert the shortage back into stock
+        if (shortage > 0)
+        {
+            var productQty = await _context.ProductQuantities
+                .FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
+
+            if (productQty != null)
+            {
+                var qtyBefore = productQty.CurrentQuantity;
+                productQty.CurrentQuantity += shortage;
+                productQty.UpdatedAt = now;
+
+                _context.ProductStockMovements.Add(new ProductStockMovement
+                {
+                    ProductId = order.ProductId,
+                    MovementType = "adjustment",
+                    QuantityChange = shortage,
+                    QuantityBefore = qtyBefore,
+                    QuantityAfter = productQty.CurrentQuantity,
+                    Reason = "Packing Shortage",
+                    Notes = dto.Remark.Trim(),
+                    PerformedByUserId = performedByUserId,
+                    PerformedByName = performedByName,
+                    CreatedAt = now
+                });
+            }
+        }
+
+        var skuLabel = order.Product?.Sku ?? "Item";
+        var remarkLine = $"[Short Packed: {shortage} less. Reason: {dto.Remark.Trim()}]";
+
+        if (order.SalesOrder != null)
+        {
+            var soRemark = $"[{skuLabel} Short Packed: {shortage} less. Reason: {dto.Remark.Trim()}]";
+            order.SalesOrder.CancelRemark = string.IsNullOrWhiteSpace(order.SalesOrder.CancelRemark) 
+                ? soRemark 
+                : $"{order.SalesOrder.CancelRemark}\n{soRemark}";
+            order.SalesOrder.UpdatedAt = now;
+        }
+
+        if (dto.PackedQuantity == 0)
+        {
+            order.Status = "Canceled";
+            order.PickedQuantity = 0;
+            order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? remarkLine : $"{order.Notes}\n{remarkLine}";
+        }
+        else
+        {
+            order.Status = "Packed";
+            order.Quantity = dto.PackedQuantity;
+            order.PickedQuantity = dto.PackedQuantity;
+            order.PackedAt = now;
+            order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? remarkLine : $"{order.Notes}\n{remarkLine}";
+        }
+
+        order.UpdatedAt = now;
+        await _context.SaveChangesAsync();
+
+        if (order.SalesOrderId > 0)
+        {
+            await UpdateSalesOrderStatusAsync(order.SalesOrderId);
+            await _context.SaveChangesAsync();
+        }
+
+        var response = MapOrder(order);
+        
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "outward.short-packed",
+            Title = "Order short-packed",
+            Message = $"{response.OrderNumber} was short-packed. Reason: {dto.Remark.Trim()}",
+            Severity = "warning",
+            Data = new Dictionary<string, object?>
+            {
+                ["orderId"] = response.Id,
+                ["orderNumber"] = response.OrderNumber,
+                ["customerName"] = response.CustomerName,
+            },
+        });
+
+        return Success(response, "Order short-packed successfully");
+    }
+
     [HttpPost("{id}/dispatch")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> DispatchOrder(int id, [FromBody] DispatchOutwardOrderDto dto)
     {

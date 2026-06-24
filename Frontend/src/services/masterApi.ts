@@ -1455,6 +1455,12 @@ export const outwardOrdersApi = {
     return response.data.data!;
   },
 
+  shortPack: async (id: number, data: { packedQuantity: number; remark: string }): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/short-pack`, data);
+    if (!response.data.success) throw new Error(response.data.message || 'Error short packing order');
+    return response.data.data!;
+  },
+
   dispatch: async (id: number, data: DispatchOutwardOrderDto): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/dispatch`, data);
     if (!response.data.success) throw new Error(response.data.message);

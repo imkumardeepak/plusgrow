@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   Badge,
   Box,
@@ -23,6 +24,7 @@ import {
   Package,
   RefreshCw,
   Truck,
+  Download,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -133,6 +135,57 @@ export const TodayOperations = memo(function TodayOperations() {
   const packedPct = Math.round((todayPacked.length / pipelineTotal) * 100);
   const dispatchedPct = Math.round((todayDispatched.length / pipelineTotal) * 100);
 
+  const exportToExcel = useCallback(() => {
+    try {
+      const wb = XLSX.utils.book_new();
+
+      // 1. Inward Sheet
+      const inwardData = todayInvoices.map((inv) => ({
+        "Invoice Number": inv.invoiceNumber,
+        "Party": inv.partyName,
+        "Total Qty": inv.totalBilledQty,
+        "Products": inv.productCount,
+        "Cancel/Short Remark": inv.cancelRemark || "",
+        "Status": inv.status,
+      }));
+      const wsInward = XLSX.utils.json_to_sheet(inwardData);
+      XLSX.utils.book_append_sheet(wb, wsInward, "Inward Invoices");
+
+      // 2. Outward Sheet
+      const outwardData = todayOutward.map((order) => ({
+        "SKU": order.skuCode,
+        "Customer": order.customerName,
+        "Qty": order.quantity,
+        "Picked Time": formatTime(order.pickedAt),
+        "Packed Time": formatTime(order.packedAt),
+        "Dispatched Time": formatTime(order.dispatchedAt),
+        "Notes/Remarks": order.notes || "",
+        "Status": order.status,
+      }));
+      const wsOutward = XLSX.utils.json_to_sheet(outwardData);
+      XLSX.utils.book_append_sheet(wb, wsOutward, "Outward Sales");
+
+      // 3. Stock Movements Sheet
+      const movementsData = todayMovements.map((m) => ({
+        "Time": formatTime(m.createdAt),
+        "SKU": m.skuCode,
+        "Product": m.productName,
+        "Quantity Change": m.quantityChange,
+        "Quantity After": m.quantityAfter,
+        "Reason": m.reason,
+        "Remarks/Notes": m.notes || "",
+        "Performed By": m.performedByName || "System",
+      }));
+      const wsMovements = XLSX.utils.json_to_sheet(movementsData);
+      XLSX.utils.book_append_sheet(wb, wsMovements, "Stock Movements");
+
+      // Save
+      XLSX.writeFile(wb, `Today_Operations_${todayStr()}.xlsx`);
+    } catch (error) {
+      toast.error("Failed to export Excel file.");
+    }
+  }, [todayInvoices, todayOutward, todayMovements]);
+
   return (
     <OperationsPage
       title="Today's Operations"
@@ -168,6 +221,15 @@ export const TodayOperations = memo(function TodayOperations() {
               onClick={() => void loadData()}
             >
               Refresh
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              color="green"
+              leftIcon={<Download size={14} />}
+              onClick={exportToExcel}
+            >
+              Export Excel
             </Button>
           </Group>
         </Paper>
@@ -522,6 +584,11 @@ export const TodayOperations = memo(function TodayOperations() {
                           <Text size="9px" c="dimmed">{formatTime(m.createdAt)}</Text>
                           {m.performedByName && <Text size="9px" c="dimmed">By: {m.performedByName}</Text>}
                         </Group>
+                        {m.notes && (
+                          <Text size="10px" c="yellow.3" mt={4} style={{ whiteSpace: "pre-wrap" }}>
+                            <span style={{ color: "rgba(255,255,255,0.5)" }}>Remark: </span>{m.notes}
+                          </Text>
+                        )}
                       </Paper>
                     ))}
                   </Stack>
@@ -535,6 +602,7 @@ export const TodayOperations = memo(function TodayOperations() {
                         <Table.Th style={{ textAlign: "right" }}>Change</Table.Th>
                         <Table.Th style={{ textAlign: "right" }}>After</Table.Th>
                         <Table.Th>Reason</Table.Th>
+                        <Table.Th>Remarks</Table.Th>
                         <Table.Th>By</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -560,6 +628,9 @@ export const TodayOperations = memo(function TodayOperations() {
                           </Table.Td>
                           <Table.Td>
                             <Text size="10px" truncate maw={100}>{m.reason}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="10px" c="yellow.2" truncate maw={150} title={m.notes || ""}>{m.notes || "-"}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="10px" c="dimmed">{m.performedByName || "—"}</Text>
