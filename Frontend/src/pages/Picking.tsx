@@ -614,7 +614,7 @@ export const Picking = memo(function Picking() {
       icon={Package}
       hideHeader
     >
-      <div className="mb-4">
+      <div className="mb-2">
         <SegmentedControl
           value={pickingMode}
           onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick" | "consolidated")}
@@ -624,7 +624,8 @@ export const Picking = memo(function Picking() {
             { label: "Direct Pick", value: "direct_pick" },
           ]}
           fullWidth
-          size="sm"
+          size="md"
+          radius="md"
         />
       </div>
 
@@ -636,7 +637,7 @@ export const Picking = memo(function Picking() {
           icon={Package}
           description="Scan to instantly pick and dispatch stock without a sales order."
         >
-          <div className="mb-4">
+          <div className="flex flex-col gap-2.5 mb-2">
             <Select
               label="Party / Customer"
               placeholder="Select Party or Self"
@@ -648,10 +649,10 @@ export const Picking = memo(function Picking() {
               onChange={(val) => setDirectPickCustomer(val || "Self")}
               searchable
               clearable={false}
+              size="md"
+              radius="md"
             />
-          </div>
 
-          <div className="mb-4">
             <TextInput
               ref={directSkuInputRef}
               label="Scan SKU or Alias"
@@ -664,8 +665,10 @@ export const Picking = memo(function Picking() {
                   void handleDirectPickScan();
                 }
               }}
-              size="lg"
+              size="sm"
+              radius="md"
               autoFocus
+              className="[&_input]:text-sm [&_input]:font-mono [&_input]:font-bold"
               rightSection={
                 <div className="flex items-center gap-1 pr-1">
                   {directPickSkuInput && (
@@ -678,7 +681,7 @@ export const Picking = memo(function Picking() {
                       color="gray"
                       size="sm"
                     >
-                      <X size={14} />
+                      <X size={16} />
                     </ActionIcon>
                   )}
                   <ActionIcon
@@ -686,22 +689,24 @@ export const Picking = memo(function Picking() {
                     loading={isDirectProductLoading}
                     variant="filled"
                     color="brand"
+                    size="sm"
+                    radius="md"
                   >
-                    <ScanLine size={16} />
+                    <ScanLine size={20} />
                   </ActionIcon>
                 </div>
               }
-              rightSectionWidth={directPickSkuInput ? 70 : 40}
+              rightSectionWidth={directPickSkuInput ? 80 : 50}
             />
           </div>
 
           {directPickItems.length > 0 && (
-            <div className="mt-6 border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
-              <div className="bg-white/[0.05] p-3 border-b border-white/10">
-                <Text size="sm" weight={600}>Scanned Items ({directPickItems.length})</Text>
+            <div className="mt-2 border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
+              <div className="bg-white/[0.05] p-2.5 border-b border-white/10">
+                <Text size="md" weight={600}>Scanned Items ({directPickItems.length})</Text>
               </div>
               <ScrollArea className="max-h-[400px]">
-                <Table striped highlightOnHover verticalSpacing="sm" className="text-sm">
+                <Table striped highlightOnHover verticalSpacing="md" className="text-sm">
                   <thead>
                     <tr>
                       <th>SKU/Alias</th>
@@ -714,16 +719,16 @@ export const Picking = memo(function Picking() {
                     {directPickItems.map((item) => (
                       <tr key={item.id}>
                         <td>
-                          <Badge variant="outline">{item.skuCode}</Badge>
+                          <Badge variant="outline" size="sm">{item.skuCode}</Badge>
                         </td>
                         <td>
-                          <Badge color="blue">{item.locationCode}</Badge>
+                          <Badge color="blue" size="sm">{item.locationCode}</Badge>
                         </td>
                         <td>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             <ActionIcon
-                              size="xs"
-                              variant="subtle"
+                              size="md"
+                              variant="light"
                               color="gray"
                               onClick={() =>
                                 setDirectPickItems((current) =>
@@ -735,15 +740,15 @@ export const Picking = memo(function Picking() {
                                 )
                               }
                             >
-                              <span style={{ fontSize: 14, lineHeight: 1 }}>−</span>
+                              <span style={{ fontSize: 18, lineHeight: 1 }}>−</span>
                             </ActionIcon>
-                            <span className="min-w-[24px] text-center text-sm font-semibold">
+                            <span className="min-w-[32px] text-center text-sm font-bold">
                               {item.quantity}
                             </span>
                             <ActionIcon
-                              size="xs"
-                              variant="subtle"
-                              color="gray"
+                              size="md"
+                              variant="light"
+                              color="brand"
                               onClick={() =>
                                 setDirectPickItems((current) =>
                                   current.map((i) =>
@@ -752,7 +757,7 @@ export const Picking = memo(function Picking() {
                                 )
                               }
                             >
-                              <Plus size={12} />
+                              <Plus size={16} />
                             </ActionIcon>
                           </div>
                         </td>
@@ -760,14 +765,14 @@ export const Picking = memo(function Picking() {
                           <ActionIcon
                             color="red"
                             variant="subtle"
-                            size="sm"
+                            size="md"
                             onClick={() =>
                               setDirectPickItems((current) =>
                                 current.filter((i) => i.id !== item.id)
                               )
                             }
                           >
-                            <X size={14} />
+                            <X size={18} />
                           </ActionIcon>
                         </td>
                       </tr>
@@ -776,10 +781,11 @@ export const Picking = memo(function Picking() {
                 </Table>
               </ScrollArea>
 
-              <div className="p-4 bg-white/[0.03] border-t border-white/10 flex justify-end gap-3">
+              <div className="p-2.5 bg-white/[0.03] border-t border-white/10 flex flex-col sm:flex-row justify-end gap-2">
                 <Button
                   variant="outline"
                   color="red"
+                  size="md"
                   onClick={() => setDirectPickItems([])}
                 >
                   Clear All
@@ -787,7 +793,8 @@ export const Picking = memo(function Picking() {
                 <Button
                   onClick={() => void handleBulkDirectPickSubmit()}
                   loading={isDirectPicking}
-                  leftIcon={<ArrowRight size={16} />}
+                  size="md"
+                  leftIcon={<ArrowRight size={20} />}
                 >
                   Submit {directPickItems.length} Pick(s)
                 </Button>
@@ -797,7 +804,7 @@ export const Picking = memo(function Picking() {
         </OperationsPanel>
       ) : (
 
-        <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
+        <div className={isMobile ? "space-y-2" : "grid gap-2.5 xl:grid-cols-[0.82fr_1.18fr]"}>
           {(!isMobile || !activeGroup) && (
             <OperationsPanel
               title="Orders"
@@ -821,13 +828,13 @@ export const Picking = memo(function Picking() {
               {isMobile && (
                 <div className="flex flex-col gap-2 mb-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
                       {openOrderGroups.length} Active
                     </span>
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
                       {readyOrders} Ready
                     </span>
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
+                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
                       {progress}% Done
                     </span>
                   </div>
@@ -838,11 +845,11 @@ export const Picking = memo(function Picking() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search order, customer, SKU or alias..."
-                className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+                className="mb-2 h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/50"
               />
 
               {openOrderGroups.length > 0 ? (
-                <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
+                <div className="max-h-[65vh] space-y-2 overflow-y-auto scrollbar-thin pb-4">
                   {openOrderGroups.map((order) => {
                     const done = order.pendingQuantity === 0;
                     const active = order.salesOrderId === selectedSalesOrderId;
@@ -851,42 +858,43 @@ export const Picking = memo(function Picking() {
                       <button
                         key={order.salesOrderId}
                         onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
-                        className={`w-full rounded-xl border p-3 text-left transition ${active
-                          ? "border-brand-500/40 bg-brand-500/10"
-                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                        className={`w-full rounded-xl border p-2.5 text-left transition ${active
+                          ? "border-brand-500/50 bg-brand-500/10 shadow-[0_0_15px_rgba(var(--brand-500),0.15)]"
+                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/30 hover:bg-white/[0.06]"
                           }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="text-sm font-semibold text-white">
+                            <p className="text-sm font-bold text-white">
                               {order.orderNumber}
                             </p>
-                            <p className="mt-1 text-xs text-neutral-400">
+                            <p className="mt-1 text-sm text-neutral-400">
                               {order.customerName}
                             </p>
                           </div>
                           <Badge
                             variant={done ? "success" : "warning"}
                             shape="pill"
-                            className="border-none"
+                            size="sm"
+                            className="border-none font-bold"
                           >
                             {done ? "Ready" : order.status}
                           </Badge>
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <p className="uppercase tracking-[0.18em] text-neutral-500">
+                        <div className="mt-2 grid grid-cols-2 gap-2.5 text-sm">
+                          <div className="bg-black/20 p-2 rounded-lg">
+                            <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
                               Items
                             </p>
-                            <p className="mt-1 font-mono text-brand-300">
+                            <p className="mt-1 font-mono text-sm text-brand-300">
                               {order.items.length}
                             </p>
                           </div>
-                          <div>
-                            <p className="uppercase tracking-[0.18em] text-neutral-500">
-                              Picked
+                          <div className="bg-black/20 p-2 rounded-lg">
+                            <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
+                              Picked Progress
                             </p>
-                            <p className="mt-1 font-bold text-white">
+                            <p className="mt-1 font-bold text-sm text-white">
                               {order.totalPickedQuantity} / {order.totalQuantity}
                             </p>
                           </div>
@@ -909,146 +917,129 @@ export const Picking = memo(function Picking() {
             <OperationsPanel
               title="Scan to Pick"
               icon={ScanLine}
-              description="Select one sales order, review all items and locations, then scan location and SKU or Alias."
+              description="Follow the steps: Scan Location -> Scan SKU."
               hideHeader={isMobile}
             >
               {activeGroup && activeItem ? (
-                <div className="space-y-3">
+                <div className="flex flex-col h-full space-y-2">
                   {isMobile && (
                     <Button
-                      variant="outline"
-                      size="xs"
+                      variant="light"
+                      size="md"
                       onClick={() => setSelectedSalesOrderId(null)}
-                      leftIcon={<ArrowLeft className="h-3.5 w-3.5" />}
-                      className="mb-3 w-full"
+                      leftIcon={<ArrowLeft className="h-5 w-5" />}
+                      className="w-full"
                     >
-                      Back to Orders
+                      Back to Orders List
                     </Button>
                   )}
 
-                  {/* Compact Order Header */}
-                  <div className="rounded-xl border border-brand-500/20 bg-brand-500/10 p-3">
-                    <div className="flex items-center justify-between">
+                  {/* Active Pick Header Card */}
+                  <div className={`rounded-2xl border-2 p-2.5 transition-colors ${isFullyPicked ? 'border-green-500/40 bg-green-500/10' : 'border-brand-500/30 bg-brand-500/5'}`}>
+                    <div className="flex items-center justify-between mb-3">
                       <div>
-                        <p className="text-xs font-semibold text-white">
+                        <h2 className="text-sm font-bold text-white tracking-tight">
                           {activeGroup.orderNumber}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-neutral-400">
+                        </h2>
+                        <p className="text-sm text-neutral-400">
                           {activeGroup.customerName}
                         </p>
                       </div>
                       <Badge
                         variant={isFullyPicked ? "success" : "warning"}
                         shape="pill"
-                        className="border-none"
+                        size="sm"
+                        className="border-none shadow-sm"
                       >
-                        {isFullyPicked ? "Picked" : activeGroup.status}
+                        {isFullyPicked ? "Order Picked" : "Picking..."}
                       </Badge>
                     </div>
-                  </div>
 
-                  {/* Compact Info Grid */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                        Product
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-white line-clamp-1">
-                        {activeItem.productName}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                        SKU / Alias
-                      </p>
-                      <p className="mt-0.5 font-mono text-xs font-semibold text-brand-300">
-                        {activeItem.skuCode}
-                        {activeItem.alias ? ` / ${activeItem.alias}` : ""}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                        Location
-                      </p>
-                      <p className="mt-0.5 text-xs font-semibold text-white">
-                        {locationSummary}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                        Progress
-                      </p>
-                      <p className="mt-0.5 text-xs font-bold text-white">
-                        {activeGroup.totalPickedQuantity} / {activeGroup.totalQuantity}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-white/10 bg-white/[0.04] p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                        Sales MRP
-                      </p>
-                      <p className="mt-0.5 text-xs font-bold text-white">
-                        {formatMrp(activeItem.mrp)}
-                      </p>
+                    <div className="bg-black/40 rounded-xl p-3 grid grid-cols-2 gap-2">
+                       <div>
+                        <p className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Total Picked</p>
+                        <p className="text-sm font-black text-white">
+                          {activeGroup.totalPickedQuantity} <span className="text-sm font-medium text-neutral-500">/ {activeGroup.totalQuantity}</span>
+                        </p>
+                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ClipboardList className="h-3.5 w-3.5 text-brand-400" />
-                      <p className="text-xs font-semibold text-white">Order Items</p>
+                  {/* Target Item Card */}
+                  <div className="rounded-2xl border border-white/10 bg-[#141414] p-2.5 shadow-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Package className="h-5 w-5 text-brand-400" />
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Target Item</h3>
                     </div>
+                    
                     <div className="space-y-2">
-                      {activeGroup.items.map((item) => {
-                        const isActiveItem = item.id === activeItem.id;
-                        const itemDone = item.pendingQuantity === 0;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setActiveItemId(item.id)}
-                            className={`w-full rounded-lg border p-2.5 text-left transition ${isActiveItem
-                              ? "border-brand-500/40 bg-brand-500/10"
-                              : "border-white/10 bg-white/[0.02] hover:border-brand-500/20 hover:bg-white/[0.05]"
-                              }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="text-xs font-semibold text-white">
-                                  {item.productName}
-                                </p>
-                                <p className="mt-0.5 font-mono text-[11px] text-brand-300">
-                                  {item.skuCode}
-                                  {item.alias ? ` / ${item.alias}` : ""}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={itemDone ? "success" : "warning"}
-                                shape="pill"
-                                className="border-none"
-                              >
-                                {itemDone ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
-                              </Badge>
-                            </div>
-                            <p className="mt-1.5 text-[11px] text-neutral-400">
-                              Location: {getLocationSummary(item.productId)} · MRP: {formatMrp(item.mrp)}
-                            </p>
-                          </button>
-                        );
-                      })}
+                      <div>
+                        <p className="text-sm font-black text-white leading-tight">
+                          {activeItem.productName}
+                        </p>
+                        <p className="mt-1 font-mono text-sm text-brand-300">
+                          {activeItem.skuCode}
+                          {activeItem.alias ? ` / ${activeItem.alias}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-blue-300 font-bold mb-1">Target Location</p>
+                          <p className="text-sm font-bold text-blue-100 break-words">
+                            {locationSummary}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-3">
+                          <p className="text-[10px] uppercase tracking-wider text-orange-300 font-bold mb-1">Needed Qty</p>
+                          <p className="text-sm font-black text-orange-400">
+                            {activeItem.pendingQuantity}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Scan Section */}
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ScanLine className="h-3.5 w-3.5 text-brand-400" />
-                      <p className="text-xs font-semibold text-white">Scan</p>
+                  {/* Giant Scan Section */}
+                  <div className={`rounded-2xl border-2 p-3 transition-colors duration-300 shadow-xl ${
+                    scanTone === "success"
+                      ? "border-green-500/50 bg-green-500/10 shadow-[0_0_30px_rgba(34,197,94,0.15)]"
+                      : scanTone === "error"
+                        ? "border-red-500/50 bg-red-500/10 shadow-[0_0_30px_rgba(239,68,68,0.15)]"
+                        : "border-white/10 bg-[#1A1A1A]"
+                  }`}>
+                    
+                    {/* Status Message Display */}
+                    <div className="mb-3 flex items-start gap-2">
+                      <div className={`mt-0.5 p-2 rounded-full ${
+                        scanTone === "success" ? "bg-green-500/20 text-green-400" : 
+                        scanTone === "error" ? "bg-red-500/20 text-red-400" : 
+                        "bg-brand-500/20 text-brand-400"
+                      }`}>
+                        {scanTone === "error" ? <AlertTriangle size={24} /> : <ScanLine size={24} />}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold ${
+                          scanTone === "success" ? "text-green-400" : 
+                          scanTone === "error" ? "text-red-400" : 
+                          "text-white"
+                        }`}>
+                          {lastScanMessage}
+                        </p>
+                        {lastScanCode && (
+                          <p className="mt-1 text-sm text-neutral-400 font-mono">
+                            Scanned: {lastScanCode}
+                          </p>
+                        )}
+                      </div>
                     </div>
+
                     <div className="space-y-2">
                       {/* Location Input */}
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <input
+                      <div className="relative">
+                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">1. Location Code</p>
+                        <div className="flex gap-2">
+                          <TextInput
                             ref={locationInputRef}
                             value={locationScanCode}
                             onChange={(e) => setLocationScanCode(e.target.value)}
@@ -1058,47 +1049,49 @@ export const Picking = memo(function Picking() {
                                 handleLocationSubmit();
                               }
                             }}
-                            placeholder="Scan location first"
+                            placeholder="Scan location..."
                             disabled={isLocationLocked}
-                            className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-2.5 pr-8 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                            size="sm"
+                            radius="md"
+                            className="flex-1 [&_input]:text-sm [&_input]:font-mono [&_input]:font-bold transition-all"
+                            rightSection={
+                              locationScanCode && !isLocationLocked && (
+                                <ActionIcon onClick={() => {
+                                  setLocationScanCode("");
+                                  locationInputRef.current?.focus();
+                                }}>
+                                  <X size={20} />
+                                </ActionIcon>
+                              )
+                            }
                           />
-                          {locationScanCode && !isLocationLocked && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setLocationScanCode("");
-                                locationInputRef.current?.focus();
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+                          {isLocationLocked ? (
+                            <Button
+                              size="sm"
+                              variant="light"
+                              color="gray"
+                              onClick={handleChangeLocation}
+                              className="px-6"
                             >
-                              <X className="h-4 w-4" />
-                            </button>
+                              Change
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={handleLocationSubmit}
+                              className="px-8"
+                            >
+                              SET
+                            </Button>
                           )}
                         </div>
-                        {isLocationLocked ? (
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            onClick={handleChangeLocation}
-                            className="h-9"
-                          >
-                            Change
-                          </Button>
-                        ) : (
-                          <Button
-                            size="xs"
-                            onClick={handleLocationSubmit}
-                            className="h-9"
-                          >
-                            Set
-                          </Button>
-                        )}
                       </div>
 
-                      {/* SKU or Alias Input */}
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
-                          <input
+                      {/* SKU Input */}
+                      <div className={`relative transition-opacity duration-300 ${!isLocationLocked ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
+                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">2. Product Barcode</p>
+                        <div className="flex gap-2">
+                          <TextInput
                             ref={scanInputRef}
                             value={scanCode}
                             onChange={(e) => setScanCode(e.target.value)}
@@ -1108,95 +1101,117 @@ export const Picking = memo(function Picking() {
                                 void handleScanSubmit();
                               }
                             }}
-                            placeholder={
-                              isLocationLocked
-                                ? `Scan ${activeItem.skuCode}${activeItem.alias ? ` or ${activeItem.alias}` : ""}`
-                                : "Set location first"
-                            }
+                            placeholder={isLocationLocked ? "Scan SKU..." : "Waiting for location..."}
                             disabled={!isLocationLocked || isFullyPicked}
-                            className="h-9 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-2.5 pr-8 text-xs text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500 disabled:opacity-50"
+                            size="sm"
+                            radius="md"
+                            className="flex-1 [&_input]:text-sm [&_input]:font-mono [&_input]:font-bold transition-all"
+                            rightSection={
+                              scanCode && isLocationLocked && !isFullyPicked && (
+                                <ActionIcon onClick={() => {
+                                  setScanCode("");
+                                  scanInputRef.current?.focus();
+                                }}>
+                                  <X size={20} />
+                                </ActionIcon>
+                              )
+                            }
                           />
-                          {scanCode && isLocationLocked && !isFullyPicked && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setScanCode("");
-                                scanInputRef.current?.focus();
-                              }}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
+                          <Button
+                            onClick={() => void handleScanSubmit()}
+                            loading={isPicking}
+                            disabled={!isLocationLocked || isFullyPicked}
+                            size="sm"
+                            color="brand"
+                            className="px-8"
+                          >
+                            PICK
+                          </Button>
                         </div>
-                        <Button
-                          onClick={() => void handleScanSubmit()}
-                          loading={isPicking}
-                          disabled={!isLocationLocked || isFullyPicked}
-                          size="xs"
-                          leftIcon={<Package className="h-3.5 w-3.5" />}
-                          className="h-9"
-                        >
-                          Pick
-                        </Button>
                       </div>
+                    </div>
 
-                      {/* Dispatch / Complete Button */}
+                    {/* Action Buttons */}
+                    <div className="mt-2 pt-6 border-t border-white/10">
                       {isFullyPicked ? (
                         <Button
-                          variant="outline"
-                          size="xs"
+                          size="sm"
+                          fullWidth
+                          color="green"
                           onClick={() => navigate("/packing")}
-                          rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                          className="h-9 w-full mt-2"
+                          rightIcon={<ArrowRight size={24} />}
+                          className="text-sm shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow"
                         >
-                          Open Packing
+                          PROCEED TO PACKING
                         </Button>
                       ) : (
                         <Button
-                          variant="outline"
+                          variant="light"
                           color="yellow"
-                          size="xs"
+                          size="sm"
+                          fullWidth
                           onClick={() => setIsShortCloseModalOpen(true)}
-                          className="h-9 w-full mt-2"
                         >
-                          Finish & Save Order
+                          Short Close Order
                         </Button>
                       )}
                     </div>
                   </div>
 
-                  {/* Status Message */}
-                  <div
-                    className={`rounded-xl border p-3 ${scanTone === "success"
-                      ? "border-green-500/20 bg-green-500/10"
-                      : scanTone === "error"
-                        ? "border-red-500/20 bg-red-500/10"
-                        : "border-white/10 bg-white/[0.03]"
-                      }`}
-                  >
-                    <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-                      Status
-                    </p>
-                    <p className="mt-1 text-xs font-semibold text-white">
-                      {scanTone === "error" ? (
-                        <AlertTriangle className="mr-1 inline h-3.5 w-3.5 text-red-300" />
-                      ) : null}
-                      {lastScanMessage}
-                    </p>
-                    {lastScanCode && (
-                      <p className="mt-0.5 text-[11px] text-neutral-400">
-                        Code: {lastScanCode}
-                        {lastLocationCode ? ` · Loc: ${lastLocationCode}` : ""}
-                      </p>
-                    )}
+                  {/* Other Order Items List (Collapsible / Secondary) */}
+                  <div className="rounded-xl border border-white/10 bg-[#141414] overflow-hidden">
+                    <div className="p-3 bg-white/[0.03] border-b border-white/10 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList className="h-4 w-4 text-neutral-400" />
+                        <p className="text-sm font-bold text-neutral-300">Other Items in Order</p>
+                      </div>
+                      <Badge size="sm" variant="outline">{activeGroup.items.length} total</Badge>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto p-2 space-y-2 scrollbar-thin">
+                      {activeGroup.items.map((item) => {
+                        const isActiveItem = item.id === activeItem.id;
+                        if (isActiveItem) return null; // Skip showing the active item here as it's huge above
+
+                        const itemDone = item.pendingQuantity === 0;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveItemId(item.id)}
+                            className={`w-full rounded-lg border p-3 text-left transition ${
+                              itemDone 
+                                ? "border-green-500/20 bg-green-500/5" 
+                                : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className={`text-sm font-bold ${itemDone ? 'text-neutral-400 line-through' : 'text-white'}`}>
+                                  {item.productName}
+                                </p>
+                                <p className="mt-1 font-mono text-[11px] text-brand-300">
+                                  {item.skuCode}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={itemDone ? "success" : "outline"}
+                                className="border-none"
+                              >
+                                {itemDone ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
+                              </Badge>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+
                 </div>
               ) : (
                 <OperationsEmptyState
                   icon={Package}
                   title="No order"
-                  description="Select one sales order from the left to start picking its items."
+                  description="Select one sales order from the list to start picking."
                 />
               )}
             </OperationsPanel>
@@ -1209,26 +1224,28 @@ export const Picking = memo(function Picking() {
         onClose={() => setIsShortCloseModalOpen(false)}
         title="Complete Picking"
         centered
+        size="sm"
       >
-        <Text size="sm" mb="md">
+        <Text size="md" mb="lg" color="dimmed">
           You are about to finish picking this order without fulfilling all items. 
-          Any remaining unpicked quantities will be canceled.
+          Any remaining unpicked quantities will be canceled permanently.
         </Text>
         <Textarea
-          label="Reason for not picking all items"
+          label="Reason for Short Close"
           placeholder="e.g. Stock unavailable, damaged items, etc."
           required
           value={shortCloseRemark}
           onChange={(e) => setShortCloseRemark(e.currentTarget.value)}
-          minRows={3}
+          minRows={4}
+          size="md"
           data-autofocus
         />
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" color="gray" onClick={() => setIsShortCloseModalOpen(false)}>
+        <div className="mt-8 flex justify-end gap-2.5">
+          <Button variant="outline" color="gray" size="md" onClick={() => setIsShortCloseModalOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleShortCloseSubmit} loading={isShortClosing} color="yellow">
-            Save & Finish Order
+          <Button onClick={handleShortCloseSubmit} loading={isShortClosing} color="yellow" size="md">
+            Confirm & Save Order
           </Button>
         </div>
       </Modal>

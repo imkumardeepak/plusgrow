@@ -282,7 +282,7 @@ export const Packing = memo(function Packing() {
       icon={Archive}
       hideHeader
     >
-      <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.82fr_1.18fr]"}>
+      <div className={isMobile ? "space-y-2" : "grid gap-2.5 xl:grid-cols-[0.82fr_1.18fr]"}>
         {(!isMobile || !activeOrder) && (
           <OperationsPanel
             title="Orders Ready to Pack"
@@ -299,8 +299,8 @@ export const Packing = memo(function Packing() {
           >
             {isMobile && (
               <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="rounded-md bg-white/[0.05] px-2.5 py-1.5 text-xs font-semibold text-neutral-300">
-                  {filteredOrders.length} Orders
+                <span className="w-full text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
+                  {filteredOrders.length} Orders Ready
                 </span>
               </div>
             )}
@@ -309,11 +309,11 @@ export const Packing = memo(function Packing() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search order, customer, SKU or alias..."
-              className="mb-3 h-9 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+              className="mb-2 h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/50"
             />
 
             {groupedOrders.length > 0 ? (
-              <div className="max-h-[580px] space-y-2 overflow-y-auto scrollbar-thin">
+              <div className="max-h-[65vh] space-y-2 overflow-y-auto scrollbar-thin pb-4">
                 {groupedOrders.map((order) => {
                   const active = order.salesOrderId === selectedSalesOrderId;
                   const done = order.items.every((item) => item.status === "Packed");
@@ -322,43 +322,44 @@ export const Packing = memo(function Packing() {
                     <button
                       key={order.salesOrderId}
                       onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
-                      className={`w-full rounded-xl border p-3 text-left transition ${
+                      className={`w-full rounded-xl border p-2.5 text-left transition ${
                         active
-                          ? "border-brand-500/40 bg-brand-500/10"
-                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                          ? "border-brand-500/50 bg-brand-500/10 shadow-[0_0_15px_rgba(var(--brand-500),0.15)]"
+                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/30 hover:bg-white/[0.06]"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-white">
+                          <p className="text-sm font-bold text-white">
                             {order.orderNumber}
                           </p>
-                          <p className="mt-1 text-xs text-neutral-400">
+                          <p className="mt-1 text-sm text-neutral-400">
                             {order.customerName}
                           </p>
                         </div>
                         <Badge
                           variant={done ? "success" : "warning"}
                           shape="pill"
-                          className="border-none"
+                          size="sm"
+                          className="border-none font-bold"
                         >
                           {done ? "Done" : "Packing"}
                         </Badge>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <p className="uppercase tracking-[0.18em] text-neutral-500">
+                      <div className="mt-2 grid grid-cols-2 gap-2.5 text-sm">
+                        <div className="bg-black/20 p-2 rounded-lg">
+                          <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
                             Items
                           </p>
-                          <p className="mt-1 font-mono text-brand-300">
+                          <p className="mt-1 font-mono text-sm text-brand-300">
                             {order.items.length}
                           </p>
                         </div>
-                        <div>
-                          <p className="uppercase tracking-[0.18em] text-neutral-500">
+                        <div className="bg-black/20 p-2 rounded-lg">
+                          <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
                             Quantity
                           </p>
-                          <p className="mt-1 font-bold text-white">
+                          <p className="mt-1 font-bold text-sm text-white">
                             {order.totalQuantity}
                           </p>
                         </div>
@@ -381,181 +382,204 @@ export const Packing = memo(function Packing() {
           <OperationsPanel
             title="Packing"
             icon={BoxIcon}
-            description="Review picked item and mark it packed."
+            description="Review picked items and mark them packed."
             hideHeader={isMobile}
           >
             {activeOrder && activeGroup ? (
-              <Stack gap="md">
+              <div className="flex flex-col h-full space-y-2">
                 {isMobile && (
                   <Button
-                    variant="outline"
-                    size="xs"
+                    variant="light"
+                    size="md"
                     onClick={() => setSelectedSalesOrderId(null)}
-                    leftIcon={<ArrowLeft size={14} />}
-                    className="mb-1 w-full"
+                    leftIcon={<ArrowLeft className="h-5 w-5" />}
+                    className="w-full"
                   >
-                    Back to Orders
+                    Back to Orders List
                   </Button>
                 )}
 
-                {/* Order Header */}
-                <Paper radius="md" p="sm" withBorder>
-                  <Group justify="space-between" align="flex-start">
+                {/* Active Order Header Card */}
+                <div className="rounded-2xl border-2 border-brand-500/30 bg-brand-500/5 p-2.5">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <Text size="xs" fw={700}>
+                      <h2 className="text-sm font-bold text-white tracking-tight">
                         {activeGroup.orderNumber}
-                      </Text>
-                      <Text size="11px" c="dimmed">
+                      </h2>
+                      <p className="text-sm text-neutral-400">
                         {activeGroup.customerName}
-                      </Text>
+                      </p>
                     </div>
                     <Badge
                       variant="warning"
                       shape="pill"
-                      className="border-none"
+                      size="sm"
+                      className="border-none shadow-sm"
                     >
-                      Ready to Pack
+                      Packing
                     </Badge>
-                  </Group>
-                  <Group gap="xs" mt="xs">
-                    <Text size="11px" c="dimmed">
-                      Active Code:
-                    </Text>
-                    <Text size="11px" ff="monospace" c="cyan.3">
-                      {activeOrder.skuCode}
-                      {activeOrder.alias ? ` / ${activeOrder.alias}` : ""}
-                    </Text>
-                  </Group>
-                </Paper>
+                  </div>
+                </div>
 
-                {activeGroup.items.length > 1 && (
-                  <Paper radius="md" p="sm" withBorder>
-                    <Text size="xs" fw={700} mb="xs">
-                      Order Items
-                    </Text>
-                    <Stack gap="xs">
+                {/* Giant Scan Section */}
+                <div className="rounded-2xl border-2 border-cyan-500/30 bg-[#1A1A1A] p-3 shadow-xl transition-shadow duration-300 hover:shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 bg-cyan-500/20 text-cyan-400 rounded-full">
+                      <ScanLine size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Scan to Pack</h3>
+                      <p className="text-sm text-neutral-400">Scan SKU, Alias, or Carton QR</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <TextInput
+                      ref={scanInputRef}
+                      size="sm"
+                      radius="md"
+                      placeholder="Scan barcode..."
+                      value={scanInput}
+                      onChange={(e) => setScanInput(e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void handleScanPack();
+                      }}
+                      disabled={isScanPacking}
+                      autoFocus
+                      className="flex-1 [&_input]:text-sm [&_input]:font-mono [&_input]:font-bold"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => void handleScanPack()}
+                      loading={isScanPacking}
+                      color="cyan"
+                      className="px-8"
+                    >
+                      PACK
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Target Item Card (If active item is not packed yet) */}
+                {activeOrder.status !== "Packed" && (
+                  <div className="rounded-2xl border border-white/10 bg-[#141414] p-3 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2.5 opacity-5 pointer-events-none">
+                      <BoxIcon size={120} />
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <BoxIcon className="h-5 w-5 text-brand-400" />
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Current Item to Pack</h3>
+                    </div>
+                    
+                    <div className="space-y-2 relative z-10">
+                      <div>
+                        <p className="text-sm font-black text-white leading-tight">
+                          {activeOrder.productName}
+                        </p>
+                        <p className="mt-1 font-mono text-sm text-brand-300">
+                          {activeOrder.skuCode}
+                          {activeOrder.alias ? ` / ${activeOrder.alias}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-2.5">
+                          <p className="text-xs uppercase tracking-wider text-orange-300 font-bold mb-1">Pick Qty</p>
+                          <p className="text-2xl font-black text-orange-400">
+                            {activeOrder.quantity}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-white/10">
+                        <Button
+                          size="sm"
+                          fullWidth
+                          onClick={() => void handleMarkPacked()}
+                          loading={isMarkingPacked}
+                          leftIcon={<CheckCircle2 size={20} />}
+                          className="shadow-[0_0_15px_rgba(var(--brand-500),0.2)]"
+                        >
+                          Mark Packed
+                        </Button>
+                        <Button
+                          size="sm"
+                          fullWidth
+                          variant="light"
+                          color="yellow"
+                          onClick={() => setIsShortPackModalOpen(true)}
+                          leftIcon={<AlertTriangle size={20} />}
+                        >
+                          Report Damage
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Items List */}
+                {activeGroup.items.length > 0 && (
+                  <div className="rounded-xl border border-white/10 bg-[#141414] overflow-hidden flex-1 flex flex-col min-h-[250px]">
+                    <div className="p-2.5 bg-white/[0.03] border-b border-white/10 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5 text-neutral-400" />
+                        <p className="text-sm font-bold text-neutral-300">Order Items</p>
+                      </div>
+                      <Badge size="sm" variant="outline">{activeGroup.items.length} total</Badge>
+                    </div>
+                    <div className="overflow-y-auto p-3 space-y-2 scrollbar-thin">
                       {activeGroup.items.map((item) => {
                         const isActiveItem = item.id === activeOrder.id;
+                        const itemDone = item.status === "Packed";
+                        
                         return (
                           <button
                             key={item.id}
                             type="button"
                             onClick={() => setActiveItemId(item.id)}
-                            className={`w-full rounded-lg border p-2.5 text-left transition ${
-                              isActiveItem
-                                ? "border-brand-500/40 bg-brand-500/10"
-                                : "border-white/10 bg-white/[0.02] hover:border-brand-500/20 hover:bg-white/[0.05]"
+                            className={`w-full rounded-xl border p-2.5 text-left transition ${
+                              isActiveItem && !itemDone
+                                ? "border-brand-500/40 bg-brand-500/10 shadow-[0_0_10px_rgba(var(--brand-500),0.1)]"
+                                : itemDone 
+                                  ? "border-green-500/20 bg-green-500/5 opacity-80" 
+                                  : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="text-xs font-semibold text-white">
+                                <p className={`text-sm font-bold ${itemDone ? 'text-neutral-400 line-through' : 'text-white'}`}>
                                   {item.productName}
                                 </p>
-                                <p className="mt-0.5 font-mono text-[11px] text-brand-300">
+                                <p className="mt-1 font-mono text-xs text-brand-300">
                                   {item.skuCode}
                                   {item.alias ? ` / ${item.alias}` : ""}
                                 </p>
                               </div>
-                              <Badge
-                                variant={item.status === "Packed" ? "success" : "warning"}
-                                shape="pill"
-                                className="border-none"
-                              >
-                                {item.quantity} units
-                              </Badge>
+                              <div className="text-right">
+                                <Badge
+                                  variant={itemDone ? "success" : "warning"}
+                                  size="sm"
+                                  className="border-none font-bold shadow-sm"
+                                >
+                                  {itemDone ? "Packed" : "Pending"}
+                                </Badge>
+                                <p className="mt-2 text-sm font-bold text-white">
+                                  Qty: {item.quantity}
+                                </p>
+                              </div>
                             </div>
                           </button>
                         );
                       })}
-                    </Stack>
-                  </Paper>
-                )}
-
-                {/* Scan to Pack */}
-                <Paper radius="md" p="sm" withBorder style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}>
-                  <Group gap="xs" mb="xs">
-                    <ScanLine size={16} color="var(--mantine-color-cyan-4)" />
-                    <Text size="xs" fw={700} c="white">
-                      Scan to Pack
-                    </Text>
-                  </Group>
-                  <Text size="11px" c="dimmed" mb="xs">
-                    Scan SKU, Alias, or Carton QR to mark item as packed.
-                  </Text>
-                  <TextInput
-                    ref={scanInputRef}
-                    size={isMobile ? "sm" : "md"}
-                    placeholder="Scan SKU / Alias / Carton QR..."
-                    value={scanInput}
-                    onChange={(e) => setScanInput(e.currentTarget.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleScanPack();
-                    }}
-                    leftSection={<ScanLine size={16} />}
-                    disabled={isScanPacking}
-                    autoFocus
-                  />
-                  <Button
-                    size="xs"
-                    fullWidth
-                    mt="xs"
-                    onClick={() => void handleScanPack()}
-                    loading={isScanPacking}
-                    leftIcon={<ScanLine size={14} />}
-                    variant="light"
-                  >
-                    Confirm Scan
-                  </Button>
-                </Paper>
-
-                {/* Mark Packed */}
-                <Paper radius="md" p="sm" withBorder>
-                  <Group justify="space-between" align="flex-start" gap="sm">
-                    <Box>
-                      <Text size="xs" fw={700}>
-                        Mark Packed
-                      </Text>
-                      <Text size="11px" c="dimmed" mt={2}>
-                        Confirm this picked item is packed and ready for dispatch.
-                      </Text>
-                    </Box>
-                    <Text size="xs" fw={800}>
-                      Qty: {activeOrder.quantity}
-                    </Text>
-                  </Group>
-                  <Text size="11px" c="dimmed" mt={4}>
-                    {activeOrder.skuCode}
-                    {activeOrder.alias ? ` / ${activeOrder.alias}` : ""}
-                  </Text>
-                  <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      color="yellow"
-                      onClick={() => setIsShortPackModalOpen(true)}
-                      leftIcon={<AlertTriangle size={14} />}
-                      className={isMobile ? "w-full" : ""}
-                    >
-                      Report Damaged / Pack Partial
-                    </Button>
-                    <Button
-                      size="xs"
-                      onClick={() => void handleMarkPacked()}
-                      loading={isMarkingPacked}
-                      leftIcon={<CheckCircle2 size={14} />}
-                      className={isMobile ? "w-full" : ""}
-                    >
-                      Mark Packed
-                    </Button>
+                    </div>
                   </div>
-                </Paper>
-              </Stack>
+                )}
+              </div>
             ) : (
               <OperationsEmptyState
                 icon={BoxIcon}
                 title="No order selected"
-                description="Select a picked order from the left to mark it packed."
+                description="Select a picked order from the list to mark it packed."
               />
             )}
           </OperationsPanel>
@@ -567,12 +591,13 @@ export const Packing = memo(function Packing() {
         onClose={() => setIsShortPackModalOpen(false)}
         title="Report Damaged / Short Pack"
         centered
+        size="sm"
       >
-        <Text size="sm" mb="md">
+        <Text size="md" mb="xl" color="dimmed">
           You are about to pack fewer items than what was originally picked. 
           The missing items will be returned to stock as an adjustment.
         </Text>
-        <Stack gap="sm">
+        <Stack gap="lg">
           <NumberInput
             label={`Actual Quantity Packed (Picked: ${activeOrder?.quantity ?? 0})`}
             value={shortPackQty}
@@ -580,6 +605,8 @@ export const Packing = memo(function Packing() {
             min={0}
             max={(activeOrder?.quantity ?? 1) - 1}
             required
+            size="sm"
+            radius="md"
           />
           <Textarea
             label="Reason for shortage"
@@ -587,15 +614,17 @@ export const Packing = memo(function Packing() {
             required
             value={shortPackRemark}
             onChange={(e) => setShortPackRemark(e.currentTarget.value)}
-            minRows={3}
+            minRows={4}
+            size="sm"
+            radius="md"
             data-autofocus
           />
         </Stack>
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="outline" color="gray" onClick={() => setIsShortPackModalOpen(false)}>
+        <div className="mt-8 flex justify-end gap-2.5">
+          <Button variant="outline" color="gray" size="md" onClick={() => setIsShortPackModalOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleShortPackSubmit} loading={isShortPacking} color="yellow">
+          <Button onClick={handleShortPackSubmit} loading={isShortPacking} color="yellow" size="md">
             Save & Short Pack
           </Button>
         </div>
