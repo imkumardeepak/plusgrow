@@ -651,7 +651,15 @@ public class OutwardOrdersController : BaseController
         await using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.LockProductAsync(order.ProductId);
 
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(order.ProductId, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "outward");
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(
+            order.ProductId,
+            resolvedLocationCode,
+            pickQty,
+            effectiveMrp,
+            pickUserId,
+            pickUserName,
+            "outward",
+            BuildSalesOrderMovementReference(order.SalesOrder));
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
@@ -731,16 +739,24 @@ public class OutwardOrdersController : BaseController
 
         var effectiveMrp = dto.Mrp ?? product.Mrp;
         var (pickUserId, pickUserName) = ResolvePerformedBy();
+        var orderNumber = await GenerateDirectOrderNumberAsync();
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.LockProductAsync(product.Id);
 
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp, pickUserId, pickUserName, "direct");
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(
+            product.Id,
+            resolvedLocationCode,
+            pickQty,
+            effectiveMrp,
+            pickUserId,
+            pickUserName,
+            "direct",
+            $"Direct Outward: {orderNumber}; Remark: {dto.Remark.Trim()}");
         if (!reduceLocationResult.Success)
             return BadRequest<OutwardOrderDto>(reduceLocationResult.Message!);
 
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        var orderNumber = await GenerateDirectOrderNumberAsync();
         var salesOrder = new SalesOrder
         {
             OrderNumber = orderNumber,
@@ -861,7 +877,15 @@ public class OutwardOrdersController : BaseController
                 return BadRequest<List<OutwardOrderDto>>($"Scanned location {item.LocationCode.Trim()} was not found");
 
             var effectiveMrp = item.Mrp ?? product.Mrp;
-            var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, effectiveMrp, bulkPickUserId, bulkPickUserName, "bulk-direct");
+            var reduceLocationResult = await ReduceAllocatedLocationAsync(
+                product.Id,
+                resolvedLocationCode,
+                pickQty,
+                effectiveMrp,
+                bulkPickUserId,
+                bulkPickUserName,
+                "bulk-direct",
+                $"Direct Outward: {orderNumber}; Remark: {dto.Remark.Trim()}");
             if (!reduceLocationResult.Success)
                 return BadRequest<List<OutwardOrderDto>>(reduceLocationResult.Message!);
 
@@ -994,8 +1018,22 @@ public class OutwardOrdersController : BaseController
             return BadRequest<ConsolidatedPickResultDto>("No pending quantity for this product in the selected sales orders");
 
         var pickQty = Math.Min(requestedQty, totalPending);
+        var consolidatedReferences = string.Join(
+            ", ",
+            orderedLines
+                .Select(line => line.SalesOrder?.OrderNumber)
+                .Where(orderNumber => !string.IsNullOrWhiteSpace(orderNumber))
+                .Distinct());
 
-        var reduceLocationResult = await ReduceAllocatedLocationAsync(product.Id, resolvedLocationCode, pickQty, groupMrp, pickUserId, pickUserName, "consolidated");
+        var reduceLocationResult = await ReduceAllocatedLocationAsync(
+            product.Id,
+            resolvedLocationCode,
+            pickQty,
+            groupMrp,
+            pickUserId,
+            pickUserName,
+            "consolidated",
+            $"Sales Orders: {consolidatedReferences}");
         if (!reduceLocationResult.Success)
             return BadRequest<ConsolidatedPickResultDto>(reduceLocationResult.Message!);
 
@@ -1237,7 +1275,7 @@ public class OutwardOrdersController : BaseController
                     QuantityBefore = qtyBefore,
                     QuantityAfter = productQty.CurrentQuantity,
                     Reason = "Packing Shortage",
-                    Notes = dto.Remark.Trim(),
+                    Notes = $"{BuildSalesOrderMovementReference(order.SalesOrder)}; Returned Qty: {shortage}; Remark: {dto.Remark.Trim()}",
                     PerformedByUserId = performedByUserId,
                     PerformedByName = performedByName,
                     CreatedAt = now
@@ -1449,6 +1487,7 @@ public class OutwardOrdersController : BaseController
         await using var transaction = await _context.Database.BeginTransactionAsync();
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         var (cancelUserId, cancelUserName) = ResolvePerformedBy();
+        salesOrder.CancelRemark = dto.Remark.Trim();
 
         foreach (var item in salesOrder.Items.Where(item => item.PickedQuantity > 0))
         {
@@ -1456,7 +1495,6 @@ public class OutwardOrdersController : BaseController
         }
 
         salesOrder.Status = "Canceled";
-        salesOrder.CancelRemark = dto.Remark.Trim();
         salesOrder.UpdatedAt = now;
         salesOrder.DispatchedAt = null;
 
@@ -1738,7 +1776,8 @@ public class OutwardOrdersController : BaseController
         decimal? mrp,
         int? performedByUserId,
         string performedByName,
-        string flow)
+        string flow,
+        string movementReference)
     {
         var row = await _context.ProductAllottedLocations.FirstOrDefaultAsync(x => x.ProductId == productId);
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
@@ -1784,7 +1823,7 @@ public class OutwardOrdersController : BaseController
             QuantityAfter = quantityRow.CurrentQuantity,
             Reason = "Outward Pick",
             MovementType = "pick",
-            Notes = $"Picked {quantity} from {matchingKey} ({flow})",
+            Notes = $"{movementReference}; Picked Qty: {quantity}; Location: {matchingKey}; Flow: {flow}",
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,
             CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
@@ -1862,7 +1901,10 @@ public class OutwardOrdersController : BaseController
             QuantityAfter = quantityRow.CurrentQuantity,
             Reason = "Sales Order Cancel",
             MovementType = "cancel",
-            Notes = $"Restored {pickedQuantity} units after canceling sales order {order.SalesOrder?.OrderNumber ?? order.SalesOrderId.ToString()}",
+            Notes = $"{BuildSalesOrderMovementReference(order.SalesOrder)}; Restored Qty: {pickedQuantity}" +
+                    (string.IsNullOrWhiteSpace(order.SalesOrder?.CancelRemark)
+                        ? ""
+                        : $"; Remark: {order.SalesOrder.CancelRemark.Trim()}"),
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,
             CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
@@ -1884,6 +1926,24 @@ public class OutwardOrdersController : BaseController
             ?? User.Identity?.Name
             ?? "System User";
         return (performedByUserId, performedByName);
+    }
+
+    private static string BuildSalesOrderMovementReference(SalesOrder? salesOrder)
+    {
+        if (salesOrder == null)
+            return "Sales Order: Unknown";
+
+        var reference = $"Sales Order: {salesOrder.OrderNumber}";
+        if (!string.IsNullOrWhiteSpace(salesOrder.ReferenceNumber) &&
+            !string.Equals(
+                salesOrder.ReferenceNumber.Trim(),
+                salesOrder.OrderNumber.Trim(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            reference += $"; Customer Reference: {salesOrder.ReferenceNumber.Trim()}";
+        }
+
+        return reference;
     }
 
     private async Task<(bool Success, string? Message)> DispatchOrderInternalAsync(

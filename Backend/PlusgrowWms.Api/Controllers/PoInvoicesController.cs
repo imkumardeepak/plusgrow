@@ -697,7 +697,7 @@ public class PoInvoicesController : BaseController
                                         QuantityAfter = quantityRow.CurrentQuantity,
                                         Reason = "Inward Cancelled",
                                         MovementType = "adjustment",
-                                        Notes = $"Inward {header.InvoiceNumber} cancelled (-{scannedQty})",
+                                        Notes = $"Inward Invoice: {header.InvoiceNumber}; Cancelled Qty: {scannedQty}; Remark: {dto.Remark.Trim()}",
                                         PerformedByUserId = performedByUserId,
                                         PerformedByName = performedByName,
                                         CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),

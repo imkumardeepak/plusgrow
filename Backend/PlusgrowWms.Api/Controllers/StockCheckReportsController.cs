@@ -135,6 +135,10 @@ public class StockCheckReportsController : BaseController
             try
             {
                 var invoiceHeader = await ResolveInwardInvoiceHeaderAsync(entity.Notes, entity.ReferenceName);
+                var inwardMovementReference = BuildInwardMovementReference(
+                    entity.ReferenceName,
+                    entity.Notes,
+                    invoiceHeader);
                 using var doc = JsonDocument.Parse(entity.ItemsJson);
                 if (doc.RootElement.ValueKind == JsonValueKind.Array)
                 {
@@ -151,7 +155,12 @@ public class StockCheckReportsController : BaseController
 
                             if (productId > 0 && scannedQty > 0)
                             {
-                                await UpsertProductQuantityAsync(productId, scannedQty, performedByUserId, performedByName);
+                                await UpsertProductQuantityAsync(
+                                    productId,
+                                    scannedQty,
+                                    inwardMovementReference,
+                                    performedByUserId,
+                                    performedByName);
                             }
 
                             if (productId > 0 && invoiceHeader != null)
@@ -309,7 +318,56 @@ public class StockCheckReportsController : BaseController
         };
     }
 
-    private async Task UpsertProductQuantityAsync(int productId, int verifiedQty, int? performedByUserId, string performedByName)
+    private static string BuildInwardMovementReference(
+        string referenceName,
+        string? notesJson,
+        PoInvoiceHeader? invoiceHeader)
+    {
+        var invoiceNumber = invoiceHeader?.InvoiceNumber;
+        var partyName = invoiceHeader?.PartyName;
+        string? shortfallRemark = null;
+
+        if (!string.IsNullOrWhiteSpace(notesJson))
+        {
+            try
+            {
+                using var notes = JsonDocument.Parse(notesJson);
+                var root = notes.RootElement;
+                invoiceNumber ??= root.TryGetProperty("referenceName", out var invoiceElement)
+                    ? invoiceElement.GetString()
+                    : null;
+                partyName ??= root.TryGetProperty("partyName", out var partyElement)
+                    ? partyElement.GetString()
+                    : null;
+                shortfallRemark = root.TryGetProperty("shortfallRemark", out var remarkElement)
+                    ? remarkElement.GetString()
+                    : null;
+            }
+            catch
+            {
+                // Keep the report reference as the fallback for legacy notes.
+            }
+        }
+
+        var reference = !string.IsNullOrWhiteSpace(invoiceNumber)
+            ? $"Inward Invoice: {invoiceNumber}"
+            : $"Inward: {referenceName}";
+
+        if (!string.IsNullOrWhiteSpace(partyName))
+            reference += $"; Party: {partyName}";
+
+        if (!string.IsNullOrWhiteSpace(shortfallRemark))
+            reference += $"; Remark: {shortfallRemark.Trim()}";
+
+        return reference;
+    }
+
+    private async Task UpsertProductQuantityAsync(
+        int productId,
+        int verifiedQty,
+        string movementReference,
+        int? performedByUserId,
+        string performedByName)
     {
         var quantityRow = _context.ProductQuantities.Local.FirstOrDefault(x => x.ProductId == productId)
             ?? await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
@@ -322,14 +380,30 @@ public class StockCheckReportsController : BaseController
                 CurrentQuantity = verifiedQty,
                 UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
             });
-            RecordStockMovement(productId, 0, verifiedQty, "Inward Receipt (Verified)", "inward", $"Inward receipt verified (+{verifiedQty})", performedByUserId, performedByName);
+            RecordStockMovement(
+                productId,
+                0,
+                verifiedQty,
+                "Inward Receipt (Verified)",
+                "inward",
+                $"{movementReference}; Verified Qty: {verifiedQty}",
+                performedByUserId,
+                performedByName);
             return;
         }
 
         var quantityBefore = quantityRow.CurrentQuantity;
         quantityRow.CurrentQuantity += verifiedQty;
         quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        RecordStockMovement(productId, quantityBefore, quantityRow.CurrentQuantity, "Inward Receipt (Verified)", "inward", $"Inward receipt verified (+{verifiedQty})", performedByUserId, performedByName);
+        RecordStockMovement(
+            productId,
+            quantityBefore,
+            quantityRow.CurrentQuantity,
+            "Inward Receipt (Verified)",
+            "inward",
+            $"{movementReference}; Verified Qty: {verifiedQty}",
+            performedByUserId,
+            performedByName);
     }
 
     private void RecordStockMovement(int productId, int quantityBefore, int quantityAfter, string reason, string movementType, string notes, int? performedByUserId, string performedByName)

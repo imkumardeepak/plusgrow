@@ -437,6 +437,18 @@ export const StockMovement = memo(function StockMovement() {
       width: 160,
     },
     {
+      key: "reference",
+      header: "Reference / Remark",
+      sortable: true,
+      sortAccessor: (row) => row.notes ?? "",
+      render: (row) => (
+        <Text size="xs" c={row.notes ? undefined : "dimmed"} lineClamp={2}>
+          {row.notes || "-"}
+        </Text>
+      ),
+      width: 280,
+    },
+    {
       key: "by",
       header: "Posted By",
       sortable: true,
@@ -938,7 +950,7 @@ export const StockMovement = memo(function StockMovement() {
               pageSize={10}
               itemLabel="movements"
               resetPageKey={historySearch}
-              minWidth={isMobile ? 700 : 920}
+              minWidth={isMobile ? 980 : 1160}
               emptyIcon={History}
               emptyTitle="No movement history"
               emptyDescription="Stock adjustments will create audit entries here."
