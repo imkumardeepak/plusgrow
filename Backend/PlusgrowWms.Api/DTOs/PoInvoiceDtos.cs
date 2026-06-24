@@ -11,6 +11,7 @@ public class PoInvoiceDto
     public string ProductName { get; set; } = string.Empty;
     public decimal? Mrp { get; set; }
     public int BilledQty { get; set; }
+    public int? VerifiedQuantity { get; set; }
     public bool Printed { get; set; }
     public int RemainingAllocation { get; set; }
     public bool LocationAllotted { get; set; }

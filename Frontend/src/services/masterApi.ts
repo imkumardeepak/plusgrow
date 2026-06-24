@@ -271,6 +271,7 @@ export interface PoInvoice {
   productName: string;
   mrp?: number;
   billedQty: number;
+  verifiedQuantity?: number | null;
   printed: boolean;
   remainingAllocation: number;
   locationAllotted: boolean;

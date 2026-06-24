@@ -134,6 +134,7 @@ public class StockCheckReportsController : BaseController
         {
             try
             {
+                var invoiceHeader = await ResolveInwardInvoiceHeaderAsync(entity.Notes, entity.ReferenceName);
                 using var doc = JsonDocument.Parse(entity.ItemsJson);
                 if (doc.RootElement.ValueKind == JsonValueKind.Array)
                 {
@@ -152,6 +153,18 @@ public class StockCheckReportsController : BaseController
                             {
                                 await UpsertProductQuantityAsync(productId, scannedQty, performedByUserId, performedByName);
                             }
+
+                            if (productId > 0 && invoiceHeader != null)
+                            {
+                                var invoiceRow = invoiceHeader.Items.FirstOrDefault(item => item.ProductId == productId);
+                                if (invoiceRow != null)
+                                {
+                                    var verifiedQuantity = Math.Clamp(scannedQty, 0, invoiceRow.BilledQty);
+                                    invoiceRow.VerifiedQuantity = verifiedQuantity;
+                                    invoiceRow.RemainingAllocation = verifiedQuantity;
+                                    invoiceRow.LocationAllotted = verifiedQuantity == 0;
+                                }
+                            }
                         }
                     }
                 }
@@ -168,6 +181,59 @@ public class StockCheckReportsController : BaseController
             entity.CheckType, entity.ReferenceName, performedByName);
 
         return Success(MapToDto(entity), "Stock check report saved successfully");
+    }
+
+    private async Task<PoInvoiceHeader?> ResolveInwardInvoiceHeaderAsync(string? notesJson, string referenceName)
+    {
+        string? invoiceNumber = null;
+        string? partyName = null;
+        DateTime? invoiceDate = null;
+
+        if (!string.IsNullOrWhiteSpace(notesJson))
+        {
+            try
+            {
+                using var notes = JsonDocument.Parse(notesJson);
+                var root = notes.RootElement;
+                invoiceNumber = root.TryGetProperty("referenceName", out var invoiceElement)
+                    ? invoiceElement.GetString()
+                    : null;
+                partyName = root.TryGetProperty("partyName", out var partyElement)
+                    ? partyElement.GetString()
+                    : null;
+                var dateText = root.TryGetProperty("invoiceDate", out var dateElement)
+                    ? dateElement.GetString()
+                    : null;
+                if (DateTime.TryParse(dateText, out var parsedDate))
+                    invoiceDate = parsedDate.Date;
+            }
+            catch
+            {
+                // Fall back to the legacy "invoice - party" reference below.
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(invoiceNumber))
+        {
+            var referenceParts = referenceName.Split(" - ", 2, StringSplitOptions.TrimEntries);
+            invoiceNumber = referenceParts.ElementAtOrDefault(0);
+            partyName = referenceParts.ElementAtOrDefault(1);
+        }
+
+        if (string.IsNullOrWhiteSpace(invoiceNumber))
+            return null;
+
+        var query = _context.PoInvoiceHeaders
+            .Include(header => header.Items)
+            .Where(header => header.InvoiceNumber.ToLower() == invoiceNumber.Trim().ToLower());
+
+        if (!string.IsNullOrWhiteSpace(partyName))
+            query = query.Where(header => header.PartyName.ToLower() == partyName.Trim().ToLower());
+
+        if (invoiceDate.HasValue)
+            query = query.Where(header => header.InvoiceDate.Date == invoiceDate.Value);
+
+        return await query.OrderByDescending(header => header.Id).FirstOrDefaultAsync();
     }
 
     [HttpPut("{id}")]

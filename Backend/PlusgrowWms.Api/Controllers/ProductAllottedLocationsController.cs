@@ -440,12 +440,19 @@ public class ProductAllottedLocationsController : BaseController
 
         var reports = await _context.StockCheckReports
             .AsNoTracking()
-            .Where(x => x.CheckType == "INWARD_VERIFY")
+            .Where(x => x.CheckType == "INWARD_VERIFY" && x.Status == "COMPLETED")
+            .OrderByDescending(x => x.CreatedAt)
             .ToListAsync();
 
         var verifiedQty = 0;
         foreach (var invoice in invoices)
         {
+            if (invoice.VerifiedQuantity.HasValue)
+            {
+                verifiedQty += invoice.VerifiedQuantity.Value;
+                continue;
+            }
+
             var matchingReport = reports.FirstOrDefault(report => IsVerificationForInvoice(report, invoice));
             if (matchingReport == null)
                 continue;
@@ -453,7 +460,8 @@ public class ProductAllottedLocationsController : BaseController
             verifiedQty += GetVerifiedQuantityForSku(matchingReport.ItemsJson, invoice.Product?.Sku);
         }
 
-        var alreadyPutAwayQty = invoices.Sum(invoice => Math.Max(invoice.BilledQty - invoice.RemainingAllocation, 0));
+        var alreadyPutAwayQty = invoices.Sum(invoice =>
+            Math.Max((invoice.VerifiedQuantity ?? invoice.BilledQty) - invoice.RemainingAllocation, 0));
         return Math.Max(verifiedQty - alreadyPutAwayQty, 0);
     }
 

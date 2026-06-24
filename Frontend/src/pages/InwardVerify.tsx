@@ -112,7 +112,12 @@ export const InwardVerify = memo(function InwardVerify() {
         productsApi.getAll(),
         stockCheckReportsApi.getAll({ checkType: "INWARD_VERIFY", page: 1, pageSize: 1000 }),
       ]);
-      const verifiedInvoiceKeys = new Set(reportResult.data.map(parseVerifiedInvoiceKey).filter(Boolean));
+      const verifiedInvoiceKeys = new Set(
+        reportResult.data
+          .filter((report) => report.status === "COMPLETED")
+          .map(parseVerifiedInvoiceKey)
+          .filter(Boolean),
+      );
       setInvoices(
         invoiceResult.data
           .filter((invoice) => invoice.status !== "Canceled")

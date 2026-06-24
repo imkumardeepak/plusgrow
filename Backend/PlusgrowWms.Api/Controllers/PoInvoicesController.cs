@@ -648,7 +648,9 @@ public class PoInvoicesController : BaseController
         if (header.Status == "Canceled")
             return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice is already canceled");
 
-        var hasPutAwayQuantity = header.Items.Any(item => item.RemainingAllocation < item.BilledQty || item.LocationAllotted);
+        var hasPutAwayQuantity = header.Items.Any(item =>
+            item.RemainingAllocation < (item.VerifiedQuantity ?? item.BilledQty) ||
+            (item.LocationAllotted && (item.VerifiedQuantity ?? item.BilledQty) > 0));
         if (hasPutAwayQuantity)
             return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice cannot be canceled after put-away has started");
 
@@ -774,6 +776,7 @@ public class PoInvoicesController : BaseController
             ProductName = invoice.Product?.Name ?? string.Empty,
             Mrp = invoice.Mrp ?? invoice.Product?.Mrp,
             BilledQty = invoice.BilledQty,
+            VerifiedQuantity = invoice.VerifiedQuantity,
             Printed = invoice.Printed,
             RemainingAllocation = invoice.RemainingAllocation,
             LocationAllotted = invoice.LocationAllotted,
@@ -820,7 +823,9 @@ public class PoInvoicesController : BaseController
         if (items.Count > 0 && items.All(item => item.RemainingAllocation <= 0 || item.LocationAllotted))
             return "Closed";
 
-        if (items.Any(item => item.RemainingAllocation < item.BilledQty || item.LocationAllotted))
+        if (items.Any(item =>
+                item.RemainingAllocation < (item.VerifiedQuantity ?? item.BilledQty) ||
+                (item.LocationAllotted && (item.VerifiedQuantity ?? item.BilledQty) > 0)))
             return "Put Away";
 
         if (verificationReports?.Any(report => IsVerificationForHeader(report, header)) == true)

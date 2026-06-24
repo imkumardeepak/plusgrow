@@ -3,7 +3,9 @@ import {
   Badge,
   Box,
   Group,
+  Modal,
   Paper,
+  ScrollArea,
   SimpleGrid,
   Stack,
   Text,
@@ -14,6 +16,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Eraser,
+  Eye,
   MapPin,
   Package,
   RotateCcw,
@@ -135,6 +138,7 @@ export const PutAway = () => {
   const [locationScanCode, setLocationScanCode] = useState("");
   const [assignQuantity, setAssignQuantity] = useState<number | "">("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
   const [lastAssignment, setLastAssignment] =
     useState<PutAwayScanAssignmentResult | null>(emptyResult);
   const [productError, setProductError] = useState<string | null>(null);
@@ -157,7 +161,9 @@ export const PutAway = () => {
       setProductQuantities(quantitiesData);
       setAllocations(allocationsData);
       setActiveInwardRows(inwardRowsData.filter((row) => row.remainingAllocation > 0));
-      setInwardVerifyReports(verifyReportsData.data);
+      setInwardVerifyReports(
+        verifyReportsData.data.filter((report) => report.status === "COMPLETED"),
+      );
     } catch (error) {
       toast.error("Failed to load put-away data");
     } finally {
@@ -176,11 +182,17 @@ export const PutAway = () => {
     }, new Map<number, number>());
 
     const putAwayByProduct = activeInwardRows.reduce((map, row) => {
-      map.set(row.productId, (map.get(row.productId) || 0) + Math.max(Number(row.billedQty || 0) - Number(row.remainingAllocation || 0), 0));
+      const verifiedBaseline = row.verifiedQuantity ?? row.billedQty;
+      map.set(row.productId, (map.get(row.productId) || 0) + Math.max(Number(verifiedBaseline || 0) - Number(row.remainingAllocation || 0), 0));
       return map;
     }, new Map<number, number>());
 
     const verifiedByProduct = activeInwardRows.reduce((map, row) => {
+      if (row.verifiedQuantity !== null && row.verifiedQuantity !== undefined) {
+        map.set(row.productId, (map.get(row.productId) || 0) + Number(row.verifiedQuantity || 0));
+        return map;
+      }
+
       const report = inwardVerifyReports.find((candidate) => isVerificationForInvoice(candidate, row));
       if (!report) return map;
       map.set(row.productId, (map.get(row.productId) || 0) + getVerifiedQtyForSku(report, row.skuCode));
@@ -490,6 +502,16 @@ export const PutAway = () => {
               <Badge size={isMobile ? "xs" : "sm"} radius="md" variant="light" color="orange">
                 {isMobile ? `P: ${totalRemaining}` : `${totalRemaining} pending`}
               </Badge>
+              <Button
+                size="xs"
+                variant="light"
+                color="yellow"
+                leftIcon={<Eye size={14} />}
+                onClick={() => setIsPendingModalOpen(true)}
+                disabled={tasks.length === 0}
+              >
+                View
+              </Button>
             </Group>
           }
         >
@@ -505,6 +527,16 @@ export const PutAway = () => {
                 <Badge size="xs" radius="md" variant="light" color="orange">
                   Pending: {totalRemaining}
                 </Badge>
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="yellow"
+                  leftIcon={<Eye size={13} />}
+                  onClick={() => setIsPendingModalOpen(true)}
+                  disabled={tasks.length === 0}
+                >
+                  View
+                </Button>
               </Group>
             )}
             {!isMobile && (
@@ -937,6 +969,90 @@ export const PutAway = () => {
           </Stack>
         </OperationsPanel>
       </Box>
+
+      <Modal
+        opened={isPendingModalOpen}
+        onClose={() => setIsPendingModalOpen(false)}
+        title={`Pending Put Away · ${totalRemaining} units`}
+        centered
+        size="lg"
+        scrollAreaComponent={ScrollArea.Autosize}
+      >
+        {tasks.length > 0 ? (
+          <Stack gap="xs">
+            <Group justify="space-between" gap="xs">
+              <Text size="xs" c="dimmed">
+                {tasks.length} SKU{tasks.length === 1 ? "" : "s"} ready for put away
+              </Text>
+              <Badge color="orange" variant="light">
+                {totalRemaining} pending
+              </Badge>
+            </Group>
+
+            {tasks.map((task) => (
+              <Paper
+                key={task.productId}
+                radius="lg"
+                p="sm"
+                withBorder
+                style={{ background: "rgba(255,255,255,0.025)" }}
+              >
+                <Group justify="space-between" align="flex-start" gap="sm" wrap="nowrap">
+                  <Box style={{ minWidth: 0, flex: 1 }}>
+                    <Text ff="monospace" size="xs" fw={800} c="cyan.3">
+                      {task.skuCode}
+                    </Text>
+                    <Text size="sm" fw={700} mt={2} lineClamp={2}>
+                      {task.productName}
+                    </Text>
+                    {task.alias ? (
+                      <Text size="10px" c="dimmed" mt={3}>
+                        Alias: {task.alias}
+                      </Text>
+                    ) : null}
+                  </Box>
+
+                  <Stack gap={1} align="flex-end">
+                    <Text size="9px" fw={800} c="dimmed" tt="uppercase">
+                      Pending
+                    </Text>
+                    <Text ff="monospace" size="lg" fw={900} c="yellow.4">
+                      {task.remainingQuantity}
+                    </Text>
+                  </Stack>
+                </Group>
+
+                <SimpleGrid cols={2} spacing="xs" mt="sm">
+                  <Paper radius="md" p="xs" bg="rgba(255,255,255,0.025)">
+                    <Text size="9px" c="dimmed" tt="uppercase" fw={800}>
+                      Current Stock
+                    </Text>
+                    <Text size="xs" fw={700} mt={2}>
+                      {task.currentQuantity}
+                    </Text>
+                  </Paper>
+                  <Paper radius="md" p="xs" bg="rgba(255,255,255,0.025)">
+                    <Text size="9px" c="dimmed" tt="uppercase" fw={800}>
+                      Stored in Locations
+                    </Text>
+                    <Text size="xs" fw={700} c="cyan.3" mt={2}>
+                      {task.allocatedQuantity}
+                    </Text>
+                  </Paper>
+                </SimpleGrid>
+              </Paper>
+            ))}
+          </Stack>
+        ) : (
+          <Stack align="center" gap="xs" py="xl">
+            <CheckCircle2 size={32} color="var(--mantine-color-green-5)" />
+            <Text fw={700}>No pending items</Text>
+            <Text size="xs" c="dimmed">
+              All verified inward stock has been put away.
+            </Text>
+          </Stack>
+        )}
+      </Modal>
     </OperationsPage>
   );
 };
