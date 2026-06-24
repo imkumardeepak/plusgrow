@@ -11,5 +11,10 @@ namespace TallyERPWebApi.Model
         public int openingqnty { get; set; }
         public string hsncode { get; set; }
         public string partNo { get; set; }
+        /// <summary>
+        /// SKU code extracted from MAILINGNAME in Tally response.
+        /// Falls back to partNo if MAILINGNAME is not available.
+        /// </summary>
+        public string skuCode { get; set; }
     }
 }

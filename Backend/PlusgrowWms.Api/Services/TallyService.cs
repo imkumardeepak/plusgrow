@@ -382,68 +382,61 @@ public class TallyService
 			response.EnsureSuccessStatusCode();
 
 			var responseContent = await response.Content.ReadAsStringAsync();
-
-
 			responseContent = RemoveInvalidCharacters(responseContent);
-			// Parse the cleaned XML response
+
+			// Parse the XML response directly using XmlDocument for reliable attribute access
 			var xmlDocument = new XmlDocument();
 			xmlDocument.LoadXml(responseContent);
 
-			// Convert XML to JSON
-			string jsonData = JsonConvert.SerializeXmlNode(xmlDocument, Newtonsoft.Json.Formatting.Indented);
+			var stockItemNodes = xmlDocument.SelectNodes("//STOCKITEM");
+			var stockItems = new List<StockItem>();
 
-			// Deserialize JSON into a JObject for manipulation
-			var jsonObject = JsonConvert.DeserializeObject<JObject>(jsonData);
-			// Remove empty or invalid values recursively
-			RemoveEmptyValues(jsonObject);
-			// Navigate to the TALLYMESSAGE array
-			var tallyMessageArray = jsonObject["ENVELOPE"]?["BODY"]?["DATA"]?["COLLECTION"]?["STOCKITEM"];
-
-			// Convert the TALLYMESSAGE array to a formatted JSON string
-			string tallyMessageJson = JsonConvert.SerializeObject(tallyMessageArray, Newtonsoft.Json.Formatting.Indented);
-			var finaldata = JsonConvert.DeserializeObject<List<Dictionary<string, dynamic>>>(tallyMessageJson);
-
-			var voucherList = new List<StockItem>();
-
-			if (finaldata != null)
+			if (stockItemNodes == null)
 			{
-				foreach (var entry in finaldata)
-				{
-					// Safely access "HSNDETAILS.LIST" as a dictionary or null
-					var hsnData = entry.ContainsKey("HSNDETAILS.LIST") && entry["HSNDETAILS.LIST"] is JObject
-								  ? (JObject)entry["HSNDETAILS.LIST"]
-								  : null;
-
-					// Safely access nested properties for alias
-					string alias = "NA";
-					if (entry.ContainsKey("LANGUAGENAME.LIST") && entry["LANGUAGENAME.LIST"] is JObject languageNameList &&
-						languageNameList.ContainsKey("NAME.LIST") && languageNameList["NAME.LIST"] is JObject nameList &&
-						nameList.ContainsKey("NAME") && nameList["NAME"] is JArray names && names.Count > 1)
-					{
-						alias = names[1]?.ToString() ?? "NA";
-					}
-
-					// Create the StockItem object
-					var voucher = new StockItem
-					{
-						name = entry.ContainsKey("@NAME") ? entry["@NAME"]?.ToString() ?? "NA" : "NA",
-						GUID = entry.ContainsKey("GUID") ? entry["GUID"]?.ToString() ?? "NA" : "NA",
-						openingrate = entry.ContainsKey("OPENINGRATE") && entry["OPENINGRATE"] != null
-							 ? Convert.ToDouble(ConvertToInt(entry["OPENINGRATE"].ToString())) : 0,
-						openingqnty = entry.ContainsKey("OPENINGBALANCE") && entry["OPENINGBALANCE"] != null
-							 ? ExtractNumericPart(entry["OPENINGBALANCE"].ToString()) : 0,
-						category = RemoveJunkCharacters(entry.ContainsKey("PARENT") ? entry["PARENT"]?.ToString() ?? "NA" : "NA"),
-						unit = entry.ContainsKey("BASEUNITS") ? entry["BASEUNITS"]?.ToString() ?? "NA" : "NA",
-						hsncode = hsnData?.ContainsKey("HSNCODE") == true ? hsnData["HSNCODE"]?.ToString() ?? "NA" : "NA",
-						alias = alias,
-						partNo = entry.ContainsKey("PARTNO") ? entry["PARTNO"]?.ToString() ?? "NA" : "NA",
-					};
-
-					voucherList.Add(voucher);
-				}
+				_logger.LogWarning("No STOCKITEM nodes found in Tally response.");
+				return stockItems;
 			}
 
-			return voucherList;
+			foreach (XmlNode node in stockItemNodes)
+			{
+				// NAME attribute on STOCKITEM element = product name
+				var productName = node.Attributes?["NAME"]?.Value ?? "NA";
+
+				// MAILINGNAME.LIST > MAILINGNAME = SKU code
+				var mailingNameNode = node.SelectSingleNode("MAILINGNAME.LIST/MAILINGNAME");
+				var skuCode = mailingNameNode?.InnerText?.Trim() ?? "";
+
+				// LANGUAGENAME.LIST > NAME.LIST > NAME = product name (alternative)
+				// Some items may have multiple NAME entries; first one is the primary name
+				var languageNameNode = node.SelectSingleNode("LANGUAGENAME.LIST/NAME.LIST/NAME");
+				var languageName = languageNameNode?.InnerText?.Trim() ?? "";
+
+				// Use @NAME attribute as the primary name, fallback to language name
+				var finalName = !string.IsNullOrWhiteSpace(productName) && productName != "NA"
+					? productName
+					: languageName;
+
+				// For backward compatibility, also try old fields if present via JSON fallback
+				// But primarily use the new format
+				var stockItem = new StockItem
+				{
+					name = RemoveJunkCharacters(finalName),
+					skuCode = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA",
+					partNo = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA",
+					alias = "NA",
+					GUID = "NA",
+					unit = "NA",
+					category = "NA",
+					openingrate = 0,
+					openingqnty = 0,
+					hsncode = "NA",
+				};
+
+				stockItems.Add(stockItem);
+			}
+
+			_logger.LogInformation("Parsed {Count} stock items from Tally response.", stockItems.Count);
+			return stockItems;
 		}
 		catch (Exception ex)
 		{

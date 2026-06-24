@@ -67,16 +67,17 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
 
     return tallyItems
       .filter(t => {
-        const pNo = (t.partNo || "").trim().toLowerCase();
-        return pNo !== "" && pNo !== "na";
+        // Use skuCode (from MAILINGNAME) first, fallback to partNo
+        const code = (t.skuCode || t.partNo || "").trim().toLowerCase();
+        return code !== "" && code !== "na";
       })
       .map(t => {
-        const partNoNorm = (t.partNo || "").trim().toLowerCase();
-        const matchedProduct = skuMap.get(partNoNorm) ?? null;
+        const code = (t.skuCode || t.partNo || "").trim().toLowerCase();
+        const matchedProduct = skuMap.get(code) ?? null;
 
         return {
           tallyName: t.name || "",
-          tallyPartNo: t.partNo || "",
+          tallyPartNo: t.skuCode || t.partNo || "",
           tallyAlias: t.alias || "",
           tallyCategory: t.category || "",
           tallyUnit: t.unit || "",

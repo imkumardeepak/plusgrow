@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ExternalLink,
   Factory,
+  FileSpreadsheet,
   FileText,
   IndianRupee,
   MapPin,
@@ -70,8 +71,9 @@ import { EmptyInline, Info, MasterLink, MetricLabel, ReferenceLink } from "./Sto
 import { StockCheckHistoryMode } from "./StockCheck/components/StockCheckHistoryMode";
 import { StockVerifyMode } from "./StockCheck/components/StockVerifyMode";
 import { TallyDifferenceMode } from "./StockCheck/components/TallyDifferenceMode";
+import { ExcelStockCheckMode } from "./StockCheck/components/ExcelStockCheckMode";
 
-type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff";
+type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff" | "excel-stock-check";
 type CheckSessionStatus = "idle" | "running" | "paused";
 type StockCheckReportStatus = "PAUSED" | "COMPLETED";
 type StockCheckDraft = {
@@ -223,6 +225,7 @@ export const StockCheck = memo(function StockCheck({
       {activeMode === "product" && <ProductCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "history" && <StockCheckHistoryMode onBack={handleBack} isMobile={!!isMobile} onResume={handleResumePausedCheck} />}
       {activeMode === "tally-diff" && <TallyDifferenceMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "excel-stock-check" && <ExcelStockCheckMode onBack={handleBack} isMobile={!!isMobile} />}
     </>
   );
 });
@@ -315,6 +318,14 @@ function StockCheckHub({
         description: "Reconcile Master Products with Tally ERP to find missing or unmapped SKUs.",
         color: "rgba(250, 82, 82, 0.8)",
         gradient: "linear-gradient(135deg, rgba(250,82,82,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+      },
+      {
+        mode: "excel-stock-check",
+        icon: FileSpreadsheet,
+        title: "Stock Check by Excel",
+        description: "Upload Excel with SKU & Qty, compare with WMS stock, and export the variance report.",
+        color: "rgba(52, 211, 153, 0.8)",
+        gradient: "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(15,23,42,0.6) 100%)",
       },
       {
         href: "/audit-logs",
