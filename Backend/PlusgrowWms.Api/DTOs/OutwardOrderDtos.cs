@@ -21,6 +21,7 @@ public class OutwardOrderDto
     public int Quantity { get; set; }
     public decimal? Mrp { get; set; }
     public int PickedQuantity { get; set; }
+    public int PackedQuantity { get; set; }
     public int PendingQuantity { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
@@ -112,6 +113,11 @@ public class BulkDirectOutwardPickDto
 public class DispatchOutwardOrderDto
 {
     public string? TrackingNumber { get; set; }
+}
+
+public class UpdatePackingQuantityDto
+{
+    public int Quantity { get; set; } = 1;
 }
 
 public class DispatchSalesOrderResultDto

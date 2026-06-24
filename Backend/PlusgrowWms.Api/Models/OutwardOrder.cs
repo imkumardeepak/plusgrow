@@ -31,6 +31,9 @@ public class OutwardOrder
     [Column("picked_quantity")]
     public int PickedQuantity { get; set; }
 
+    [Column("packed_quantity")]
+    public int PackedQuantity { get; set; }
+
     [Column("status")]
     public string Status { get; set; } = "Open";
 

@@ -425,6 +425,7 @@ export interface OutwardOrder {
   quantity: number;
   mrp?: number | null;
   pickedQuantity: number;
+  packedQuantity: number;
   pendingQuantity: number;
   status: "Open" | "Picking" | "Picked" | "Packed" | "Dispatched" | "Canceled";
   notes?: string | null;
@@ -1453,6 +1454,12 @@ export const outwardOrdersApi = {
   markPacked: async (id: number): Promise<OutwardOrder> => {
     const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/mark-packed`);
     if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  updatePackingQuantity: async (id: number, quantity: number): Promise<OutwardOrder> => {
+    const response = await api.post<ApiResponse<OutwardOrder>>(`/outwardorders/${id}/pack`, { quantity });
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating packed quantity');
     return response.data.data!;
   },
 

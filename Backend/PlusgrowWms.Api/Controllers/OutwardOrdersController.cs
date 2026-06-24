@@ -1102,6 +1102,10 @@ public class OutwardOrdersController : BaseController
         if (order.PickedQuantity < order.Quantity)
             return BadRequest<OutwardOrderDto>("Order must be fully picked before it can be packed");
 
+        if (order.PackedQuantity < order.PickedQuantity)
+            return BadRequest<OutwardOrderDto>(
+                $"Scan all picked units before completing packing. Packed {order.PackedQuantity} of {order.PickedQuantity}.");
+
         if (order.Status != "Packed")
         {
             order.Status = "Packed";
@@ -1134,6 +1138,46 @@ public class OutwardOrdersController : BaseController
         return Success(response, "Order marked as packed");
     }
 
+    [HttpPost("{id}/pack")]
+    public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> UpdatePackingQuantity(
+        int id,
+        [FromBody] UpdatePackingQuantityDto dto)
+    {
+        var order = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (order == null)
+            return NotFound<OutwardOrderDto>("Outward order not found");
+
+        if (order.Status == "Dispatched")
+            return BadRequest<OutwardOrderDto>("Dispatched orders cannot be packed");
+
+        if (order.Status == "Packed")
+            return BadRequest<OutwardOrderDto>("This item is already packed");
+
+        if (order.Status == "Canceled" || order.SalesOrder?.Status == "Canceled")
+            return BadRequest<OutwardOrderDto>("Canceled orders cannot be packed");
+
+        if (order.PickedQuantity < order.Quantity)
+            return BadRequest<OutwardOrderDto>("Order must be fully picked before it can be packed");
+
+        var requestedQuantity = dto.Quantity <= 0 ? 1 : dto.Quantity;
+        var remainingQuantity = Math.Max(order.PickedQuantity - order.PackedQuantity, 0);
+        if (remainingQuantity == 0)
+            return BadRequest<OutwardOrderDto>("All picked units are already scanned. Save packing to continue.");
+
+        var packedNow = Math.Min(requestedQuantity, remainingQuantity);
+        order.PackedQuantity += packedNow;
+        order.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        await _context.SaveChangesAsync();
+
+        return Success(
+            MapOrder(order),
+            $"Packed quantity updated to {order.PackedQuantity} of {order.PickedQuantity}");
+    }
+
     [HttpPost("{id}/short-pack")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> ShortPack(int id, [FromBody] ShortPackDto dto)
     {
@@ -1156,6 +1200,10 @@ public class OutwardOrdersController : BaseController
 
         if (dto.PackedQuantity > order.PickedQuantity)
             return BadRequest<OutwardOrderDto>("Packed quantity cannot exceed picked quantity");
+
+        if (dto.PackedQuantity > order.PackedQuantity)
+            return BadRequest<OutwardOrderDto>(
+                $"Only {order.PackedQuantity} units were scanned for packing. Scan the remaining units first.");
 
         if (dto.PackedQuantity == order.PickedQuantity)
             return BadRequest<OutwardOrderDto>("Use the standard 'Mark Packed' operation for full quantities");
@@ -1213,6 +1261,7 @@ public class OutwardOrdersController : BaseController
         {
             order.Status = "Canceled";
             order.PickedQuantity = 0;
+            order.PackedQuantity = 0;
             order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? remarkLine : $"{order.Notes}\n{remarkLine}";
         }
         else
@@ -1220,6 +1269,7 @@ public class OutwardOrdersController : BaseController
             order.Status = "Packed";
             order.Quantity = dto.PackedQuantity;
             order.PickedQuantity = dto.PackedQuantity;
+            order.PackedQuantity = dto.PackedQuantity;
             order.PackedAt = now;
             order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? remarkLine : $"{order.Notes}\n{remarkLine}";
         }
@@ -1327,7 +1377,9 @@ public class OutwardOrdersController : BaseController
         if (orders.Count == 0)
             return NotFound<DispatchSalesOrderResultDto>("Sales order items not found");
 
-        var pendingOrders = orders.Where(x => x.Status != "Dispatched").ToList();
+        var pendingOrders = orders
+            .Where(x => x.Status != "Dispatched" && x.Status != "Canceled")
+            .ToList();
         if (pendingOrders.Count == 0)
             return BadRequest<DispatchSalesOrderResultDto>("Sales order is already fully dispatched");
 
@@ -1884,22 +1936,24 @@ public class OutwardOrdersController : BaseController
             return;
         }
 
-        if (items.All(item => item.Status == "Dispatched"))
+        var activeItems = items.Where(item => item.Status != "Canceled").ToList();
+
+        if (activeItems.All(item => item.Status == "Dispatched"))
         {
             header.Status = "Dispatched";
             header.DispatchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         }
-        else if (items.All(item => item.Status == "Packed"))
+        else if (activeItems.All(item => item.Status == "Packed"))
         {
             header.Status = "Packed";
             header.DispatchedAt = null;
         }
-        else if (items.All(item => item.Status == "Picked" || item.Status == "Packed"))
+        else if (activeItems.All(item => item.Status == "Picked" || item.Status == "Packed"))
         {
             header.Status = "Picked";
             header.DispatchedAt = null;
         }
-        else if (items.Any(item => item.Status == "Picking" || item.Status == "Picked" || item.PickedQuantity > 0))
+        else if (activeItems.Any(item => item.Status == "Picking" || item.Status == "Picked" || item.PickedQuantity > 0))
         {
             header.Status = "Picking";
             header.DispatchedAt = null;
@@ -1938,6 +1992,7 @@ public class OutwardOrdersController : BaseController
             Quantity = row.Quantity,
             Mrp = row.Mrp,
             PickedQuantity = row.PickedQuantity,
+            PackedQuantity = row.PackedQuantity,
             PendingQuantity = Math.Max(row.Quantity - row.PickedQuantity, 0),
             Status = row.Status,
             Notes = row.Notes,

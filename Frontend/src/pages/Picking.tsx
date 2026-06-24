@@ -9,8 +9,8 @@ import React, {
 import { useNavigate } from "react-router-dom";
 import { Text, TextInput, Select, SegmentedControl, ActionIcon, Table, ScrollArea, Modal, Textarea } from "@mantine/core";
 import {
-  ArrowRight,
   ArrowLeft,
+  ArrowRight,
   AlertTriangle,
   ClipboardList,
   Package,
@@ -27,6 +27,18 @@ import {
   OperationsPage,
   OperationsPanel,
 } from "../components/organisms/Operations/OperationsShell";
+import {
+  CompactItemRow,
+  CompactItems,
+  ExceptionNotice,
+  OutboundQueue,
+  OutboundQueueRow,
+  OutboundSplitLayout,
+  OutboundStageNav,
+  ScannerDock,
+  TaskInstruction,
+  TaskWorkspace,
+} from "../components/organisms/Operations/OutboundTaskUI";
 import {
   OutwardOrder,
   Product,
@@ -322,6 +334,15 @@ export const Picking = memo(function Picking() {
       ? Math.round((readyOrders / (activeOrderCount + readyOrders)) * 100)
       : 0;
   const isFullyPicked = activeGroup ? activeGroup.pendingQuantity === 0 : false;
+  const completedItemCount = activeGroup
+    ? activeGroup.items.filter((item) => item.pendingQuantity === 0).length
+    : 0;
+  const activeItemIndex = activeGroup && activeItem
+    ? activeGroup.items.findIndex((item) => item.id === activeItem.id)
+    : -1;
+  const activeOrderProgress = activeGroup && activeGroup.totalQuantity > 0
+    ? Math.round((activeGroup.totalPickedQuantity / activeGroup.totalQuantity) * 100)
+    : 0;
 
   useEffect(() => {
     if (!activeGroup) return;
@@ -634,7 +655,8 @@ export const Picking = memo(function Picking() {
       icon={Package}
       hideHeader
     >
-      <div className="mb-2">
+      <OutboundStageNav active="picking" queueCount={openOrderGroups.length} compactLabel="Active" />
+      <div className="mb-2 rounded-xl border border-white/10 bg-white/[0.025] p-1">
         <SegmentedControl
           value={pickingMode}
           onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick" | "consolidated")}
@@ -644,8 +666,8 @@ export const Picking = memo(function Picking() {
             { label: "Direct Pick", value: "direct_pick" },
           ]}
           fullWidth
-          size="md"
-          radius="md"
+          size="sm"
+          radius="lg"
         />
       </div>
 
@@ -822,7 +844,7 @@ export const Picking = memo(function Picking() {
             </div>
           )}
         </OperationsPanel>
-      ) : (
+      ) : false ? (
 
         <div className={isMobile ? "space-y-2" : "grid gap-2.5 xl:grid-cols-[0.82fr_1.18fr]"}>
           {(!isMobile || !activeGroup) && (
@@ -1237,6 +1259,154 @@ export const Picking = memo(function Picking() {
             </OperationsPanel>
           )}
         </div>
+      ) : (
+        <OutboundSplitLayout
+          showQueueOnMobile={!activeGroup}
+          queue={
+            <OutboundQueue
+              title="Sales Orders"
+              count={openOrderGroups.length}
+              searchValue={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search order, customer, SKU…"
+              emptyTitle="No orders waiting"
+              emptyDescription="Open sales orders with pending quantity will appear here."
+            >
+              {openOrderGroups.map((order) => (
+                <OutboundQueueRow
+                  key={order.salesOrderId}
+                  active={order.salesOrderId === selectedSalesOrderId}
+                  orderNumber={order.orderNumber}
+                  customerName={order.customerName}
+                  status={order.status}
+                  primaryMetric={`${order.totalPickedQuantity}/${order.totalQuantity}`}
+                  secondaryMetric={`${order.items.length} lines`}
+                  onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
+                />
+              ))}
+            </OutboundQueue>
+          }
+          workspace={
+            activeGroup && activeItem ? (
+              <TaskWorkspace
+                backLabel="Back to picking queue"
+                onBack={() => setSelectedSalesOrderId(null)}
+                orderNumber={activeGroup.orderNumber}
+                customerName={activeGroup.customerName}
+                status={isFullyPicked ? "Picked" : "Picking"}
+                progressLabel={`${completedItemCount} of ${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity} of ${activeGroup.totalQuantity} units`}
+                progressValue={activeOrderProgress}
+                meta={
+                  <span className="font-mono text-xs font-black tabular-nums text-brand-200">
+                    {activeItem.pendingQuantity} left
+                  </span>
+                }
+                bottomDock={
+                  isFullyPicked ? (
+                    <Button size="md" fullWidth color="green" onClick={() => navigate("/packing")}>
+                      Continue to Packing
+                    </Button>
+                  ) : (
+                    <ScannerDock
+                      label={isLocationLocked ? "Scan Product" : "Scan Location"}
+                      value={isLocationLocked ? scanCode : locationScanCode}
+                      onChange={isLocationLocked ? setScanCode : setLocationScanCode}
+                      onSubmit={() => {
+                        if (isLocationLocked) void handleScanSubmit();
+                        else handleLocationSubmit();
+                      }}
+                      actionLabel={isLocationLocked ? "Pick" : "Set"}
+                      placeholder={isLocationLocked ? "Scan SKU, alias, or carton QR…" : "Scan bin or location…"}
+                      disabled={isPicking}
+                      loading={isPicking}
+                      inputRef={isLocationLocked ? scanInputRef : locationInputRef}
+                      secondaryAction={
+                        isLocationLocked ? (
+                          <button
+                            type="button"
+                            onClick={handleChangeLocation}
+                            className="text-[10px] font-bold text-brand-300 hover:text-brand-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                          >
+                            Change {lastLocationCode}
+                          </button>
+                        ) : null
+                      }
+                    />
+                  )
+                }
+              >
+                <TaskInstruction
+                  eyebrow={isLocationLocked ? "Next: Scan Product" : "Next: Confirm Location"}
+                  title={isLocationLocked ? activeItem.productName : locationSummary}
+                  description={
+                    isLocationLocked
+                      ? `${activeItem.skuCode}${activeItem.alias ? ` / ${activeItem.alias}` : ""}`
+                      : `Go to the allotted location for ${activeItem.productName}.`
+                  }
+                  tone={scanTone === "error" ? "danger" : scanTone === "success" ? "success" : "brand"}
+                  icon={isLocationLocked ? Package : ScanLine}
+                  metrics={[
+                    { label: "Location", value: isLocationLocked ? lastLocationCode : locationSummary, emphasis: true },
+                    { label: "Need", value: activeItem.pendingQuantity, emphasis: true },
+                    { label: "Picked", value: `${activeItem.pickedQuantity}/${activeItem.quantity}` },
+                    { label: "SO MRP", value: formatMrp(activeItem.mrp) },
+                  ]}
+                />
+
+                {scanTone === "error" ? (
+                  <div className="mt-2">
+                    <ExceptionNotice message={lastScanMessage} />
+                  </div>
+                ) : (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={`mt-2 rounded-xl border px-3 py-2 text-xs ${
+                      scanTone === "success"
+                        ? "border-green-500/20 bg-green-500/[0.06] text-green-200"
+                        : "border-white/10 bg-white/[0.025] text-neutral-400"
+                    }`}
+                  >
+                    {lastScanMessage}
+                    {lastScanCode ? <span className="ml-1 font-mono text-neutral-500">({lastScanCode})</span> : null}
+                  </div>
+                )}
+
+                <div className="mt-2 flex justify-end">
+                  <Button
+                    variant="subtle"
+                    color="yellow"
+                    size="xs"
+                    onClick={() => setIsShortCloseModalOpen(true)}
+                  >
+                    Exception: Short Close
+                  </Button>
+                </div>
+
+                <CompactItems title="Order Lines" count={activeGroup.items.length}>
+                  <div className="space-y-1">
+                    {activeGroup.items.map((item) => (
+                      <CompactItemRow
+                        key={item.id}
+                        active={item.id === activeItem.id}
+                        done={item.pendingQuantity === 0}
+                        productName={item.productName}
+                        skuCode={`${item.skuCode}${item.alias ? ` / ${item.alias}` : ""}`}
+                        quantity={item.pendingQuantity === 0 ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
+                        location={getLocationSummary(item.productId)}
+                        onClick={() => setActiveItemId(item.id)}
+                      />
+                    ))}
+                  </div>
+                </CompactItems>
+              </TaskWorkspace>
+            ) : (
+              <div className="hidden min-h-[560px] place-items-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-sm text-neutral-500 xl:grid">
+                Select an order to begin picking.
+              </div>
+            )
+          }
+        />
       )}
 
       <Modal
