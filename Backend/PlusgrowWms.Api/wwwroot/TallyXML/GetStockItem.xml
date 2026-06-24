@@ -14,6 +14,7 @@
                         <TYPE>StockItem</TYPE>
                         <NATIVEMETHOD>Name</NATIVEMETHOD>
                         <NATIVEMETHOD>MailingName</NATIVEMETHOD>
+                        <NATIVEMETHOD>ClosingBalance</NATIVEMETHOD>
                     </COLLECTION>
 
                 </TDLMESSAGE>

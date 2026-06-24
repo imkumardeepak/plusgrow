@@ -406,6 +406,11 @@ public class TallyService
 				var mailingNameNode = node.SelectSingleNode("MAILINGNAME.LIST/MAILINGNAME");
 				var skuCode = mailingNameNode?.InnerText?.Trim() ?? "";
 
+				// CLOSINGBALANCE = stock quantity (e.g. "100 Nos" or "-5 Nos")
+				var closingBalanceNode = node.SelectSingleNode("CLOSINGBALANCE");
+				var closingBalanceRaw = closingBalanceNode?.InnerText?.Trim() ?? "0";
+				decimal closingBalance = ExtractDecimal(closingBalanceRaw);
+
 				// LANGUAGENAME.LIST > NAME.LIST > NAME = product name (alternative)
 				// Some items may have multiple NAME entries; first one is the primary name
 				var languageNameNode = node.SelectSingleNode("LANGUAGENAME.LIST/NAME.LIST/NAME");
@@ -421,7 +426,8 @@ public class TallyService
 				var stockItem = new StockItem
 				{
 					name = RemoveJunkCharacters(finalName),
-					skuCode = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA"
+					skuCode = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA",
+					closingBalance = closingBalance
 				};
 
 				stockItems.Add(stockItem);
@@ -449,5 +455,12 @@ public class TallyService
 		if (string.IsNullOrWhiteSpace(value)) return 0;
 		var match = Regex.Match(value, @"-?\d+");
 		return match.Success && int.TryParse(match.Value, out var num) ? num : 0;
+	}
+
+	private decimal ExtractDecimal(string value)
+	{
+		if (string.IsNullOrWhiteSpace(value)) return 0m;
+		var match = Regex.Match(value, @"-?\d+(\.\d+)?");
+		return match.Success && decimal.TryParse(match.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var num) ? num : 0m;
 	}
 }
