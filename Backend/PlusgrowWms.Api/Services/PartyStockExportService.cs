@@ -36,6 +36,16 @@ public class PartyStockExportService : IPartyStockExportService
 
     public async Task ExportAllAsync(CancellationToken cancellationToken = default)
     {
+        // Export a lightweight SKU + Inventory Excel for internal use (same Dropbox folder)
+        try
+        {
+            await ExportSkuInventoryAsync(@"C:\Users\PlusGrow\Dropbox\Stocks - Self", "Stock.xlsx", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SKU Inventory export failed -> C:\\Users\\PlusGrow\\Dropbox\\Stocks - Self\\Stock.xlsx");
+        }
+
         // Explicitly export products with ownership "Self" to the specified Dropbox folder
         try
         {
@@ -176,6 +186,71 @@ public class PartyStockExportService : IPartyStockExportService
         _logger.LogInformation(
             "Party stock export complete: {Count} product(s) for {PartyName} written to {FullPath}.",
             products.Count, partyName, fullPath);
+    }
+
+    /// <summary>
+    /// Exports a simple 2-column Excel (SKU, Inventory) with current stock from the DB.
+    /// </summary>
+    private async Task ExportSkuInventoryAsync(string folderPath, string fileName, CancellationToken cancellationToken)
+    {
+        var products = await _context.Products
+            .AsNoTracking()
+            .Where(x => x.Sku != null && x.Sku != "")
+            .OrderBy(x => x.Sku)
+            .Select(x => new { x.Id, x.Sku })
+            .ToListAsync(cancellationToken);
+
+        var productIds = products.Select(x => x.Id).ToList();
+        var quantities = await _context.ProductQuantities
+            .AsNoTracking()
+            .Where(x => productIds.Contains(x.ProductId))
+            .ToDictionaryAsync(x => x.ProductId, x => x.CurrentQuantity, cancellationToken);
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Stock");
+
+        // Headers
+        var headerCells = new[] { "SKU", "Inventory" };
+        for (var col = 0; col < headerCells.Length; col++)
+        {
+            var cell = worksheet.Cell(1, col + 1);
+            cell.Value = headerCells[col];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.Teal;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        // Data rows
+        var row = 2;
+        foreach (var product in products)
+        {
+            quantities.TryGetValue(product.Id, out var stockQty);
+            worksheet.Cell(row, 1).Value = product.Sku;
+            worksheet.Cell(row, 2).Value = stockQty;
+            row++;
+        }
+
+        // Formatting
+        worksheet.Columns().AdjustToContents();
+        var maxRow = row > 2 ? row - 1 : 2;
+        var tableRange = worksheet.Range(1, 1, maxRow, 2);
+        tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        tableRange.SetAutoFilter();
+
+        // Save via temp file to avoid Dropbox picking up partial writes
+        Directory.CreateDirectory(folderPath);
+        var localTempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TempExcelExports");
+        Directory.CreateDirectory(localTempFolder);
+
+        var tempPath = Path.Combine(localTempFolder, $"{Guid.NewGuid():N}.xlsx");
+        workbook.SaveAs(tempPath);
+
+        var fullPath = Path.Combine(folderPath, fileName);
+        File.Move(tempPath, fullPath, overwrite: true);
+
+        _logger.LogInformation("SKU Inventory export complete: {Count} product(s) written to {FullPath}.", products.Count, fullPath);
     }
 
     private static string EnsureXlsxExtension(string fileName) =>

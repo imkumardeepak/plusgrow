@@ -251,12 +251,13 @@ else
     RecurringJob.RemoveIfExists("tally-sync-every-10-min");
 }
 
-// Party stock export -> Dropbox, every 30 minutes. Which parties actually export (and to where)
+// Party stock export -> Dropbox, every 6 hours. Which parties actually export (and to where)
 // is controlled per party on the Parties page, so the job is always scheduled.
 RecurringJob.RemoveIfExists("party-stock-export-every-10-min"); // Remove the old 10-min job
+RecurringJob.RemoveIfExists("party-stock-export-every-30-min"); // Remove the old 30-min job
 RecurringJob.AddOrUpdate<IPartyStockExportService>(
-    "party-stock-export-every-30-min",
+    "party-stock-export-every-6-hours",
     service => service.ExportAllAsync(CancellationToken.None),
-    "*/30 * * * *"); // Every 30 minutes
+    "0 */6 * * *"); // Every 6 hours (00:00, 06:00, 12:00, 18:00)
 
 app.Run();
