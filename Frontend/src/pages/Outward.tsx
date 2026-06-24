@@ -107,7 +107,7 @@ export const Outward = memo(function Outward() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>("open");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<SalesOrderRecord | null>(null);
@@ -701,12 +701,12 @@ export const Outward = memo(function Outward() {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value as OutwardStatusFilter)}
               data={[
-                { value: "all", label: "All" },
                 { value: "open", label: "Open" },
                 { value: "picking", label: "Picking" },
                 { value: "packed", label: "Packed" },
                 { value: "dispatched", label: "Done" },
                 { value: "canceled", label: "Canceled" },
+                { value: "all", label: "All" },
               ]}
             />
             <TextInput
