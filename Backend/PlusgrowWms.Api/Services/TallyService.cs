@@ -421,15 +421,7 @@ public class TallyService
 				var stockItem = new StockItem
 				{
 					name = RemoveJunkCharacters(finalName),
-					skuCode = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA",
-					partNo = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA",
-					alias = "NA",
-					GUID = "NA",
-					unit = "NA",
-					category = "NA",
-					openingrate = 0,
-					openingqnty = 0,
-					hsncode = "NA",
+					skuCode = !string.IsNullOrWhiteSpace(skuCode) ? skuCode : "NA"
 				};
 
 				stockItems.Add(stockItem);

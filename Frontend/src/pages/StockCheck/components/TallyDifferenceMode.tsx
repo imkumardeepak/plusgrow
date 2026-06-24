@@ -15,11 +15,7 @@ type FilterType = "all" | "matched" | "unmatched";
 
 interface ComparisonRow {
   tallyName: string;
-  tallyPartNo: string;
-  tallyAlias: string;
-  tallyCategory: string;
-  tallyUnit: string;
-  tallyOpeningQty: string;
+  tallySkuCode: string;
   wmsSku: string | null;
   wmsProductName: string | null;
   isMatched: boolean;
@@ -67,21 +63,16 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
 
     return tallyItems
       .filter(t => {
-        // Use skuCode (from MAILINGNAME) first, fallback to partNo
-        const code = (t.skuCode || t.partNo || "").trim().toLowerCase();
+        const code = (t.skuCode || "").trim().toLowerCase();
         return code !== "" && code !== "na";
       })
       .map(t => {
-        const code = (t.skuCode || t.partNo || "").trim().toLowerCase();
+        const code = (t.skuCode || "").trim().toLowerCase();
         const matchedProduct = skuMap.get(code) ?? null;
 
         return {
           tallyName: t.name || "",
-          tallyPartNo: t.skuCode || t.partNo || "",
-          tallyAlias: t.alias || "",
-          tallyCategory: t.category || "",
-          tallyUnit: t.unit || "",
-          tallyOpeningQty: t.openingqnty || "0",
+          tallySkuCode: t.skuCode || "",
           wmsSku: matchedProduct?.sku ?? null,
           wmsProductName: matchedProduct?.name ?? null,
           isMatched: matchedProduct !== null,
@@ -105,10 +96,9 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
       const lowerSearch = search.toLowerCase();
       rows = rows.filter(r =>
         r.tallyName.toLowerCase().includes(lowerSearch) ||
-        r.tallyPartNo.toLowerCase().includes(lowerSearch) ||
+        r.tallySkuCode.toLowerCase().includes(lowerSearch) ||
         (r.wmsSku || "").toLowerCase().includes(lowerSearch) ||
-        (r.wmsProductName || "").toLowerCase().includes(lowerSearch) ||
-        r.tallyCategory.toLowerCase().includes(lowerSearch)
+        (r.wmsProductName || "").toLowerCase().includes(lowerSearch)
       );
     }
 
@@ -170,11 +160,9 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
                 <Table.Tr>
                   <Table.Th style={{ width: 50, textAlign: "center" }}>Match</Table.Th>
                   <Table.Th>Tally Name</Table.Th>
-                  <Table.Th>Tally Part No.</Table.Th>
+                  <Table.Th>Tally SKU Code</Table.Th>
                   <Table.Th>WMS SKU</Table.Th>
                   <Table.Th>WMS Product Name</Table.Th>
-                  <Table.Th>Category</Table.Th>
-                  <Table.Th style={{ textAlign: "right" }}>Opening Qty</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -204,12 +192,7 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
                         )}
                       </Table.Td>
                       <Table.Td>
-                        <Stack gap={2}>
-                          <Text size="xs" fw={500} c="white">{row.tallyName}</Text>
-                          {row.tallyAlias && row.tallyAlias !== "NA" && (
-                            <Text size="10px" c="dimmed">{row.tallyAlias}</Text>
-                          )}
-                        </Stack>
+                        <Text size="xs" fw={500} c="white">{row.tallyName}</Text>
                       </Table.Td>
                       <Table.Td>
                         <Badge
@@ -217,7 +200,7 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
                           variant="outline"
                           size="sm"
                         >
-                          {row.tallyPartNo}
+                          {row.tallySkuCode}
                         </Badge>
                       </Table.Td>
                       <Table.Td>
@@ -234,17 +217,11 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
                           {row.wmsProductName || "—"}
                         </Text>
                       </Table.Td>
-                      <Table.Td>
-                        <Text size="xs" c="dimmed">{row.tallyCategory}</Text>
-                      </Table.Td>
-                      <Table.Td style={{ textAlign: "right" }}>
-                        <Text size="xs" fw={600}>{row.tallyOpeningQty}</Text>
-                      </Table.Td>
                     </Table.Tr>
                   ))
                 ) : (
                   <Table.Tr>
-                    <Table.Td colSpan={7}>
+                    <Table.Td colSpan={5}>
                       <Center p="xl">
                         <Text c="dimmed">No items to display.</Text>
                       </Center>
