@@ -496,6 +496,7 @@ export interface UpdateOutwardPickingDto {
   locationCode?: string;
   mrp?: number | null;
   importDate?: string | null;
+  mrpMismatchConfirmed?: boolean;
 }
 
 export interface DirectOutwardPickDto {

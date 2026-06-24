@@ -68,11 +68,12 @@ const parseStickerScan = (value: string): StickerScan => {
   const raw = value.trim();
   const parts = raw.split("#").map((part) => part.trim());
   
-  // Format is: <SKUCODE>#<QNTY>#<DATEOFIMPORT>#<INVOICENUMBER/PRICE>
+  // Format: <SKUCODE>#<QNTY>#<DATEOFIMPORT>#<PRICE>
+  // Example: 50-32150-41#1#JAN/2026#Rs.4,200.00
   const hasFullData = parts.length >= 4;
   
   const mrpText = hasFullData ? parts[3] : "";
-  const mrpMatch = mrpText.match(/[\d,.]+/);
+  const mrpMatch = mrpText.match(/\d[\d,]*(?:\.\d+)?/);
   const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
 
   return {
@@ -333,7 +334,11 @@ export const Picking = memo(function Picking() {
   }, [activeGroup?.salesOrderId]);
 
   const handlePick = useCallback(
-    async (orderItem: OutwardOrder, scan: StickerScan) => {
+    async (
+      orderItem: OutwardOrder,
+      scan: StickerScan,
+      mrpMismatchConfirmed = false,
+    ) => {
       const normalizedLocation = locationScanCode.trim();
 
       try {
@@ -344,6 +349,7 @@ export const Picking = memo(function Picking() {
           locationCode: normalizedLocation,
           mrp: scan.mrp,
           importDate: scan.importDate,
+          mrpMismatchConfirmed,
         });
         setOrders((current) =>
           current.map((row) => (row.id === updated.id ? updated : row)),
@@ -484,7 +490,7 @@ export const Picking = memo(function Picking() {
     const { matchedItem, effectiveScan } = mrpMismatchScan;
     setMrpMismatchScan(null);
     setActiveItemId(matchedItem.id);
-    await handlePick(matchedItem, effectiveScan);
+    await handlePick(matchedItem, effectiveScan, true);
   };
 
   const handleMrpReject = () => {

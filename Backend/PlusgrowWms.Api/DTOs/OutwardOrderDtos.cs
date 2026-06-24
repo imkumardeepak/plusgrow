@@ -77,6 +77,7 @@ public class UpdateOutwardPickingDto
     public string? LocationCode { get; set; }
     public decimal? Mrp { get; set; }
     public string? ImportDate { get; set; }
+    public bool MrpMismatchConfirmed { get; set; }
 }
 
 public class DirectOutwardPickDto

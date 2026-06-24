@@ -630,7 +630,10 @@ public class OutwardOrdersController : BaseController
             }
         }
 
-        if (dto.Mrp.HasValue && order.Mrp.HasValue && decimal.Round(dto.Mrp.Value, 2) != decimal.Round(order.Mrp.Value, 2))
+        if (dto.Mrp.HasValue &&
+            order.Mrp.HasValue &&
+            decimal.Round(dto.Mrp.Value, 2) != decimal.Round(order.Mrp.Value, 2) &&
+            !dto.MrpMismatchConfirmed)
         {
             return BadRequest<OutwardOrderDto>($"MRP mismatch. Sticker MRP Rs.{dto.Mrp.Value:N2} does not match sales order MRP Rs.{order.Mrp.Value:N2}");
         }
