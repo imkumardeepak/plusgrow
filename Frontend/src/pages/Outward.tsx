@@ -429,7 +429,9 @@ export const Outward = memo(function Outward() {
 
   const handleOrderProductSearchChange = (itemId: string, value: string) => {
     setProductSearchByItemId((current) => ({ ...current, [itemId]: value }));
+  };
 
+  const handleOrderProductSearchEnter = (itemId: string, value: string) => {
     const normalized = normalizeProductScan(value.split("#")[0]);
     if (!normalized) {
       updateOrderItem(itemId, { productId: 0, mrp: "" });
@@ -953,6 +955,11 @@ export const Outward = memo(function Outward() {
                         onChange={(event) =>
                           handleOrderProductSearchChange(item.id, event.currentTarget.value)
                         }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            handleOrderProductSearchEnter(item.id, event.currentTarget.value);
+                          }
+                        }}
                         error={
                           productSearchByItemId[item.id] && item.productId <= 0
                             ? "SKU or alias not found"

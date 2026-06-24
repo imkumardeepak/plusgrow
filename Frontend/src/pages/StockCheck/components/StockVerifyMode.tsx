@@ -149,18 +149,19 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
       quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
     const resolvedProductId = product?.id ?? quantityRow?.productId ?? null;
 
+    const resolvedSku = product?.sku
+      ? normalizeSku(product.sku)
+      : quantityRow?.skuCode
+        ? normalizeSku(quantityRow.skuCode)
+        : sku;
+
     try {
       setIsSearching(true);
       const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
-        poInvoicesApi.getAll({ search: sku, pageSize: 100 }),
-        productQuantitiesApi.getMovements(sku),
-        outwardOrdersApi.getSalesOrders({ search: sku, pageSize: 100 }),
+        poInvoicesApi.getAll({ search: resolvedSku, pageSize: 100 }),
+        productQuantitiesApi.getMovements(resolvedSku),
+        outwardOrdersApi.getSalesOrders({ search: resolvedSku, pageSize: 100 }),
       ]);
-      const resolvedSku = product?.sku
-        ? normalizeSku(product.sku)
-        : quantityRow?.skuCode
-          ? normalizeSku(quantityRow.skuCode)
-          : sku;
       const invoices = invoiceRows
         .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
         .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.id - a.id);

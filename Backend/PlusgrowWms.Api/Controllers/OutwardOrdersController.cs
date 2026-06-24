@@ -518,6 +518,86 @@ public class OutwardOrdersController : BaseController
         }
     }
 
+    [HttpPost("sales-orders/{id}/short-close")]
+    public async Task<ActionResult<ApiResponse<SalesOrderDto>>> ShortCloseSalesOrder(int id, [FromBody] ShortCloseSalesOrderDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<SalesOrderDto>("Remark is required for short closing");
+
+        var salesOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (salesOrder == null)
+            return NotFound<SalesOrderDto>("Sales order not found");
+
+        if (salesOrder.Status == "Dispatched" || salesOrder.Status == "Canceled")
+            return BadRequest<SalesOrderDto>($"Order is already {salesOrder.Status.ToLower()}");
+
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        
+        var remarkLine = $"[Short Closed: {dto.Remark.Trim()}]";
+        salesOrder.CancelRemark = string.IsNullOrWhiteSpace(salesOrder.CancelRemark) 
+            ? remarkLine 
+            : $"{salesOrder.CancelRemark}\n{remarkLine}";
+
+        foreach (var item in salesOrder.Items)
+        {
+            if (item.Status == "Dispatched" || item.Status == "Canceled")
+                continue;
+
+            if (item.PickedQuantity < item.Quantity)
+            {
+                if (item.PickedQuantity == 0)
+                {
+                    item.Status = "Canceled";
+                    item.Notes = string.IsNullOrWhiteSpace(item.Notes) ? remarkLine : $"{item.Notes}\n{remarkLine}";
+                }
+                else
+                {
+                    var originalQty = item.Quantity;
+                    item.Quantity = item.PickedQuantity;
+                    item.Status = "Picked";
+                    
+                    var itemRemark = $"[Original Qty: {originalQty}. Short Closed: {dto.Remark.Trim()}]";
+                    item.Notes = string.IsNullOrWhiteSpace(item.Notes) ? itemRemark : $"{item.Notes}\n{itemRemark}";
+                }
+                item.UpdatedAt = now;
+            }
+        }
+
+        salesOrder.UpdatedAt = now;
+        await _context.SaveChangesAsync();
+        
+        await UpdateSalesOrderStatusAsync(salesOrder.Id);
+        await _context.SaveChangesAsync();
+
+        var updatedOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        var response = MapSalesOrder(updatedOrder!);
+
+        await SendNotificationAsync(new RealtimeNotificationDto
+        {
+            Type = "sales_order.short_closed",
+            Title = "Sales order short-closed",
+            Message = $"{response.OrderNumber} was short-closed. Remark: {dto.Remark.Trim()}",
+            Severity = "warning",
+            Data = new Dictionary<string, object?>
+            {
+                ["orderId"] = response.Id,
+                ["orderNumber"] = response.OrderNumber,
+                ["remark"] = dto.Remark.Trim(),
+            },
+        });
+
+        return Success(response, "Sales order short-closed successfully and ready for packing");
+    }
+
     [HttpPost("{id}/pick")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> PickOrder(int id, [FromBody] UpdateOutwardPickingDto dto)
     {

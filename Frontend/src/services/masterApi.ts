@@ -315,6 +315,8 @@ export interface CreatePoInvoiceWithItemsDto {
   }>;
 }
 
+
+
 export interface ProductQuantityRecord {
   id: number;
   productId: number;
@@ -1438,6 +1440,12 @@ export const outwardOrdersApi = {
   consolidatedPick: async (data: ConsolidatedPickDto): Promise<ConsolidatedPickResult> => {
     const response = await api.post<ApiResponse<ConsolidatedPickResult>>('/outwardorders/consolidated-pick', data);
     if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  shortCloseSalesOrder: async (salesOrderId: number, remark: string): Promise<SalesOrderRecord> => {
+    const response = await api.post<ApiResponse<SalesOrderRecord>>(`/outwardorders/sales-orders/${salesOrderId}/short-close`, { remark });
+    if (!response.data.success) throw new Error(response.data.message || 'Error short closing sales order');
     return response.data.data!;
   },
 

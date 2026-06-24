@@ -61,6 +61,16 @@ public class PartyStockExportService : IPartyStockExportService
                 _logger.LogError(ex, "Party stock export failed for {PartyName} -> {FolderPath}", party.Name, party.ExportFolderPath);
             }
         }
+
+        // Explicitly export products with ownership "Self" to the specified Dropbox folder
+        try
+        {
+            await ExportPartyAsync("Self", @"C:\Users\PlusGrow\Dropbox\Stock - Self", "Self_Stock.xlsx", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Party stock export failed for Self -> C:\\Users\\PlusGrow\\Dropbox\\Stock - Self");
+        }
     }
 
     private async Task ExportPartyAsync(string rawPartyName, string folderPath, string? fileNameSetting, CancellationToken cancellationToken)

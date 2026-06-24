@@ -186,7 +186,6 @@ public class PoInvoicesController : BaseController
         };
 
         _context.PoInvoices.Add(entity);
-        await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
         await _context.SaveChangesAsync();
 
         var created = await _context.PoInvoices
@@ -264,8 +263,6 @@ public class PoInvoicesController : BaseController
                 RemainingAllocation = item.BilledQty,
                 LocationAllotted = false,
             });
-
-            await UpsertProductQuantityAsync(item.ProductId, item.BilledQty);
         }
 
         await _context.SaveChangesAsync();
@@ -331,24 +328,17 @@ public class PoInvoicesController : BaseController
         if (previouslyAllocatedQty > dto.BilledQty)
             return BadRequest<PoInvoiceDto>("Billed quantity cannot be reduced below already put-away quantity");
 
+        var isVerified = await _context.StockCheckReports.AnyAsync(r => 
+            r.CheckType == "INWARD_VERIFY" && r.Status == "COMPLETED" &&
+            r.ReferenceName.StartsWith(header.InvoiceNumber + " -"));
+        
+        if (isVerified)
+            return BadRequest<PoInvoiceDto>("PO invoice row cannot be updated after inward verification is complete");
+
         entity.PoInvoiceHeaderId = header.Id;
         entity.ProductId = dto.ProductId;
         entity.BilledQty = dto.BilledQty;
         entity.Mrp = dto.Mrp;
-
-        if (previousProductId != dto.ProductId)
-        {
-            await AdjustProductQuantityAsync(previousProductId, -previousBilledQty);
-            await UpsertProductQuantityAsync(dto.ProductId, dto.BilledQty);
-        }
-        else
-        {
-            var quantityDifference = dto.BilledQty - previousBilledQty;
-            if (quantityDifference != 0)
-            {
-                await AdjustProductQuantityAsync(dto.ProductId, quantityDifference);
-            }
-        }
 
         entity.RemainingAllocation = Math.Max(dto.BilledQty - previouslyAllocatedQty, 0);
         entity.LocationAllotted = entity.RemainingAllocation <= 0;
@@ -374,11 +364,15 @@ public class PoInvoicesController : BaseController
             return NotFound("PO invoice not found");
 
         var headerId = entity.PoInvoiceHeaderId;
-        var hasPutAwayQuantity = entity.RemainingAllocation < entity.BilledQty || entity.LocationAllotted;
-        if (hasPutAwayQuantity)
-            return BadRequest("PO invoice row cannot be deleted after put-away has started");
 
-        await AdjustProductQuantityAsync(entity.ProductId, -entity.BilledQty);
+        var headerHasVerification = await _context.StockCheckReports.AnyAsync(r => 
+            r.CheckType == "INWARD_VERIFY" && r.Status == "COMPLETED" &&
+            (r.Notes != null && r.Notes.Contains("\"referenceName\":\"" + entity.Header!.InvoiceNumber + "\"") ||
+             r.ReferenceName.StartsWith(entity.Header!.InvoiceNumber + " -")));
+
+        if (headerHasVerification)
+            return BadRequest("PO invoice row cannot be deleted after inward verification is complete");
+
         _context.PoInvoices.Remove(entity);
         await _context.SaveChangesAsync();
         await DeleteHeaderIfOrphanedAsync(headerId);
@@ -559,7 +553,6 @@ public class PoInvoicesController : BaseController
                     };
 
                     _context.PoInvoices.Add(entity);
-                    await UpsertProductQuantityAsync(product.Id, billedQty);
                     result.ImportedCount++;
                 }
                 catch (Exception ex)
@@ -659,13 +652,70 @@ public class PoInvoicesController : BaseController
         if (hasPutAwayQuantity)
             return BadRequest<PoInvoiceHeaderSummaryDto>("PO invoice cannot be canceled after put-away has started");
 
+        var verificationReport = await _context.StockCheckReports.FirstOrDefaultAsync(r => 
+            r.CheckType == "INWARD_VERIFY" && r.Status == "COMPLETED" &&
+            r.ReferenceName.StartsWith(header.InvoiceNumber + " -"));
+            
+        if (verificationReport != null && !string.IsNullOrWhiteSpace(verificationReport.ItemsJson))
+        {
+            try
+            {
+                var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+                var performedByName = User.FindFirstValue(ClaimTypes.GivenName) ?? User.Identity?.Name ?? "System User";
+
+                using var doc = JsonDocument.Parse(verificationReport.ItemsJson);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var element in doc.RootElement.EnumerateArray())
+                    {
+                        if (element.TryGetProperty("productId", out var productIdEl) && productIdEl.ValueKind == JsonValueKind.Number)
+                        {
+                            var productId = productIdEl.GetInt32();
+                            var scannedQty = 0;
+                            if (element.TryGetProperty("scannedQty", out var scannedQtyEl) && scannedQtyEl.ValueKind == JsonValueKind.Number)
+                            {
+                                scannedQty = scannedQtyEl.GetInt32();
+                            }
+
+                            if (productId > 0 && scannedQty > 0)
+                            {
+                                var quantityRow = await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
+                                if (quantityRow != null)
+                                {
+                                    var quantityBefore = quantityRow.CurrentQuantity;
+                                    quantityRow.CurrentQuantity = Math.Max(0, quantityRow.CurrentQuantity - scannedQty);
+                                    quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                                    
+                                    _context.ProductStockMovements.Add(new ProductStockMovement
+                                    {
+                                        ProductId = productId,
+                                        QuantityChange = quantityRow.CurrentQuantity - quantityBefore,
+                                        QuantityBefore = quantityBefore,
+                                        QuantityAfter = quantityRow.CurrentQuantity,
+                                        Reason = "Inward Cancelled",
+                                        MovementType = "adjustment",
+                                        Notes = $"Inward {header.InvoiceNumber} cancelled (-{scannedQty})",
+                                        PerformedByUserId = performedByUserId,
+                                        PerformedByName = performedByName,
+                                        CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                verificationReport.Status = "PAUSED"; // Mark as paused or canceled so it's not considered verified anymore
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to parse ItemsJson or revert stock for cancelled INWARD_VERIFY");
+            }
+        }
+
         header.Status = "Canceled";
         header.CancelRemark = dto.Remark.Trim();
-
-        foreach (var item in header.Items)
-        {
-            await AdjustProductQuantityAsync(item.ProductId, -item.BilledQty);
-        }
 
         await _context.SaveChangesAsync();
 
@@ -979,81 +1029,7 @@ public class PoInvoicesController : BaseController
         return manufacturer;
     }
 
-    private async Task UpsertProductQuantityAsync(int productId, int billedQty)
-    {
-        var quantityRow = _context.ProductQuantities.Local.FirstOrDefault(x => x.ProductId == productId)
-            ?? await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
 
-        if (quantityRow == null)
-        {
-            _context.ProductQuantities.Add(new ProductQuantity
-            {
-                ProductId = productId,
-                CurrentQuantity = billedQty,
-                UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-            });
-            RecordStockMovement(productId, 0, billedQty, "Inward Receipt", "inward", $"Inward receipt (+{billedQty})");
-            return;
-        }
-
-        var quantityBefore = quantityRow.CurrentQuantity;
-        quantityRow.CurrentQuantity += billedQty;
-        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        RecordStockMovement(productId, quantityBefore, quantityRow.CurrentQuantity, "Inward Receipt", "inward", $"Inward receipt (+{billedQty})");
-    }
-
-    private async Task AdjustProductQuantityAsync(int productId, int quantityChange)
-    {
-        var quantityRow = _context.ProductQuantities.Local.FirstOrDefault(x => x.ProductId == productId)
-            ?? await _context.ProductQuantities.FirstOrDefaultAsync(x => x.ProductId == productId);
-
-        if (quantityRow == null)
-        {
-            if (quantityChange > 0)
-            {
-                _context.ProductQuantities.Add(new ProductQuantity
-                {
-                    ProductId = productId,
-                    CurrentQuantity = quantityChange,
-                    UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-                });
-                RecordStockMovement(productId, 0, quantityChange, "PO Stock Adjustment", "adjustment", $"PO stock adjustment ({quantityChange:+0;-0})");
-            }
-            return;
-        }
-
-        var quantityBefore = quantityRow.CurrentQuantity;
-        quantityRow.CurrentQuantity = Math.Max(quantityRow.CurrentQuantity + quantityChange, 0);
-        quantityRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        if (quantityRow.CurrentQuantity != quantityBefore)
-        {
-            var actualChange = quantityRow.CurrentQuantity - quantityBefore;
-            RecordStockMovement(productId, quantityBefore, quantityRow.CurrentQuantity, "PO Stock Adjustment", "adjustment", $"PO stock adjustment ({actualChange:+0;-0})");
-        }
-    }
-
-    private void RecordStockMovement(int productId, int quantityBefore, int quantityAfter, string reason, string movementType, string notes)
-    {
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        int? performedByUserId = int.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
-        var performedByName = User.FindFirstValue(ClaimTypes.GivenName)
-            ?? User.Identity?.Name
-            ?? "System User";
-
-        _context.ProductStockMovements.Add(new ProductStockMovement
-        {
-            ProductId = productId,
-            QuantityChange = quantityAfter - quantityBefore,
-            QuantityBefore = quantityBefore,
-            QuantityAfter = quantityAfter,
-            Reason = reason,
-            MovementType = movementType,
-            Notes = notes,
-            PerformedByUserId = performedByUserId,
-            PerformedByName = performedByName,
-            CreatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
-        });
-    }
 
     private async Task DeleteHeaderIfOrphanedAsync(int? headerId = null)
     {

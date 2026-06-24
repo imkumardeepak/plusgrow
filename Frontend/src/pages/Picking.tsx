@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { Text, TextInput, Select, SegmentedControl, ActionIcon, Table, ScrollArea } from "@mantine/core";
+import { Text, TextInput, Select, SegmentedControl, ActionIcon, Table, ScrollArea, Modal, Textarea } from "@mantine/core";
 import {
   ArrowRight,
   ArrowLeft,
@@ -135,6 +135,10 @@ export const Picking = memo(function Picking() {
   const [isLocationLocked, setIsLocationLocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPicking, setIsPicking] = useState(false);
+
+  const [isShortCloseModalOpen, setIsShortCloseModalOpen] = useState(false);
+  const [shortCloseRemark, setShortCloseRemark] = useState("");
+  const [isShortClosing, setIsShortClosing] = useState(false);
 
   // --- DIRECT PICK STATES ---
   const [pickingMode, setPickingMode] = useState<"sales_orders" | "direct_pick" | "consolidated">("sales_orders");
@@ -575,6 +579,31 @@ export const Picking = memo(function Picking() {
       toast.error(error.message || "Direct pick failed. Check items and try again.");
     } finally {
       setIsDirectPicking(false);
+    }
+  };
+
+  const handleShortCloseSubmit = async () => {
+    if (!activeGroup) return;
+    if (!shortCloseRemark.trim()) {
+      toast.error("Please enter a reason for not picking all items");
+      return;
+    }
+
+    try {
+      setIsShortClosing(true);
+      await outwardOrdersApi.shortCloseSalesOrder(
+        activeGroup.salesOrderId,
+        shortCloseRemark
+      );
+
+      await loadData();
+      setIsShortCloseModalOpen(false);
+      setShortCloseRemark("");
+      toast.success(`${activeGroup.orderNumber} finished and saved successfully`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to finish order");
+    } finally {
+      setIsShortClosing(false);
     }
   };
 
@@ -1112,16 +1141,26 @@ export const Picking = memo(function Picking() {
                         </Button>
                       </div>
 
-                      {/* Dispatch Button */}
-                      {isFullyPicked && (
+                      {/* Dispatch / Complete Button */}
+                      {isFullyPicked ? (
                         <Button
                           variant="outline"
                           size="xs"
                           onClick={() => navigate("/packing")}
                           rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
-                          className="h-9 w-full"
+                          className="h-9 w-full mt-2"
                         >
                           Open Packing
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          color="yellow"
+                          size="xs"
+                          onClick={() => setIsShortCloseModalOpen(true)}
+                          className="h-9 w-full mt-2"
+                        >
+                          Finish & Save Order
                         </Button>
                       )}
                     </div>
@@ -1164,6 +1203,35 @@ export const Picking = memo(function Picking() {
           )}
         </div>
       )}
+
+      <Modal
+        opened={isShortCloseModalOpen}
+        onClose={() => setIsShortCloseModalOpen(false)}
+        title="Complete Picking"
+        centered
+      >
+        <Text size="sm" mb="md">
+          You are about to finish picking this order without fulfilling all items. 
+          Any remaining unpicked quantities will be canceled.
+        </Text>
+        <Textarea
+          label="Reason for not picking all items"
+          placeholder="e.g. Stock unavailable, damaged items, etc."
+          required
+          value={shortCloseRemark}
+          onChange={(e) => setShortCloseRemark(e.currentTarget.value)}
+          minRows={3}
+          data-autofocus
+        />
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" color="gray" onClick={() => setIsShortCloseModalOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleShortCloseSubmit} loading={isShortClosing} color="yellow">
+            Save & Finish Order
+          </Button>
+        </div>
+      </Modal>
     </OperationsPage>
   );
 });

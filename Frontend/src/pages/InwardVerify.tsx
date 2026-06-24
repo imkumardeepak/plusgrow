@@ -382,6 +382,7 @@ export const InwardVerify = memo(function InwardVerify() {
       const extraItems = scanEvents
         .filter((event) => event.isExtra)
         .map((event, index) => ({
+          productId: event.productId,
           sku: event.sku === "UNKNOWN" ? event.code : event.sku,
           productName: event.productName,
           systemQty: 0,
@@ -395,6 +396,7 @@ export const InwardVerify = memo(function InwardVerify() {
 
       const items = [
         ...lines.map((line) => ({
+          productId: line.productId,
           sku: line.skuCode,
           productName: line.productName,
           systemQty: line.expectedQty,
