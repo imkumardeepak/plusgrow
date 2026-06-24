@@ -36,6 +36,16 @@ public class PartyStockExportService : IPartyStockExportService
 
     public async Task ExportAllAsync(CancellationToken cancellationToken = default)
     {
+        // Explicitly export products with ownership "Self" to the specified Dropbox folder
+        try
+        {
+            await ExportPartyAsync("Self", @"C:\Users\PlusGrow\Dropbox\Stocks - Self", "Self_Stock.xlsx", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Party stock export failed for Self -> C:\\Users\\PlusGrow\\Dropbox\\Stocks - Self");
+        }
+
         // Targets are configured per party on the Parties page: a party must be enabled for export
         // and have a destination folder set.
         var targets = await _context.Parties
@@ -45,7 +55,7 @@ public class PartyStockExportService : IPartyStockExportService
 
         if (targets.Count == 0)
         {
-            _logger.LogInformation("Party stock export skipped: no parties enabled for export.");
+            _logger.LogInformation("Party stock export skipped: no custom parties enabled for export.");
             return;
         }
 
@@ -60,16 +70,6 @@ public class PartyStockExportService : IPartyStockExportService
                 // A failure for one party (e.g. folder offline) must not stop the others.
                 _logger.LogError(ex, "Party stock export failed for {PartyName} -> {FolderPath}", party.Name, party.ExportFolderPath);
             }
-        }
-
-        // Explicitly export products with ownership "Self" to the specified Dropbox folder
-        try
-        {
-            await ExportPartyAsync("Self", @"C:\Users\PlusGrow\Dropbox\Stock - Self", "Self_Stock.xlsx", cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Party stock export failed for Self -> C:\\Users\\PlusGrow\\Dropbox\\Stock - Self");
         }
     }
 
