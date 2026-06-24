@@ -548,7 +548,7 @@ export const Inward = memo(function Inward() {
   const columns: DataTableColumn<InvoiceSummary>[] = [
     {
       key: "invoiceNo",
-      header: "Invoice No.",
+      header: "Inv No.",
       sortable: true,
       sortAccessor: (row) => row.invoiceNumber,
       render: (row) => (
@@ -556,7 +556,7 @@ export const Inward = memo(function Inward() {
           {row.invoiceNumber}
         </Text>
       ),
-      width: 160,
+      width: 100,
     },
     {
       key: "items",
@@ -577,11 +577,11 @@ export const Inward = memo(function Inward() {
           </Text>
         </Stack>
       ),
-      width: 240,
+      width: 180,
     },
     {
       key: "date",
-      header: "Invoice Date",
+      header: "Date",
       sortable: true,
       sortAccessor: (row) => row.invoiceDate,
       render: (row) => (
@@ -589,11 +589,11 @@ export const Inward = memo(function Inward() {
           {format(new Date(row.invoiceDate), "dd MMM yyyy")}
         </Text>
       ),
-      width: 120,
+      width: 100,
     },
     {
       key: "partyName",
-      header: "Party / Supplier",
+      header: "Party",
       sortable: true,
       sortAccessor: (row) => row.partyName,
       render: (row) => (
@@ -601,11 +601,11 @@ export const Inward = memo(function Inward() {
           {row.partyName || "N/A"}
         </Text>
       ),
-      width: 160,
+      width: 100,
     },
     {
       key: "billed",
-      header: "Billed Qty.",
+      header: "Qty",
       align: "right",
       sortable: true,
       sortAccessor: (row) => row.totalBilledQty,
@@ -614,25 +614,9 @@ export const Inward = memo(function Inward() {
           {row.totalBilledQty}
         </Text>
       ),
-      width: 90,
+      width: 70,
     },
-    {
-      key: "remaining",
-      header: "Location Allot Pending",
-      align: "right",
-      sortable: true,
-      sortAccessor: (row) => row.totalRemainingAllocation,
-      render: (row) => (
-        <Text
-          size={isLargeScreen ? "sm" : "xs"}
-          fw={800}
-          c={row.totalRemainingAllocation > 0 ? "orange.3" : "green.3"}
-        >
-          {row.totalRemainingAllocation}
-        </Text>
-      ),
-      width: 140,
-    },
+
     {
       key: "missing",
       header: "Data",
@@ -672,11 +656,11 @@ export const Inward = memo(function Inward() {
           </Badge>
         );
       },
-      width: 130,
+      width: 100,
     },
     {
       key: "actions",
-      header: "Products",
+      header: "View",
       align: "right",
       render: (row) => (
         <Tooltip label="View products">
@@ -695,7 +679,7 @@ export const Inward = memo(function Inward() {
           </ActionIcon>
         </Tooltip>
       ),
-      width: 90,
+      width: 70,
     },
   ];
 
@@ -1200,13 +1184,13 @@ export const Inward = memo(function Inward() {
           sheetName: "Invoices",
           data: buildExportRows(allSummaries),
           columns: [
-            { header: "Invoice No.", accessor: (row) => row.invoiceNumber },
+            { header: "Inv No.", accessor: (row) => row.invoiceNumber },
             { header: "Inv. Date", accessor: (row) => formatExcelDate(row.invoiceDate) },
             { header: "Party Name", accessor: (row) => row.partyName },
             { header: "Part No.", accessor: (row) => row.skuCode },
             { header: "MRP", accessor: (row) => row.mrp, format: "currency" },
             { header: "Item Name", accessor: (row) => row.productName },
-            { header: "Billed Qty.", accessor: (row) => row.billedQty, format: "number" },
+            { header: "Qty", accessor: (row) => row.billedQty, format: "number" },
           ],
         }],
       });
@@ -1900,12 +1884,12 @@ export const Inward = memo(function Inward() {
                 },
                 {
                   key: "billedQty",
-                  header: "Billed Qty.",
+                  header: "Qty",
                   align: "right",
                   sortable: true,
                   sortAccessor: (row) => row.billedQty,
                   render: (row) => <Text size="xs">{row.billedQty}</Text>,
-                  width: 90,
+                  width: 70,
                 },
                 {
                   key: "mrp",
@@ -1934,7 +1918,7 @@ export const Inward = memo(function Inward() {
                       {row.remainingAllocation}
                     </Text>
                   ),
-                  width: 90,
+                  width: 70,
                 },
                 {
                   key: "missing",
