@@ -1,10 +1,11 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Checkbox, NumberInput, ScrollArea, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { AlertTriangle, Layers, Package, RefreshCw, ScanLine, X } from "lucide-react";
+import { AlertTriangle, Layers, Package, RefreshCw, ScanLine, X, ArrowRight, ArrowLeft } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
+import { cn } from "../lib/utils";
 import {
   OperationsEmptyState,
   OperationsPanel,
@@ -102,6 +103,8 @@ const deriveOrderStatus = (items: OutwardOrder[]): SalesOrderRecord["status"] =>
 
 export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const isMobile = useMediaQuery("(max-width: 48em)");
+  const isMobileOrTablet = useMediaQuery("(max-width: 63.9375em)");
+  const [mobileView, setMobileView] = useState<"orders" | "products">("orders");
   const [orders, setOrders] = useState<SalesOrderRecord[]>([]);
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
@@ -425,11 +428,14 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const totalSelectedPending = groups.reduce((sum, group) => sum + group.totalPending, 0);
 
   return (
-    <div className={isMobile ? "space-y-4" : "grid gap-4 xl:grid-cols-[0.9fr_1.1fr]"}>
-      <OperationsPanel
-        title="Open Sales Orders"
-        icon={Layers}
-        description="Select the open orders to pick together."
+    <div className="grid gap-4 grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] lg:h-full lg:min-h-0 lg:overflow-hidden">
+      <div className={cn("h-full min-h-0 lg:block", !isMobileOrTablet || mobileView === "orders" ? "block" : "hidden")}>
+        <OperationsPanel
+          title="Open Sales Orders"
+          icon={Layers}
+          description="Select the open orders to pick together."
+          className="h-full min-h-0"
+          contentClassName="flex flex-col h-full min-h-0"
         action={
           <div className="flex items-center gap-2">
             <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
@@ -457,7 +463,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
             >
               {allVisibleSelected ? "Clear all" : "Select all"}
             </button>
-            <div className="max-h-[560px] space-y-2 overflow-y-auto scrollbar-thin">
+            <div className="max-h-[560px] lg:max-h-none lg:flex-1 lg:min-h-0 space-y-2 overflow-y-auto scrollbar-thin">
               {visibleOrders.map((order) => {
                 const pending = order.items.reduce((sum, item) => sum + item.pendingQuantity, 0);
                 const checked = selectedOrderIds.includes(order.id);
@@ -497,18 +503,46 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
             description="There are no open sales orders with pending quantity."
           />
         )}
+        
+        {selectedOrderIds.length > 0 && isMobileOrTablet && (
+          <div className="mt-4 shrink-0">
+            <Button
+              fullWidth
+              onClick={() => setMobileView("products")}
+              rightIcon={<ArrowRight size={16} />}
+            >
+              Proceed to Product List ({groups.length})
+            </Button>
+          </div>
+        )}
       </OperationsPanel>
+      </div>
 
-      <OperationsPanel
-        title="Pick by Product"
-        icon={Package}
-        description="Pick the combined quantity per product across the selected orders."
-        action={
-          <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-            {groups.length} product(s) · {totalSelectedPending} pending
-          </span>
-        }
-      >
+      <div className={cn("h-full min-h-0 lg:block", !isMobileOrTablet || mobileView === "products" ? "block" : "hidden")}>
+        <OperationsPanel
+          title="Pick by Product"
+          icon={Package}
+          description="Pick the combined quantity per product across the selected orders."
+          className="h-full min-h-0"
+          contentClassName="flex flex-col h-full min-h-0"
+          action={
+            <div className="flex items-center gap-2">
+              {isMobileOrTablet && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  leftIcon={<ArrowLeft size={14} />}
+                  onClick={() => setMobileView("orders")}
+                >
+                  Back to Orders
+                </Button>
+              )}
+              <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
+                {groups.length} product(s) · {totalSelectedPending} pending
+              </span>
+            </div>
+          }
+        >
         {selectedOrderIds.length === 0 ? (
           <OperationsEmptyState
             icon={Package}
@@ -522,8 +556,8 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
             description="The selected orders have no pending quantity."
           />
         ) : (
-          <div className="space-y-3">
-            <div className="max-h-[280px] space-y-2 overflow-y-auto scrollbar-thin">
+          <div className="flex flex-col min-h-0 flex-1 overflow-y-auto pr-1 space-y-3">
+            <div className="max-h-[280px] lg:max-h-[350px] space-y-2 overflow-y-auto scrollbar-thin shrink-0">
               {groups.map((group) => {
                 const active = group.key === activeGroupKey;
                 const done = group.totalPending === 0;
@@ -725,6 +759,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
           </div>
         )}
       </OperationsPanel>
+      </div>
     </div>
   );
 });

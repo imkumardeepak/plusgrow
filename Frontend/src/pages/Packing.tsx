@@ -177,21 +177,28 @@ export const Packing = memo(function Packing() {
   const isActiveItemFullyScanned =
     !!activeOrder && activeOrder.packedQuantity >= activeOrder.pickedQuantity;
 
-  const handleMarkPacked = async () => {
-    if (!activeOrder) {
+  const handleMarkPacked = async (
+    orderToPack: OutwardOrder | null = activeOrder,
+    options?: { auto?: boolean },
+  ) => {
+    if (!orderToPack) {
       toast.error("Select order first");
       return;
     }
 
     try {
       setIsMarkingPacked(true);
-      if (!isActiveItemFullyScanned) {
-        toast.error(`Scan all units first. Packed ${activeOrder.packedQuantity} of ${activeOrder.pickedQuantity}`);
+      if (orderToPack.packedQuantity < orderToPack.pickedQuantity) {
+        toast.error(`Scan all units first. Packed ${orderToPack.packedQuantity} of ${orderToPack.pickedQuantity}`);
         return;
       }
-      await outwardOrdersApi.markPacked(activeOrder.id);
-      setOrders((current) => current.filter((item) => item.id !== activeOrder.id));
-      toast.success(`${activeOrder.skuCode} marked as packed`);
+      await outwardOrdersApi.markPacked(orderToPack.id);
+      setOrders((current) => current.filter((item) => item.id !== orderToPack.id));
+      toast.success(
+        options?.auto
+          ? `${orderToPack.skuCode} fully scanned and saved`
+          : `${orderToPack.skuCode} marked as packed`,
+      );
     } catch (error: any) {
       toast.error(error.message || "Failed to mark packed");
     } finally {
@@ -206,7 +213,7 @@ export const Packing = memo(function Packing() {
     }
 
     if (activeOrder.packedQuantity === activeOrder.pickedQuantity) {
-      void handleMarkPacked();
+      void handleMarkPacked(activeOrder);
       return;
     }
 
@@ -315,7 +322,11 @@ export const Packing = memo(function Packing() {
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
       setActiveItemId(updated.id);
-      toast.success(`Packed ${updated.packedQuantity} of ${updated.pickedQuantity} for ${updated.skuCode}`);
+      if (updated.packedQuantity >= updated.pickedQuantity) {
+        await handleMarkPacked(updated, { auto: true });
+      } else {
+        toast.success(`Packed ${updated.packedQuantity} of ${updated.pickedQuantity} for ${updated.skuCode}`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to mark packed");
     } finally {
@@ -331,9 +342,11 @@ export const Packing = memo(function Packing() {
       icon={Archive}
       hideHeader
     >
-      <OutboundStageNav active="packing" queueCount={groupedOrders.length} compactLabel="Ready" />
-      <OutboundSplitLayout
-        showQueueOnMobile={!activeOrder}
+      <div className="flex h-[calc(100dvh-105px)] lg:h-[calc(100dvh-175px)] flex-col gap-1 lg:gap-2 overflow-hidden">
+        <OutboundStageNav active="packing" queueCount={groupedOrders.length} compactLabel="Ready" />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <OutboundSplitLayout
+            showQueueOnMobile={!activeOrder}
         queue={
           <OutboundQueue
             title="Ready to Pack"
@@ -381,8 +394,8 @@ export const Packing = memo(function Packing() {
                   onSubmit={() => void handleScanPack()}
                   actionLabel="Pack"
                   placeholder="Scan barcode…"
-                  disabled={isScanPacking}
-                  loading={isScanPacking}
+                  disabled={isScanPacking || isMarkingPacked || isShortPacking}
+                  loading={isScanPacking || isMarkingPacked}
                   inputRef={scanInputRef}
                   tone="cyan"
                 />
@@ -439,6 +452,8 @@ export const Packing = memo(function Packing() {
           )
         }
       />
+        </div>
+      </div>
 
       <Modal
         opened={isShortPackModalOpen}

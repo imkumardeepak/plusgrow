@@ -100,14 +100,14 @@ export function OutboundSplitLayout({
   workspace,
 }: OutboundSplitLayoutProps) {
   return (
-    <div className="grid h-full min-h-0 gap-2.5 xl:h-auto xl:grid-cols-[minmax(290px,0.72fr)_minmax(0,1.55fr)]">
+    <div className="grid h-full min-h-0 gap-2.5 lg:grid-cols-[minmax(290px,0.72fr)_minmax(0,1.55fr)]">
       <aside
-        className={`${showQueueOnMobile ? "block" : "hidden"} h-full min-h-0 xl:block xl:h-auto`}
+        className={`${showQueueOnMobile ? "block" : "hidden"} h-full min-h-0 lg:block`}
       >
         {queue}
       </aside>
       <main
-        className={`${showQueueOnMobile ? "hidden" : "block"} h-full min-h-0 xl:block xl:h-auto`}
+        className={`${showQueueOnMobile ? "hidden" : "block"} h-full min-h-0 lg:block`}
       >
         {workspace}
       </main>
@@ -137,7 +137,7 @@ export function OutboundQueue({
   children,
 }: OutboundQueueProps) {
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:min-h-[calc(100dvh-9rem)] sm:rounded-2xl xl:h-auto xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:rounded-2xl">
       <div className="border-b border-white/10 px-2 py-1.5 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center justify-between gap-2 sm:mb-2">
           <div className="flex min-w-0 items-center gap-2">
@@ -161,7 +161,7 @@ export function OutboundQueue({
           className="h-8 w-full rounded-lg border border-white/10 bg-black/20 px-2.5 text-xs text-white outline-none transition-colors placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 sm:h-10 sm:rounded-xl sm:px-3 sm:text-sm"
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 scrollbar-thin sm:p-2">
+      <div className="flex-1 p-1 scrollbar-thin overflow-y-auto overscroll-contain sm:p-2">
         {count > 0 ? (
           <div className="space-y-1 sm:space-y-1.5">{children}</div>
         ) : (
@@ -261,7 +261,7 @@ export function TaskWorkspace({
 }: TaskWorkspaceProps) {
   const safeProgress = Math.min(Math.max(progressValue, 0), 100);
   return (
-    <section className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:min-h-[calc(100dvh-9rem)] sm:rounded-2xl xl:h-auto xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:rounded-2xl">
       <header className="border-b border-white/10 bg-[#121923] px-2 py-1.5 sm:px-3 sm:py-2.5">
         <div className="flex items-center gap-2">
           <button
@@ -298,7 +298,7 @@ export function TaskWorkspace({
           </div>
         </div>
       </header>
-      <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin sm:p-2.5 ${bottomDock ? "pb-28 sm:pb-28" : ""}`}>
+      <div className={`flex-1 p-2 scrollbar-thin overflow-y-auto overscroll-contain sm:p-2.5 ${bottomDock ? "pb-28" : ""}`}>
         {children}
       </div>
       {bottomDock ? (

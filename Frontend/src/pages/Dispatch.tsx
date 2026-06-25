@@ -149,9 +149,11 @@ export const Dispatch = memo(function Dispatch() {
       icon={Send}
       hideHeader
     >
-      <OutboundStageNav active="dispatch" queueCount={dispatchQueue.length} compactLabel="Waiting" />
-      <OutboundSplitLayout
-        showQueueOnMobile={!activeOrder}
+      <div className="flex h-[calc(100dvh-105px)] lg:h-[calc(100dvh-175px)] flex-col gap-1 lg:gap-2 overflow-hidden">
+        <OutboundStageNav active="dispatch" queueCount={dispatchQueue.length} compactLabel="Waiting" />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <OutboundSplitLayout
+            showQueueOnMobile={!activeOrder}
         queue={
           <OutboundQueue
             title="Dispatch Queue"
@@ -243,6 +245,8 @@ export const Dispatch = memo(function Dispatch() {
           )
         }
       />
+        </div>
+      </div>
     </OperationsPage>
   );
 });

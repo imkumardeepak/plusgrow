@@ -655,7 +655,7 @@ export const Picking = memo(function Picking() {
       icon={Package}
       hideHeader
     >
-      <div className="flex h-[calc(100dvh-4.75rem)] min-h-0 flex-col gap-1 overflow-hidden sm:h-auto sm:gap-2 sm:overflow-visible">
+      <div className="flex h-[calc(100dvh-105px)] lg:h-[calc(100dvh-175px)] flex-col gap-1 lg:gap-2 overflow-hidden">
         <OutboundStageNav active="picking" queueCount={openOrderGroups.length} compactLabel="Active" />
         <div className="shrink-0 rounded-xl border border-white/10 bg-white/[0.025] p-0.5 sm:mb-2 sm:p-1">
         <SegmentedControl
@@ -676,7 +676,7 @@ export const Picking = memo(function Picking() {
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden sm:overflow-visible">
+      <div className="flex-1 min-h-0 overflow-hidden">
       {pickingMode === "consolidated" ? (
         <ConsolidatedPick />
       ) : pickingMode === "direct_pick" ? (
@@ -684,6 +684,8 @@ export const Picking = memo(function Picking() {
           title="Direct Pick"
           icon={Package}
           description="Scan to instantly pick and dispatch stock without a sales order."
+          className="h-full min-h-0"
+          contentClassName="flex flex-col h-full min-h-0"
         >
           <div className="mb-1.5 flex flex-col gap-2 sm:mb-2 sm:gap-2.5">
             <Select
@@ -749,11 +751,11 @@ export const Picking = memo(function Picking() {
           </div>
 
           {directPickItems.length > 0 && (
-            <div className="mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] sm:mt-2">
-              <div className="border-b border-white/10 bg-white/[0.05] p-2 sm:p-2.5">
+            <div className="mt-1.5 flex-1 min-h-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] sm:mt-2">
+              <div className="border-b border-white/10 bg-white/[0.05] p-2 sm:p-2.5 shrink-0">
                 <Text size={isMobile ? "sm" : "md"} weight={600}>Scanned Items ({directPickItems.length})</Text>
               </div>
-              <ScrollArea className="max-h-[52vh] sm:max-h-[400px]">
+              <ScrollArea className="flex-1 min-h-0">
                 <Table striped highlightOnHover verticalSpacing={isMobile ? "xs" : "md"} className="text-xs sm:text-sm">
                   <thead>
                     <tr>
@@ -829,7 +831,7 @@ export const Picking = memo(function Picking() {
                 </Table>
               </ScrollArea>
 
-              <div className="flex flex-row justify-end gap-1.5 border-t border-white/10 bg-white/[0.03] p-2 sm:gap-2 sm:p-2.5">
+              <div className="flex flex-row justify-end gap-1.5 border-t border-white/10 bg-white/[0.03] p-2 sm:gap-2 sm:p-2.5 shrink-0">
                 <Button
                   variant="outline"
                   color="red"
@@ -852,421 +854,6 @@ export const Picking = memo(function Picking() {
             </div>
           )}
         </OperationsPanel>
-      ) : false ? (
-
-        <div className={isMobile ? "space-y-2" : "grid gap-2.5 xl:grid-cols-[0.82fr_1.18fr]"}>
-          {(!isMobile || !activeGroup) && (
-            <OperationsPanel
-              title="Orders"
-              icon={ClipboardList}
-              description="Select order to pick."
-              hideHeader={isMobile}
-              action={
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                    {openOrderGroups.length} Active
-                  </span>
-                  <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                    {readyOrders} Ready
-                  </span>
-                  <span className="rounded-md bg-white/[0.05] px-2 py-1 text-[11px] font-semibold text-neutral-300">
-                    {progress}% Done
-                  </span>
-                </div>
-              }
-            >
-              {isMobile && (
-                <div className="flex flex-col gap-2 mb-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
-                      {openOrderGroups.length} Active
-                    </span>
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
-                      {readyOrders} Ready
-                    </span>
-                    <span className="flex-1 text-center rounded-md bg-white/[0.05] px-2.5 py-2 text-sm font-semibold text-neutral-300">
-                      {progress}% Done
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search order, customer, SKU or alias..."
-                className="mb-2 h-10 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm text-neutral-100 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/50"
-              />
-
-              {openOrderGroups.length > 0 ? (
-                <div className="max-h-[65vh] space-y-2 overflow-y-auto scrollbar-thin pb-4">
-                  {openOrderGroups.map((order) => {
-                    const done = order.pendingQuantity === 0;
-                    const active = order.salesOrderId === selectedSalesOrderId;
-
-                    return (
-                      <button
-                        key={order.salesOrderId}
-                        onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
-                        className={`w-full rounded-xl border p-2.5 text-left transition ${active
-                          ? "border-brand-500/50 bg-brand-500/10 shadow-[0_0_15px_rgba(var(--brand-500),0.15)]"
-                          : "border-white/10 bg-white/[0.03] hover:border-brand-500/30 hover:bg-white/[0.06]"
-                          }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-bold text-white">
-                              {order.orderNumber}
-                            </p>
-                            <p className="mt-1 text-sm text-neutral-400">
-                              {order.customerName}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={done ? "success" : "warning"}
-                            shape="pill"
-                            size="sm"
-                            className="border-none font-bold"
-                          >
-                            {done ? "Ready" : order.status}
-                          </Badge>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-2.5 text-sm">
-                          <div className="bg-black/20 p-2 rounded-lg">
-                            <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
-                              Items
-                            </p>
-                            <p className="mt-1 font-mono text-sm text-brand-300">
-                              {order.items.length}
-                            </p>
-                          </div>
-                          <div className="bg-black/20 p-2 rounded-lg">
-                            <p className="uppercase tracking-[0.18em] text-[10px] text-neutral-500">
-                              Picked Progress
-                            </p>
-                            <p className="mt-1 font-bold text-sm text-white">
-                              {order.totalPickedQuantity} / {order.totalQuantity}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <OperationsEmptyState
-                  icon={ClipboardList}
-                  title="No orders"
-                  description="No open orders waiting for picking."
-                />
-              )}
-            </OperationsPanel>
-          )}
-
-          {(!isMobile || activeGroup) && (
-            <OperationsPanel
-              title="Scan to Pick"
-              icon={ScanLine}
-              description="Follow the steps: Scan Location -> Scan SKU."
-              hideHeader={isMobile}
-            >
-              {activeGroup && activeItem ? (
-                <div className="flex flex-col h-full space-y-2">
-                  {isMobile && (
-                    <Button
-                      variant="light"
-                      size="md"
-                      onClick={() => setSelectedSalesOrderId(null)}
-                      leftIcon={<ArrowLeft className="h-5 w-5" />}
-                      className="w-full"
-                    >
-                      Back to Orders List
-                    </Button>
-                  )}
-
-                  {/* Active Pick Header Card */}
-                  <div className={`rounded-2xl border-2 p-2.5 transition-colors ${isFullyPicked ? 'border-green-500/40 bg-green-500/10' : 'border-brand-500/30 bg-brand-500/5'}`}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h2 className="text-sm font-bold text-white tracking-tight">
-                          {activeGroup.orderNumber}
-                        </h2>
-                        <p className="text-sm text-neutral-400">
-                          {activeGroup.customerName}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={isFullyPicked ? "success" : "warning"}
-                        shape="pill"
-                        size="sm"
-                        className="border-none shadow-sm"
-                      >
-                        {isFullyPicked ? "Order Picked" : "Picking..."}
-                      </Badge>
-                    </div>
-
-                    <div className="bg-black/40 rounded-xl p-3 grid grid-cols-2 gap-2">
-                       <div>
-                        <p className="text-[11px] uppercase tracking-wider text-neutral-500 mb-1">Total Picked</p>
-                        <p className="text-sm font-black text-white">
-                          {activeGroup.totalPickedQuantity} <span className="text-sm font-medium text-neutral-500">/ {activeGroup.totalQuantity}</span>
-                        </p>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Target Item Card */}
-                  <div className="rounded-2xl border border-white/10 bg-[#141414] p-2.5 shadow-lg">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Package className="h-5 w-5 text-brand-400" />
-                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Target Item</h3>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-sm font-black text-white leading-tight">
-                          {activeItem.productName}
-                        </p>
-                        <p className="mt-1 font-mono text-sm text-brand-300">
-                          {activeItem.skuCode}
-                          {activeItem.alias ? ` / ${activeItem.alias}` : ""}
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-3">
-                          <p className="text-[10px] uppercase tracking-wider text-blue-300 font-bold mb-1">Target Location</p>
-                          <p className="text-sm font-bold text-blue-100 break-words">
-                            {locationSummary}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-3">
-                          <p className="text-[10px] uppercase tracking-wider text-orange-300 font-bold mb-1">Needed Qty</p>
-                          <p className="text-sm font-black text-orange-400">
-                            {activeItem.pendingQuantity}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Giant Scan Section */}
-                  <div className={`rounded-2xl border-2 p-3 transition-colors duration-300 shadow-xl ${
-                    scanTone === "success"
-                      ? "border-green-500/50 bg-green-500/10 shadow-[0_0_30px_rgba(34,197,94,0.15)]"
-                      : scanTone === "error"
-                        ? "border-red-500/50 bg-red-500/10 shadow-[0_0_30px_rgba(239,68,68,0.15)]"
-                        : "border-white/10 bg-[#1A1A1A]"
-                  }`}>
-                    
-                    {/* Status Message Display */}
-                    <div className="mb-3 flex items-start gap-2">
-                      <div className={`mt-0.5 p-2 rounded-full ${
-                        scanTone === "success" ? "bg-green-500/20 text-green-400" : 
-                        scanTone === "error" ? "bg-red-500/20 text-red-400" : 
-                        "bg-brand-500/20 text-brand-400"
-                      }`}>
-                        {scanTone === "error" ? <AlertTriangle size={24} /> : <ScanLine size={24} />}
-                      </div>
-                      <div>
-                        <p className={`text-sm font-bold ${
-                          scanTone === "success" ? "text-green-400" : 
-                          scanTone === "error" ? "text-red-400" : 
-                          "text-white"
-                        }`}>
-                          {lastScanMessage}
-                        </p>
-                        {lastScanCode && (
-                          <p className="mt-1 text-sm text-neutral-400 font-mono">
-                            Scanned: {lastScanCode}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      {/* Location Input */}
-                      <div className="relative">
-                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">1. Location Code</p>
-                        <div className="flex gap-2">
-                          <TextInput
-                            ref={locationInputRef}
-                            value={locationScanCode}
-                            onChange={(e) => setLocationScanCode(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !isLocationLocked) {
-                                e.preventDefault();
-                                handleLocationSubmit();
-                              }
-                            }}
-                            placeholder="Scan location..."
-                            disabled={isLocationLocked}
-                            size="sm"
-                            radius="md"
-                            className="flex-1 [&_input]:text-sm [&_input]:font-mono [&_input]:font-bold transition-all"
-                            rightSection={
-                              locationScanCode && !isLocationLocked && (
-                                <ActionIcon onClick={() => {
-                                  setLocationScanCode("");
-                                  locationInputRef.current?.focus();
-                                }}>
-                                  <X size={20} />
-                                </ActionIcon>
-                              )
-                            }
-                          />
-                          {isLocationLocked ? (
-                            <Button
-                              size="sm"
-                              variant="light"
-                              color="gray"
-                              onClick={handleChangeLocation}
-                              className="px-6"
-                            >
-                              Change
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={handleLocationSubmit}
-                              className="px-8"
-                            >
-                              SET
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* SKU Input */}
-                      <div className={`relative transition-opacity duration-300 ${!isLocationLocked ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
-                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2">2. Product Barcode</p>
-                        <div className="flex gap-2">
-                          <TextInput
-                            ref={scanInputRef}
-                            value={scanCode}
-                            onChange={(e) => setScanCode(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void handleScanSubmit();
-                              }
-                            }}
-                            placeholder={isLocationLocked ? "Scan SKU..." : "Waiting for location..."}
-                            disabled={!isLocationLocked || isFullyPicked}
-                            size="sm"
-                            radius="md"
-                            className="flex-1 [&_input]:text-sm [&_input]:font-mono [&_input]:font-bold transition-all"
-                            rightSection={
-                              scanCode && isLocationLocked && !isFullyPicked && (
-                                <ActionIcon onClick={() => {
-                                  setScanCode("");
-                                  scanInputRef.current?.focus();
-                                }}>
-                                  <X size={20} />
-                                </ActionIcon>
-                              )
-                            }
-                          />
-                          <Button
-                            onClick={() => void handleScanSubmit()}
-                            loading={isPicking}
-                            disabled={!isLocationLocked || isFullyPicked}
-                            size="sm"
-                            color="brand"
-                            className="px-8"
-                          >
-                            PICK
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="mt-2 pt-6 border-t border-white/10">
-                      {isFullyPicked ? (
-                        <Button
-                          size="sm"
-                          fullWidth
-                          color="green"
-                          onClick={() => navigate("/packing")}
-                          rightIcon={<ArrowRight size={24} />}
-                          className="text-sm shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-shadow"
-                        >
-                          PROCEED TO PACKING
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="light"
-                          color="yellow"
-                          size="sm"
-                          fullWidth
-                          onClick={() => setIsShortCloseModalOpen(true)}
-                        >
-                          Short Close Order
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Other Order Items List (Collapsible / Secondary) */}
-                  <div className="rounded-xl border border-white/10 bg-[#141414] overflow-hidden">
-                    <div className="p-3 bg-white/[0.03] border-b border-white/10 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4 text-neutral-400" />
-                        <p className="text-sm font-bold text-neutral-300">Other Items in Order</p>
-                      </div>
-                      <Badge size="sm" variant="outline">{activeGroup.items.length} total</Badge>
-                    </div>
-                    <div className="max-h-[200px] overflow-y-auto p-2 space-y-2 scrollbar-thin">
-                      {activeGroup.items.map((item) => {
-                        const isActiveItem = item.id === activeItem.id;
-                        if (isActiveItem) return null; // Skip showing the active item here as it's huge above
-
-                        const itemDone = item.pendingQuantity === 0;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setActiveItemId(item.id)}
-                            className={`w-full rounded-lg border p-3 text-left transition ${
-                              itemDone 
-                                ? "border-green-500/20 bg-green-500/5" 
-                                : "border-white/10 bg-white/[0.02] hover:bg-white/[0.05]"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className={`text-sm font-bold ${itemDone ? 'text-neutral-400 line-through' : 'text-white'}`}>
-                                  {item.productName}
-                                </p>
-                                <p className="mt-1 font-mono text-[11px] text-brand-300">
-                                  {item.skuCode}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={itemDone ? "success" : "outline"}
-                                className="border-none"
-                              >
-                                {itemDone ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
-                              </Badge>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </div>
-              ) : (
-                <OperationsEmptyState
-                  icon={Package}
-                  title="No order"
-                  description="Select one sales order from the list to start picking."
-                />
-              )}
-            </OperationsPanel>
-          )}
-        </div>
       ) : (
         <OutboundSplitLayout
           showQueueOnMobile={!activeGroup}
