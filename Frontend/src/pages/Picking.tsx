@@ -655,8 +655,9 @@ export const Picking = memo(function Picking() {
       icon={Package}
       hideHeader
     >
-      <OutboundStageNav active="picking" queueCount={openOrderGroups.length} compactLabel="Active" />
-      <div className="mb-2 rounded-xl border border-white/10 bg-white/[0.025] p-1">
+      <div className="flex h-[calc(100dvh-4.75rem)] min-h-0 flex-col gap-1 overflow-hidden sm:h-auto sm:gap-2 sm:overflow-visible">
+        <OutboundStageNav active="picking" queueCount={openOrderGroups.length} compactLabel="Active" />
+        <div className="shrink-0 rounded-xl border border-white/10 bg-white/[0.025] p-0.5 sm:mb-2 sm:p-1">
         <SegmentedControl
           value={pickingMode}
           onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick" | "consolidated")}
@@ -668,9 +669,14 @@ export const Picking = memo(function Picking() {
           fullWidth
           size="sm"
           radius="lg"
+          classNames={{
+            root: "text-xs",
+            label: "min-h-7 px-1.5 sm:min-h-8 sm:px-2",
+          }}
         />
       </div>
 
+      <div className="min-h-0 flex-1 overflow-hidden sm:overflow-visible">
       {pickingMode === "consolidated" ? (
         <ConsolidatedPick />
       ) : pickingMode === "direct_pick" ? (
@@ -679,7 +685,7 @@ export const Picking = memo(function Picking() {
           icon={Package}
           description="Scan to instantly pick and dispatch stock without a sales order."
         >
-          <div className="flex flex-col gap-2.5 mb-2">
+          <div className="mb-1.5 flex flex-col gap-2 sm:mb-2 sm:gap-2.5">
             <Select
               label="Party / Customer"
               placeholder="Select Party or Self"
@@ -691,7 +697,7 @@ export const Picking = memo(function Picking() {
               onChange={(val) => setDirectPickCustomer(val || "Self")}
               searchable
               clearable={false}
-              size="md"
+              size={isMobile ? "sm" : "md"}
               radius="md"
             />
 
@@ -743,12 +749,12 @@ export const Picking = memo(function Picking() {
           </div>
 
           {directPickItems.length > 0 && (
-            <div className="mt-2 border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
-              <div className="bg-white/[0.05] p-2.5 border-b border-white/10">
-                <Text size="md" weight={600}>Scanned Items ({directPickItems.length})</Text>
+            <div className="mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] sm:mt-2">
+              <div className="border-b border-white/10 bg-white/[0.05] p-2 sm:p-2.5">
+                <Text size={isMobile ? "sm" : "md"} weight={600}>Scanned Items ({directPickItems.length})</Text>
               </div>
-              <ScrollArea className="max-h-[400px]">
-                <Table striped highlightOnHover verticalSpacing="md" className="text-sm">
+              <ScrollArea className="max-h-[52vh] sm:max-h-[400px]">
+                <Table striped highlightOnHover verticalSpacing={isMobile ? "xs" : "md"} className="text-xs sm:text-sm">
                   <thead>
                     <tr>
                       <th>SKU/Alias</th>
@@ -769,7 +775,7 @@ export const Picking = memo(function Picking() {
                         <td>
                           <div className="flex items-center gap-2">
                             <ActionIcon
-                              size="md"
+                              size={isMobile ? "sm" : "md"}
                               variant="light"
                               color="gray"
                               onClick={() =>
@@ -784,11 +790,11 @@ export const Picking = memo(function Picking() {
                             >
                               <span style={{ fontSize: 18, lineHeight: 1 }}>−</span>
                             </ActionIcon>
-                            <span className="min-w-[32px] text-center text-sm font-bold">
+                            <span className="min-w-[24px] text-center text-xs font-bold sm:min-w-[32px] sm:text-sm">
                               {item.quantity}
                             </span>
                             <ActionIcon
-                              size="md"
+                              size={isMobile ? "sm" : "md"}
                               variant="light"
                               color="brand"
                               onClick={() =>
@@ -807,7 +813,7 @@ export const Picking = memo(function Picking() {
                           <ActionIcon
                             color="red"
                             variant="subtle"
-                            size="md"
+                            size={isMobile ? "sm" : "md"}
                             onClick={() =>
                               setDirectPickItems((current) =>
                                 current.filter((i) => i.id !== item.id)
@@ -823,22 +829,24 @@ export const Picking = memo(function Picking() {
                 </Table>
               </ScrollArea>
 
-              <div className="p-2.5 bg-white/[0.03] border-t border-white/10 flex flex-col sm:flex-row justify-end gap-2">
+              <div className="flex flex-row justify-end gap-1.5 border-t border-white/10 bg-white/[0.03] p-2 sm:gap-2 sm:p-2.5">
                 <Button
                   variant="outline"
                   color="red"
-                  size="md"
+                  size={isMobile ? "sm" : "md"}
                   onClick={() => setDirectPickItems([])}
+                  className="flex-1 sm:flex-none"
                 >
                   Clear All
                 </Button>
                 <Button
                   onClick={() => void handleBulkDirectPickSubmit()}
                   loading={isDirectPicking}
-                  size="md"
+                  size={isMobile ? "sm" : "md"}
                   leftIcon={<ArrowRight size={20} />}
+                  className="flex-1 sm:flex-none"
                 >
-                  Submit {directPickItems.length} Pick(s)
+                  {isMobile ? `Submit ${directPickItems.length}` : `Submit ${directPickItems.length} Pick(s)`}
                 </Button>
               </div>
             </div>
@@ -1294,16 +1302,20 @@ export const Picking = memo(function Picking() {
                 orderNumber={activeGroup.orderNumber}
                 customerName={activeGroup.customerName}
                 status={isFullyPicked ? "Picked" : "Picking"}
-                progressLabel={`${completedItemCount} of ${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity} of ${activeGroup.totalQuantity} units`}
+                progressLabel={
+                  isMobile
+                    ? `${completedItemCount}/${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity}/${activeGroup.totalQuantity}`
+                    : `${completedItemCount} of ${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity} of ${activeGroup.totalQuantity} units`
+                }
                 progressValue={activeOrderProgress}
                 meta={
-                  <span className="font-mono text-xs font-black tabular-nums text-brand-200">
+                  <span className="font-mono text-[11px] font-black tabular-nums text-brand-200 sm:text-xs">
                     {activeItem.pendingQuantity} left
                   </span>
                 }
                 bottomDock={
                   isFullyPicked ? (
-                    <Button size="md" fullWidth color="green" onClick={() => navigate("/packing")}>
+                    <Button size={isMobile ? "sm" : "md"} fullWidth color="green" onClick={() => navigate("/packing")}>
                       Continue to Packing
                     </Button>
                   ) : (
@@ -1361,7 +1373,7 @@ export const Picking = memo(function Picking() {
                   <div
                     role="status"
                     aria-live="polite"
-                    className={`mt-2 rounded-xl border px-3 py-2 text-xs ${
+                    className={`mt-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] sm:mt-2 sm:px-3 sm:py-2 sm:text-xs ${
                       scanTone === "success"
                         ? "border-green-500/20 bg-green-500/[0.06] text-green-200"
                         : "border-white/10 bg-white/[0.025] text-neutral-400"
@@ -1372,7 +1384,7 @@ export const Picking = memo(function Picking() {
                   </div>
                 )}
 
-                <div className="mt-2 flex justify-end">
+                <div className="mt-1.5 flex justify-end sm:mt-2">
                   <Button
                     variant="subtle"
                     color="yellow"
@@ -1383,7 +1395,7 @@ export const Picking = memo(function Picking() {
                   </Button>
                 </div>
 
-                <CompactItems title="Order Lines" count={activeGroup.items.length}>
+                <CompactItems title="Order Lines" count={activeGroup.items.length} defaultOpen={!isMobile}>
                   <div className="space-y-1">
                     {activeGroup.items.map((item) => (
                       <CompactItemRow
@@ -1408,6 +1420,8 @@ export const Picking = memo(function Picking() {
           }
         />
       )}
+      </div>
+      </div>
 
       <Modal
         opened={isShortCloseModalOpen}

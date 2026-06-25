@@ -49,18 +49,18 @@ export function OutboundStageNav({
   children,
 }: OutboundStageNavProps) {
   return (
-    <div className="sticky top-0 z-20 -mx-1 mb-2 border-b border-white/10 bg-[#090d14]/95 px-1 pb-2 pt-1 backdrop-blur-xl">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="relative z-20 -mx-1 border-b border-white/10 bg-[#090d14]/95 px-1 pb-0.5 pt-1 backdrop-blur-xl sm:sticky sm:top-0 sm:mb-2 sm:pb-2">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
         <nav
           aria-label="Outbound workflow"
-          className="grid min-w-0 flex-1 grid-cols-3 rounded-xl border border-white/10 bg-white/[0.035] p-1"
+          className="grid min-w-0 flex-1 grid-cols-3 rounded-xl border border-white/10 bg-white/[0.035] p-0.5 sm:p-1"
         >
           {stageLinks.map(({ id, label, href, icon: Icon }) => (
             <NavLink
               key={id}
               to={href}
               className={({ isActive }) =>
-                `flex min-h-10 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+                `flex min-h-9 items-center justify-center gap-1 rounded-lg px-1.5 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-10 sm:gap-1.5 sm:px-2 sm:text-xs ${
                   isActive || active === id
                     ? "bg-brand-500 text-slate-950 shadow-lg shadow-brand-500/20"
                     : "text-neutral-400 hover:bg-white/[0.06] hover:text-white"
@@ -100,14 +100,14 @@ export function OutboundSplitLayout({
   workspace,
 }: OutboundSplitLayoutProps) {
   return (
-    <div className="grid min-h-0 gap-2.5 xl:grid-cols-[minmax(290px,0.72fr)_minmax(0,1.55fr)]">
+    <div className="grid h-full min-h-0 gap-2.5 xl:h-auto xl:grid-cols-[minmax(290px,0.72fr)_minmax(0,1.55fr)]">
       <aside
-        className={`${showQueueOnMobile ? "block" : "hidden"} min-h-0 xl:block`}
+        className={`${showQueueOnMobile ? "block" : "hidden"} h-full min-h-0 xl:block xl:h-auto`}
       >
         {queue}
       </aside>
       <main
-        className={`${showQueueOnMobile ? "hidden" : "block"} min-h-0 xl:block`}
+        className={`${showQueueOnMobile ? "hidden" : "block"} h-full min-h-0 xl:block xl:h-auto`}
       >
         {workspace}
       </main>
@@ -137,9 +137,9 @@ export function OutboundQueue({
   children,
 }: OutboundQueueProps) {
   return (
-    <section className="flex min-h-[calc(100dvh-9rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
-      <div className="border-b border-white/10 px-3 py-2.5">
-        <div className="mb-2 flex items-center justify-between gap-2">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:min-h-[calc(100dvh-9rem)] sm:rounded-2xl xl:h-auto xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
+      <div className="border-b border-white/10 px-2 py-1.5 sm:px-3 sm:py-2.5">
+        <div className="mb-1 flex items-center justify-between gap-2 sm:mb-2">
           <div className="flex min-w-0 items-center gap-2">
             <ClipboardList aria-hidden="true" className="text-brand-300" size={17} />
             <h1 className="truncate text-sm font-bold text-white">{title}</h1>
@@ -158,12 +158,12 @@ export function OutboundQueue({
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={searchPlaceholder}
-          className="h-10 w-full rounded-xl border border-white/10 bg-black/20 px-3 text-sm text-white outline-none transition-colors placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30"
+          className="h-8 w-full rounded-lg border border-white/10 bg-black/20 px-2.5 text-xs text-white outline-none transition-colors placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 sm:h-10 sm:rounded-xl sm:px-3 sm:text-sm"
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 scrollbar-thin sm:p-2">
         {count > 0 ? (
-          <div className="space-y-1.5">{children}</div>
+          <div className="space-y-1 sm:space-y-1.5">{children}</div>
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center px-5 text-center">
             <ClipboardList aria-hidden="true" className="mb-3 text-neutral-600" size={30} />
@@ -202,7 +202,7 @@ export function OutboundQueueRow({
     <button
       type="button"
       onClick={onClick}
-      className={`group flex min-h-[68px] w-full touch-manipulation items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+      className={`group flex min-h-[52px] w-full touch-manipulation items-center gap-2 rounded-lg border px-2 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[68px] sm:rounded-xl sm:px-3 sm:py-2 ${
         active
           ? "border-brand-500/45 bg-brand-500/12"
           : "border-transparent bg-white/[0.025] hover:border-white/10 hover:bg-white/[0.055]"
@@ -210,7 +210,7 @@ export function OutboundQueueRow({
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate font-mono text-sm font-black text-white" translate="no">
+          <p className="truncate font-mono text-xs font-black text-white sm:text-sm" translate="no">
             {orderNumber}
           </p>
           <span className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-neutral-400">
@@ -220,7 +220,7 @@ export function OutboundQueueRow({
         <p className="mt-1 truncate text-xs text-neutral-400">{customerName}</p>
       </div>
       <div className="shrink-0 text-right">
-        <p className="font-mono text-sm font-black tabular-nums text-brand-200">
+        <p className="font-mono text-xs font-black tabular-nums text-brand-200 sm:text-sm">
           {primaryMetric}
         </p>
         <p className="text-[10px] text-neutral-500">{secondaryMetric}</p>
@@ -261,14 +261,14 @@ export function TaskWorkspace({
 }: TaskWorkspaceProps) {
   const safeProgress = Math.min(Math.max(progressValue, 0), 100);
   return (
-    <section className="relative flex min-h-[calc(100dvh-9rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
-      <header className="border-b border-white/10 bg-[#121923] px-3 py-2.5">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/15 sm:min-h-[calc(100dvh-9rem)] sm:rounded-2xl xl:h-auto xl:max-h-[calc(100dvh-7rem)] xl:min-h-[560px]">
+      <header className="border-b border-white/10 bg-[#121923] px-2 py-1.5 sm:px-3 sm:py-2.5">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onBack}
             aria-label={backLabel}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-neutral-300 transition-colors hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 xl:hidden"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.04] text-neutral-300 transition-colors hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:h-10 sm:w-10 sm:rounded-xl xl:hidden"
           >
             <ChevronRight aria-hidden="true" className="rotate-180" size={18} />
           </button>
@@ -285,7 +285,7 @@ export function TaskWorkspace({
           </div>
           {meta ? <div className="shrink-0">{meta}</div> : null}
         </div>
-        <div className="mt-2">
+        <div className="mt-1.5 sm:mt-2">
           <div className="mb-1 flex items-center justify-between gap-2 text-[10px] font-semibold text-neutral-500">
             <span>{progressLabel}</span>
             <span className="font-mono tabular-nums text-neutral-300">{safeProgress}%</span>
@@ -298,11 +298,11 @@ export function TaskWorkspace({
           </div>
         </div>
       </header>
-      <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5 scrollbar-thin ${bottomDock ? "pb-32 sm:pb-28" : ""}`}>
+      <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 scrollbar-thin sm:p-2.5 ${bottomDock ? "pb-28 sm:pb-28" : ""}`}>
         {children}
       </div>
       {bottomDock ? (
-        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-white/10 bg-[#0d121a]/95 p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
+        <div className="absolute inset-x-0 bottom-0 z-10 border-t border-white/10 bg-[#0d121a]/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-2.5 sm:pb-[max(0.625rem,env(safe-area-inset-bottom))]">
           {bottomDock}
         </div>
       ) : null}
@@ -328,23 +328,23 @@ export function TaskInstruction({
   metrics = [],
 }: TaskInstructionProps) {
   return (
-    <section className={`rounded-2xl border p-3 ${toneClasses[tone]}`}>
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black/15">
-          <Icon aria-hidden="true" size={20} />
+    <section className={`rounded-xl border p-2 sm:rounded-2xl sm:p-3 ${toneClasses[tone]}`}>
+      <div className="flex min-w-0 items-start gap-2 sm:gap-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-black/15 sm:h-10 sm:w-10 sm:rounded-xl">
+          <Icon aria-hidden="true" size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-70">{eyebrow}</p>
-          <h2 className="mt-0.5 text-base font-black leading-tight text-white text-pretty">{title}</h2>
+          <h2 className="mt-0.5 text-sm font-black leading-tight text-white text-pretty sm:text-base">{title}</h2>
           {description ? (
-            <p className="mt-1 text-xs leading-5 text-neutral-300">{description}</p>
+            <p className="mt-0.5 text-[11px] leading-4 text-neutral-300 sm:mt-1 sm:text-xs sm:leading-5">{description}</p>
           ) : null}
         </div>
       </div>
       {metrics.length > 0 ? (
-        <dl className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 sm:grid-cols-4">
+        <dl className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 min-[420px]:grid-cols-4 sm:mt-3 sm:rounded-xl">
           {metrics.map((metric) => (
-            <div key={metric.label} className="min-w-0 bg-[#111721] px-2.5 py-2">
+            <div key={metric.label} className="min-w-0 bg-[#111721] px-2 py-1.5 sm:px-2.5 sm:py-2">
               <dt className="truncate text-[9px] font-bold uppercase tracking-wide text-neutral-500">
                 {metric.label}
               </dt>
@@ -379,9 +379,9 @@ export function CompactItems({
   return (
     <details
       open={defaultOpen}
-      className="group mt-2 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025]"
+      className="group mt-1.5 overflow-hidden rounded-xl border border-white/10 bg-white/[0.025] sm:mt-2 sm:rounded-2xl"
     >
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-bold text-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 [&::-webkit-details-marker]:hidden">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-1.5 text-xs font-bold text-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm [&::-webkit-details-marker]:hidden">
         <span className="flex items-center gap-2">
           <ClipboardList aria-hidden="true" size={16} className="text-neutral-500" />
           {title}
@@ -391,7 +391,7 @@ export function CompactItems({
           <ChevronRight aria-hidden="true" size={15} className="transition-transform group-open:rotate-90" />
         </span>
       </summary>
-      <div className="border-t border-white/10 p-1.5">{children}</div>
+      <div className="border-t border-white/10 p-1 sm:p-1.5">{children}</div>
     </details>
   );
 }
@@ -420,7 +420,7 @@ export function CompactItemRow({
   return (
     <Element
       {...(onClick ? { type: "button" as const, onClick } : {})}
-      className={`flex min-h-[52px] w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left ${
+      className={`flex min-h-[46px] w-full items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left sm:min-h-[52px] sm:gap-2 sm:rounded-xl sm:px-2.5 sm:py-2 ${
         active
           ? "border-brand-500/35 bg-brand-500/10"
           : done
@@ -429,7 +429,7 @@ export function CompactItemRow({
       } ${onClick ? "touch-manipulation transition-colors hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400" : ""}`}
     >
       <div
-        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${
+        className={`grid h-6 w-6 shrink-0 place-items-center rounded-md sm:h-7 sm:w-7 sm:rounded-lg ${
           done ? "bg-green-500/15 text-green-300" : active ? "bg-brand-500/15 text-brand-200" : "bg-white/[0.05] text-neutral-500"
         }`}
       >
@@ -479,16 +479,16 @@ export function ScannerDock({
   secondaryAction,
 }: ScannerDockProps) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5 sm:space-y-2">
       <div className="flex items-center justify-between gap-2">
         <label className="text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500" htmlFor={`${label.replace(/\s+/g, "-").toLowerCase()}-scanner`}>
           {label}
         </label>
         {secondaryAction}
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-1.5 sm:gap-2">
         <div className="relative min-w-0 flex-1">
-          <ScanLine aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" size={17} />
+          <ScanLine aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500 sm:left-3" size={16} />
           <input
             ref={inputRef}
             id={`${label.replace(/\s+/g, "-").toLowerCase()}-scanner`}
@@ -505,14 +505,14 @@ export function ScannerDock({
             }}
             disabled={disabled}
             placeholder={placeholder}
-            className="h-12 w-full rounded-xl border border-white/10 bg-black/25 pl-10 pr-3 font-mono text-sm font-bold text-white outline-none transition-colors placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-10 w-full rounded-lg border border-white/10 bg-black/25 pl-8 pr-2.5 font-mono text-xs font-bold text-white outline-none transition-colors placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:rounded-xl sm:pl-10 sm:pr-3 sm:text-sm"
           />
         </div>
         <button
           type="button"
           onClick={onSubmit}
           disabled={disabled || loading}
-          className={`min-h-12 min-w-[88px] touch-manipulation rounded-xl border px-4 text-xs font-black uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50 ${toneClasses[tone]}`}
+          className={`min-h-10 min-w-[70px] touch-manipulation rounded-lg border px-3 text-[11px] font-black uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-12 sm:min-w-[88px] sm:rounded-xl sm:px-4 sm:text-xs ${toneClasses[tone]}`}
         >
           {loading ? "Working…" : actionLabel}
         </button>

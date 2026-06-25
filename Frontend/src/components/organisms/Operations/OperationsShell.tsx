@@ -60,7 +60,7 @@ export function OperationsPage({
   children,
 }: OperationsPageProps) {
   return (
-    <Stack gap="md" style={{ minHeight: 0 }}>
+    <Stack gap={{ base: 0, sm: "md" }} style={{ height: "100%", minHeight: 0 }}>
       {!hideHeader ? (
         <Paper
           p={{ base: "md", md: "lg" }}
@@ -231,6 +231,7 @@ export function OperationsPanel({
         boxShadow: "var(--shadow-card)",
         display: "flex",
         flexDirection: "column",
+        minHeight: 0,
       }}
     >
       {!hideHeader && (
@@ -287,10 +288,10 @@ export function OperationsPanel({
         </Box>
       )}
       <Box
-        p="md"
+        p={{ base: "xs", sm: "md" }}
         flex={1}
         className={contentClassName}
-        style={{ minHeight: 0 }}
+        style={{ minHeight: 0, overflowY: "auto", overscrollBehavior: "contain" }}
       >
         {children}
       </Box>
