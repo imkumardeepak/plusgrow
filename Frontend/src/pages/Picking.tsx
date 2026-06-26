@@ -535,10 +535,10 @@ export const Picking = memo(function Picking() {
 
         {/* ── Mode tabs ─────────────────────────────────────────────────── */}
         <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/[0.025] p-1">
-          {(["sales_orders", "consolidated", "direct_pick"] as const).map((m) => {
+          {(["consolidated", "direct_pick", "sales_orders"] as const).map((m) => {
             const labels: Record<PickingMode, string> = {
-              sales_orders: "Sales Orders",
-              consolidated: "Consolidated",
+              sales_orders: "SO Wise",
+              consolidated: "SO List",
               direct_pick: "Direct Pick",
             };
             return (

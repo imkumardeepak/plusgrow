@@ -1,16 +1,12 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Checkbox, NumberInput } from "@mantine/core";
+import { NumberInput } from "@mantine/core";
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
-  ChevronRight,
-  Layers,
   MapPin,
   Package,
   RefreshCw,
   ScanLine,
-  X,
 } from "lucide-react";
 
 import { Badge } from "../components/atoms/Badge";
@@ -61,6 +57,16 @@ type ConsolidatedGroup = {
   totalPicked: number;
   totalPending: number;
   lines: ConsolidatedLine[];
+};
+
+type PickLocationRow = {
+  key: string;
+  group: ConsolidatedGroup;
+  locationCode: string;
+  locationStock: number;
+  pickQuantity: number;
+  sequence: number;
+  isMapped: boolean;
 };
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -115,12 +121,8 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // selection
-  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
-  const [orderSearch, setOrderSearch] = useState("");
-
-  // expanded product group
-  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
+  // active table row
+  const [activeRowKey, setActiveRowKey] = useState<string | null>(null);
 
   // scan state
   const [locationCode, setLocationCode] = useState("");
@@ -128,7 +130,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const [skuCode, setSkuCode] = useState("");
   const [pickQty, setPickQty] = useState<number | "">("");
   const [scanTone, setScanTone] = useState<ScanTone>("idle");
-  const [statusMessage, setStatusMessage] = useState("Select orders above, then pick a product.");
+  const [statusMessage, setStatusMessage] = useState("");
   const [isPicking, setIsPicking] = useState(false);
 
   const locationRef = useRef<HTMLInputElement>(null);
@@ -153,23 +155,15 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
 
   useEffect(() => { void loadData(); }, [loadData]);
 
-  /* ── Derived: visible orders ─────────────────────────────────────────── */
+  /* ── Derived: all pending SOs are included by default ─────────────────── */
   const visibleOrders = useMemo(() => {
-    const q = orderSearch.trim().toLowerCase();
-    const withPending = orders.filter((o) => o.items.some((i) => i.pendingQuantity > 0));
-    if (!q) return withPending;
-    return withPending.filter(
-      (o) =>
-        o.orderNumber.toLowerCase().includes(q) ||
-        o.customerName.toLowerCase().includes(q) ||
-        o.items.some(
-          (i) =>
-            i.skuCode.toLowerCase().includes(q) ||
-            i.productName.toLowerCase().includes(q) ||
-            (i.alias && i.alias.toLowerCase().includes(q)),
-        ),
-    );
-  }, [orders, orderSearch]);
+    return orders.filter((o) => o.items.some((i) => i.pendingQuantity > 0));
+  }, [orders]);
+
+  const selectedOrderIds = useMemo(
+    () => visibleOrders.map((order) => order.id),
+    [visibleOrders],
+  );
 
   /* ── Derived: consolidated product groups ─────────────────────────────── */
   const groups = useMemo<ConsolidatedGroup[]>(() => {
@@ -228,15 +222,66 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   }, [orders, selectedOrderIds]);
 
   const totalSelectedPending = groups.reduce((s, g) => s + g.totalPending, 0);
+  const totalSelectedQuantity = groups.reduce((s, g) => s + g.totalQuantity, 0);
 
-  const activeGroup = groups.find((g) => g.key === expandedGroupKey) ?? null;
+  const pickRows = useMemo<PickLocationRow[]>(() => {
+    return groups.flatMap((group) => {
+      const row = locations.find((r) => r.productId === group.productId);
+      const locationEntries = Object.entries(row?.locationJson || {})
+        .map(([locationCode, qty]) => ({
+          locationCode,
+          qty: Number(qty) || 0,
+        }))
+        .filter((entry) => entry.qty > 0);
 
-  /* ── Auto-cleanup when active group disappears ────────────────────────── */
+      let remaining = group.totalPending;
+      const rows: PickLocationRow[] = [];
+
+      locationEntries.forEach((entry, index) => {
+        if (remaining <= 0) return;
+        const pickQuantity = Math.min(entry.qty, remaining);
+        rows.push({
+          key: `${group.key}__${entry.locationCode}`,
+          group,
+          locationCode: entry.locationCode,
+          locationStock: entry.qty,
+          pickQuantity,
+          sequence: index + 1,
+          isMapped: true,
+        });
+        remaining -= pickQuantity;
+      });
+
+      if (remaining > 0) {
+        rows.push({
+          key: `${group.key}__unmapped`,
+          group,
+          locationCode: "Not mapped",
+          locationStock: 0,
+          pickQuantity: remaining,
+          sequence: locationEntries.length + 1,
+          isMapped: false,
+        });
+      }
+
+      return rows;
+    });
+  }, [groups, locations]);
+
+  const activeRow = pickRows.find((row) => row.key === activeRowKey) ?? pickRows[0] ?? null;
+  const activeGroup = activeRow?.group ?? null;
+
+  /* ── Keep first available row active by default ───────────────────────── */
   useEffect(() => {
-    if (expandedGroupKey && !groups.some((g) => g.key === expandedGroupKey)) {
-      setExpandedGroupKey(null);
+    if (pickRows.length === 0) {
+      if (activeRowKey !== null) setActiveRowKey(null);
+      return;
     }
-  }, [groups, expandedGroupKey]);
+
+    if (!activeRowKey || !pickRows.some((row) => row.key === activeRowKey)) {
+      setActiveRowKey(pickRows[0].key);
+    }
+  }, [activeRowKey, pickRows]);
 
   /* ── Reset scan state when active group changes ───────────────────────── */
   useEffect(() => {
@@ -244,27 +289,32 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     setIsLocationLocked(false);
     setSkuCode("");
     setScanTone("idle");
-    if (activeGroup) {
-      setPickQty(activeGroup.totalPending);
-      setStatusMessage(`Scan location for ${activeGroup.skuCode}.`);
+    if (activeRow) {
+      setPickQty(activeRow.pickQuantity);
+      setStatusMessage("");
       window.setTimeout(() => locationRef.current?.focus(), 0);
     } else {
       setPickQty("");
-      setStatusMessage("Select orders above, then pick a product.");
+      setStatusMessage("");
     }
-  }, [expandedGroupKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeRowKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
-  const getLocationSummary = useCallback(
-    (productId: number) => {
-      const row = locations.find((r) => r.productId === productId);
-      if (!row) return "Not mapped";
-      const entries = Object.entries(row.locationJson || {});
-      if (!entries.length) return "Not mapped";
-      return entries.map(([c, q]) => `${c} (${q})`).join(", ");
-    },
-    [locations],
-  );
+  const reduceLocationStock = (productId: number, location: string, quantity: number) => {
+    setLocations((cur) =>
+      cur.map((row) => {
+        if (row.productId !== productId) return row;
+        const current = Number(row.locationJson?.[location] || 0);
+        return {
+          ...row,
+          locationJson: {
+            ...row.locationJson,
+            [location]: Math.max(current - quantity, 0),
+          },
+        };
+      }),
+    );
+  };
 
   const applyUpdatedItems = (updatedItems: OutwardOrder[]) => {
     if (!updatedItems.length) return;
@@ -286,33 +336,21 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     );
   };
 
-  /* ── Order selection ──────────────────────────────────────────────────── */
-  const allVisibleSelected =
-    visibleOrders.length > 0 &&
-    visibleOrders.every((o) => selectedOrderIds.includes(o.id));
-
-  const toggleOrder = (id: number) =>
-    setSelectedOrderIds((cur) =>
-      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-    );
-
-  const toggleSelectAll = () => {
-    if (allVisibleSelected) {
-      const ids = new Set(visibleOrders.map((o) => o.id));
-      setSelectedOrderIds((cur) => cur.filter((x) => !ids.has(x)));
-    } else {
-      setSelectedOrderIds((cur) =>
-        Array.from(new Set([...cur, ...visibleOrders.map((o) => o.id)])),
-      );
-    }
-  };
-
   /* ── Scan handlers ────────────────────────────────────────────────────── */
   const handleSetLocation = () => {
+    if (!activeRow) { toast.error("Select a row first"); return; }
+    if (!activeRow.isMapped) { toast.error("No allotted location found for this row"); return; }
     const loc = locationCode.trim();
     if (!loc) { toast.error("Scan location code"); return; }
+    if (normalizeProductScan(loc) !== normalizeProductScan(activeRow.locationCode)) {
+      setScanTone("error");
+      setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}.`);
+      toast.error(`Scan ${activeRow.locationCode} first`);
+      return;
+    }
     setIsLocationLocked(true);
-    setStatusMessage("Location set. Now scan the product SKU or Alias.");
+    setScanTone("success");
+    setStatusMessage(`${activeRow.locationCode} verified`);
     window.setTimeout(() => skuRef.current?.focus(), 0);
   };
 
@@ -324,11 +362,12 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   };
 
   const submitPick = async (quantity: number) => {
-    if (!activeGroup) { toast.error("Select a product first"); return; }
+    if (!activeRow || !activeGroup) { toast.error("Select a row first"); return; }
+    if (!activeRow.isMapped) { toast.error("No allotted location found for this row"); return; }
     const loc = locationCode.trim();
     if (!loc) { toast.error("Scan location first"); return; }
     if (quantity <= 0) { toast.error("Quantity must be > 0"); return; }
-    const capped = Math.min(quantity, activeGroup.totalPending);
+    const capped = Math.min(quantity, activeRow.pickQuantity);
     try {
       setIsPicking(true);
       const result = await outwardOrdersApi.consolidatedPick({
@@ -340,6 +379,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
         mrp: activeGroup.mrp,
       });
       applyUpdatedItems(result.updatedItems);
+      reduceLocationStock(activeGroup.productId, result.locationCode, result.pickedQuantity);
       setScanTone("success");
       setStatusMessage(
         `Picked ${result.pickedQuantity} of ${activeGroup.skuCode} from ${result.locationCode} across ${result.allocations.length} order(s).`,
@@ -359,7 +399,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   };
 
   const handleSkuScan = async () => {
-    if (!activeGroup) { toast.error("Select a product first"); return; }
+    if (!activeRow || !activeGroup) { toast.error("Select a row first"); return; }
     if (!isLocationLocked) { toast.error("Scan location first"); window.setTimeout(() => locationRef.current?.focus(), 0); return; }
     const parsed = parseStickerScan(skuCode);
     if (!parsed.sku) { toast.error("Scan SKU or Alias"); return; }
@@ -384,7 +424,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
       if (!ok) { setSkuCode(""); window.setTimeout(() => skuRef.current?.focus(), 0); return; }
     }
     const cartonQty = getCartonQuantity(parsed.raw, activeGroup.cartonQr, activeGroup.cartonPerItem);
-    const increment = Math.min(cartonQty > 0 ? cartonQty : 1, activeGroup.totalPending);
+    const increment = Math.min(cartonQty > 0 ? cartonQty : 1, activeRow.pickQuantity);
     await submitPick(increment);
   };
 
@@ -392,204 +432,92 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
      RENDER
   ──────────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-[#10151e] px-2 py-1.5 text-[10px] font-black text-neutral-300 sm:text-xs">
+        <span className="inline-flex items-center gap-1 text-brand-200">
+          <Package size={12} />
+          {visibleOrders.length} SO
+        </span>
+        <span className="text-neutral-600">|</span>
+        <span>{groups.length} SKU</span>
+        <span className="text-neutral-600">|</span>
+        <span>{totalSelectedPending}/{totalSelectedQuantity}</span>
+        <button
+          type="button"
+          onClick={() => void loadData()}
+          className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-md text-neutral-500 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          aria-label="Refresh SO list"
+        >
+          <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+        </button>
+      </div>
 
-      {/* ── Step 1: Select Orders ─────────────────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-[#10151e] overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2">
-            <Layers size={14} className="text-brand-300" />
-            <span className="text-sm font-bold text-white">Step 1 — Select Orders</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {selectedOrderIds.length > 0 && (
-              <span className="rounded bg-brand-500/15 px-2 py-0.5 text-[10px] font-black tabular-nums text-brand-200">
-                {selectedOrderIds.length} selected
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => void loadData()}
-              className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-white transition-colors"
-            >
-              <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        {/* Search */}
-        <div className="px-3 pt-2.5 pb-1.5">
-          <div className="relative">
-            <input
-              value={orderSearch}
-              onChange={(e) => setOrderSearch(e.target.value)}
-              placeholder="Search order, customer, SKU…"
-              className="h-8 w-full rounded-lg border border-white/10 bg-black/25 pl-3 pr-8 text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30"
-            />
-            {orderSearch && (
-              <button
-                type="button"
-                onClick={() => setOrderSearch("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white"
-              >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-        </div>
-
         {visibleOrders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center px-4">
-            <Layers size={26} className="text-neutral-700 mb-2" />
-            <p className="text-sm font-bold text-white">No open orders</p>
-            <p className="mt-1 text-xs text-neutral-500">No open sales orders with pending quantity.</p>
+          <div className="flex items-center justify-center py-8 text-xs font-bold text-neutral-500">
+            No open SO
           </div>
         ) : (
           <>
-            {/* Select all toggle */}
-            <div className="px-3 pb-1">
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="text-[10px] font-black uppercase tracking-widest text-brand-300 hover:text-brand-200 transition-colors"
-              >
-                {allVisibleSelected ? "Deselect all" : "Select all"}
-              </button>
+            <div className="grid grid-cols-[78px_1fr_auto_auto] gap-x-2 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/[0.06] bg-white/[0.02] sm:grid-cols-[110px_1fr_auto_auto_auto]">
+              <span>Location</span>
+              <span>Product</span>
+              <span className="hidden sm:block text-center">SO</span>
+              <span className="text-right">Qty</span>
+              <span className="text-right">Bal</span>
             </div>
 
-            {/* Orders table */}
-            <div className="border-t border-white/[0.06]">
-              {/* Header */}
-              <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-3 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/[0.06] bg-white/[0.02]">
-                <span></span>
-                <span>Order / Customer</span>
-                <span className="hidden sm:block text-center">Items</span>
-                <span className="text-right">Pending</span>
-              </div>
-
-              <div className="max-h-[280px] overflow-y-auto">
-                {visibleOrders.map((order) => {
-                  const pending = order.items.reduce((s, i) => s + i.pendingQuantity, 0);
-                  const checked = selectedOrderIds.includes(order.id);
-                  return (
-                    <button
-                      key={order.id}
-                      type="button"
-                      onClick={() => toggleOrder(order.id)}
-                      className={`w-full grid grid-cols-[auto_1fr_auto_auto] gap-x-3 items-center px-3 py-2 text-left border-b border-white/[0.04] last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${
-                        checked ? "bg-brand-500/8" : "hover:bg-white/[0.04]"
-                      }`}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        readOnly
-                        tabIndex={-1}
-                        size="xs"
-                        style={{ pointerEvents: "none" }}
-                      />
-                      <span className="min-w-0">
-                        <span className="block font-mono text-xs font-black text-white">
-                          {order.orderNumber}
-                        </span>
-                        <span className="block text-[11px] text-neutral-400 truncate">
-                          {order.customerName}
-                        </span>
-                      </span>
-                      <span className="hidden sm:block text-xs text-neutral-400 text-center tabular-nums">
-                        {order.items.length}
-                      </span>
-                      <span>
-                        <Badge variant="warning" shape="pill" className="border-none text-[10px]">
-                          {pending}
-                        </Badge>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── Step 2: Pick by Product ─────────────────────────────────────────── */}
-      {selectedOrderIds.length > 0 && (
-        <div className="rounded-xl border border-white/10 bg-[#10151e] overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-white/10 bg-white/[0.02]">
-            <div className="flex items-center gap-2">
-              <Package size={14} className="text-brand-300" />
-              <span className="text-sm font-bold text-white">Step 2 — Pick by Product</span>
-            </div>
-            <span className="rounded bg-white/[0.06] px-2 py-0.5 text-[10px] font-black tabular-nums text-neutral-300">
-              {groups.length} product(s) · {totalSelectedPending} pending
-            </span>
-          </div>
-
-          {groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
-              <Package size={26} className="text-neutral-700 mb-2" />
-              <p className="text-sm font-bold text-white">Nothing to pick</p>
-              <p className="mt-1 text-xs text-neutral-500">Selected orders have no pending quantity.</p>
+          {pickRows.length === 0 ? (
+            <div className="flex items-center justify-center py-8 text-xs font-bold text-neutral-500">
+              Nothing to pick
             </div>
           ) : (
             <>
-              {/* Column header */}
-              <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/[0.06] bg-white/[0.02]">
-                <span></span>
-                <span>Product</span>
-                <span className="hidden sm:block text-center">Orders</span>
-                <span className="text-right">Picked</span>
-                <span className="text-right">Pending</span>
-              </div>
-
-              {groups.map((group) => {
-                const isExpanded = group.key === expandedGroupKey;
-                const done = group.totalPending === 0;
-                const pct = group.totalQuantity > 0
-                  ? Math.round((group.totalPicked / group.totalQuantity) * 100)
-                  : 0;
+              {pickRows.map((row) => {
+                const group = row.group;
+                const isActive = row.key === activeRow?.key;
 
                 return (
-                  <div key={group.key} className="border-b border-white/[0.05] last:border-0">
-
-                    {/* Product row */}
+                  <div key={row.key} className="border-b border-white/[0.05] last:border-0">
                     <button
                       type="button"
-                      onClick={() => setExpandedGroupKey(isExpanded ? null : group.key)}
-                      className={`w-full grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-2 items-center px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${
-                        isExpanded
+                      onClick={() => setActiveRowKey(row.key)}
+                      className={`w-full grid grid-cols-[78px_1fr_auto_auto] gap-x-2 items-center px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 sm:grid-cols-[110px_1fr_auto_auto_auto] ${
+                        isActive
                           ? "bg-brand-500/8"
-                          : done
-                            ? "opacity-50 hover:opacity-75 hover:bg-white/[0.03]"
-                            : "hover:bg-white/[0.04]"
+                          : row.isMapped
+                            ? "hover:bg-white/[0.04]"
+                            : "bg-yellow-500/[0.04] hover:bg-yellow-500/[0.07]"
                       }`}
                     >
-                      <span className="text-neutral-500">
-                        {isExpanded
-                          ? <ChevronDown size={14} className="text-brand-400" />
-                          : <ChevronRight size={14} />}
+                      <span className="min-w-0">
+                        <span className={`block truncate font-mono text-[11px] font-black ${
+                          row.isMapped ? "text-brand-200" : "text-yellow-300"
+                        }`}>
+                          {row.locationCode}
+                        </span>
+                        <span className="block text-[9px] font-black text-neutral-500">
+                          {row.isMapped ? `#${row.sequence} · ${row.locationStock}` : "assign"}
+                        </span>
                       </span>
 
                       <span className="min-w-0">
-                        <span className={`block font-medium text-xs truncate ${done ? "line-through text-neutral-500" : "text-white"}`}>
-                          {group.productName}
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="min-w-0 truncate text-xs font-semibold text-white">
+                            {group.productName}
+                          </span>
+                          <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-black tabular-nums text-neutral-300 sm:hidden">
+                            {group.lines.length} SO
+                          </span>
+                          <span className="hidden shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-black tabular-nums text-neutral-300 sm:inline">
+                            Need {row.pickQuantity}
+                          </span>
                         </span>
                         <span className="block font-mono text-[10px] text-brand-300">
                           {group.skuCode}
                           {group.alias ? ` / ${group.alias}` : ""}
                           <span className="ml-1.5 text-neutral-500">{formatMrp(group.mrp)}</span>
                         </span>
-                        {/* mini progress bar */}
-                        <div className="mt-1 h-1 w-full max-w-[100px] overflow-hidden rounded-full bg-white/[0.06]">
-                          <div
-                            className="h-full rounded-full bg-brand-500 transition-[width] duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
                       </span>
 
                       <span className="hidden sm:block text-xs text-neutral-400 text-center tabular-nums">
@@ -597,201 +525,115 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                       </span>
 
                       <span className="font-mono text-xs font-bold text-brand-200 text-right tabular-nums">
-                        {group.totalPicked}
+                        {row.pickQuantity}
                       </span>
 
                       <span>
-                        {done ? (
-                          <span className="inline-flex items-center gap-0.5 text-green-400 text-[10px] font-bold">
-                            <Check size={11} /> Done
-                          </span>
-                        ) : (
-                          <Badge variant="warning" shape="pill" className="border-none text-[10px]">
-                            {group.totalPending}
-                          </Badge>
-                        )}
+                        <Badge variant={row.isMapped ? "warning" : "danger"} shape="pill" className="border-none text-[10px]">
+                          {group.totalPending}
+                        </Badge>
                       </span>
                     </button>
 
-                    {/* Expanded section */}
-                    {isExpanded && (
-                      <div className="border-t border-white/10 bg-[#0b0f17] px-3 py-3 space-y-3">
-
-                        {/* Location summary */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
-                          <MapPin size={12} className="text-brand-400 shrink-0" />
-                          <span className="font-medium">Location:</span>
-                          <span className="font-mono text-brand-300">{getLocationSummary(group.productId)}</span>
-                        </div>
-
-                        {/* Metrics */}
-                        <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10">
-                          {[
-                            { label: "Orders", value: group.lines.length },
-                            { label: "Need", value: group.totalQuantity },
-                            { label: "Picked", value: group.totalPicked },
-                          ].map((m) => (
-                            <div key={m.label} className="bg-[#111721] px-2 py-1.5">
-                              <div className="text-[9px] font-bold uppercase tracking-wide text-neutral-500">{m.label}</div>
-                              <div className="font-mono text-sm font-black text-white mt-0.5 tabular-nums">{m.value}</div>
+                    {isActive && (
+                      <div className="border-t border-white/10 bg-[#0b0f17] px-2.5 py-2.5 space-y-2">
+                        {!isLocationLocked ? (
+                          <div className="grid grid-cols-[1fr_auto] gap-2">
+                            <div className="relative">
+                              <MapPin size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                              <input
+                                ref={locationRef}
+                                value={locationCode}
+                                onChange={(e) => setLocationCode(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSetLocation(); } }}
+                                placeholder={`Verify ${row.locationCode}`}
+                                autoComplete="off"
+                                disabled={!row.isMapped}
+                                className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
+                              />
                             </div>
-                          ))}
-                        </div>
-
-                        {/* Order allocation sub-table */}
-                        <div className="rounded-lg border border-white/10 overflow-hidden">
-                          <div className="bg-white/[0.03] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/10">
-                            Order Allocation ({group.lines.length})
+                            <button
+                              type="button"
+                              onClick={handleSetLocation}
+                              disabled={!row.isMapped}
+                              className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                            >
+                              Set
+                            </button>
                           </div>
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="text-[10px] text-neutral-500 border-b border-white/[0.06]">
-                                <th className="text-left px-3 py-1.5">Order</th>
-                                <th className="text-left px-2 py-1.5 hidden sm:table-cell">Customer</th>
-                                <th className="text-right px-3 py-1.5">Picked/Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {group.lines.map((line) => (
-                                <tr key={line.orderItemId} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03]">
-                                  <td className="px-3 py-1.5">
-                                    <span className="font-mono font-black text-white">{line.orderNumber}</span>
-                                  </td>
-                                  <td className="px-2 py-1.5 hidden sm:table-cell">
-                                    <span className="text-neutral-400 truncate max-w-[120px] block">{line.customerName}</span>
-                                  </td>
-                                  <td className="px-3 py-1.5 text-right">
-                                    {line.pendingQuantity === 0 ? (
-                                      <span className="inline-flex items-center gap-1 text-green-400 text-[10px] font-bold">
-                                        <Check size={10} /> {line.pickedQuantity}/{line.quantity}
-                                      </span>
-                                    ) : (
-                                      <span className="font-mono font-bold text-white tabular-nums">
-                                        {line.pickedQuantity}/{line.quantity}
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Scan panel */}
-                        {group.totalPending > 0 && (
-                          <div className="rounded-lg border border-white/10 bg-[#10151e] p-3 space-y-2.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                              Scan to Pick — {group.skuCode}
-                            </label>
-
-                            {/* Location step */}
-                            {!isLocationLocked ? (
-                              <div className="space-y-1">
-                                <p className="text-[10px] text-neutral-500">Step 1 — Scan Location</p>
-                                <div className="flex gap-2">
-                                  <div className="relative flex-1">
-                                    <MapPin size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-                                    <input
-                                      ref={locationRef}
-                                      value={locationCode}
-                                      onChange={(e) => setLocationCode(e.target.value)}
-                                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSetLocation(); } }}
-                                      placeholder="Scan bin / location…"
-                                      autoComplete="off"
-                                      className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30"
-                                    />
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={handleSetLocation}
-                                    className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                                  >
-                                    Set
-                                  </button>
-                                </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-300">
+                                <Check size={11} /> {row.locationCode}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleChangeLocation}
+                                className="text-[10px] font-bold text-brand-300 hover:text-brand-200 transition-colors"
+                              >
+                                Change
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-[1fr_auto] gap-2">
+                              <div className="relative">
+                                <ScanLine size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                <input
+                                  ref={skuRef}
+                                  value={skuCode}
+                                  onChange={(e) => setSkuCode(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSkuScan(); } }}
+                                  placeholder={`Scan ${group.skuCode}${group.alias ? ` / ${group.alias}` : ""}`}
+                                  autoComplete="off"
+                                  className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                                />
                               </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <p className="text-[10px] text-neutral-500">Step 2 — Scan Product</p>
-                                  <button
-                                    type="button"
-                                    onClick={handleChangeLocation}
-                                    className="text-[10px] font-bold text-brand-300 hover:text-brand-200 transition-colors"
-                                  >
-                                    📍 {locationCode} · Change
-                                  </button>
-                                </div>
-
-                                {/* SKU scan */}
-                                <div className="flex gap-2">
-                                  <div className="relative flex-1">
-                                    <ScanLine size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-                                    <input
-                                      ref={skuRef}
-                                      value={skuCode}
-                                      onChange={(e) => setSkuCode(e.target.value)}
-                                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSkuScan(); } }}
-                                      disabled={group.totalPending === 0}
-                                      placeholder={`Scan ${group.skuCode}${group.alias ? ` or ${group.alias}` : ""}…`}
-                                      autoComplete="off"
-                                      className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
-                                    />
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleSkuScan()}
-                                    disabled={isPicking || group.totalPending === 0}
-                                    className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                                  >
-                                    {isPicking ? "…" : "Pick"}
-                                  </button>
-                                </div>
-
-                                {/* Manual qty pick */}
-                                <div className="flex items-end gap-2">
-                                  <NumberInput
-                                    label="Or enter quantity manually"
-                                    size="xs"
-                                    className="flex-1"
-                                    min={1}
-                                    max={group.totalPending}
-                                    value={pickQty}
-                                    onChange={(v) => setPickQty(typeof v === "number" ? v : v === "" ? "" : Number(v))}
-                                    disabled={group.totalPending === 0}
-                                  />
-                                  <Button
-                                    onClick={() => void submitPick(typeof pickQty === "number" ? pickQty : 0)}
-                                    loading={isPicking}
-                                    disabled={group.totalPending === 0}
-                                    size="xs"
-                                    className="h-[30px]"
-                                    leftIcon={<Package size={13} />}
-                                  >
-                                    Pick Qty
-                                  </Button>
-                                </div>
-                                <p className="text-[10px] text-neutral-600">
-                                  Allocated oldest order first. Max {group.totalPending} for this product.
-                                </p>
-                              </div>
-                            )}
+                              <button
+                                type="button"
+                                onClick={() => void handleSkuScan()}
+                                disabled={isPicking}
+                                className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                              >
+                                {isPicking ? "..." : "Pick"}
+                              </button>
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <NumberInput
+                                label="Qty"
+                                size="xs"
+                                className="flex-1"
+                                min={1}
+                                max={row.pickQuantity}
+                                value={pickQty}
+                                onChange={(v) => setPickQty(typeof v === "number" ? v : v === "" ? "" : Number(v))}
+                              />
+                              <Button
+                                onClick={() => void submitPick(typeof pickQty === "number" ? pickQty : 0)}
+                                loading={isPicking}
+                                size="xs"
+                                className="h-[30px]"
+                                leftIcon={<Package size={13} />}
+                              >
+                                Pick Qty
+                              </Button>
+                            </div>
                           </div>
                         )}
 
-                        {/* Status message */}
-                        <div className={`rounded-lg border px-3 py-2 text-[11px] ${
-                          scanTone === "success"
-                            ? "border-green-500/20 bg-green-500/[0.07] text-green-200"
-                            : scanTone === "error"
-                              ? "border-red-500/20 bg-red-500/[0.07] text-red-200"
-                              : "border-white/10 bg-white/[0.025] text-neutral-400"
-                        }`}>
-                          {scanTone === "error" && (
-                            <AlertTriangle size={11} className="inline mr-1.5 text-red-400" />
-                          )}
-                          {statusMessage}
-                        </div>
+                        {statusMessage && (
+                          <div className={`rounded-lg border px-2.5 py-1.5 text-[11px] ${
+                            scanTone === "success"
+                              ? "border-green-500/20 bg-green-500/[0.07] text-green-200"
+                              : scanTone === "error"
+                                ? "border-red-500/20 bg-red-500/[0.07] text-red-200"
+                                : "border-white/10 bg-white/[0.025] text-neutral-400"
+                          }`}>
+                            {scanTone === "error" && (
+                              <AlertTriangle size={11} className="inline mr-1.5 text-red-400" />
+                            )}
+                            {statusMessage}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -799,15 +641,9 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
               })}
             </>
           )}
-        </div>
-      )}
-
-      {/* Prompt when no orders selected */}
-      {selectedOrderIds.length === 0 && (
-        <div className="flex items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] py-8 text-center text-xs text-neutral-500">
-          Select one or more orders above to build the product pick list.
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 });

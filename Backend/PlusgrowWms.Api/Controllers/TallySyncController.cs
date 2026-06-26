@@ -23,9 +23,9 @@ namespace PlusgrowWms.Api.Controllers
         }
 
         [HttpGet("skipped")]
-        public async Task<IActionResult> GetSkippedOrders([FromQuery] bool includeResolved = false, CancellationToken ct = default)
+        public async Task<IActionResult> GetSkippedOrders([FromQuery] DateTime? date, [FromQuery] bool includeResolved = false, CancellationToken ct = default)
         {
-            var skipped = await _tallySyncService.GetSkippedOrdersAsync(includeResolved, ct);
+            var skipped = await _tallySyncService.GetSkippedOrdersAsync(date, includeResolved, ct);
             return Ok(Success(skipped));
         }
 

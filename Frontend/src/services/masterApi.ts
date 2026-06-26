@@ -1731,8 +1731,11 @@ export const tallySyncApi = {
     if (!response.data.success) throw new Error(response.data.message || 'Error fetching Tally stock items');
     return response.data.data || [];
   },
-  getSkippedOrders: async (includeResolved = false): Promise<TallySyncSkippedOrder[]> => {
-    const response = await api.get<ApiResponse<TallySyncSkippedOrder[]>>(`/TallySync/skipped?includeResolved=${includeResolved}`);
+  getSkippedOrders: async (date?: string, includeResolved = false): Promise<TallySyncSkippedOrder[]> => {
+    const params = new URLSearchParams({ includeResolved: includeResolved.toString() });
+    if (date) params.append('date', date);
+    
+    const response = await api.get<ApiResponse<TallySyncSkippedOrder[]>>(`/TallySync/skipped?${params.toString()}`);
     if (!response.data.success) throw new Error(response.data.message || 'Error fetching skipped orders');
     return response.data.data || [];
   },

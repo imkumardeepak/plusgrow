@@ -144,11 +144,12 @@ export const Outward = memo(function Outward() {
   const [isSkippedModalOpen, setIsSkippedModalOpen] = useState(false);
   const [skippedOrders, setSkippedOrders] = useState<TallySyncSkippedOrder[]>([]);
   const [isLoadingSkipped, setIsLoadingSkipped] = useState(false);
+  const [skippedOrdersDate, setSkippedOrdersDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
-  const loadSkippedOrders = useCallback(async () => {
+  const loadSkippedOrders = useCallback(async (dateFilter: string) => {
     try {
       setIsLoadingSkipped(true);
-      const data = await tallySyncApi.getSkippedOrders(false);
+      const data = await tallySyncApi.getSkippedOrders(dateFilter, false);
       setSkippedOrders(data);
     } catch {
       toast.error("Failed to load skipped Tally orders");
@@ -161,7 +162,7 @@ export const Outward = memo(function Outward() {
     try {
       await tallySyncApi.retrySkippedOrder(id);
       toast.success("Order retried and imported successfully!");
-      loadSkippedOrders();
+      loadSkippedOrders(skippedOrdersDate);
       loadOrders();
     } catch (error: any) {
       toast.error(error.message || "Failed to retry order");
@@ -173,7 +174,7 @@ export const Outward = memo(function Outward() {
     try {
       await tallySyncApi.dismissSkippedOrder(id);
       toast.success("Order dismissed");
-      loadSkippedOrders();
+      loadSkippedOrders(skippedOrdersDate);
     } catch (error: any) {
       toast.error(error.message || "Failed to dismiss order");
     }
@@ -778,7 +779,7 @@ export const Outward = memo(function Outward() {
               leftIcon={<AlertTriangle className="h-3.5 w-3.5" />}
               onClick={() => {
                 setIsSkippedModalOpen(true);
-                loadSkippedOrders();
+                loadSkippedOrders(skippedOrdersDate);
               }}
             >
               Skipped Tally
@@ -1320,6 +1321,18 @@ export const Outward = memo(function Outward() {
         title="Skipped Tally Orders"
         size="xl"
       >
+        <Group mb="md" justify="flex-end">
+          <TextInput
+            type="date"
+            label="Filter by Date"
+            value={skippedOrdersDate}
+            onChange={(e) => {
+              const newDate = e.currentTarget.value;
+              setSkippedOrdersDate(newDate);
+              loadSkippedOrders(newDate);
+            }}
+          />
+        </Group>
         <MantineDataTable
           data={skippedOrders}
           isLoading={isLoadingSkipped}

@@ -10,7 +10,7 @@ namespace PlusgrowWms.Api.Services;
 public interface ITallySyncService
 {
     Task SyncTodayVouchersAsync(CancellationToken ct = default);
-    Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(bool includeResolved = false, CancellationToken ct = default);
+    Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(DateTime? date = null, bool includeResolved = false, CancellationToken ct = default);
     Task<bool> RetrySkippedOrderAsync(int id, CancellationToken ct = default);
     Task<bool> DismissSkippedOrderAsync(int id, CancellationToken ct = default);
 }
@@ -73,6 +73,7 @@ public class TallySyncService : ITallySyncService
 
             var referenceKey = tallyReference.ToLower();
             var existingOrders = await _context.SalesOrders
+                .Include(x => x.Items)
                 .AsNoTracking()
                 .Where(x =>
                     x.OrderNumber.ToLower() == referenceKey ||
@@ -81,18 +82,67 @@ public class TallySyncService : ITallySyncService
 
             if (existingOrders.Count > 0)
             {
-                await UpsertSkippedOrderAsync(v, tallyReference, "AlreadyExists", "Order number or reference already exists in WMS", null, ct);
-                skipped++;
+                // Compare existing quantities with Tally quantities
+                var existingQtyByProduct = existingOrders
+                    .SelectMany(x => x.Items ?? new List<OutwardOrder>())
+                    .GroupBy(x => x.ProductId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
+                var tallyQtyByProduct = mapResult.Items
+                    .GroupBy(x => x.ProductId)
+                    .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity));
+
+                var newItemsToCreate = new List<OutwardOrder>();
+
+                foreach (var kvp in tallyQtyByProduct)
+                {
+                    var prodId = kvp.Key;
+                    var tallyQty = kvp.Value;
+                    
+                    existingQtyByProduct.TryGetValue(prodId, out var existingQty);
+                    
+                    var diff = tallyQty - existingQty;
+                    if (diff > 0)
+                    {
+                        var template = mapResult.Items.First(x => x.ProductId == prodId);
+                        newItemsToCreate.Add(new OutwardOrder
+                        {
+                            ProductId = prodId,
+                            Quantity = diff,
+                            Mrp = template.Mrp,
+                            PickedQuantity = 0,
+                            Status = "Open",
+                            Notes = "Imported from Tally (Additional Items)",
+                            CreatedAt = now,
+                            UpdatedAt = now
+                        });
+                    }
+                }
+
+                if (newItemsToCreate.Count == 0)
+                {
+                    // Everything is already matched, silently skip
+                    continue;
+                }
+
+                try
+                {
+                    var orderNumber = await BuildReplacementOrderNumberAsync(tallyReference, ct);
+                    _context.SalesOrders.Add(CreateSalesOrder(v, newItemsToCreate, orderNumber, tallyReference, now));
+                    added++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error adding sales order {OrderNumber}", tallyReference);
+                    await UpsertSkippedOrderAsync(v, tallyReference, "Exception", ex.Message, null, ct);
+                    skipped++;
+                }
                 continue;
             }
 
             try
             {
-                var orderNumber = existingOrders.Count == 0
-                    ? tallyReference
-                    : await BuildReplacementOrderNumberAsync(tallyReference, ct);
-
-                _context.SalesOrders.Add(CreateSalesOrder(v, mapResult.Items, orderNumber, tallyReference, now));
+                _context.SalesOrders.Add(CreateSalesOrder(v, mapResult.Items, tallyReference, tallyReference, now));
                 added++;
             }
             catch (Exception ex)
@@ -148,7 +198,7 @@ public class TallySyncService : ITallySyncService
 
     private async Task<string> BuildReplacementOrderNumberAsync(string baseOrderNumber, CancellationToken ct)
     {
-        var prefix = $"{baseOrderNumber}-R";
+        var prefix = $"{baseOrderNumber}-";
         var existingOrderNumbers = await _context.SalesOrders
             .AsNoTracking()
             .Where(x => x.OrderNumber == baseOrderNumber || x.OrderNumber.StartsWith(prefix))
@@ -158,12 +208,12 @@ public class TallySyncService : ITallySyncService
         var used = existingOrderNumbers.ToHashSet(StringComparer.OrdinalIgnoreCase);
         for (var index = 1; index < 1000; index++)
         {
-            var candidate = $"{baseOrderNumber}-R{index:000}";
+            var candidate = $"{baseOrderNumber}-{index}";
             if (!used.Contains(candidate))
                 return candidate;
         }
 
-        return $"{baseOrderNumber}-R{DateTime.UtcNow:yyyyMMddHHmmss}";
+        return $"{baseOrderNumber}-{DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified):yyyyMMddHHmmss}";
     }
 
     private static SalesOrder CreateSalesOrder(
@@ -302,10 +352,17 @@ public class TallySyncService : ITallySyncService
         return string.IsNullOrWhiteSpace(value) ? "NA" : value.Trim();
     }
 
-    public async Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(bool includeResolved = false, CancellationToken ct = default)
+    public async Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(DateTime? date = null, bool includeResolved = false, CancellationToken ct = default)
     {
         var query = _context.TallySyncSkippedOrders.AsNoTracking();
         
+        if (date.HasValue)
+        {
+            var startOfDay = date.Value.Date;
+            var endOfDay = startOfDay.AddDays(1);
+            query = query.Where(x => x.SyncedAt >= startOfDay && x.SyncedAt < endOfDay);
+        }
+
         if (!includeResolved)
             query = query.Where(x => !x.IsResolved);
 
