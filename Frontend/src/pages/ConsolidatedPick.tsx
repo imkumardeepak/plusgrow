@@ -476,6 +476,15 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
               {pickRows.map((row) => {
                 const group = row.group;
                 const isActive = row.key === activeRow?.key;
+                const orderRefs = Array.from(
+                  new Map(
+                    group.lines.map((line) => [
+                      line.salesOrderId,
+                      `${line.orderNumber} - ${line.customerName}`,
+                    ]),
+                  ).values(),
+                );
+                const orderRefText = orderRefs.join(" | ");
 
                 return (
                   <div key={row.key} className="border-b border-white/[0.05] last:border-0">
@@ -512,6 +521,12 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                           <span className="hidden shrink-0 rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-black tabular-nums text-neutral-300 sm:inline">
                             Need {row.pickQuantity}
                           </span>
+                        </span>
+                        <span
+                          className="block truncate text-[10px] font-semibold text-neutral-400"
+                          title={orderRefText}
+                        >
+                          {orderRefText}
                         </span>
                         <span className="block font-mono text-[10px] text-brand-300">
                           {group.skuCode}
