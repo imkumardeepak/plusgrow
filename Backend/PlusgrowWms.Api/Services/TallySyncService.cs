@@ -111,7 +111,7 @@ public class TallySyncService : ITallySyncService
     {
         var rawItemsJson = JsonSerializer.Serialize(voucher.Items ?? new List<TallyERPWebApi.Model.ItemDetails>());
         var unmatchedJson = unmatchedProducts != null ? JsonSerializer.Serialize(unmatchedProducts) : null;
-        var today = DateTime.UtcNow.Date;
+        var today = DateTime.SpecifyKind(DateTime.Now.Date, DateTimeKind.Unspecified);
 
         var existing = await _context.TallySyncSkippedOrders
             .Where(x => x.TallyReference == tallyReference && x.SyncedAt >= today)
@@ -126,7 +126,7 @@ public class TallySyncService : ITallySyncService
             existing.UnmatchedProducts = unmatchedJson;
             existing.RawItemsJson = rawItemsJson;
             existing.IsResolved = false;
-            existing.SyncedAt = DateTime.UtcNow;
+            existing.SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
             _context.TallySyncSkippedOrders.Update(existing);
         }
         else
@@ -141,7 +141,7 @@ public class TallySyncService : ITallySyncService
                 UnmatchedProducts = unmatchedJson,
                 RawItemsJson = rawItemsJson,
                 IsResolved = false,
-                SyncedAt = DateTime.UtcNow
+                SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified)
             });
         }
     }
@@ -367,7 +367,7 @@ public class TallySyncService : ITallySyncService
         _context.SalesOrders.Add(CreateSalesOrder(dummyVoucher, mapResult.Items, orderNumber, skipped.TallyReference, now));
         
         skipped.IsResolved = true;
-        skipped.ResolvedAt = DateTime.UtcNow;
+        skipped.ResolvedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         await _context.SaveChangesAsync(ct);
         return true;
@@ -380,7 +380,7 @@ public class TallySyncService : ITallySyncService
             return false;
 
         skipped.IsResolved = true;
-        skipped.ResolvedAt = DateTime.UtcNow;
+        skipped.ResolvedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         skipped.Details = "Manually dismissed";
         
         await _context.SaveChangesAsync(ct);

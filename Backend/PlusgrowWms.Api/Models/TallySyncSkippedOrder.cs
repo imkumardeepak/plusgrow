@@ -41,7 +41,7 @@ public class TallySyncSkippedOrder
     public bool IsResolved { get; set; }
 
     [Column("synced_at")]
-    public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
+    public DateTime SyncedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
     [Column("resolved_at")]
     public DateTime? ResolvedAt { get; set; }
