@@ -7,38 +7,35 @@ import React, {
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { Text, TextInput, Select, SegmentedControl, ActionIcon, Table, ScrollArea, Modal, Textarea } from "@mantine/core";
 import {
-  ArrowLeft,
-  ArrowRight,
+  ActionIcon,
+  Badge as MantineBadge,
+  Modal,
+  Select,
+  Table,
+  Text,
+  TextInput,
+  Textarea,
+} from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import {
   AlertTriangle,
-  ClipboardList,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  MapPin,
   Package,
-  ScanLine,
   Plus,
+  RefreshCw,
+  ScanLine,
+  Search,
   X,
 } from "lucide-react";
-import { useMediaQuery } from "@mantine/hooks";
 
-import { Badge } from "../components/atoms/Badge";
 import { Button } from "../components/atoms/Button";
-import {
-  OperationsEmptyState,
-  OperationsPage,
-  OperationsPanel,
-} from "../components/organisms/Operations/OperationsShell";
-import {
-  CompactItemRow,
-  CompactItems,
-  ExceptionNotice,
-  OutboundQueue,
-  OutboundQueueRow,
-  OutboundSplitLayout,
-  OutboundStageNav,
-  ScannerDock,
-  TaskInstruction,
-  TaskWorkspace,
-} from "../components/organisms/Operations/OutboundTaskUI";
+import { OperationsPage } from "../components/organisms/Operations/OperationsShell";
+import { OutboundStageNav } from "../components/organisms/Operations/OutboundTaskUI";
 import {
   OutwardOrder,
   Product,
@@ -52,6 +49,8 @@ import {
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 import ConsolidatedPick from "./ConsolidatedPick";
+
+/* ─── Types ─────────────────────────────────────────────────────────────── */
 
 export type DirectPickCartItem = {
   id: string;
@@ -76,48 +75,6 @@ type StickerScan = {
   hasFullData?: boolean;
 };
 
-const parseStickerScan = (value: string): StickerScan => {
-  const raw = value.trim();
-  const parts = raw.split("#").map((part) => part.trim());
-  
-  // Format: <SKUCODE>#<QNTY>#<DATEOFIMPORT>#<PRICE>
-  // Example: 50-32150-41#1#JAN/2026#Rs.4,200.00
-  const hasFullData = parts.length >= 4;
-  
-  const mrpText = hasFullData ? parts[3] : "";
-  const mrpMatch = mrpText.match(/\d[\d,]*(?:\.\d+)?/);
-  const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
-
-  return {
-    raw,
-    sku: parts[0] || raw,
-    quantity: Math.max(Number(parts[1]) || 1, 1),
-    importDate: parts.length >= 3 ? parts[2] : null,
-    mrp: parsedMrp && Number.isFinite(parsedMrp) ? parsedMrp : null,
-    hasFullData,
-  };
-};
-
-const formatMrp = (value?: number | null) =>
-  typeof value === "number" ? `Rs ${value.toFixed(2)}` : "-";
-
-const isCanceledOrder = (order: OutwardOrder) =>
-  order.status === "Canceled" || order.salesOrderStatus === "Canceled";
-
-const normalizeProductScan = (value?: string | null) =>
-  (value || "").trim().split("#")[0].trim().toLowerCase();
-
-const getCartonQuantity = (
-  scan: string,
-  cartonQr?: string | null,
-  cartonPerItem?: number | null,
-) => {
-  const normalizedCartonQr = normalizeProductScan(cartonQr);
-  if (!normalizedCartonQr || normalizeProductScan(scan) !== normalizedCartonQr) return 0;
-
-  return cartonPerItem && cartonPerItem > 0 ? cartonPerItem : 1;
-};
-
 type PickingOrderGroup = {
   salesOrderId: number;
   orderNumber: string;
@@ -130,64 +87,117 @@ type PickingOrderGroup = {
   pendingQuantity: number;
 };
 
+type PickingMode = "sales_orders" | "direct_pick" | "consolidated";
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+const parseStickerScan = (value: string): StickerScan => {
+  const raw = value.trim();
+  const parts = raw.split("#").map((p) => p.trim());
+  const hasFullData = parts.length >= 4;
+  const mrpText = hasFullData ? parts[3] : "";
+  const mrpMatch = mrpText.match(/\d[\d,]*(?:\.\d+)?/);
+  const parsedMrp = mrpMatch ? Number(mrpMatch[0].replace(/,/g, "")) : null;
+  return {
+    raw,
+    sku: parts[0] || raw,
+    quantity: Math.max(Number(parts[1]) || 1, 1),
+    importDate: parts.length >= 3 ? parts[2] : null,
+    mrp: parsedMrp && Number.isFinite(parsedMrp) ? parsedMrp : null,
+    hasFullData,
+  };
+};
+
+const formatMrp = (v?: number | null) =>
+  typeof v === "number" ? `Rs ${v.toFixed(2)}` : "—";
+
+const isCanceledOrder = (o: OutwardOrder) =>
+  o.status === "Canceled" || o.salesOrderStatus === "Canceled";
+
+const normalizeProductScan = (v?: string | null) =>
+  (v || "").trim().split("#")[0].trim().toLowerCase();
+
+const getCartonQty = (
+  scan: string,
+  cartonQr?: string | null,
+  cartonPerItem?: number | null,
+) => {
+  const norm = normalizeProductScan(cartonQr);
+  if (!norm || normalizeProductScan(scan) !== norm) return 0;
+  return cartonPerItem && cartonPerItem > 0 ? cartonPerItem : 1;
+};
+
+const statusColor: Record<string, string> = {
+  Open: "blue",
+  Picking: "yellow",
+  Picked: "green",
+  Packed: "cyan",
+  Dispatched: "gray",
+  Canceled: "red",
+};
+
+/* ─── Component ──────────────────────────────────────────────────────────── */
+
 export const Picking = memo(function Picking() {
   const isMobile = useMediaQuery("(max-width: 48em)");
+  const navigate = useNavigate();
+
+  // ── Data ──────────────────────────────────────────────────────────────────
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
-  const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>(
-    [],
-  );
-  const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<number | null>(null);
-  const [activeItemId, setActiveItemId] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [scanCode, setScanCode] = useState("");
-  const [locationScanCode, setLocationScanCode] = useState("");
-  const [lastScanCode, setLastScanCode] = useState("");
-  const [lastLocationCode, setLastLocationCode] = useState("");
-  const [lastScanMessage, setLastScanMessage] = useState("Scan location first.");
-  const [scanTone, setScanTone] = useState<ScanTone>("idle");
-  const [isLocationLocked, setIsLocationLocked] = useState(false);
+  const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // ── UI state ──────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState<PickingMode>("sales_orders");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+  const [activeItemId, setActiveItemId] = useState<number | null>(null);
+
+  // ── Scan state ────────────────────────────────────────────────────────────
+  const [locationCode, setLocationCode] = useState("");
+  const [isLocationLocked, setIsLocationLocked] = useState(false);
+  const [lastLocationCode, setLastLocationCode] = useState("");
+  const [scanCode, setScanCode] = useState("");
+  const [scanTone, setScanTone] = useState<ScanTone>("idle");
+  const [lastScanMessage, setLastScanMessage] = useState("Scan location first.");
+  const [lastScanCode, setLastScanCode] = useState("");
   const [isPicking, setIsPicking] = useState(false);
 
-  const [mrpMismatchScan, setMrpMismatchScan] = useState<{
+  // ── MRP mismatch ──────────────────────────────────────────────────────────
+  const [mrpMismatch, setMrpMismatch] = useState<{
     matchedItem: OutwardOrder;
     effectiveScan: StickerScan;
   } | null>(null);
 
-  const [isShortCloseModalOpen, setIsShortCloseModalOpen] = useState(false);
+  // ── Short close ───────────────────────────────────────────────────────────
+  const [isShortCloseOpen, setIsShortCloseOpen] = useState(false);
   const [shortCloseRemark, setShortCloseRemark] = useState("");
   const [isShortClosing, setIsShortClosing] = useState(false);
 
-  // --- DIRECT PICK STATES ---
-  const [pickingMode, setPickingMode] = useState<"sales_orders" | "direct_pick" | "consolidated">("sales_orders");
-  const [parties, setParties] = useState<Party[]>([]);
-  const [directPickCustomer, setDirectPickCustomer] = useState<string>("Self");
-  const [directPickItems, setDirectPickItems] = useState<DirectPickCartItem[]>([]);
-  const [directPickSkuInput, setDirectPickSkuInput] = useState("");
+  // ── Direct pick ───────────────────────────────────────────────────────────
+  const [directCustomer, setDirectCustomer] = useState("Self");
+  const [directItems, setDirectItems] = useState<DirectPickCartItem[]>([]);
+  const [directSkuInput, setDirectSkuInput] = useState("");
   const [isDirectPicking, setIsDirectPicking] = useState(false);
-  const [isDirectProductLoading, setIsDirectProductLoading] = useState(false);
+  const [isDirectLoading, setIsDirectLoading] = useState(false);
 
-  const navigate = useNavigate();
-  const scanInputRef = useRef<HTMLInputElement | null>(null);
-  const locationInputRef = useRef<HTMLInputElement | null>(null);
-  const directSkuInputRef = useRef<HTMLInputElement | null>(null);
+  // ── Refs ───────────────────────────────────────────────────────────────────
+  const scanRef = useRef<HTMLInputElement>(null);
+  const locRef = useRef<HTMLInputElement>(null);
+  const directRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (pickingMode === "direct_pick") {
-      window.setTimeout(() => directSkuInputRef.current?.focus(), 50);
-    }
-  }, [pickingMode]);
-
+  /* ── Load data ─────────────────────────────────────────────────────────── */
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [ordersData, locationsData, partiesData] = await Promise.all([
+      const [ordersData, locsData, partiesData] = await Promise.all([
         outwardOrdersApi.getAll(),
         productAllottedLocationsApi.getAll(),
         partiesApi.getPaged({ page: 1, pageSize: 1000 }),
       ]);
       setOrders(ordersData);
-      setLocations(locationsData);
+      setLocations(locsData);
       setParties(partiesData.data);
     } catch {
       toast.error("Failed to load picking data");
@@ -196,829 +206,861 @@ export const Picking = memo(function Picking() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  useEffect(() => { void loadData(); }, [loadData]);
 
+  useEffect(() => {
+    if (mode === "direct_pick") {
+      window.setTimeout(() => directRef.current?.focus(), 50);
+    }
+  }, [mode]);
+
+  /* ── Derived data ─────────────────────────────────────────────────────── */
   const openOrders = useMemo(() => {
-    const query = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase();
     return orders.filter(
-      (order) =>
-        !isCanceledOrder(order) &&
-        order.pendingQuantity > 0 &&
-        (order.status === "Open" ||
-          order.status === "Picking") &&
-        (order.orderNumber.toLowerCase().includes(query) ||
-          order.customerName.toLowerCase().includes(query) ||
-          order.skuCode.toLowerCase().includes(query) ||
-          order.productName.toLowerCase().includes(query) ||
-          (order.alias && order.alias.toLowerCase().includes(query))),
+      (o) =>
+        !isCanceledOrder(o) &&
+        o.pendingQuantity > 0 &&
+        (o.status === "Open" || o.status === "Picking") &&
+        (!q ||
+          o.orderNumber.toLowerCase().includes(q) ||
+          o.customerName.toLowerCase().includes(q) ||
+          o.skuCode.toLowerCase().includes(q) ||
+          o.productName.toLowerCase().includes(q) ||
+          (o.alias && o.alias.toLowerCase().includes(q))),
     );
   }, [orders, searchQuery]);
 
-  const openOrderGroups = useMemo<PickingOrderGroup[]>(() => {
+  const orderGroups = useMemo<PickingOrderGroup[]>(() => {
     const map = new Map<number, PickingOrderGroup>();
-
-    openOrders.forEach((order) => {
-      const existing = map.get(order.salesOrderId);
-      if (existing) {
-        existing.items.push(order);
-        existing.totalQuantity += order.quantity;
-        existing.totalPickedQuantity += order.pickedQuantity;
-        existing.pendingQuantity += order.pendingQuantity;
-        existing.status =
-          existing.items.every((item) => item.pendingQuantity === 0 || item.status === "Picked")
+    openOrders.forEach((o) => {
+      const ex = map.get(o.salesOrderId);
+      if (ex) {
+        ex.items.push(o);
+        ex.totalQuantity += o.quantity;
+        ex.totalPickedQuantity += o.pickedQuantity;
+        ex.pendingQuantity += o.pendingQuantity;
+        ex.status =
+          ex.items.every((i) => i.pendingQuantity === 0 || i.status === "Picked")
             ? "Picked"
-            : existing.items.some((item) => item.pickedQuantity > 0 || item.status === "Picking")
+            : ex.items.some((i) => i.pickedQuantity > 0 || i.status === "Picking")
               ? "Picking"
               : "Open";
         return;
       }
-
-      map.set(order.salesOrderId, {
-        salesOrderId: order.salesOrderId,
-        orderNumber: order.orderNumber,
-        orderDate: order.orderDate,
-        customerName: order.customerName,
-        status: order.pendingQuantity === 0 || order.status === "Picked" ? "Picked" : order.status,
-        items: [order],
-        totalQuantity: order.quantity,
-        totalPickedQuantity: order.pickedQuantity,
-        pendingQuantity: order.pendingQuantity,
+      map.set(o.salesOrderId, {
+        salesOrderId: o.salesOrderId,
+        orderNumber: o.orderNumber,
+        orderDate: o.orderDate,
+        customerName: o.customerName,
+        status: o.pendingQuantity === 0 || o.status === "Picked" ? "Picked" : o.status,
+        items: [o],
+        totalQuantity: o.quantity,
+        totalPickedQuantity: o.pickedQuantity,
+        pendingQuantity: o.pendingQuantity,
       });
     });
-
     return Array.from(map.values()).sort((a, b) => {
-      const dateDiff = new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
-      return dateDiff || b.orderNumber.localeCompare(a.orderNumber);
+      const d = new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime();
+      return d || b.orderNumber.localeCompare(a.orderNumber);
     });
   }, [openOrders]);
 
-  useEffect(() => {
-    if (!isMobile && !selectedSalesOrderId && openOrderGroups.length > 0) {
-      setSelectedSalesOrderId(openOrderGroups[0].salesOrderId);
-    }
-
-    if (
-      selectedSalesOrderId &&
-      !openOrderGroups.some((row) => row.salesOrderId === selectedSalesOrderId)
-    ) {
-      setSelectedSalesOrderId(!isMobile ? (openOrderGroups[0]?.salesOrderId ?? null) : null);
-    }
-  }, [openOrderGroups, selectedSalesOrderId, isMobile]);
-
-  const activeGroup =
-    openOrderGroups.find((row) => row.salesOrderId === selectedSalesOrderId) ?? null;
-
-  useEffect(() => {
-    if (!activeGroup) {
-      setActiveItemId(null);
-      return;
-    }
-
-    const preferredItemId =
-      activeGroup.items.find((item) => item.pendingQuantity > 0)?.id ??
-      activeGroup.items[0]?.id ??
-      null;
-
-    setActiveItemId((current) => {
-      const currentItem = activeGroup.items.find((item) => item.id === current);
-      if (!currentItem) return preferredItemId;
-      if (currentItem.pendingQuantity === 0 && preferredItemId && preferredItemId !== current) {
-        return preferredItemId;
-      }
-      return current;
-    });
-  }, [activeGroup]);
-
+  const activeGroup = orderGroups.find((g) => g.salesOrderId === expandedOrderId) ?? null;
   const activeItem =
-    activeGroup?.items.find((row) => row.id === activeItemId) ??
+    activeGroup?.items.find((i) => i.id === activeItemId) ??
     activeGroup?.items[0] ??
     null;
+  const isFullyPicked = activeGroup ? activeGroup.pendingQuantity === 0 : false;
+  const progress =
+    activeGroup && activeGroup.totalQuantity > 0
+      ? Math.round((activeGroup.totalPickedQuantity / activeGroup.totalQuantity) * 100)
+      : 0;
 
+  /* ── Location helpers ───────────────────────────────────────────────────── */
   const getLocationSummary = useCallback(
     (productId: number) => {
-      const locationRow =
-        locations.find((row) => row.productId === productId) ?? null;
-      if (!locationRow) return "Not mapped";
-      const entries = Object.entries(locationRow.locationJson || {});
-      if (entries.length === 0) return "Not mapped";
-      return entries
-        .map(([code, quantity]) => `${code} (${quantity})`)
-        .join(", ");
+      const row = locations.find((r) => r.productId === productId) ?? null;
+      if (!row) return "Not mapped";
+      const entries = Object.entries(row.locationJson || {});
+      if (!entries.length) return "Not mapped";
+      return entries.map(([c, q]) => `${c} (${q})`).join(", ");
     },
     [locations],
   );
 
-  const locationSummary = activeItem
-    ? getLocationSummary(activeItem.productId)
-    : "Not mapped";
-
-  const readyOrders = useMemo(
-    () =>
-      new Set(
-        orders
-          .filter(
-            (order) =>
-              !isCanceledOrder(order) &&
-              order.status === "Picked" &&
-              order.pendingQuantity === 0,
-          )
-          .map((order) => order.salesOrderId),
-      ).size,
-    [orders],
-  );
-  const activeOrderCount = openOrderGroups.length;
-  const progress =
-    activeOrderCount + readyOrders > 0
-      ? Math.round((readyOrders / (activeOrderCount + readyOrders)) * 100)
-      : 0;
-  const isFullyPicked = activeGroup ? activeGroup.pendingQuantity === 0 : false;
-  const completedItemCount = activeGroup
-    ? activeGroup.items.filter((item) => item.pendingQuantity === 0).length
-    : 0;
-  const activeItemIndex = activeGroup && activeItem
-    ? activeGroup.items.findIndex((item) => item.id === activeItem.id)
-    : -1;
-  const activeOrderProgress = activeGroup && activeGroup.totalQuantity > 0
-    ? Math.round((activeGroup.totalPickedQuantity / activeGroup.totalQuantity) * 100)
-    : 0;
-
+  /* ── Reset scan when expanding a new order ─────────────────────────────── */
   useEffect(() => {
     if (!activeGroup) return;
+    setScanCode("");
+    setLocationCode("");
+    setIsLocationLocked(false);
     setLastScanMessage("Scan location first.");
     setScanTone("idle");
+    // auto-select first pending item
+    const first = activeGroup.items.find((i) => i.pendingQuantity > 0);
+    setActiveItemId(first?.id ?? activeGroup.items[0]?.id ?? null);
+    window.setTimeout(() => locRef.current?.focus(), 80);
+  }, [expandedOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Handle location set ─────────────────────────────────────────────────── */
+  const handleSetLocation = () => {
+    const loc = locationCode.trim();
+    if (!loc) { toast.error("Scan a location first"); return; }
+    setLastLocationCode(loc);
+    setIsLocationLocked(true);
+    setLastScanMessage("Location set. Now scan SKU or Alias.");
     setScanCode("");
-    setLocationScanCode("");
+    window.setTimeout(() => scanRef.current?.focus(), 0);
+  };
+
+  const handleChangeLocation = () => {
     setIsLocationLocked(false);
-    window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  }, [activeGroup?.salesOrderId]);
+    setLocationCode("");
+    setLastScanMessage("Scan new location.");
+    window.setTimeout(() => locRef.current?.focus(), 0);
+  };
 
+  /* ── Handle pick scan ─────────────────────────────────────────────────── */
   const handlePick = useCallback(
-    async (
-      orderItem: OutwardOrder,
-      scan: StickerScan,
-      mrpMismatchConfirmed = false,
-    ) => {
-      const normalizedLocation = locationScanCode.trim();
-
+    async (orderItem: OutwardOrder, scan: StickerScan, mrpConfirmed = false) => {
       try {
         setIsPicking(true);
         const updated = await outwardOrdersApi.pick(orderItem.id, {
           quantity: scan.quantity,
           skuCode: orderItem.skuCode,
-          locationCode: normalizedLocation,
+          locationCode: lastLocationCode.trim(),
           mrp: scan.mrp,
           importDate: scan.importDate,
-          mrpMismatchConfirmed,
+          mrpMismatchConfirmed: mrpConfirmed,
         });
-        setOrders((current) =>
-          current.map((row) => (row.id === updated.id ? updated : row)),
-        );
-        setSelectedSalesOrderId(updated.salesOrderId);
+        setOrders((cur) => cur.map((r) => (r.id === updated.id ? updated : r)));
         setActiveItemId(updated.id);
         setLastScanCode(scan.raw);
-        setLastLocationCode(normalizedLocation);
         setScanTone("success");
-        const remaining = updated.pendingQuantity;
+        const rem = updated.pendingQuantity;
         setLastScanMessage(
-          remaining === 0
-            ? `${updated.orderNumber} picked and ready for packing.`
-            : `${remaining} left to pick.`,
+          rem === 0
+            ? `${updated.orderNumber} picked & ready for packing.`
+            : `${rem} left to pick.`,
         );
         toast.success(
-          remaining === 0
+          rem === 0
             ? `${updated.orderNumber} ready for packing`
             : `Picked ${scan.quantity} for ${updated.orderNumber}`,
         );
-        if (remaining > 0) {
-          setScanCode("");
-          window.setTimeout(() => scanInputRef.current?.focus(), 0);
-        }
-      } catch (error: any) {
+        if (rem > 0) { setScanCode(""); window.setTimeout(() => scanRef.current?.focus(), 0); }
+      } catch (err: any) {
         setScanTone("error");
         setLastScanCode(scan.raw);
-        setLastScanMessage(error.message || "Pick failed.");
-        toast.error(error.message || "Pick failed");
+        setLastScanMessage(err.message || "Pick failed.");
+        toast.error(err.message || "Pick failed");
       } finally {
         setIsPicking(false);
       }
     },
-    [locationScanCode],
+    [lastLocationCode],
   );
 
-  const handleLocationSubmit = () => {
-    const normalizedLocation = locationScanCode.trim();
-    if (!normalizedLocation) {
-      toast.error("Scan location code");
-      return;
-    }
-    setLastLocationCode(normalizedLocation);
-    setIsLocationLocked(true);
-    setLastScanMessage("Location set. Now scan SKU or Alias.");
-    setScanCode("");
-    window.setTimeout(() => scanInputRef.current?.focus(), 0);
-  };
-
-  const handleChangeLocation = () => {
-    setIsLocationLocked(false);
-    setLocationScanCode("");
-    setLastScanMessage("Scan new location.");
-    window.setTimeout(() => locationInputRef.current?.focus(), 0);
-  };
-
   const handleScanSubmit = async () => {
-    if (!activeGroup) {
-      toast.error("Select order first");
-      return;
-    }
-
+    if (!activeGroup) { toast.error("Select an order first"); return; }
     if (!isLocationLocked) {
-      toast.error("Scan location first");
-      window.setTimeout(() => locationInputRef.current?.focus(), 0);
+      toast.error("Set a location first");
+      window.setTimeout(() => locRef.current?.focus(), 0);
       return;
     }
+    const parsed = parseStickerScan(scanCode);
+    if (!parsed.sku) { toast.error("Scan SKU or Alias"); return; }
+    setLastScanCode(parsed.raw);
+    if (isFullyPicked) { setScanTone("error"); setLastScanMessage("Order fully picked."); setScanCode(""); return; }
 
-    const parsedScan = parseStickerScan(scanCode);
-    if (!parsedScan.sku) {
-      toast.error("Scan SKU or Alias");
-      return;
-    }
-
-    setLastScanCode(parsedScan.raw);
-
-    if (isFullyPicked) {
-      setScanTone("error");
-      setLastScanMessage("Order fully picked.");
-      setScanCode("");
-      return;
-    }
-
-    const scanVal = normalizeProductScan(parsedScan.sku);
-    const matchedItem =
+    const scanVal = normalizeProductScan(parsed.sku);
+    const matched =
       activeGroup.items.find(
-        (item) =>
-          item.pendingQuantity > 0 &&
-          (normalizeProductScan(item.skuCode) === scanVal ||
-            normalizeProductScan(item.alias) === scanVal ||
-            normalizeProductScan(item.cartonQr) === scanVal),
+        (i) =>
+          i.pendingQuantity > 0 &&
+          (normalizeProductScan(i.skuCode) === scanVal ||
+            normalizeProductScan(i.alias) === scanVal ||
+            normalizeProductScan(i.cartonQr) === scanVal),
       ) ?? null;
 
-    if (!matchedItem) {
+    if (!matched) {
       setScanTone("error");
       setLastScanMessage(
-        `SKU/Alias mismatch. Expected one of: ${activeGroup.items
-          .map((item) => `${item.skuCode}${item.alias ? ` / ${item.alias}` : ""}`)
-          .join(", ")}`,
+        `Mismatch. Expected: ${activeGroup.items.map((i) => i.skuCode).join(", ")}`,
       );
       toast.error("SKU/Alias mismatch");
       setScanCode("");
-      window.setTimeout(() => scanInputRef.current?.focus(), 0);
+      window.setTimeout(() => scanRef.current?.focus(), 0);
       return;
     }
 
-    const cartonQuantity = getCartonQuantity(
-      parsedScan.raw,
-      matchedItem.cartonQr,
-      matchedItem.cartonPerItem,
-    );
-    const effectiveScan = {
-      ...parsedScan,
-      sku: matchedItem.skuCode,
-      quantity: Math.min(
-        cartonQuantity > 0 ? cartonQuantity : 1,
-        matchedItem.pendingQuantity,
-      ),
+    const cartonQty = getCartonQty(parsed.raw, matched.cartonQr, matched.cartonPerItem);
+    const effectiveScan: StickerScan = {
+      ...parsed,
+      sku: matched.skuCode,
+      quantity: Math.min(cartonQty > 0 ? cartonQty : 1, matched.pendingQuantity),
     };
 
     if (
       effectiveScan.hasFullData &&
       effectiveScan.mrp !== null &&
-      matchedItem.mrp !== null &&
-      matchedItem.mrp !== undefined &&
-      Number(effectiveScan.mrp.toFixed(2)) !== Number(Number(matchedItem.mrp).toFixed(2))
+      matched.mrp !== null &&
+      matched.mrp !== undefined &&
+      Number(effectiveScan.mrp!.toFixed(2)) !== Number(Number(matched.mrp).toFixed(2))
     ) {
-      setMrpMismatchScan({ matchedItem, effectiveScan });
+      setMrpMismatch({ matchedItem: matched, effectiveScan });
       return;
     }
 
-    setActiveItemId(matchedItem.id);
-    await handlePick(matchedItem, effectiveScan);
+    setActiveItemId(matched.id);
+    await handlePick(matched, effectiveScan);
   };
 
+  /* ── MRP mismatch handlers ───────────────────────────────────────────────── */
   const handleMrpConfirm = async () => {
-    if (!mrpMismatchScan) return;
-    const { matchedItem, effectiveScan } = mrpMismatchScan;
-    setMrpMismatchScan(null);
+    if (!mrpMismatch) return;
+    const { matchedItem, effectiveScan } = mrpMismatch;
+    setMrpMismatch(null);
     setActiveItemId(matchedItem.id);
     await handlePick(matchedItem, effectiveScan, true);
   };
-
   const handleMrpReject = () => {
-    setMrpMismatchScan(null);
+    setMrpMismatch(null);
     setScanCode("");
-    window.setTimeout(() => scanInputRef.current?.focus(), 0);
+    window.setTimeout(() => scanRef.current?.focus(), 0);
   };
 
-  const handleDirectPickScan = useCallback(async () => {
-    const parsedScan = parseStickerScan(directPickSkuInput);
-    if (!parsedScan.sku) {
-      toast.error("Scan SKU or Alias");
-      return;
-    }
-
-    setIsDirectProductLoading(true);
-    try {
-      const result = await productsApi.lookup(parsedScan.sku);
-      const cartonQuantity = getCartonQuantity(
-        parsedScan.raw,
-        result.product.cartonQr,
-        result.product.cartonPerItem,
-      );
-      const pickQuantity = cartonQuantity > 0 ? cartonQuantity : 1;
-
-      const firstLocation = result.locations.find((entry) => entry.quantity > 0);
-      const locCode = firstLocation?.locationCode || "";
-      if (!locCode) {
-        toast.error("No allotted location stock found for this product");
-      }
-
-      setDirectPickItems((current) => {
-        const existingIndex = current.findIndex(
-          (item) =>
-            item.product.sku?.toLowerCase() === result.product.sku?.toLowerCase() ||
-            (item.product.alias && item.product.alias.toLowerCase() === result.product.alias?.toLowerCase())
-        );
-
-        if (existingIndex >= 0) {
-          // Immutable update — avoids the double-increment bug from direct mutation
-          return current.map((item, idx) =>
-            idx === existingIndex ? { ...item, quantity: item.quantity + pickQuantity } : item
-          );
-        }
-
-        return [
-          {
-            id: Math.random().toString(36).substring(7),
-            product: result.product,
-            skuCode: result.product.sku || result.product.alias || parsedScan.sku,
-            locationCode: locCode,
-            quantity: pickQuantity,
-            mrp: parsedScan.mrp,
-            importDate: parsedScan.importDate,
-            lookupResult: result,
-          },
-          ...current,
-        ];
-      });
-
-      setDirectPickSkuInput("");
-    } catch (error: any) {
-      toast.error(error.message || "Product not found for SKU/Alias");
-    } finally {
-      setIsDirectProductLoading(false);
-      window.setTimeout(() => directSkuInputRef.current?.focus(), 50);
-    }
-  }, [directPickSkuInput]);
-
-  const handleBulkDirectPickSubmit = async () => {
-    if (directPickItems.length === 0) {
-      toast.error("Cart is empty");
-      return;
-    }
-
-    const customer = directPickCustomer === "Self" ? null : directPickCustomer;
-
-    setIsDirectPicking(true);
-
-    try {
-      for (const item of directPickItems) {
-        if (!item.locationCode) {
-          throw new Error(`Location missing for ${item.product.name}`);
-        }
-      }
-
-      const createdOrders = await outwardOrdersApi.bulkDirectPick({
-        remark: "Direct Pick",
-        customerName: customer,
-        items: directPickItems.map((item) => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          skuCode: item.skuCode,
-          locationCode: item.locationCode,
-          mrp: item.mrp,
-          importDate: item.importDate,
-        })),
-      });
-
-      setOrders((current) => [...createdOrders, ...current]);
-
-      toast.success(`${createdOrders.length} item(s) direct picked successfully`);
-      setDirectPickItems([]);
-      setDirectPickCustomer("Self");
-    } catch (error: any) {
-      toast.error(error.message || "Direct pick failed. Check items and try again.");
-    } finally {
-      setIsDirectPicking(false);
-    }
-  };
-
-  const handleShortCloseSubmit = async () => {
+  /* ── Short close ─────────────────────────────────────────────────────────── */
+  const handleShortClose = async () => {
     if (!activeGroup) return;
-    if (!shortCloseRemark.trim()) {
-      toast.error("Please enter a reason for not picking all items");
-      return;
-    }
-
+    if (!shortCloseRemark.trim()) { toast.error("Enter a reason"); return; }
     try {
       setIsShortClosing(true);
-      await outwardOrdersApi.shortCloseSalesOrder(
-        activeGroup.salesOrderId,
-        shortCloseRemark
-      );
-
+      await outwardOrdersApi.shortCloseSalesOrder(activeGroup.salesOrderId, shortCloseRemark);
       await loadData();
-      setIsShortCloseModalOpen(false);
+      setIsShortCloseOpen(false);
       setShortCloseRemark("");
-      toast.success(`${activeGroup.orderNumber} finished and saved successfully`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to finish order");
+      setExpandedOrderId(null);
+      toast.success(`${activeGroup.orderNumber} finished`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to finish order");
     } finally {
       setIsShortClosing(false);
     }
   };
 
+  /* ── Direct pick handlers ────────────────────────────────────────────────── */
+  const handleDirectScan = useCallback(async () => {
+    const parsed = parseStickerScan(directSkuInput);
+    if (!parsed.sku) { toast.error("Scan SKU or Alias"); return; }
+    setIsDirectLoading(true);
+    try {
+      const result = await productsApi.lookup(parsed.sku);
+      const cartonQty = getCartonQty(parsed.raw, result.product.cartonQr, result.product.cartonPerItem);
+      const pickQty = cartonQty > 0 ? cartonQty : 1;
+      const firstLoc = result.locations.find((e) => e.quantity > 0);
+      const locCode = firstLoc?.locationCode || "";
+      if (!locCode) toast.error("No allotted location found for this product");
+
+      setDirectItems((cur) => {
+        const idx = cur.findIndex(
+          (i) =>
+            i.product.sku?.toLowerCase() === result.product.sku?.toLowerCase() ||
+            (i.product.alias && i.product.alias.toLowerCase() === result.product.alias?.toLowerCase()),
+        );
+        if (idx >= 0) {
+          return cur.map((i, n) => (n === idx ? { ...i, quantity: i.quantity + pickQty } : i));
+        }
+        return [
+          {
+            id: Math.random().toString(36).slice(7),
+            product: result.product,
+            skuCode: result.product.sku || result.product.alias || parsed.sku,
+            locationCode: locCode,
+            quantity: pickQty,
+            mrp: parsed.mrp,
+            importDate: parsed.importDate,
+            lookupResult: result,
+          },
+          ...cur,
+        ];
+      });
+      setDirectSkuInput("");
+    } catch (err: any) {
+      toast.error(err.message || "Product not found");
+    } finally {
+      setIsDirectLoading(false);
+      window.setTimeout(() => directRef.current?.focus(), 50);
+    }
+  }, [directSkuInput]);
+
+  const handleDirectSubmit = async () => {
+    if (!directItems.length) { toast.error("Cart is empty"); return; }
+    const customer = directCustomer === "Self" ? null : directCustomer;
+    setIsDirectPicking(true);
+    try {
+      const created = await outwardOrdersApi.bulkDirectPick({
+        remark: "Direct Pick",
+        customerName: customer,
+        items: directItems.map((i) => ({
+          productId: i.product.id,
+          quantity: i.quantity,
+          skuCode: i.skuCode,
+          locationCode: i.locationCode,
+          mrp: i.mrp,
+          importDate: i.importDate,
+        })),
+      });
+      setOrders((cur) => [...created, ...cur]);
+      toast.success(`${created.length} item(s) direct picked`);
+      setDirectItems([]);
+      setDirectCustomer("Self");
+    } catch (err: any) {
+      toast.error(err.message || "Direct pick failed");
+    } finally {
+      setIsDirectPicking(false);
+    }
+  };
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     RENDER
+  ──────────────────────────────────────────────────────────────────────────── */
   return (
-    <OperationsPage
-      title="Picking"
-      description="Pick sales orders, or direct-pick stock with a remark when no sales order exists."
-      icon={Package}
-      hideHeader
-    >
-      <div className="flex h-[calc(100dvh-105px)] lg:h-[calc(100dvh-175px)] flex-col gap-1 lg:gap-2 overflow-hidden">
-        <OutboundStageNav active="picking" queueCount={openOrderGroups.length} compactLabel="Active" />
-        <div className="shrink-0 rounded-xl border border-white/10 bg-white/[0.025] p-0.5 sm:mb-2 sm:p-1">
-        <SegmentedControl
-          value={pickingMode}
-          onChange={(value) => setPickingMode(value as "sales_orders" | "direct_pick" | "consolidated")}
-          data={[
-            { label: "Sales Orders", value: "sales_orders" },
-            { label: "Consolidated", value: "consolidated" },
-            { label: "Direct Pick", value: "direct_pick" },
-          ]}
-          fullWidth
-          size="sm"
-          radius="lg"
-          classNames={{
-            root: "text-xs",
-            label: "min-h-7 px-1.5 sm:min-h-8 sm:px-2",
-          }}
-        />
-      </div>
+    <OperationsPage title="Picking" description="Pick orders" icon={Package} hideHeader>
+      <div className="flex flex-col gap-2">
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-      {pickingMode === "consolidated" ? (
-        <ConsolidatedPick />
-      ) : pickingMode === "direct_pick" ? (
-        <OperationsPanel
-          title="Direct Pick"
-          icon={Package}
-          description="Scan to instantly pick and dispatch stock without a sales order."
-          className="h-full min-h-0"
-          contentClassName="flex flex-col h-full min-h-0"
-        >
-          <div className="mb-1.5 flex flex-col gap-2 sm:mb-2 sm:gap-2.5">
-            <Select
-              label="Party / Customer"
-              placeholder="Select Party or Self"
-              data={[
-                { value: "Self", label: "Self" },
-                ...parties.map((p) => ({ value: p.name, label: p.name }))
-              ]}
-              value={directPickCustomer}
-              onChange={(val) => setDirectPickCustomer(val || "Self")}
-              searchable
-              clearable={false}
-              size={isMobile ? "sm" : "md"}
-              radius="md"
-            />
+        {/* ── Stage nav ─────────────────────────────────────────────────── */}
+        <OutboundStageNav active="picking" queueCount={orderGroups.length} compactLabel="Active" />
 
-            <TextInput
-              ref={directSkuInputRef}
-              label="Scan SKU or Alias"
-              placeholder="Scan item here..."
-              value={directPickSkuInput}
-              onChange={(e) => setDirectPickSkuInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  void handleDirectPickScan();
-                }
-              }}
-              size="sm"
-              radius="md"
-              autoFocus
-              className="[&_input]:text-sm [&_input]:font-mono [&_input]:font-bold"
-              rightSection={
-                <div className="flex items-center gap-1 pr-1">
-                  {directPickSkuInput && (
-                    <ActionIcon
-                      onClick={() => {
-                        setDirectPickSkuInput("");
-                        directSkuInputRef.current?.focus();
-                      }}
-                      variant="transparent"
-                      color="gray"
-                      size="sm"
-                    >
-                      <X size={16} />
-                    </ActionIcon>
-                  )}
-                  <ActionIcon
-                    onClick={() => void handleDirectPickScan()}
-                    loading={isDirectProductLoading}
-                    variant="filled"
-                    color="brand"
-                    size="sm"
-                    radius="md"
-                  >
-                    <ScanLine size={20} />
-                  </ActionIcon>
-                </div>
-              }
-              rightSectionWidth={directPickSkuInput ? 80 : 50}
-            />
-          </div>
+        {/* ── Mode tabs ─────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/[0.025] p-1">
+          {(["sales_orders", "consolidated", "direct_pick"] as const).map((m) => {
+            const labels: Record<PickingMode, string> = {
+              sales_orders: "Sales Orders",
+              consolidated: "Consolidated",
+              direct_pick: "Direct Pick",
+            };
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`rounded-lg py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+                  mode === m
+                    ? "bg-brand-500 text-slate-950 shadow"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                {labels[m]}
+              </button>
+            );
+          })}
+        </div>
 
-          {directPickItems.length > 0 && (
-            <div className="mt-1.5 flex-1 min-h-0 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] sm:mt-2">
-              <div className="border-b border-white/10 bg-white/[0.05] p-2 sm:p-2.5 shrink-0">
-                <Text size={isMobile ? "sm" : "md"} weight={600}>Scanned Items ({directPickItems.length})</Text>
+        {/* ═══════════════════════════════════════════════════════════════
+            CONSOLIDATED
+        ════════════════════════════════════════════════════════════════ */}
+        {mode === "consolidated" && <ConsolidatedPick />}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            DIRECT PICK
+        ════════════════════════════════════════════════════════════════ */}
+        {mode === "direct_pick" && (
+          <div className="flex flex-col gap-2">
+
+            {/* ── Scan + party header ─────────────────────────────────────── */}
+            <div className="rounded-xl border border-white/10 bg-[#10151e] overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10 bg-white/[0.025]">
+                <ScanLine size={14} className="text-brand-300" />
+                <span className="text-sm font-bold text-white">Direct Pick</span>
+                {directItems.length > 0 && (
+                  <span className="ml-auto rounded bg-brand-500/15 px-2 py-0.5 text-[10px] font-black tabular-nums text-brand-200">
+                    {directItems.length} in cart
+                  </span>
+                )}
               </div>
-              <ScrollArea className="flex-1 min-h-0">
-                <Table striped highlightOnHover verticalSpacing={isMobile ? "xs" : "md"} className="text-xs sm:text-sm">
-                  <thead>
-                    <tr>
-                      <th>SKU/Alias</th>
-                      <th>Location</th>
-                      <th>Qty</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {directPickItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <Badge variant="outline" size="sm">{item.skuCode}</Badge>
-                        </td>
-                        <td>
-                          <Badge color="blue" size="sm">{item.locationCode}</Badge>
-                        </td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <ActionIcon
-                              size={isMobile ? "sm" : "md"}
-                              variant="light"
-                              color="gray"
-                              onClick={() =>
-                                setDirectPickItems((current) =>
-                                  current.map((i) =>
-                                    i.id === item.id
-                                      ? { ...i, quantity: Math.max(1, i.quantity - 1) }
-                                      : i
-                                  )
-                                )
-                              }
-                            >
-                              <span style={{ fontSize: 18, lineHeight: 1 }}>−</span>
-                            </ActionIcon>
-                            <span className="min-w-[24px] text-center text-xs font-bold sm:min-w-[32px] sm:text-sm">
-                              {item.quantity}
-                            </span>
-                            <ActionIcon
-                              size={isMobile ? "sm" : "md"}
-                              variant="light"
-                              color="brand"
-                              onClick={() =>
-                                setDirectPickItems((current) =>
-                                  current.map((i) =>
-                                    i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-                                  )
-                                )
-                              }
-                            >
-                              <Plus size={16} />
-                            </ActionIcon>
-                          </div>
-                        </td>
-                        <td>
-                          <ActionIcon
-                            color="red"
-                            variant="subtle"
-                            size={isMobile ? "sm" : "md"}
-                            onClick={() =>
-                              setDirectPickItems((current) =>
-                                current.filter((i) => i.id !== item.id)
-                              )
-                            }
-                          >
-                            <X size={18} />
-                          </ActionIcon>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </ScrollArea>
 
-              <div className="flex flex-row justify-end gap-1.5 border-t border-white/10 bg-white/[0.03] p-2 sm:gap-2 sm:p-2.5 shrink-0">
-                <Button
-                  variant="outline"
-                  color="red"
-                  size={isMobile ? "sm" : "md"}
-                  onClick={() => setDirectPickItems([])}
-                  className="flex-1 sm:flex-none"
-                >
-                  Clear All
-                </Button>
-                <Button
-                  onClick={() => void handleBulkDirectPickSubmit()}
-                  loading={isDirectPicking}
-                  size={isMobile ? "sm" : "md"}
-                  leftIcon={<ArrowRight size={20} />}
-                  className="flex-1 sm:flex-none"
-                >
-                  {isMobile ? `Submit ${directPickItems.length}` : `Submit ${directPickItems.length} Pick(s)`}
-                </Button>
+              <div className="p-3 space-y-2.5">
+                {/* Party selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500 w-[60px] shrink-0">
+                    Customer
+                  </span>
+                  <Select
+                    placeholder="Self"
+                    data={[{ value: "Self", label: "Self" }, ...parties.map((p) => ({ value: p.name, label: p.name }))]}
+                    value={directCustomer}
+                    onChange={(v) => setDirectCustomer(v || "Self")}
+                    searchable
+                    clearable={false}
+                    size="xs"
+                    radius="md"
+                    className="flex-1"
+                    styles={{ input: { fontWeight: 700 } }}
+                  />
+                </div>
+
+                {/* SKU scan row */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-neutral-500 w-[60px] shrink-0">
+                    Scan SKU
+                  </span>
+                  <div className="relative flex-1">
+                    <ScanLine size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                    <input
+                      ref={directRef}
+                      value={directSkuInput}
+                      onChange={(e) => setDirectSkuInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleDirectScan(); } }}
+                      disabled={isDirectLoading}
+                      placeholder="Scan barcode / alias…"
+                      autoComplete="off"
+                      autoFocus
+                      className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-black text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleDirectScan()}
+                    disabled={isDirectLoading || !directSkuInput.trim()}
+                    className="h-9 min-w-[64px] rounded-lg border border-brand-500/35 bg-brand-500/10 px-3 text-xs font-black uppercase tracking-wide text-brand-200 transition-colors hover:bg-brand-500/20 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                  >
+                    {isDirectLoading ? "…" : "Add"}
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-        </OperationsPanel>
-      ) : (
-        <OutboundSplitLayout
-          showQueueOnMobile={!activeGroup}
-          queue={
-            <OutboundQueue
-              title="Sales Orders"
-              count={openOrderGroups.length}
-              searchValue={searchQuery}
-              onSearchChange={setSearchQuery}
-              searchPlaceholder="Search order, customer, SKU…"
-              emptyTitle="No orders waiting"
-              emptyDescription="Open sales orders with pending quantity will appear here."
-            >
-              {openOrderGroups.map((order) => (
-                <OutboundQueueRow
-                  key={order.salesOrderId}
-                  active={order.salesOrderId === selectedSalesOrderId}
-                  orderNumber={order.orderNumber}
-                  customerName={order.customerName}
-                  status={order.status}
-                  primaryMetric={`${order.totalPickedQuantity}/${order.totalQuantity}`}
-                  secondaryMetric={`${order.items.length} lines`}
-                  onClick={() => setSelectedSalesOrderId(order.salesOrderId)}
-                />
-              ))}
-            </OutboundQueue>
-          }
-          workspace={
-            activeGroup && activeItem ? (
-              <TaskWorkspace
-                backLabel="Back to picking queue"
-                onBack={() => setSelectedSalesOrderId(null)}
-                orderNumber={activeGroup.orderNumber}
-                customerName={activeGroup.customerName}
-                status={isFullyPicked ? "Picked" : "Picking"}
-                progressLabel={
-                  isMobile
-                    ? `${completedItemCount}/${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity}/${activeGroup.totalQuantity}`
-                    : `${completedItemCount} of ${activeGroup.items.length} lines · ${activeGroup.totalPickedQuantity} of ${activeGroup.totalQuantity} units`
-                }
-                progressValue={activeOrderProgress}
-                meta={
-                  <span className="font-mono text-[11px] font-black tabular-nums text-brand-200 sm:text-xs">
-                    {activeItem.pendingQuantity} left
-                  </span>
-                }
-                bottomDock={
-                  isFullyPicked ? (
-                    <Button size={isMobile ? "sm" : "md"} fullWidth color="green" onClick={() => navigate("/packing")}>
-                      Continue to Packing
-                    </Button>
-                  ) : (
-                    <ScannerDock
-                      label={isLocationLocked ? "Scan Product" : "Scan Location"}
-                      value={isLocationLocked ? scanCode : locationScanCode}
-                      onChange={isLocationLocked ? setScanCode : setLocationScanCode}
-                      onSubmit={() => {
-                        if (isLocationLocked) void handleScanSubmit();
-                        else handleLocationSubmit();
-                      }}
-                      actionLabel={isLocationLocked ? "Pick" : "Set"}
-                      placeholder={isLocationLocked ? "Scan SKU, alias, or carton QR…" : "Scan bin or location…"}
-                      disabled={isPicking}
-                      loading={isPicking}
-                      inputRef={isLocationLocked ? scanInputRef : locationInputRef}
-                      secondaryAction={
-                        isLocationLocked ? (
-                          <button
-                            type="button"
-                            onClick={handleChangeLocation}
-                            className="text-[10px] font-bold text-brand-300 hover:text-brand-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                          >
-                            Change {lastLocationCode}
-                          </button>
-                        ) : null
-                      }
-                    />
-                  )
-                }
-              >
-                <TaskInstruction
-                  eyebrow={isLocationLocked ? "Next: Scan Product" : "Next: Confirm Location"}
-                  title={isLocationLocked ? activeItem.productName : locationSummary}
-                  description={
-                    isLocationLocked
-                      ? `${activeItem.skuCode}${activeItem.alias ? ` / ${activeItem.alias}` : ""}`
-                      : `Go to the allotted location for ${activeItem.productName}.`
-                  }
-                  tone={scanTone === "error" ? "danger" : scanTone === "success" ? "success" : "brand"}
-                  icon={isLocationLocked ? Package : ScanLine}
-                  metrics={[
-                    { label: "Location", value: isLocationLocked ? lastLocationCode : locationSummary, emphasis: true },
-                    { label: "Need", value: activeItem.pendingQuantity, emphasis: true },
-                    { label: "Picked", value: `${activeItem.pickedQuantity}/${activeItem.quantity}` },
-                    { label: "SO MRP", value: formatMrp(activeItem.mrp) },
-                  ]}
-                />
 
-                {scanTone === "error" ? (
-                  <div className="mt-2">
-                    <ExceptionNotice message={lastScanMessage} />
+            {/* ── Cart table ──────────────────────────────────────────────── */}
+            {directItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.015] py-10 text-center text-xs text-neutral-600">
+                <ScanLine size={22} className="mb-2 text-neutral-700" />
+                Scan a product to add it to the cart.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-[#10151e] overflow-hidden">
+                {/* Cart header */}
+                <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/[0.025]">
+                  <div className="flex items-center gap-2">
+                    <Package size={13} className="text-brand-300" />
+                    <span className="text-xs font-bold text-white">Cart</span>
+                    <span className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] font-black text-neutral-300">
+                      {directItems.length}
+                    </span>
+                    <span className="text-[11px] text-neutral-500">
+                      · {directItems.reduce((s, i) => s + i.quantity, 0)} units
+                    </span>
                   </div>
-                ) : (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    className={`mt-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] sm:mt-2 sm:px-3 sm:py-2 sm:text-xs ${
-                      scanTone === "success"
-                        ? "border-green-500/20 bg-green-500/[0.06] text-green-200"
-                        : "border-white/10 bg-white/[0.025] text-neutral-400"
-                    }`}
+                  <button
+                    type="button"
+                    onClick={() => setDirectItems([])}
+                    className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors"
                   >
-                    {lastScanMessage}
-                    {lastScanCode ? <span className="ml-1 font-mono text-neutral-500">({lastScanCode})</span> : null}
-                  </div>
-                )}
-
-                <div className="mt-1.5 flex justify-end sm:mt-2">
-                  <Button
-                    variant="subtle"
-                    color="yellow"
-                    size="xs"
-                    onClick={() => setIsShortCloseModalOpen(true)}
-                  >
-                    Exception: Short Close
-                  </Button>
+                    Clear all
+                  </button>
                 </div>
 
-                <CompactItems title="Order Lines" count={activeGroup.items.length} defaultOpen={!isMobile}>
-                  <div className="space-y-1">
-                    {activeGroup.items.map((item) => (
-                      <CompactItemRow
-                        key={item.id}
-                        active={item.id === activeItem.id}
-                        done={item.pendingQuantity === 0}
-                        productName={item.productName}
-                        skuCode={`${item.skuCode}${item.alias ? ` / ${item.alias}` : ""}`}
-                        quantity={item.pendingQuantity === 0 ? "Done" : `${item.pickedQuantity}/${item.quantity}`}
-                        location={getLocationSummary(item.productId)}
-                        onClick={() => setActiveItemId(item.id)}
-                      />
-                    ))}
+                {/* Column headers */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/[0.06] bg-white/[0.015]">
+                  <span>Product / SKU</span>
+                  <span className="text-center hidden sm:block">Location</span>
+                  <span className="text-center">Qty</span>
+                  <span></span>
+                </div>
+
+                {/* Items */}
+                {directItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[1fr_auto_auto_auto] gap-x-2 items-center px-3 py-2 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors"
+                  >
+                    {/* Product info */}
+                    <div className="min-w-0">
+                      <span className="block font-mono text-xs font-black text-brand-200">{item.skuCode}</span>
+                      <span className="block text-[10px] text-neutral-400 truncate">{item.product.name}</span>
+                    </div>
+
+                    {/* Location badge */}
+                    <span className="hidden sm:block rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 whitespace-nowrap">
+                      {item.locationCode || "—"}
+                    </span>
+
+                    {/* Qty stepper */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setDirectItems((c) => c.map((i) => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))}
+                        className="h-6 w-6 rounded-md border border-white/10 bg-white/[0.06] text-sm font-black text-neutral-200 hover:bg-white/[0.12] transition-colors flex items-center justify-center"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[22px] text-center font-mono text-xs font-black text-white tabular-nums">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setDirectItems((c) => c.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))}
+                        className="h-6 w-6 rounded-md border border-brand-500/30 bg-brand-500/10 text-sm font-black text-brand-200 hover:bg-brand-500/20 transition-colors flex items-center justify-center"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      type="button"
+                      onClick={() => setDirectItems((c) => c.filter((i) => i.id !== item.id))}
+                      className="h-6 w-6 rounded-md text-neutral-600 hover:bg-red-500/15 hover:text-red-400 transition-colors flex items-center justify-center"
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
-                </CompactItems>
-              </TaskWorkspace>
-            ) : (
-              <div className="hidden min-h-[560px] place-items-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-sm text-neutral-500 xl:grid">
-                Select an order to begin picking.
+                ))}
+
+                {/* Submit footer */}
+                <div className="px-3 py-2.5 border-t border-white/10 bg-white/[0.025]">
+                  <Button
+                    fullWidth
+                    size="sm"
+                    onClick={() => void handleDirectSubmit()}
+                    loading={isDirectPicking}
+                    leftIcon={<ArrowRight size={14} />}
+                  >
+                    Submit Direct Pick ({directItems.reduce((s, i) => s + i.quantity, 0)} units for {directCustomer})
+                  </Button>
+                </div>
               </div>
-            )
-          }
-        />
-      )}
-      </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════
+            SALES ORDERS  — flat table with inline expand
+        ════════════════════════════════════════════════════════════════ */}
+        {mode === "sales_orders" && (
+          <div className="flex flex-col gap-2">
+            {/* Search */}
+            <TextInput
+              placeholder="Search order, customer, SKU…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="sm"
+              radius="md"
+              leftSection={<Search size={14} />}
+              rightSection={
+                searchQuery ? (
+                  <ActionIcon size="xs" variant="transparent" onClick={() => setSearchQuery("")}>
+                    <X size={14} />
+                  </ActionIcon>
+                ) : null
+              }
+            />
+
+            {/* Refresh + count */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-neutral-500">
+                {orderGroups.length === 0 ? "No open orders" : `${orderGroups.length} order(s) pending`}
+              </span>
+              <button
+                type="button"
+                onClick={() => void loadData()}
+                className="flex items-center gap-1 text-xs text-neutral-500 hover:text-white transition-colors"
+              >
+                <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+                Refresh
+              </button>
+            </div>
+
+            {/* Orders table */}
+            <div className="rounded-xl border border-white/10 bg-[#10151e] overflow-hidden">
+              {orderGroups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                  <Package size={30} className="text-neutral-700 mb-3" />
+                  <p className="text-sm font-bold text-white">No open orders</p>
+                  <p className="mt-1 text-xs text-neutral-500">Orders with pending quantity appear here.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Table header */}
+                  <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 border-b border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
+                    <span></span>
+                    <span>Order / Customer</span>
+                    <span className="hidden sm:block">Lines</span>
+                    <span className="text-right">Picked</span>
+                    <span className="text-right">Status</span>
+                  </div>
+
+                  {orderGroups.map((group) => {
+                    const isExpanded = group.salesOrderId === expandedOrderId;
+
+                    return (
+                      <div key={group.salesOrderId} className="border-b border-white/[0.05] last:border-0">
+
+                        {/* ── Order row ───────────────────────────────────── */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExpandedOrderId(isExpanded ? null : group.salesOrderId);
+                          }}
+                          className={`w-full grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 items-center px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-400 ${
+                            isExpanded
+                              ? "bg-brand-500/10"
+                              : "hover:bg-white/[0.04]"
+                          }`}
+                        >
+                          <span className="text-neutral-500">
+                            {isExpanded
+                              ? <ChevronDown size={14} className="text-brand-400" />
+                              : <ChevronRight size={14} />}
+                          </span>
+
+                          <span className="min-w-0">
+                            <span className="block font-mono text-xs font-black text-white">
+                              {group.orderNumber}
+                            </span>
+                            <span className="block text-[11px] text-neutral-400 truncate">
+                              {group.customerName}
+                              <span className="ml-2 text-neutral-600 hidden sm:inline">
+                                {new Date(group.orderDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                              </span>
+                            </span>
+                          </span>
+
+                          <span className="hidden sm:block text-xs text-neutral-400 text-right">
+                            {group.items.length}
+                          </span>
+
+                          <span className="font-mono text-xs font-bold text-brand-200 text-right tabular-nums">
+                            {group.totalPickedQuantity}/{group.totalQuantity}
+                          </span>
+
+                          <span>
+                            <MantineBadge size="xs" color={statusColor[group.status] ?? "gray"} variant="light">
+                              {group.status}
+                            </MantineBadge>
+                          </span>
+                        </button>
+
+                        {/* ── Expanded panel ──────────────────────────────── */}
+                        {isExpanded && (
+                          <div className="border-t border-white/10 bg-[#0b0f17] px-3 py-3 space-y-3">
+
+                            {/* Progress bar */}
+                            <div>
+                              <div className="flex justify-between text-[10px] text-neutral-500 mb-1">
+                                <span>{group.totalPickedQuantity}/{group.totalQuantity} units picked</span>
+                                <span className="font-mono tabular-nums">{progress}%</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-[width] duration-300"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Items sub-table */}
+                            <div className="rounded-lg border border-white/10 overflow-hidden">
+                              <div className="bg-white/[0.03] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-neutral-500 border-b border-white/10">
+                                Order Lines ({group.items.length})
+                              </div>
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-[10px] text-neutral-500 border-b border-white/[0.06]">
+                                    <th className="text-left px-3 py-1.5">Product</th>
+                                    <th className="text-left px-2 py-1.5 hidden sm:table-cell">SKU</th>
+                                    <th className="text-left px-2 py-1.5 hidden md:table-cell">Location</th>
+                                    <th className="text-right px-3 py-1.5">Pending</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {group.items.map((item) => {
+                                    const done = item.pendingQuantity === 0;
+                                    const isActive = item.id === activeItemId;
+                                    return (
+                                      <tr
+                                        key={item.id}
+                                        onClick={() => setActiveItemId(item.id)}
+                                        className={`border-b border-white/[0.04] last:border-0 cursor-pointer transition-colors ${
+                                          isActive
+                                            ? "bg-brand-500/10"
+                                            : done
+                                              ? "opacity-40"
+                                              : "hover:bg-white/[0.04]"
+                                        }`}
+                                      >
+                                        <td className="px-3 py-2">
+                                          <span className={`font-medium ${done ? "line-through text-neutral-500" : "text-white"} block truncate max-w-[140px]`}>
+                                            {item.productName}
+                                          </span>
+                                          <span className="font-mono text-[10px] text-brand-300 sm:hidden">{item.skuCode}</span>
+                                        </td>
+                                        <td className="px-2 py-2 hidden sm:table-cell">
+                                          <span className="font-mono text-brand-300">{item.skuCode}</span>
+                                          {item.alias && <span className="ml-1 text-neutral-500">/ {item.alias}</span>}
+                                        </td>
+                                        <td className="px-2 py-2 hidden md:table-cell">
+                                          <span className="flex items-center gap-1 text-neutral-400 text-[10px]">
+                                            <MapPin size={10} />
+                                            {getLocationSummary(item.productId)}
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                          {done ? (
+                                            <span className="inline-flex items-center gap-1 text-green-400 font-bold">
+                                              <Check size={12} /> Done
+                                            </span>
+                                          ) : (
+                                            <span className="font-mono font-black text-white tabular-nums">
+                                              {item.pendingQuantity}
+                                            </span>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Scan section */}
+                            {isFullyPicked ? (
+                              <Button fullWidth color="green" onClick={() => navigate("/packing")}>
+                                ✓ All Picked — Continue to Packing
+                              </Button>
+                            ) : (
+                              <div className="rounded-lg border border-white/10 bg-[#10151e] p-3 space-y-2.5">
+                                {/* Active item hint */}
+                                {activeItem && (
+                                  <div className="flex items-center gap-2 rounded-md bg-brand-500/10 border border-brand-500/20 px-2.5 py-1.5 text-xs">
+                                    <Package size={13} className="text-brand-300 shrink-0" />
+                                    <span className="font-bold text-brand-200 truncate">{activeItem.productName}</span>
+                                    <span className="ml-auto font-mono text-brand-300 shrink-0 tabular-nums">
+                                      {activeItem.pendingQuantity} left
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Scan feedback */}
+                                {(lastScanMessage || lastScanCode) && (
+                                  <div className={`rounded-md border px-2.5 py-1.5 text-[11px] ${
+                                    scanTone === "error"
+                                      ? "border-red-500/25 bg-red-500/[0.07] text-red-200"
+                                      : scanTone === "success"
+                                        ? "border-green-500/20 bg-green-500/[0.06] text-green-200"
+                                        : "border-white/10 bg-white/[0.025] text-neutral-400"
+                                  }`}>
+                                    {scanTone === "error" && <AlertTriangle size={11} className="inline mr-1.5 text-red-400" />}
+                                    {lastScanMessage}
+                                    {lastScanCode && <span className="ml-1.5 font-mono text-neutral-500">({lastScanCode})</span>}
+                                  </div>
+                                )}
+
+                                {/* Location input */}
+                                {!isLocationLocked ? (
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                                      Step 1 — Scan Location
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <div className="relative flex-1">
+                                        <MapPin size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                        <input
+                                          ref={locRef}
+                                          value={locationCode}
+                                          onChange={(e) => setLocationCode(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSetLocation(); } }}
+                                          placeholder="Scan bin / location…"
+                                          autoComplete="off"
+                                          className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={handleSetLocation}
+                                        className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-colors"
+                                      >
+                                        Set
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                                        Step 2 — Scan Product
+                                      </label>
+                                      <button
+                                        type="button"
+                                        onClick={handleChangeLocation}
+                                        className="text-[10px] font-bold text-brand-300 hover:text-brand-200 transition-colors"
+                                      >
+                                        📍 {lastLocationCode} · Change
+                                      </button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <div className="relative flex-1">
+                                        <ScanLine size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                        <input
+                                          ref={scanRef}
+                                          value={scanCode}
+                                          onChange={(e) => setScanCode(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleScanSubmit(); } }}
+                                          disabled={isPicking}
+                                          placeholder="Scan SKU, alias, or carton QR…"
+                                          autoComplete="off"
+                                          className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleScanSubmit()}
+                                        disabled={isPicking}
+                                        className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-50 transition-colors"
+                                      >
+                                        {isPicking ? "…" : "Pick"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Short close */}
+                                <div className="flex justify-end pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsShortCloseOpen(true)}
+                                    className="text-[10px] font-bold text-yellow-600 hover:text-yellow-400 transition-colors"
+                                  >
+                                    Exception: Short Close
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* ── Modals ──────────────────────────────────────────────────────────── */}
+
+      {/* Short close */}
       <Modal
-        opened={isShortCloseModalOpen}
-        onClose={() => setIsShortCloseModalOpen(false)}
+        opened={isShortCloseOpen}
+        onClose={() => setIsShortCloseOpen(false)}
         title="Complete Picking"
         centered
         size="sm"
       >
         <Text size="md" mb="lg" color="dimmed">
-          You are about to finish picking this order without fulfilling all items. 
+          Finish picking this order without fulfilling all items.
           Any remaining unpicked quantities will be canceled permanently.
         </Text>
         <Textarea
@@ -1032,60 +1074,45 @@ export const Picking = memo(function Picking() {
           data-autofocus
         />
         <div className="mt-8 flex justify-end gap-2.5">
-          <Button variant="outline" color="gray" size="md" onClick={() => setIsShortCloseModalOpen(false)}>
+          <Button variant="outline" color="gray" size="md" onClick={() => setIsShortCloseOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={handleShortCloseSubmit} loading={isShortClosing} color="yellow" size="md">
+          <Button onClick={handleShortClose} loading={isShortClosing} color="yellow" size="md">
             Confirm & Save Order
           </Button>
         </div>
       </Modal>
-      <Modal
-        opened={!!mrpMismatchScan}
-        onClose={handleMrpReject}
-        title="Price Mismatch Alert"
-        centered
-        size="md"
-      >
-        {mrpMismatchScan && (
-          <div className="space-y-2">
-            <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-2.5">
+
+      {/* MRP mismatch */}
+      <Modal opened={!!mrpMismatch} onClose={handleMrpReject} title="Price Mismatch Alert" centered size="md">
+        {mrpMismatch && (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-orange-500/10 border border-orange-500/20 p-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="text-orange-400 mt-1" size={20} />
+                <AlertTriangle className="text-orange-400 mt-0.5 shrink-0" size={18} />
                 <div>
-                  <p className="text-sm text-neutral-300">
-                    The scanned item has a different price than the sales order.
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
+                  <p className="text-sm text-neutral-300">The scanned item has a different price than the sales order.</p>
+                  <div className="mt-2 grid grid-cols-2 gap-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Scanned Price</p>
-                      <p className="text-base font-bold text-white">Rs {mrpMismatchScan.effectiveScan.mrp}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-0.5">Scanned Price</p>
+                      <p className="text-base font-black text-white">Rs {mrpMismatch.effectiveScan.mrp}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Expected Price</p>
-                      <p className="text-base font-bold text-white">Rs {mrpMismatchScan.matchedItem.mrp}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-500 mb-0.5">Expected Price</p>
+                      <p className="text-base font-black text-white">Rs {mrpMismatch.matchedItem.mrp}</p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
-            <p className="text-sm font-semibold text-white mt-2">
-              Do you want to proceed with picking this item?
-            </p>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="outline" color="gray" size="sm" onClick={handleMrpReject}>
-                Reject
-              </Button>
-              <Button color="orange" size="sm" onClick={handleMrpConfirm}>
-                OK, Pick Item
-              </Button>
+            <p className="text-sm font-semibold text-white">Do you want to proceed with picking this item?</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" color="gray" size="sm" onClick={handleMrpReject}>Reject</Button>
+              <Button color="orange" size="sm" onClick={handleMrpConfirm}>OK, Pick Item</Button>
             </div>
           </div>
         )}
       </Modal>
-
     </OperationsPage>
   );
 });

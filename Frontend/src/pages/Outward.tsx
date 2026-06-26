@@ -1205,9 +1205,10 @@ export const Outward = memo(function Outward() {
                 label="Reference Number"
                 placeholder="e.g. PO-12345 or customer ref"
                 value={editForm.referenceNumber}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, referenceNumber: e.currentTarget.value }))
-                }
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, referenceNumber: val }));
+                }}
               />
             </>
           ) : (
@@ -1223,34 +1224,38 @@ export const Outward = memo(function Outward() {
                   label="Customer Name"
                   placeholder="e.g. Acme Corp"
                   value={editForm.customerName}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, customerName: e.currentTarget.value }))
-                  }
+                  onChange={(e) => {
+                    const val = e.currentTarget.value;
+                    setEditForm((f) => ({ ...f, customerName: val }));
+                  }}
                 />
                 <TextInput
                   label="Order Date"
                   type="date"
                   value={editForm.orderDate}
-                  onChange={(e) =>
-                    setEditForm((f) => ({ ...f, orderDate: e.currentTarget.value }))
-                  }
+                  onChange={(e) => {
+                    const val = e.currentTarget.value;
+                    setEditForm((f) => ({ ...f, orderDate: val }));
+                  }}
                 />
               </SimpleGrid>
               <TextInput
                 label="Reference Number"
                 placeholder="e.g. PO-12345 or customer ref"
                 value={editForm.referenceNumber}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, referenceNumber: e.currentTarget.value }))
-                }
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, referenceNumber: val }));
+                }}
               />
               <TextInput
                 label="Notes"
                 placeholder="Optional remarks"
                 value={editForm.notes}
-                onChange={(e) =>
-                  setEditForm((f) => ({ ...f, notes: e.currentTarget.value }))
-                }
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, notes: val }));
+                }}
               />
             </>
           )}
