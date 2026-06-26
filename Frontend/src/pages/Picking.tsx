@@ -149,7 +149,7 @@ export const Picking = memo(function Picking() {
   const [isLoading, setIsLoading] = useState(true);
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [mode, setMode] = useState<PickingMode>("sales_orders");
+  const [mode, setMode] = useState<PickingMode>("consolidated");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [activeItemId, setActiveItemId] = useState<number | null>(null);
