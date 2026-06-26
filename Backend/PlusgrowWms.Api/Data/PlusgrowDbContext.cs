@@ -75,6 +75,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<StockCheckReport> StockCheckReports => Set<StockCheckReport>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PoInvoiceLocation> PoInvoiceLocations => Set<PoInvoiceLocation>();
+    public DbSet<TallySyncSkippedOrder> TallySyncSkippedOrders => Set<TallySyncSkippedOrder>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -42,6 +42,8 @@ import {
   Product,
   productsApi,
   SalesOrderRecord,
+  tallySyncApi,
+  TallySyncSkippedOrder,
 } from "../services/masterApi";
 import {
   OperationsPage,
@@ -137,6 +139,45 @@ export const Outward = memo(function Outward() {
     notes: "",
     referenceNumber: "",
   });
+
+  // Skipped Orders state
+  const [isSkippedModalOpen, setIsSkippedModalOpen] = useState(false);
+  const [skippedOrders, setSkippedOrders] = useState<TallySyncSkippedOrder[]>([]);
+  const [isLoadingSkipped, setIsLoadingSkipped] = useState(false);
+
+  const loadSkippedOrders = useCallback(async () => {
+    try {
+      setIsLoadingSkipped(true);
+      const data = await tallySyncApi.getSkippedOrders(false);
+      setSkippedOrders(data);
+    } catch {
+      toast.error("Failed to load skipped Tally orders");
+    } finally {
+      setIsLoadingSkipped(false);
+    }
+  }, []);
+
+  const handleRetrySkipped = async (id: number) => {
+    try {
+      await tallySyncApi.retrySkippedOrder(id);
+      toast.success("Order retried and imported successfully!");
+      loadSkippedOrders();
+      loadOrders();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to retry order");
+    }
+  };
+
+  const handleDismissSkipped = async (id: number) => {
+    if (!confirm("Are you sure you want to dismiss this skipped order?")) return;
+    try {
+      await tallySyncApi.dismissSkippedOrder(id);
+      toast.success("Order dismissed");
+      loadSkippedOrders();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to dismiss order");
+    }
+  };
 
   const loadProducts = useCallback(async () => {
     try {
@@ -734,6 +775,17 @@ export const Outward = memo(function Outward() {
             <Button
               size="sm"
               variant="outline"
+              leftIcon={<AlertTriangle className="h-3.5 w-3.5" />}
+              onClick={() => {
+                setIsSkippedModalOpen(true);
+                loadSkippedOrders();
+              }}
+            >
+              Skipped Tally
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               leftIcon={<Download className="h-3.5 w-3.5" />}
               onClick={handleExportExcel}
               loading={isExporting}
@@ -1260,6 +1312,48 @@ export const Outward = memo(function Outward() {
             </>
           )}
         </Stack>
+      </Modal>
+
+      <Modal
+        isOpen={isSkippedModalOpen}
+        onClose={() => setIsSkippedModalOpen(false)}
+        title="Skipped Tally Orders"
+        size="xl"
+      >
+        <MantineDataTable
+          data={skippedOrders}
+          isLoading={isLoadingSkipped}
+          rowKey={(r: TallySyncSkippedOrder) => r.id}
+          columns={[
+            { key: "tallyReference", header: "Reference", render: (r: TallySyncSkippedOrder) => r.tallyReference },
+            { key: "partyName", header: "Party Name", render: (r: TallySyncSkippedOrder) => r.partyName || "-" },
+            { 
+              key: "skipReason", 
+              header: "Reason",
+              render: (r: TallySyncSkippedOrder) => <Badge color="red" variant="light">{r.skipReason}</Badge>
+            },
+            { 
+              key: "details", 
+              header: "Details",
+              render: (r: TallySyncSkippedOrder) => (
+                <Text size="sm" lineClamp={2} title={r.details}>
+                  {r.details}
+                </Text>
+              )
+            },
+            {
+              key: "actions",
+              header: "Actions",
+              width: 150,
+              render: (record: TallySyncSkippedOrder) => (
+                <Group gap="xs" wrap="nowrap">
+                  <Button size="xs" variant="outline" onClick={() => handleRetrySkipped(record.id)}>Retry</Button>
+                  <Button size="xs" variant="subtle" color="red" onClick={() => handleDismissSkipped(record.id)}>Dismiss</Button>
+                </Group>
+              )
+            }
+          ]}
+        />
       </Modal>
     </OperationsPage>
   );

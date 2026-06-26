@@ -1707,6 +1707,19 @@ export const stockCheckReportsApi = {
   },
 };
 
+export interface TallySyncSkippedOrder {
+  id: number;
+  tallyReference: string;
+  partyName?: string;
+  orderDate?: string;
+  skipReason: string;
+  details?: string;
+  unmatchedProducts?: string;
+  isResolved: boolean;
+  syncedAt: string;
+  resolvedAt?: string;
+}
+
 export const tallySyncApi = {
   syncToday: async (): Promise<boolean> => {
     const response = await api.post<ApiResponse<boolean>>('/TallySync/sync-today');
@@ -1717,5 +1730,20 @@ export const tallySyncApi = {
     const response = await api.get<ApiResponse<any[]>>('/StockItems');
     if (!response.data.success) throw new Error(response.data.message || 'Error fetching Tally stock items');
     return response.data.data || [];
+  },
+  getSkippedOrders: async (includeResolved = false): Promise<TallySyncSkippedOrder[]> => {
+    const response = await api.get<ApiResponse<TallySyncSkippedOrder[]>>(`/TallySync/skipped?includeResolved=${includeResolved}`);
+    if (!response.data.success) throw new Error(response.data.message || 'Error fetching skipped orders');
+    return response.data.data || [];
+  },
+  retrySkippedOrder: async (id: number): Promise<boolean> => {
+    const response = await api.post<ApiResponse<boolean>>(`/TallySync/skipped/${id}/retry`);
+    if (!response.data.success) throw new Error(response.data.message || 'Retry failed');
+    return response.data.success;
+  },
+  dismissSkippedOrder: async (id: number): Promise<boolean> => {
+    const response = await api.post<ApiResponse<boolean>>(`/TallySync/skipped/${id}/dismiss`);
+    if (!response.data.success) throw new Error(response.data.message || 'Dismiss failed');
+    return response.data.success;
   }
 };

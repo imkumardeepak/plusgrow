@@ -10,6 +10,9 @@ namespace PlusgrowWms.Api.Services;
 public interface ITallySyncService
 {
     Task SyncTodayVouchersAsync(CancellationToken ct = default);
+    Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(bool includeResolved = false, CancellationToken ct = default);
+    Task<bool> RetrySkippedOrderAsync(int id, CancellationToken ct = default);
+    Task<bool> DismissSkippedOrderAsync(int id, CancellationToken ct = default);
 }
 
 public class TallySyncService : ITallySyncService
@@ -49,6 +52,7 @@ public class TallySyncService : ITallySyncService
             var tallyReference = NormalizeKey(v.Reference);
             if (string.IsNullOrWhiteSpace(tallyReference) || tallyReference == "NA")
             {
+                await UpsertSkippedOrderAsync(v, tallyReference, "EmptyReference", "Voucher reference is empty or NA", null, ct);
                 skipped++;
                 continue;
             }
@@ -58,27 +62,10 @@ public class TallySyncService : ITallySyncService
             {
                 _logger.LogWarning("Tally sales order {OrderNumber} skipped because one or more products were not matched.", tallyReference);
 
-                // Log to audit table with unmatched product details
                 var unmatchedNames = mapResult.UnmatchedProducts;
-                var details = $"Tally sales order '{tallyReference}' skipped — unmatched products: {string.Join(", ", unmatchedNames)}";
-                _context.AuditLogs.Add(new AuditLog
-                {
-                    UserId = null,
-                    Username = "TallySync",
-                    Action = "SyncSkipped",
-                    EntityType = "SalesOrder",
-                    EntityId = tallyReference,
-                    Details = details,
-                    Timestamp = now,
-                    NewValues = JsonSerializer.Serialize(new
-                    {
-                        OrderNumber = tallyReference,
-                        PartyName = NormalizeValue(v.PartyName),
-                        Date = v.Date,
-                        UnmatchedProducts = unmatchedNames,
-                        TotalItems = v.Items?.Count ?? 0,
-                    }),
-                });
+                var details = $"Unmatched products: {string.Join(", ", unmatchedNames)}";
+                
+                await UpsertSkippedOrderAsync(v, tallyReference, "ProductNotFound", details, unmatchedNames, ct);
 
                 skipped++;
                 continue;
@@ -94,20 +81,69 @@ public class TallySyncService : ITallySyncService
 
             if (existingOrders.Count > 0)
             {
+                await UpsertSkippedOrderAsync(v, tallyReference, "AlreadyExists", "Order number or reference already exists in WMS", null, ct);
                 skipped++;
                 continue;
             }
 
-            var orderNumber = existingOrders.Count == 0
-                ? tallyReference
-                : await BuildReplacementOrderNumberAsync(tallyReference, ct);
+            try
+            {
+                var orderNumber = existingOrders.Count == 0
+                    ? tallyReference
+                    : await BuildReplacementOrderNumberAsync(tallyReference, ct);
 
-            _context.SalesOrders.Add(CreateSalesOrder(v, mapResult.Items, orderNumber, tallyReference, now));
-            added++;
+                _context.SalesOrders.Add(CreateSalesOrder(v, mapResult.Items, orderNumber, tallyReference, now));
+                added++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding sales order {OrderNumber}", tallyReference);
+                await UpsertSkippedOrderAsync(v, tallyReference, "Exception", ex.Message, null, ct);
+                skipped++;
+            }
         }
 
         await _context.SaveChangesAsync(ct);
         _logger.LogInformation("Tally sync done — {Added} sales orders added, {Skipped} skipped.", added, skipped);
+    }
+
+    private async Task UpsertSkippedOrderAsync(TallyERPWebApi.Model.Voucher voucher, string tallyReference, string skipReason, string details, List<string>? unmatchedProducts, CancellationToken ct)
+    {
+        var rawItemsJson = JsonSerializer.Serialize(voucher.Items ?? new List<TallyERPWebApi.Model.ItemDetails>());
+        var unmatchedJson = unmatchedProducts != null ? JsonSerializer.Serialize(unmatchedProducts) : null;
+        var today = DateTime.UtcNow.Date;
+
+        var existing = await _context.TallySyncSkippedOrders
+            .Where(x => x.TallyReference == tallyReference && x.SyncedAt >= today)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing != null)
+        {
+            existing.PartyName = NormalizeValue(voucher.PartyName);
+            existing.OrderDate = voucher.Date;
+            existing.SkipReason = skipReason;
+            existing.Details = details;
+            existing.UnmatchedProducts = unmatchedJson;
+            existing.RawItemsJson = rawItemsJson;
+            existing.IsResolved = false;
+            existing.SyncedAt = DateTime.UtcNow;
+            _context.TallySyncSkippedOrders.Update(existing);
+        }
+        else
+        {
+            _context.TallySyncSkippedOrders.Add(new TallySyncSkippedOrder
+            {
+                TallyReference = string.IsNullOrWhiteSpace(tallyReference) ? "NA" : tallyReference,
+                PartyName = NormalizeValue(voucher.PartyName),
+                OrderDate = voucher.Date,
+                SkipReason = skipReason,
+                Details = details,
+                UnmatchedProducts = unmatchedJson,
+                RawItemsJson = rawItemsJson,
+                IsResolved = false,
+                SyncedAt = DateTime.UtcNow
+            });
+        }
     }
 
     private async Task<string> BuildReplacementOrderNumberAsync(string baseOrderNumber, CancellationToken ct)
@@ -264,5 +300,90 @@ public class TallySyncService : ITallySyncService
     private static string NormalizeValue(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? "NA" : value.Trim();
+    }
+
+    public async Task<List<TallySyncSkippedOrder>> GetSkippedOrdersAsync(bool includeResolved = false, CancellationToken ct = default)
+    {
+        var query = _context.TallySyncSkippedOrders.AsNoTracking();
+        
+        if (!includeResolved)
+            query = query.Where(x => !x.IsResolved);
+
+        return await query.OrderByDescending(x => x.SyncedAt).ToListAsync(ct);
+    }
+
+    public async Task<bool> RetrySkippedOrderAsync(int id, CancellationToken ct = default)
+    {
+        var skipped = await _context.TallySyncSkippedOrders.FindAsync([id], ct);
+        if (skipped == null || skipped.IsResolved)
+            return false;
+
+        // Deserialize the raw voucher items
+        var items = string.IsNullOrEmpty(skipped.RawItemsJson) 
+            ? new List<TallyERPWebApi.Model.ItemDetails>() 
+            : JsonSerializer.Deserialize<List<TallyERPWebApi.Model.ItemDetails>>(skipped.RawItemsJson) ?? new List<TallyERPWebApi.Model.ItemDetails>();
+
+        var productsByName = await GetUniqueProductsByNameAsync(ct);
+        var mapResult = MapSalesOrderItems(items, productsByName);
+
+        if (mapResult.Items is null || mapResult.Items.Count == 0)
+        {
+            // Still fails, update the unmatched products just in case they changed
+            skipped.UnmatchedProducts = mapResult.UnmatchedProducts != null ? JsonSerializer.Serialize(mapResult.UnmatchedProducts) : null;
+            skipped.SkipReason = "ProductNotFound";
+            skipped.Details = $"Unmatched products: {string.Join(", ", mapResult.UnmatchedProducts ?? new List<string>())}";
+            await _context.SaveChangesAsync(ct);
+            throw new Exception($"Retry failed: {skipped.Details}");
+        }
+
+        var referenceKey = skipped.TallyReference.ToLower();
+        var existingOrders = await _context.SalesOrders
+            .AsNoTracking()
+            .Where(x =>
+                x.OrderNumber.ToLower() == referenceKey ||
+                (x.ReferenceNumber != null && x.ReferenceNumber.ToLower() == referenceKey))
+            .ToListAsync(ct);
+
+        if (existingOrders.Count > 0)
+        {
+            skipped.SkipReason = "AlreadyExists";
+            skipped.Details = "Order number or reference already exists in WMS";
+            await _context.SaveChangesAsync(ct);
+            throw new Exception("Retry failed: Already exists in WMS.");
+        }
+
+        // Reconstruct a dummy voucher for CreateSalesOrder
+        var dummyVoucher = new TallyERPWebApi.Model.Voucher
+        {
+            Reference = skipped.TallyReference,
+            PartyName = skipped.PartyName,
+            Date = skipped.OrderDate,
+            Items = items
+        };
+
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        var orderNumber = skipped.TallyReference; // if we get here, it doesn't exist
+        
+        _context.SalesOrders.Add(CreateSalesOrder(dummyVoucher, mapResult.Items, orderNumber, skipped.TallyReference, now));
+        
+        skipped.IsResolved = true;
+        skipped.ResolvedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> DismissSkippedOrderAsync(int id, CancellationToken ct = default)
+    {
+        var skipped = await _context.TallySyncSkippedOrders.FindAsync([id], ct);
+        if (skipped == null || skipped.IsResolved)
+            return false;
+
+        skipped.IsResolved = true;
+        skipped.ResolvedAt = DateTime.UtcNow;
+        skipped.Details = "Manually dismissed";
+        
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 }
