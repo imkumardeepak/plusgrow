@@ -1323,6 +1323,9 @@ export const Outward = memo(function Outward() {
         <MantineDataTable
           data={skippedOrders}
           isLoading={isLoadingSkipped}
+          emptyIcon={AlertTriangle}
+          emptyTitle="No skipped orders"
+          emptyDescription="All Tally orders have been successfully imported."
           rowKey={(r: TallySyncSkippedOrder) => r.id}
           columns={[
             { key: "tallyReference", header: "Reference", render: (r: TallySyncSkippedOrder) => r.tallyReference },
