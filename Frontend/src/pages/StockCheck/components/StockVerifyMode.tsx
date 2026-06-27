@@ -609,13 +609,14 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                     <EmptyInline message="No sales orders found for this SKU." />
                   ) : (
                     <ScrollArea type="auto" h={280} offsetScrollbars>
-                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={760}>
+                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={920}>
                         <Table.Thead>
                           <Table.Tr>
                             <Table.Th>Order Date</Table.Th>
                             <Table.Th>Order No.</Table.Th>
                             <Table.Th>Customer</Table.Th>
                             <Table.Th>Status</Table.Th>
+                            <Table.Th>Tracking / AWB</Table.Th>
                             <Table.Th ta="right">Qty</Table.Th>
                             <Table.Th ta="right">Picked</Table.Th>
                             <Table.Th ta="right">Pending</Table.Th>
@@ -640,6 +641,15 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                                   <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
                                     {order.status}
                                   </Badge>
+                                </Table.Td>
+                                <Table.Td>
+                                  {order.trackingNumber ? (
+                                    <Text size="11px" fw={800} ff="monospace" c="yellow.3" truncate maw={140} title={order.trackingNumber}>
+                                      {order.trackingNumber}
+                                    </Text>
+                                  ) : (
+                                    <Text size="11px" c="dimmed">—</Text>
+                                  )}
                                 </Table.Td>
                                 <Table.Td ta="right">
                                   <Text size="12px" fw={900} ff="monospace" c="cyan.3">{quantity}</Text>
