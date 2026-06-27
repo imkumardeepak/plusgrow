@@ -238,6 +238,33 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
     URL.revokeObjectURL(url);
   };
 
+  const handleExportSkuMatchCsv = () => {
+    const rows = filteredSkuRows;
+    if (!rows.length) return;
+    const label = skuFilter === "matched" ? "matched" : skuFilter === "unmatched" ? "unmatched" : "all";
+    const headers = ["Match Status", "Tally Name", "Tally SKU Code", "WMS SKU", "WMS Product Name"];
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r =>
+        [
+          r.isMatched ? "Matched" : "Unmatched",
+          `"${r.tallyName}"`,
+          `"${r.tallySkuCode}"`,
+          r.wmsSku ? `"${r.wmsSku}"` : "",
+          r.wmsProductName ? `"${r.wmsProductName}"` : "",
+        ].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sku_match_${label}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   /* ────────────────────────── RENDER ────────────────────────── */
 
   return (
@@ -307,6 +334,18 @@ export const TallyDifferenceMode: React.FC<TallyDifferenceModeProps> = ({ onBack
               <ActionIcon onClick={fetchData} variant="light" color="blue" size="lg" radius="md">
                 <RefreshCw size={18} />
               </ActionIcon>
+              <Tooltip label={`Export CSV (${filteredSkuRows.length} rows)`}>
+                <ActionIcon
+                  onClick={handleExportSkuMatchCsv}
+                  variant="light"
+                  color="teal"
+                  size="lg"
+                  radius="md"
+                  disabled={filteredSkuRows.length === 0}
+                >
+                  <Download size={18} />
+                </ActionIcon>
+              </Tooltip>
             </Group>
           </Group>
 
