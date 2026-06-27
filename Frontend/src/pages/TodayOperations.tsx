@@ -19,6 +19,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
+  CalendarDays,
   Clock,
   Package,
   RefreshCw,
@@ -77,7 +78,7 @@ export const TodayOperations = memo(function TodayOperations() {
       setIsLoading(true);
       const [invoiceResult, outwardResult, movementResult] = await Promise.all([
         poInvoicesApi.getHeaders({ fromDate: dateStr, toDate: dateStr, page: 1, pageSize: 200 }),
-        outwardOrdersApi.getAll({ page: 1, pageSize: 500 }),
+        outwardOrdersApi.getAll({ page: 1, pageSize: 2000 }),
         productQuantitiesApi.getMovements(),
       ]);
 
@@ -209,7 +210,7 @@ export const TodayOperations = memo(function TodayOperations() {
       hideHeader
     >
       <Stack gap="xs">
-        {/* Header Bar */}
+        {/* ── Row 1: Title + Actions ── */}
         <Paper
           radius="sm"
           p="xs"
@@ -228,32 +229,6 @@ export const TodayOperations = memo(function TodayOperations() {
                 </Text>
               </Box>
             </Group>
-
-            {/* Single Date Picker */}
-            <input
-              type="date"
-              value={selectedDateStr}
-              max={todayStr()}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [y, m, d] = e.target.value.split("-").map(Number);
-                  setSelectedDate(new Date(y, m - 1, d));
-                }
-              }}
-              style={{
-                background: "rgba(15,23,42,0.8)",
-                border: "1px solid rgba(14,165,233,0.25)",
-                color: "white",
-                fontWeight: 700,
-                borderRadius: 8,
-                padding: "4px 10px",
-                fontSize: 12,
-                outline: "none",
-                cursor: "pointer",
-                colorScheme: "dark",
-              }}
-            />
-
             <Group gap="xs" wrap="nowrap">
               <Button
                 size="xs"
@@ -274,6 +249,68 @@ export const TodayOperations = memo(function TodayOperations() {
                 Export Excel
               </Button>
             </Group>
+          </Group>
+        </Paper>
+
+        {/* ── Row 2: Date Filter Bar ── */}
+        <Paper
+          radius="sm"
+          p="sm"
+          withBorder
+          style={{
+            background: "rgba(14,165,233,0.07)",
+            borderColor: "rgba(14,165,233,0.35)",
+          }}
+        >
+          <Group gap="md" align="center" wrap="wrap">
+            <Group gap={6} wrap="nowrap">
+              <CalendarDays size={16} color="var(--mantine-color-cyan-4)" />
+              <Text size="xs" fw={800} c="cyan.4" tt="uppercase" style={{ letterSpacing: "0.07em" }}>
+                Filter by Date
+              </Text>
+            </Group>
+
+            <input
+              type="date"
+              value={selectedDateStr}
+              max={todayStr()}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const [y, mo, d] = e.target.value.split("-").map(Number);
+                  setSelectedDate(new Date(y, mo - 1, d));
+                }
+              }}
+              style={{
+                background: "rgba(2,6,23,0.7)",
+                border: "1.5px solid rgba(14,165,233,0.5)",
+                color: "white",
+                fontWeight: 800,
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 13,
+                outline: "none",
+                cursor: "pointer",
+                colorScheme: "dark",
+                minWidth: 155,
+              }}
+            />
+
+            <Text size="11px" c="dimmed">
+              {isToday
+                ? "Showing data for today. Pick a past date to view historical records."
+                : `Showing all records from ${displayLabel}.`}
+            </Text>
+
+            {!isToday && (
+              <Button
+                size="xs"
+                variant="light"
+                color="cyan"
+                onClick={() => setSelectedDate(new Date())}
+              >
+                Back to Today
+              </Button>
+            )}
           </Group>
         </Paper>
 
