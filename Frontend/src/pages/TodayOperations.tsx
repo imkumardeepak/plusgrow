@@ -19,7 +19,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   BarChart3,
-  CheckCircle2,
   Clock,
   Package,
   RefreshCw,
@@ -46,9 +45,9 @@ import { toast } from "../lib/toast";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
-const isToday = (dateStr?: string | null) => {
+const isOnDate = (dateStr: string | null | undefined, targetDate: string) => {
   if (!dateStr) return false;
-  return dateStr.slice(0, 10) === todayStr();
+  return dateStr.slice(0, 10) === targetDate;
 };
 
 const formatTime = (dateStr?: string | null) => {
@@ -69,12 +68,15 @@ export const TodayOperations = memo(function TodayOperations() {
   const [movements, setMovements] = useState<ProductStockMovementRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
+  // Date filter state — defaults to today
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+
+  const loadData = useCallback(async (dateStr: string) => {
     try {
       setIsLoading(true);
-      const today = todayStr();
       const [invoiceResult, outwardResult, movementResult] = await Promise.all([
-        poInvoicesApi.getHeaders({ fromDate: today, toDate: today, page: 1, pageSize: 200 }),
+        poInvoicesApi.getHeaders({ fromDate: dateStr, toDate: dateStr, page: 1, pageSize: 200 }),
         outwardOrdersApi.getAll({ page: 1, pageSize: 500 }),
         productQuantitiesApi.getMovements(),
       ]);
@@ -83,15 +85,16 @@ export const TodayOperations = memo(function TodayOperations() {
       setOutwardOrders(outwardResult);
       setMovements(movementResult);
     } catch {
-      toast.error("Failed to load today's operations");
+      toast.error("Failed to load operations data");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadData(selectedDateStr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadData, selectedDateStr]);
 
   // ── Computed data ──────────────────────────────────────────────────────────
 
@@ -100,21 +103,27 @@ export const TodayOperations = memo(function TodayOperations() {
   const totalInwardProducts = todayInvoices.reduce((sum, inv) => sum + inv.productCount, 0);
 
   const todayOutward = useMemo(
-    () => outwardOrders.filter((o) => isToday(o.createdAt) || isToday(o.pickedAt) || isToday(o.packedAt) || isToday(o.dispatchedAt)),
-    [outwardOrders],
+    () => outwardOrders.filter(
+      (o) =>
+        isOnDate(o.createdAt, selectedDateStr) ||
+        isOnDate(o.pickedAt, selectedDateStr) ||
+        isOnDate(o.packedAt, selectedDateStr) ||
+        isOnDate(o.dispatchedAt, selectedDateStr),
+    ),
+    [outwardOrders, selectedDateStr],
   );
 
   const todayPicked = useMemo(
-    () => outwardOrders.filter((o) => isToday(o.pickedAt)),
-    [outwardOrders],
+    () => outwardOrders.filter((o) => isOnDate(o.pickedAt, selectedDateStr)),
+    [outwardOrders, selectedDateStr],
   );
   const todayPacked = useMemo(
-    () => outwardOrders.filter((o) => isToday(o.packedAt)),
-    [outwardOrders],
+    () => outwardOrders.filter((o) => isOnDate(o.packedAt, selectedDateStr)),
+    [outwardOrders, selectedDateStr],
   );
   const todayDispatched = useMemo(
-    () => outwardOrders.filter((o) => isToday(o.dispatchedAt)),
-    [outwardOrders],
+    () => outwardOrders.filter((o) => isOnDate(o.dispatchedAt, selectedDateStr)),
+    [outwardOrders, selectedDateStr],
   );
 
   const totalOutwardQty = todayOutward.reduce((sum, o) => sum + o.quantity, 0);
@@ -123,8 +132,8 @@ export const TodayOperations = memo(function TodayOperations() {
   const totalDispatchedQty = todayDispatched.reduce((sum, o) => sum + o.quantity, 0);
 
   const todayMovements = useMemo(
-    () => movements.filter((m) => isToday(m.createdAt)).slice(0, 50),
-    [movements],
+    () => movements.filter((m) => isOnDate(m.createdAt, selectedDateStr)).slice(0, 50),
+    [movements, selectedDateStr],
   );
   const inwardMovements = todayMovements.filter((m) => m.quantityChange > 0);
   const outwardMovements = todayMovements.filter((m) => m.quantityChange < 0);
@@ -134,6 +143,11 @@ export const TodayOperations = memo(function TodayOperations() {
   const pickedPct = Math.round((todayPicked.length / pipelineTotal) * 100);
   const packedPct = Math.round((todayPacked.length / pipelineTotal) * 100);
   const dispatchedPct = Math.round((todayDispatched.length / pipelineTotal) * 100);
+
+  const isToday = selectedDateStr === todayStr();
+  const displayLabel = isToday
+    ? format(selectedDate, "EEEE, dd MMMM yyyy") + " (Today)"
+    : format(selectedDate, "EEEE, dd MMMM yyyy");
 
   const exportToExcel = useCallback(() => {
     try {
@@ -159,6 +173,7 @@ export const TodayOperations = memo(function TodayOperations() {
         "Picked Time": formatTime(order.pickedAt),
         "Packed Time": formatTime(order.packedAt),
         "Dispatched Time": formatTime(order.dispatchedAt),
+        "Tracking / AWB": order.trackingNumber || "",
         "Notes/Remarks": order.notes || "",
         "Status": order.status,
       }));
@@ -180,16 +195,16 @@ export const TodayOperations = memo(function TodayOperations() {
       XLSX.utils.book_append_sheet(wb, wsMovements, "Stock Movements");
 
       // Save
-      XLSX.writeFile(wb, `Today_Operations_${todayStr()}.xlsx`);
+      XLSX.writeFile(wb, `Operations_${selectedDateStr}.xlsx`);
     } catch (error) {
       toast.error("Failed to export Excel file.");
     }
-  }, [todayInvoices, todayOutward, todayMovements]);
+  }, [todayInvoices, todayOutward, todayMovements, selectedDateStr]);
 
   return (
     <OperationsPage
-      title="Today's Operations"
-      description={`Inward & outward activity for ${format(new Date(), "dd MMM yyyy")}`}
+      title="Operations"
+      description={`Inward & outward activity for ${displayLabel}`}
       icon={BarChart3}
       hideHeader
     >
@@ -201,36 +216,64 @@ export const TodayOperations = memo(function TodayOperations() {
           withBorder
           style={{ background: "rgba(15,23,42,0.72)", borderColor: "rgba(14,165,233,0.16)" }}
         >
-          <Group justify="space-between" gap="xs" wrap="nowrap">
+          <Group justify="space-between" gap="xs" wrap="wrap">
             <Group gap="xs" wrap="nowrap">
               <BarChart3 size={isMobile ? 18 : 20} color="var(--mantine-color-cyan-4)" />
               <Box className="min-w-0">
                 <Text fw={900} size={isMobile ? "sm" : "md"} c="white">
-                  Today's Operations Report
+                  Operations Report
                 </Text>
                 <Text size="11px" c="dimmed">
-                  {format(new Date(), "EEEE, dd MMMM yyyy")}
+                  {displayLabel}
                 </Text>
               </Box>
             </Group>
-            <Button
-              size="xs"
-              variant="outline"
-              leftIcon={<RefreshCw size={14} />}
-              loading={isLoading}
-              onClick={() => void loadData()}
-            >
-              Refresh
-            </Button>
-            <Button
-              size="xs"
-              variant="outline"
-              color="green"
-              leftIcon={<Download size={14} />}
-              onClick={exportToExcel}
-            >
-              Export Excel
-            </Button>
+
+            {/* Single Date Picker */}
+            <input
+              type="date"
+              value={selectedDateStr}
+              max={todayStr()}
+              onChange={(e) => {
+                if (e.target.value) {
+                  const [y, m, d] = e.target.value.split("-").map(Number);
+                  setSelectedDate(new Date(y, m - 1, d));
+                }
+              }}
+              style={{
+                background: "rgba(15,23,42,0.8)",
+                border: "1px solid rgba(14,165,233,0.25)",
+                color: "white",
+                fontWeight: 700,
+                borderRadius: 8,
+                padding: "4px 10px",
+                fontSize: 12,
+                outline: "none",
+                cursor: "pointer",
+                colorScheme: "dark",
+              }}
+            />
+
+            <Group gap="xs" wrap="nowrap">
+              <Button
+                size="xs"
+                variant="outline"
+                leftIcon={<RefreshCw size={14} />}
+                loading={isLoading}
+                onClick={() => void loadData(selectedDateStr)}
+              >
+                Refresh
+              </Button>
+              <Button
+                size="xs"
+                variant="outline"
+                color="green"
+                leftIcon={<Download size={14} />}
+                onClick={exportToExcel}
+              >
+                Export Excel
+              </Button>
+            </Group>
           </Group>
         </Paper>
 
@@ -326,7 +369,7 @@ export const TodayOperations = memo(function TodayOperations() {
           {/* ── Inward Tab ── */}
           <Tabs.Panel value="inward">
             {todayInvoices.length > 0 ? (
-              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
+              <ScrollArea type="auto" h="calc(100vh - 380px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayInvoices.map((inv) => (
@@ -402,7 +445,7 @@ export const TodayOperations = memo(function TodayOperations() {
               <Paper radius="md" p="md" withBorder style={{ background: "rgba(15,23,42,0.3)" }}>
                 <Group gap="xs" justify="center">
                   <Clock size={16} className="text-neutral-500" />
-                  <Text size="sm" c="dimmed">No inward invoices today</Text>
+                  <Text size="sm" c="dimmed">No inward invoices for this date</Text>
                 </Group>
               </Paper>
             )}
@@ -430,7 +473,7 @@ export const TodayOperations = memo(function TodayOperations() {
           {/* ── Outward Tab ── */}
           <Tabs.Panel value="outward">
             {todayOutward.length > 0 ? (
-              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
+              <ScrollArea type="auto" h="calc(100vh - 380px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayOutward.map((order) => (
@@ -472,11 +515,17 @@ export const TodayOperations = memo(function TodayOperations() {
                             </Box>
                           )}
                         </Group>
+                        {order.trackingNumber && (
+                          <Group gap="xs" mt={4}>
+                            <Text size="9px" c="dimmed" fw={700}>TRACKING:</Text>
+                            <Text size="10px" c="yellow.3" ff="monospace" fw={700}>{order.trackingNumber}</Text>
+                          </Group>
+                        )}
                       </Paper>
                     ))}
                   </Stack>
                 ) : (
-                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={900}>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={1000}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>SKU</Table.Th>
@@ -485,6 +534,7 @@ export const TodayOperations = memo(function TodayOperations() {
                         <Table.Th>Picked</Table.Th>
                         <Table.Th>Packed</Table.Th>
                         <Table.Th>Dispatched</Table.Th>
+                        <Table.Th>Tracking / AWB</Table.Th>
                         <Table.Th>Notes</Table.Th>
                         <Table.Th>Status</Table.Th>
                       </Table.Tr>
@@ -511,6 +561,15 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="10px" c="green.3">{formatTime(order.dispatchedAt)}</Text>
                           </Table.Td>
                           <Table.Td>
+                            {order.trackingNumber ? (
+                              <Text size="10px" fw={800} ff="monospace" c="yellow.3" truncate maw={130} title={order.trackingNumber}>
+                                {order.trackingNumber}
+                              </Text>
+                            ) : (
+                              <Text size="10px" c="dimmed">—</Text>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
                             <Text size="10px" c="dimmed" truncate maw={80}>{order.notes || "-"}</Text>
                           </Table.Td>
                           <Table.Td>
@@ -528,13 +587,13 @@ export const TodayOperations = memo(function TodayOperations() {
               <Paper radius="md" p="md" withBorder style={{ background: "rgba(15,23,42,0.3)" }}>
                 <Group gap="xs" justify="center">
                   <Clock size={16} className="text-neutral-500" />
-                  <Text size="sm" c="dimmed">No outward activity today</Text>
+                  <Text size="sm" c="dimmed">No outward activity for this date</Text>
                 </Group>
               </Paper>
             )}
             <Paper radius="md" p="xs" withBorder bg="transparent" mt="xs">
               <Group justify="space-between">
-                <Text size="10px" fw={800} c="dimmed">TODAY SUMMARY</Text>
+                <Text size="10px" fw={800} c="dimmed">DATE SUMMARY</Text>
                 <Group gap="md">
                   <Box ta="center">
                     <Text size="9px" c="dimmed">PICKED</Text>
@@ -565,7 +624,7 @@ export const TodayOperations = memo(function TodayOperations() {
                   {outwardMovements.length} Outward ({outwardMovements.reduce((s, m) => s + m.quantityChange, 0)})
                 </Badge>
               </Group>
-              <ScrollArea type="auto" h="calc(100vh - 350px)" offsetScrollbars>
+              <ScrollArea type="auto" h="calc(100vh - 380px)" offsetScrollbars>
                 {isMobile ? (
                   <Stack gap="xs">
                     {todayMovements.map((m) => (
@@ -646,7 +705,7 @@ export const TodayOperations = memo(function TodayOperations() {
             <Paper radius="md" p="md" withBorder style={{ background: "rgba(15,23,42,0.3)" }}>
               <Group gap="xs" justify="center">
                 <Clock size={16} className="text-neutral-500" />
-                <Text size="sm" c="dimmed">No stock movements recorded today</Text>
+                <Text size="sm" c="dimmed">No stock movements for this date</Text>
               </Group>
             </Paper>
           )}
