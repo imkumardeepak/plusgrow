@@ -282,23 +282,50 @@ public class ProductAllottedLocationsController : BaseController
 
         var locationsList = await _context.Locations.ToListAsync();
 
-        var resolvedSource = locationsList.FirstOrDefault(x => x.LocationCode.Equals(srcInput, StringComparison.OrdinalIgnoreCase))
-            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(srcInput, StringComparison.OrdinalIgnoreCase)));
-
-        var resolvedDestination = locationsList.FirstOrDefault(x => x.LocationCode.Equals(destInput, StringComparison.OrdinalIgnoreCase))
-            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(destInput, StringComparison.OrdinalIgnoreCase)));
+        // 1. Resolve Source
+        var sourceStorageKey = srcInput;
+        var srcBase = srcInput;
+        if (srcInput.Contains("::"))
+        {
+            var parts = srcInput.Split("::");
+            srcBase = parts[0];
+            sourceStorageKey = srcInput.ToUpper();
+        }
+        var resolvedSource = locationsList.FirstOrDefault(x => x.LocationCode.Equals(srcBase, StringComparison.OrdinalIgnoreCase))
+            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(srcBase, StringComparison.OrdinalIgnoreCase)));
 
         if (resolvedSource == null)
-            return NotFound<ProductAllottedLocationDto>("Source location or bin was not found");
+            return NotFound<ProductAllottedLocationDto>($"Source location or bin '{srcInput}' was not found");
+
+        if (!srcInput.Contains("::") && !resolvedSource.LocationCode.Equals(srcInput, StringComparison.OrdinalIgnoreCase))
+        {
+            // It was a raw bin scan
+            sourceStorageKey = $"{resolvedSource.LocationCode}::{srcInput.ToUpper()}";
+        }
+
+        // 2. Resolve Destination
+        var destStorageKey = destInput;
+        var destBase = destInput;
+        if (destInput.Contains("::"))
+        {
+            var parts = destInput.Split("::");
+            destBase = parts[0];
+            destStorageKey = destInput.ToUpper();
+        }
+        var resolvedDestination = locationsList.FirstOrDefault(x => x.LocationCode.Equals(destBase, StringComparison.OrdinalIgnoreCase))
+            ?? locationsList.FirstOrDefault(x => x.Bins.Any(bin => bin.Equals(destBase, StringComparison.OrdinalIgnoreCase)));
 
         if (resolvedDestination == null)
-            return NotFound<ProductAllottedLocationDto>("Destination location or bin was not found");
+            return NotFound<ProductAllottedLocationDto>($"Destination location or bin '{destInput}' was not found");
 
-        var sourceCode = resolvedSource.LocationCode;
-        var destinationCode = resolvedDestination.LocationCode;
+        if (!destInput.Contains("::") && !resolvedDestination.LocationCode.Equals(destInput, StringComparison.OrdinalIgnoreCase))
+        {
+            // It was a raw bin scan
+            destStorageKey = $"{resolvedDestination.LocationCode}::{destInput.ToUpper()}";
+        }
 
-        if (sourceCode.Equals(destinationCode, StringComparison.OrdinalIgnoreCase))
-            return BadRequest<ProductAllottedLocationDto>("Source and destination locations cannot be the same");
+        if (sourceStorageKey.Equals(destStorageKey, StringComparison.OrdinalIgnoreCase))
+            return BadRequest<ProductAllottedLocationDto>("Source and destination cannot be the exact same location and bin");
 
         var allocationRow = await _context.ProductAllottedLocations
             .FirstOrDefaultAsync(x => x.ProductId == dto.ProductId);
@@ -308,21 +335,21 @@ public class ProductAllottedLocationsController : BaseController
 
         var caseInsensitiveJson = new Dictionary<string, int>(allocationRow.LocationJson, StringComparer.OrdinalIgnoreCase);
 
-        if (!caseInsensitiveJson.TryGetValue(sourceCode, out var sourceQty) || sourceQty <= 0)
-            return BadRequest<ProductAllottedLocationDto>($"Product has no stock at source location {sourceCode}");
+        if (!caseInsensitiveJson.TryGetValue(sourceStorageKey, out var sourceQty) || sourceQty <= 0)
+            return BadRequest<ProductAllottedLocationDto>($"Product has no stock at source {sourceStorageKey}");
 
         if (sourceQty < dto.Quantity)
-            return BadRequest<ProductAllottedLocationDto>($"Insufficient stock at source location {sourceCode}. Current stock is {sourceQty} units.");
+            return BadRequest<ProductAllottedLocationDto>($"Insufficient stock at {sourceStorageKey}. Current stock is {sourceQty} units.");
 
         // Relocate
-        caseInsensitiveJson[sourceCode] = sourceQty - dto.Quantity;
-        if (caseInsensitiveJson[sourceCode] == 0)
+        caseInsensitiveJson[sourceStorageKey] = sourceQty - dto.Quantity;
+        if (caseInsensitiveJson[sourceStorageKey] == 0)
         {
-            caseInsensitiveJson.Remove(sourceCode);
+            caseInsensitiveJson.Remove(sourceStorageKey);
         }
 
-        caseInsensitiveJson.TryGetValue(destinationCode, out var destQty);
-        caseInsensitiveJson[destinationCode] = destQty + dto.Quantity;
+        caseInsensitiveJson.TryGetValue(destStorageKey, out var destQty);
+        caseInsensitiveJson[destStorageKey] = destQty + dto.Quantity;
 
         // Copy back to entity
         allocationRow.LocationJson = new Dictionary<string, int>(caseInsensitiveJson);
@@ -348,7 +375,7 @@ public class ProductAllottedLocationsController : BaseController
             QuantityAfter = currentQty,
             Reason = string.IsNullOrWhiteSpace(dto.Reason) ? "Relocation" : dto.Reason.Trim(),
             MovementType = "move",
-            Notes = $"Moved {dto.Quantity} units from {sourceCode} to {destinationCode}." +
+            Notes = $"Moved {dto.Quantity} units from {sourceStorageKey} to {destStorageKey}." +
                     (string.IsNullOrWhiteSpace(dto.Notes) ? "" : $" {dto.Notes.Trim()}"),
             PerformedByUserId = performedByUserId,
             PerformedByName = performedByName,
@@ -369,20 +396,20 @@ public class ProductAllottedLocationsController : BaseController
         {
             Type = "product_location.moved",
             Title = "Stock relocated",
-            Message = $"{dto.Quantity} units of {product.Name} moved from {sourceCode} to {destinationCode}.",
+            Message = $"{dto.Quantity} units of {product.Name} moved from {sourceStorageKey} to {destStorageKey}.",
             Severity = "info",
             Data = new Dictionary<string, object?>
             {
                 ["productId"] = product.Id,
                 ["productName"] = product.Name,
                 ["skuCode"] = product.Sku,
-                ["sourceLocationCode"] = sourceCode,
-                ["destinationLocationCode"] = destinationCode,
+                ["sourceLocationCode"] = sourceStorageKey,
+                ["destinationLocationCode"] = destStorageKey,
                 ["quantity"] = dto.Quantity,
             },
         });
 
-        return Success(response, $"Successfully relocated {dto.Quantity} units to {destinationCode}");
+        return Success(response, $"Successfully relocated {dto.Quantity} units to {destStorageKey}");
     }
 
     private static ProductAllottedLocationDto MapLocation(ProductAllottedLocation row)
