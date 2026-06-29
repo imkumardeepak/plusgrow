@@ -27,6 +27,13 @@ public class PartyStockExportService : IPartyStockExportService
         "SKU Code", "Inventory"
     };
 
+    private static readonly string[] SelfHeaders =
+    {
+        "SKU Code", "Alias", "Product Name", "Commodity Name", "Manufacturer Name",
+        "Country of Origin", "Unit Type", "MRP", "USSP", "Net Qnty", "Factor",
+        "Best Before (Months)", "Weight", "Ownership", "Stock Qnty", "Note"
+    };
+
     private readonly PlusgrowDbContext _context;
     private readonly TallyService _tallyService;
     private readonly ILogger<PartyStockExportService> _logger;
@@ -70,8 +77,7 @@ public class PartyStockExportService : IPartyStockExportService
                         break;
 
                     case "SelfProducts":
-                        await ExportPartyAsync(
-                            "Self",
+                        await ExportSelfProductsAsync(
                             config.FolderPath,
                             config.FileName,
                             cancellationToken);
@@ -316,6 +322,101 @@ public class PartyStockExportService : IPartyStockExportService
 
         var maxRow = row > dataStartRow ? row - 1 : dataStartRow;
         var tableRange = worksheet.Range(headerRow, 1, maxRow, PartyHeaders.Length);
+        tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        tableRange.SetAutoFilter();
+
+        var fileName = string.IsNullOrWhiteSpace(fileNameSetting)
+            ? $"{SanitizeFileName(partyName)}_Stock.xlsx"
+            : EnsureXlsxExtension(fileNameSetting.Trim());
+
+        SaveWorkbook(workbook, folderPath, fileName);
+
+        _logger.LogInformation(
+            "Party stock export complete: {Count} product(s) for {PartyName} written to {FolderPath}\\{FileName}.",
+            products.Count, partyName, folderPath, fileName);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // SelfProducts: full stock report (all columns)
+    // ──────────────────────────────────────────────────────────────────────────
+    private async Task ExportSelfProductsAsync(string folderPath, string? fileNameSetting, CancellationToken cancellationToken)
+    {
+        var partyName = "Self";
+
+        var products = await _context.Products
+            .Include(x => x.Commodity)
+            .Include(x => x.Manufacturer)
+            .AsNoTracking()
+            .Where(x => x.Ownership != null && x.Ownership.ToLower() == partyName.ToLower())
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        var productIds = products.Select(x => x.Id).ToList();
+        var quantities = await _context.ProductQuantities
+            .AsNoTracking()
+            .Where(x => productIds.Contains(x.ProductId))
+            .ToDictionaryAsync(x => x.ProductId, x => x.CurrentQuantity, cancellationToken);
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Self Products");
+
+        // Title
+        worksheet.Cell("A1").Value = $"Stock Report - {partyName}";
+        worksheet.Range("A1:P1").Merge();
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 16;
+        worksheet.Cell("A1").Style.Font.FontColor = XLColor.White;
+        worksheet.Cell("A1").Style.Fill.BackgroundColor = XLColor.MidnightBlue;
+        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell("A2").Value = $"Generated On: {DateTime.Now:yyyy-MM-dd HH:mm}";
+        worksheet.Range("A2:P2").Merge();
+        worksheet.Cell("A2").Style.Font.Italic = true;
+        worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+
+        // Headers
+        var headerRow = 4;
+        for (var column = 0; column < SelfHeaders.Length; column++)
+        {
+            var cell = worksheet.Cell(headerRow, column + 1);
+            cell.Value = SelfHeaders[column];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.Teal;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        // Data
+        var dataStartRow = 5;
+        var row = dataStartRow;
+        foreach (var product in products)
+        {
+            quantities.TryGetValue(product.Id, out var stockQty);
+
+            worksheet.Cell(row, 1).Value = product.Sku ?? string.Empty;
+            worksheet.Cell(row, 2).Value = product.Alias ?? string.Empty;
+            worksheet.Cell(row, 3).Value = product.Name ?? string.Empty;
+            worksheet.Cell(row, 4).Value = product.Commodity?.Name ?? string.Empty;
+            worksheet.Cell(row, 5).Value = product.Manufacturer?.Name ?? string.Empty;
+            worksheet.Cell(row, 6).Value = product.CountryOfOrigin ?? string.Empty;
+            worksheet.Cell(row, 7).Value = product.UnitType ?? string.Empty;
+            worksheet.Cell(row, 8).Value = product.Mrp ?? 0m;
+            worksheet.Cell(row, 9).Value = product.Ussp ?? 0m;
+            worksheet.Cell(row, 10).Value = product.NetQuantity ?? string.Empty;
+            worksheet.Cell(row, 11).Value = product.Factor ?? string.Empty;
+            worksheet.Cell(row, 12).Value = product.BestBeforeMonths;
+            worksheet.Cell(row, 13).Value = product.Weight ?? 0m;
+            worksheet.Cell(row, 14).Value = product.Ownership ?? string.Empty;
+            worksheet.Cell(row, 15).Value = stockQty;
+            worksheet.Cell(row, 16).Value = product.Note ?? string.Empty;
+            row++;
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        var maxRow = row > dataStartRow ? row - 1 : dataStartRow;
+        var tableRange = worksheet.Range(headerRow, 1, maxRow, SelfHeaders.Length);
         tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
         tableRange.SetAutoFilter();
