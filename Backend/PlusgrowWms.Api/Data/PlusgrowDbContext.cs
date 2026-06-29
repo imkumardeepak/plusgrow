@@ -76,6 +76,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PoInvoiceLocation> PoInvoiceLocations => Set<PoInvoiceLocation>();
     public DbSet<TallySyncSkippedOrder> TallySyncSkippedOrders => Set<TallySyncSkippedOrder>();
+    public DbSet<ExportPathConfig> ExportPathConfigs => Set<ExportPathConfig>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -332,6 +333,7 @@ public class PlusgrowDbContext : DbContext
             typeof(Location),
             typeof(Bin),
             typeof(Product)
+            // ExportPathConfig intentionally excluded: folder paths must preserve casing
         };
 
         foreach (var entry in ChangeTracker.Entries().Where(ShouldNormalizeEntry))

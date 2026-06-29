@@ -1750,3 +1750,59 @@ export const tallySyncApi = {
     return response.data.success;
   }
 };
+
+// ─── Export Path Config Master ───────────────────────────────────────────────
+
+export type ExportType = 'WmsStock' | 'SelfProducts' | 'TallyStock';
+
+export const EXPORT_TYPE_OPTIONS: { value: ExportType; label: string }[] = [
+  { value: 'WmsStock', label: 'WMS Stock' },
+  { value: 'SelfProducts', label: 'Self Products' },
+  { value: 'TallyStock', label: 'Tally Stock' },
+];
+
+export interface ExportPathConfig {
+  id: number;
+  exportType: ExportType;
+  folderPath: string;
+  fileName?: string | null;
+  isEnabled: boolean;
+  createdAt: string;
+}
+
+export interface CreateExportPathConfigDto {
+  exportType: ExportType;
+  folderPath: string;
+  fileName?: string | null;
+  isEnabled: boolean;
+}
+
+export const exportPathConfigsApi = {
+  getAll: async (): Promise<ExportPathConfig[]> => {
+    const response = await api.get<ApiResponse<ExportPathConfig[]>>('/exportpathconfigs');
+    if (!response.data.success) throw new Error(response.data.message || 'Error fetching export path configs');
+    return response.data.data || [];
+  },
+
+  getById: async (id: number): Promise<ExportPathConfig> => {
+    const response = await api.get<ApiResponse<ExportPathConfig>>(`/exportpathconfigs/${id}`);
+    if (!response.data.success) throw new Error(response.data.message || 'Error fetching export path config');
+    return response.data.data!;
+  },
+
+  create: async (dto: CreateExportPathConfigDto): Promise<ExportPathConfig> => {
+    const response = await api.post<ApiResponse<ExportPathConfig>>('/exportpathconfigs', dto);
+    if (!response.data.success) throw new Error(response.data.message || 'Error creating export path config');
+    return response.data.data!;
+  },
+
+  update: async (id: number, dto: CreateExportPathConfigDto): Promise<ExportPathConfig> => {
+    const response = await api.put<ApiResponse<ExportPathConfig>>(`/exportpathconfigs/${id}`, dto);
+    if (!response.data.success) throw new Error(response.data.message || 'Error updating export path config');
+    return response.data.data!;
+  },
+
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/exportpathconfigs/${id}`);
+  },
+};

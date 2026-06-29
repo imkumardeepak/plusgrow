@@ -49,6 +49,9 @@ const UserMaster = lazy(() => import("./pages/UserMaster"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const MrpTracking = lazy(() => import("./pages/MrpTracking"));
 const TodayOperations = lazy(() => import("./pages/TodayOperations"));
+const ExportPathConfigMaster = lazy(
+  () => import("./pages/ExportPathConfigMaster"),
+);
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -300,6 +303,13 @@ export default function App() {
                     <Route
                       path="audit-logs"
                       element={pageElement("audit-logs", <AuditLogs />)}
+                    />
+                    <Route
+                      path="export-path-config"
+                      element={pageElement(
+                        "export-path-config",
+                        <ExportPathConfigMaster />,
+                      )}
                     />
                     <Route
                       path="profile"
