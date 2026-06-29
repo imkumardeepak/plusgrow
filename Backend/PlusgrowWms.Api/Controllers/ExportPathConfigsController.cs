@@ -147,7 +147,7 @@ public class ExportPathConfigsController : BaseController
 
             var startInfo = new ProcessStartInfo
             {
-                FileName = "pg_dump",
+                FileName = @"C:\Program Files\PostgreSQL\18\bin\pg_dump.exe",
                 Arguments = $"-h {host} -p {port} -U {user} -d {database} -F p -f \"{filePath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
