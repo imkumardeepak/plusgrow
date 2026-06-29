@@ -426,20 +426,30 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       <Table.Thead>
                         <Table.Tr>
                           <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Location</Table.Th>
+                          <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Bin</Table.Th>
                           <Table.Th ta="right" style={{ fontSize: 11, padding: "4px 8px" }}>Qty</Table.Th>
                         </Table.Tr>
                       </Table.Thead>
                       <Table.Tbody>
-                        {visibleLocations.map((location) => (
-                          <Table.Tr key={location.locationCode}>
-                            <Table.Td style={{ padding: "3px 8px" }}>
-                              <Text size="11px" fw={900} ff="monospace">{location.locationCode}</Text>
-                            </Table.Td>
-                            <Table.Td ta="right" style={{ padding: "3px 8px" }}>
-                              <Text size="11px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
+                        {visibleLocations.map((location) => {
+                          const parts = location.locationCode.split("::");
+                          const locCode = parts[0];
+                          const binCode = parts.length > 1 ? parts[1] : "-";
+                          
+                          return (
+                            <Table.Tr key={location.locationCode}>
+                              <Table.Td style={{ padding: "3px 8px" }}>
+                                <Text size="11px" fw={900} ff="monospace">{locCode}</Text>
+                              </Table.Td>
+                              <Table.Td style={{ padding: "3px 8px" }}>
+                                <Text size="11px" fw={900} ff="monospace" c="dimmed">{binCode}</Text>
+                              </Table.Td>
+                              <Table.Td ta="right" style={{ padding: "3px 8px" }}>
+                                <Text size="11px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          );
+                        })}
                       </Table.Tbody>
                     </Table>
                   </ScrollArea>

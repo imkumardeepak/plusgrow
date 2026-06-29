@@ -22,6 +22,7 @@ import {
   Warehouse,
   Handshake,
   Activity,
+  FolderCog,
 } from "lucide-react";
 
 export interface NavItem {
@@ -99,6 +100,12 @@ export const navigationGroups: NavGroup[] = [
         label: "Printer Config",
         icon: Printer,
         href: "/sticker-printer-config",
+      },
+      {
+        id: "export-path-config",
+        label: "Path Config",
+        icon: FolderCog,
+        href: "/export-path-config",
       },
     ],
   },
