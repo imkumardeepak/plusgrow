@@ -227,6 +227,45 @@ public class LocationsController : BaseController
             // Map bins to current location
             location.Bins = request.BinCodes.ToList();
             _context.Entry(location).Property(l => l.Bins).IsModified = true;
+
+            // Move products from old location bins to new location bins
+            if (binsToUnmap.Count > 0)
+            {
+                var allAllocations = await _context.ProductAllottedLocations.ToListAsync();
+                foreach (var allocation in allAllocations)
+                {
+                    if (allocation.LocationJson == null) continue;
+                    
+                    bool changed = false;
+                    var newLocationJson = new Dictionary<string, int>(allocation.LocationJson, StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var unmapped in binsToUnmap)
+                    {
+                        var binCode = unmapped.Key;
+                        var oldLocationCode = unmapped.Value;
+                        var oldKey = $"{oldLocationCode}::{binCode.ToUpper()}";
+                        var newKey = $"{location.LocationCode}::{binCode.ToUpper()}";
+
+                        // Also check for case-insensitive match by looking through keys manually if needed
+                        // StringComparer.OrdinalIgnoreCase on Dictionary handles it
+                        if (newLocationJson.TryGetValue(oldKey, out var qty))
+                        {
+                            newLocationJson.Remove(oldKey);
+                            newLocationJson.TryGetValue(newKey, out var existingQty);
+                            newLocationJson[newKey] = existingQty + qty;
+                            changed = true;
+                        }
+                    }
+
+                    if (changed)
+                    {
+                        allocation.LocationJson = newLocationJson;
+                        allocation.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+                        _context.Entry(allocation).Property(a => a.LocationJson).IsModified = true;
+                    }
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             var unmappedCount = binsToUnmap.Count;

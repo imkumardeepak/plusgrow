@@ -44,8 +44,10 @@ import {
   productAllottedLocationsApi,
   ProductAllottedLocationRecord,
   productsApi,
-  Party,
   partiesApi,
+  locationsApi,
+  Location,
+  Party,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 import ConsolidatedPick from "./ConsolidatedPick";
@@ -57,6 +59,7 @@ export type DirectPickCartItem = {
   product: Product;
   skuCode: string;
   locationCode: string;
+  binCode?: string;
   quantity: number;
   mrp: number | null;
   importDate: string | null;
@@ -145,6 +148,7 @@ export const Picking = memo(function Picking() {
   // ── Data ──────────────────────────────────────────────────────────────────
   const [orders, setOrders] = useState<OutwardOrder[]>([]);
   const [locations, setLocations] = useState<ProductAllottedLocationRecord[]>([]);
+  const [masterLocations, setMasterLocations] = useState<Location[]>([]);
   const [parties, setParties] = useState<Party[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -191,14 +195,16 @@ export const Picking = memo(function Picking() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [ordersData, locsData, partiesData] = await Promise.all([
+      const [ordersData, locsData, partiesData, masterLocsData] = await Promise.all([
         outwardOrdersApi.getAll(),
         productAllottedLocationsApi.getAll(),
         partiesApi.getPaged({ page: 1, pageSize: 1000 }),
+        locationsApi.getAll(),
       ]);
       setOrders(ordersData);
       setLocations(locsData);
       setParties(partiesData.data);
+      setMasterLocations(masterLocsData);
     } catch {
       toast.error("Failed to load picking data");
     } finally {
@@ -305,8 +311,19 @@ export const Picking = memo(function Picking() {
 
   /* ── Handle location set ─────────────────────────────────────────────────── */
   const handleSetLocation = () => {
-    const loc = locationCode.trim();
+    let loc = locationCode.trim().toUpperCase();
     if (!loc) { toast.error("Scan a location first"); return; }
+    
+    const locationByCode = masterLocations.find(l => l.locationCode.toUpperCase() === loc);
+    if (!locationByCode) {
+      const locationByBin = masterLocations.find(l => l.bins?.some(b => b.toUpperCase() === loc));
+      if (locationByBin) {
+        const binScanned = loc;
+        loc = `${locationByBin.locationCode.toUpperCase()}::${binScanned}`;
+        toast.info(`Bin resolved to Location ${locationByBin.locationCode}`);
+      }
+    }
+
     setLastLocationCode(loc);
     setIsLocationLocked(true);
     setLastScanMessage("Location set. Now scan SKU or Alias.");
@@ -460,7 +477,11 @@ export const Picking = memo(function Picking() {
       const cartonQty = getCartonQty(parsed.raw, result.product.cartonQr, result.product.cartonPerItem);
       const pickQty = cartonQty > 0 ? cartonQty : 1;
       const firstLoc = result.locations.find((e) => e.quantity > 0);
-      const locCode = firstLoc?.locationCode || "";
+      
+      const rawLocCode = firstLoc?.locationCode || "";
+      const locParts = rawLocCode.split("::");
+      const locCode = locParts[0];
+      const binCode = locParts.length > 1 ? locParts[1] : undefined;
       if (!locCode) toast.error("No allotted location found for this product");
 
       setDirectItems((cur) => {
@@ -478,6 +499,7 @@ export const Picking = memo(function Picking() {
             product: result.product,
             skuCode: result.product.sku || result.product.alias || parsed.sku,
             locationCode: locCode,
+            binCode: binCode,
             quantity: pickQty,
             mrp: parsed.mrp,
             importDate: parsed.importDate,
@@ -682,9 +704,21 @@ export const Picking = memo(function Picking() {
                     </div>
 
                     {/* Location badge */}
-                    <span className="hidden sm:block rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 whitespace-nowrap">
-                      {item.locationCode || "—"}
-                    </span>
+                    <div className="hidden sm:flex flex-col items-start gap-1">
+                      <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-bold text-blue-300 whitespace-nowrap">
+                        {item.locationCode || "—"}
+                        {item.binCode && <span className="ml-1 text-blue-200">[{item.binCode}]</span>}
+                      </span>
+                      {item.locationCode && masterLocations.find(l => l.locationCode.toUpperCase() === item.locationCode.toUpperCase())?.bins?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                          {masterLocations.find(l => l.locationCode.toUpperCase() === item.locationCode.toUpperCase())?.bins?.map(bin => (
+                            <span key={bin} className="rounded border border-blue-500/30 px-1 py-0 text-[9px] text-blue-300 whitespace-nowrap">
+                              {bin}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
 
                     {/* Qty stepper */}
                     <div className="flex items-center gap-1">
@@ -996,7 +1030,13 @@ export const Picking = memo(function Picking() {
                                         onClick={handleChangeLocation}
                                         className="text-[10px] font-bold text-brand-300 hover:text-brand-200 transition-colors"
                                       >
-                                        📍 {lastLocationCode} · Change
+                                        📍 {lastLocationCode} 
+                                        {masterLocations.find(l => l.locationCode.toUpperCase() === lastLocationCode.toUpperCase())?.bins?.map(bin => (
+                                          <span key={bin} className="ml-1 rounded border border-brand-300/30 px-1 text-[9px]">
+                                            {bin}
+                                          </span>
+                                        ))}
+                                        · Change
                                       </button>
                                     </div>
                                     <div className="flex gap-2">

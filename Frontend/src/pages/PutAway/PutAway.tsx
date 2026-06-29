@@ -404,8 +404,11 @@ export const PutAway = () => {
       });
 
       setLastAssignment(result);
+      const isBinScan = result.scannedLocationOrBinCode?.toUpperCase() !== result.resolvedLocationCode?.toUpperCase();
       toast.success(
-        `Stored ${result.assignedQuantity} units in ${result.resolvedLocationCode}`,
+        isBinScan
+          ? `Stored ${result.assignedQuantity} units in ${result.resolvedLocationCode} (via Bin ${result.scannedLocationOrBinCode})`
+          : `Stored ${result.assignedQuantity} units in ${result.resolvedLocationCode}`
       );
       await loadData();
 
@@ -594,7 +597,7 @@ export const PutAway = () => {
                 </Text>
                 <Input
                   size={isMobile ? "xs" : "sm"}
-                  label="Scan Location"
+                  label="Scan Location / Bin"
                   placeholder="Scan location or bin QR"
                   value={locationScanCode}
                   onChange={(e) => {

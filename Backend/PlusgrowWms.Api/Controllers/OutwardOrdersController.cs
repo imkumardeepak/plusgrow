@@ -1787,7 +1787,14 @@ public class OutwardOrdersController : BaseController
             string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
 
         if (matchingKey == null)
-            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU", null);
+        {
+            matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
+                key.StartsWith(resolvedLocationCode + "::", StringComparison.OrdinalIgnoreCase) && 
+                row.LocationJson[key] >= quantity);
+        }
+
+        if (matchingKey == null)
+            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU, or no single bin has enough quantity.", null);
 
         var available = row.LocationJson[matchingKey];
         if (available < quantity)

@@ -63,6 +63,8 @@ type PickLocationRow = {
   key: string;
   group: ConsolidatedGroup;
   locationCode: string;
+  rawCode: string;
+  binCode?: string;
   locationStock: number;
   pickQuantity: number;
   sequence: number;
@@ -228,10 +230,15 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     return groups.flatMap((group) => {
       const row = locations.find((r) => r.productId === group.productId);
       const locationEntries = Object.entries(row?.locationJson || {})
-        .map(([locationCode, qty]) => ({
-          locationCode,
-          qty: Number(qty) || 0,
-        }))
+        .map(([rawCode, qty]) => {
+          const parts = rawCode.split('::');
+          return {
+            rawCode,
+            locationCode: parts[0],
+            binCode: parts.length > 1 ? parts[1] : undefined,
+            qty: Number(qty) || 0,
+          };
+        })
         .filter((entry) => entry.qty > 0);
 
       let remaining = group.totalPending;
@@ -241,9 +248,11 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
         if (remaining <= 0) return;
         const pickQuantity = Math.min(entry.qty, remaining);
         rows.push({
-          key: `${group.key}__${entry.locationCode}`,
+          key: `${group.key}__${entry.rawCode}`,
           group,
+          rawCode: entry.rawCode,
           locationCode: entry.locationCode,
+          binCode: entry.binCode,
           locationStock: entry.qty,
           pickQuantity,
           sequence: index + 1,
@@ -256,6 +265,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
         rows.push({
           key: `${group.key}__unmapped`,
           group,
+          rawCode: "Not mapped",
           locationCode: "Not mapped",
           locationStock: 0,
           pickQuantity: remaining,
@@ -340,15 +350,29 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const handleSetLocation = () => {
     if (!activeRow) { toast.error("Select a row first"); return; }
     if (!activeRow.isMapped) { toast.error("No allotted location found for this row"); return; }
-    const loc = locationCode.trim();
+    const loc = locationCode.trim().toUpperCase();
     if (!loc) { toast.error("Scan location code"); return; }
-    if (normalizeProductScan(loc) !== normalizeProductScan(activeRow.locationCode)) {
+    
+    // Allow matching against either the rawCode (e.g. LOC::BIN), the binCode (e.g. BIN), or just the locationCode (e.g. LOC)
+    const validMatches = [
+      activeRow.rawCode.toUpperCase(),
+      activeRow.locationCode.toUpperCase(),
+      ...(activeRow.binCode ? [activeRow.binCode.toUpperCase()] : [])
+    ];
+    
+    if (!validMatches.includes(loc)) {
       setScanTone("error");
-      setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}.`);
+      setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''}.`);
       toast.error(`Scan ${activeRow.locationCode} first`);
       return;
     }
+    
+    // If they scanned a bin, make sure we use the rawCode so the backend can deduct from the correct bin
+    const finalLocationCode = (loc === activeRow.binCode?.toUpperCase()) ? activeRow.rawCode : loc;
+    
     setIsLocationLocked(true);
+    // Store the exact key we need to send to the backend for accurate deduction
+    setLocationCode(finalLocationCode);
     setScanTone("success");
     setStatusMessage(`${activeRow.locationCode} verified`);
     window.setTimeout(() => skuRef.current?.focus(), 0);
@@ -504,6 +528,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                           row.isMapped ? "text-brand-200" : "text-yellow-300"
                         }`}>
                           {row.locationCode}
+                          {row.binCode && <span className="ml-1 text-[10px] text-brand-400 bg-brand-900/40 px-1 rounded">[{row.binCode}]</span>}
                         </span>
                         <span className="block text-[9px] font-black text-neutral-500">
                           {row.isMapped ? `#${row.sequence} · ${row.locationStock}` : "assign"}

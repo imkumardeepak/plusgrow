@@ -5,7 +5,7 @@ import { Badge as MBadge, Box, Group, Modal, Paper, SimpleGrid, Stack, Text } fr
 import { Button } from "../../../components/atoms/Button";
 import { toast } from "../../../lib/toast";
 import { OperationsPage, OperationsPanel, OperationsEmptyState } from "../../../components/organisms/Operations/OperationsShell";
-import { productAllottedLocationsApi, ProductAllottedLocationRecord, productQuantitiesApi, Product, ProductQuantityRecord, productsApi } from "../../../services/masterApi";
+import { productAllottedLocationsApi, ProductAllottedLocationRecord, productQuantitiesApi, Product, ProductQuantityRecord, productsApi, locationsApi, Location } from "../../../services/masterApi";
 import type { CheckSessionStatus, ScannedItem, StockCheckReportStatus } from "../types";
 import { clearStockCheckDraft, createStockCheckId, getLocationJson, normalizeSku, readStockCheckDraft, saveStockCheckReport, STOCK_CHECK_DRAFT_KEYS, writeStockCheckDraft } from "../types";
 import { ModeHeader } from "./ModeHeader";
@@ -16,6 +16,7 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   const [products, setProducts] = useState<Product[]>([]);
   const [allottedLocations, setAllottedLocations] = useState<ProductAllottedLocationRecord[]>([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [locationCode, setLocationCode] = useState("");
@@ -33,14 +34,16 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [p, a, q] = await Promise.all([
+      const [p, a, q, l] = await Promise.all([
         productsApi.getAll(),
         productAllottedLocationsApi.getAll(),
         productQuantitiesApi.getAll(),
+        locationsApi.getAll(),
       ]);
       setProducts(p);
       setAllottedLocations(a);
       setQuantityRows(q);
+      setLocations(l);
     } catch {
       toast.error("Failed to load data");
     } finally {
@@ -119,13 +122,24 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
 
   const handleLocationScan = (val: string) => {
     const upper = normalizeSku(val);
+
+    let resolvedLocationCode = upper;
+    const locationByCode = locations.find(l => l.locationCode.toUpperCase() === upper);
+    if (!locationByCode) {
+      const locationByBin = locations.find(l => l.bins?.some(b => b.toUpperCase() === upper));
+      if (locationByBin) {
+        resolvedLocationCode = locationByBin.locationCode.toUpperCase();
+        toast.info(`Bin ${upper} resolved to Location ${resolvedLocationCode}`);
+      }
+    }
+
     setCheckId(createStockCheckId("Location"));
     setReportId(undefined);
-    setLocationCode(upper);
+    setLocationCode(resolvedLocationCode);
     setIsLocationLocked(true);
     setSessionStatus("running");
     setScannedItems([]);
-    toast.success(`Location ${upper} loaded`);
+    toast.success(`Location ${resolvedLocationCode} loaded`);
     setTimeout(() => scanInputRef.current?.focus(), 100);
   };
 
@@ -241,6 +255,11 @@ export function LocationCheckMode({ onBack, isMobile }: { onBack: () => void; is
               <MBadge size={isMobile ? "sm" : "md"} radius="md" variant="light" color="cyan">
                 {locationCode}
               </MBadge>
+              {locations.find(l => l.locationCode.toUpperCase() === locationCode)?.bins?.map(bin => (
+                <MBadge key={bin} size="xs" radius="sm" variant="outline" color="cyan">
+                  {bin}
+                </MBadge>
+              ))}
               <Button
                 variant="subtle"
                 size="xs"

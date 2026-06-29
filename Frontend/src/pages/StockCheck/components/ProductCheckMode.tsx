@@ -139,9 +139,17 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
     const allottedRow = allottedLocations.find((r) => r.productId === selectedProduct.id);
     if (!allottedRow) return [];
     return Object.entries(getLocationJson(allottedRow))
-      .map(([code, qty]) => ({ locationCode: code, quantity: Number(qty) || 0 }))
+      .map(([code, qty]) => {
+        const parts = code.split('::');
+        return { 
+          rawCode: code,
+          locationCode: parts[0], 
+          binCode: parts.length > 1 ? parts[1] : null,
+          quantity: Number(qty) || 0 
+        };
+      })
       .filter((e) => e.quantity > 0)
-      .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
+      .sort((a, b) => a.locationCode.localeCompare(b.locationCode) || (a.binCode || "").localeCompare(b.binCode || ""));
   }, [selectedProduct, allottedLocations]);
 
   const handleProductScan = (val: string) => {
@@ -358,23 +366,6 @@ export function ProductCheckMode({ onBack, isMobile }: { onBack: () => void; isM
                   </Button>
                 )}
               </Group>
-
-              {productLocations.length > 0 && (
-                <Paper radius="lg" p="xs" withBorder bg="transparent">
-                  <Text size="10px" fw={800} c="dimmed" mb={4}>KNOWN LOCATIONS</Text>
-                  <Stack gap={4}>
-                    {productLocations.map((loc) => (
-                      <Group key={loc.locationCode} justify="space-between" wrap="nowrap">
-                        <Group gap={4} wrap="nowrap">
-                          <MapPin size={12} color="var(--mantine-color-cyan-4)" />
-                          <Text size="11px" ff="monospace" fw={700}>{loc.locationCode}</Text>
-                        </Group>
-                        <Text size="11px" fw={700} ff="monospace">{loc.quantity}</Text>
-                      </Group>
-                    ))}
-                  </Stack>
-                </Paper>
-              )}
 
               <Paper radius="lg" p="xs" withBorder bg="transparent">
                 <Text size="10px" fw={800} c="dimmed" mb={4}>SCAN SUMMARY</Text>

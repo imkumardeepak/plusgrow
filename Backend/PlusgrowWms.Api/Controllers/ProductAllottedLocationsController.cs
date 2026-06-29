@@ -157,7 +157,13 @@ public class ProductAllottedLocationsController : BaseController
         }
 
         if (resolvedLocation == null)
+        {
+            var isUnmappedBin = await _context.Bins.AnyAsync(x => x.BinCode.ToLower() == locationScan.ToLower());
+            if (isUnmappedBin)
+                return NotFound<PutAwayScanAssignmentResultDto>($"Bin '{locationScan}' is not mapped to any location. Please map it first in Locations page.");
+            
             return NotFound<PutAwayScanAssignmentResultDto>("Scanned location or bin was not found");
+        }
 
         await using var transaction = await _context.Database.BeginTransactionAsync();
         await _context.LockProductAsync(product.Id);
@@ -199,8 +205,15 @@ public class ProductAllottedLocationsController : BaseController
             return BadRequest<PutAwayScanAssignmentResultDto>($"Only {remainingBefore} units are available for put away");
 
         var locationCode = resolvedLocation.LocationCode;
-        allocationRow.LocationJson.TryGetValue(locationCode, out var existingLocationQty);
-        allocationRow.LocationJson[locationCode] = existingLocationQty + dto.Quantity;
+        var storageKey = locationCode;
+        if (!locationScan.Equals(locationCode, StringComparison.OrdinalIgnoreCase))
+        {
+            // locationScan is the bin code
+            storageKey = $"{locationCode}::{locationScan.ToUpper()}";
+        }
+
+        allocationRow.LocationJson.TryGetValue(storageKey, out var existingLocationQty);
+        allocationRow.LocationJson[storageKey] = existingLocationQty + dto.Quantity;
         allocationRow.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         _context.Entry(allocationRow).Property(x => x.LocationJson).IsModified = true;
 
