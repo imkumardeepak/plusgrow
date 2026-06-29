@@ -149,7 +149,7 @@ public class PartyStockExportService : IPartyStockExportService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Stock");
 
-        var headerCells = new[] { "SKU", "Inventory" };
+        var headerCells = new[] { "SKU Code", "Inventory" };
         for (var col = 0; col < headerCells.Length; col++)
         {
             var cell = worksheet.Cell(1, col + 1);
@@ -206,23 +206,9 @@ public class PartyStockExportService : IPartyStockExportService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Tally Stock");
 
-        // Title row
-        worksheet.Cell("A1").Value = $"Tally Stock Report";
-        worksheet.Range("A1:B1").Merge();
-        worksheet.Cell("A1").Style.Font.Bold = true;
-        worksheet.Cell("A1").Style.Font.FontSize = 14;
-        worksheet.Cell("A1").Style.Font.FontColor = XLColor.White;
-        worksheet.Cell("A1").Style.Fill.BackgroundColor = XLColor.MidnightBlue;
-        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-        worksheet.Cell("A2").Value = $"Generated On: {DateTime.Now:yyyy-MM-dd HH:mm}";
-        worksheet.Range("A2:B2").Merge();
-        worksheet.Cell("A2").Style.Font.Italic = true;
-        worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-
         // Headers
-        var headerRow = 4;
-        var headers = new[] { "SKU Code", "Tally Stock" };
+        var headerRow = 1;
+        var headers = new[] { "SKU Code", "Inventory" };
         for (var col = 0; col < headers.Length; col++)
         {
             var cell = worksheet.Cell(headerRow, col + 1);
@@ -233,8 +219,8 @@ public class PartyStockExportService : IPartyStockExportService
             cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
 
-        // Data rows — skuCode = MAILINGNAME (part number), closingBalance = CLOSINGBALANCE (stock)
-        var row = 5;
+        // Data rows
+        var row = 2;
         foreach (var item in stockItems)
         {
             worksheet.Cell(row, 1).Value = item.skuCode ?? string.Empty;
@@ -243,7 +229,7 @@ public class PartyStockExportService : IPartyStockExportService
         }
 
         worksheet.Columns().AdjustToContents();
-        var maxRow = row > 5 ? row - 1 : 5;
+        var maxRow = row > 2 ? row - 1 : 2;
         var tableRange = worksheet.Range(headerRow, 1, maxRow, 2);
         tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
@@ -280,22 +266,8 @@ public class PartyStockExportService : IPartyStockExportService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("My Products");
 
-        // Title
-        worksheet.Cell("A1").Value = $"Stock Report - {partyName}";
-        worksheet.Range("A1:B1").Merge();
-        worksheet.Cell("A1").Style.Font.Bold = true;
-        worksheet.Cell("A1").Style.Font.FontSize = 16;
-        worksheet.Cell("A1").Style.Font.FontColor = XLColor.White;
-        worksheet.Cell("A1").Style.Fill.BackgroundColor = XLColor.MidnightBlue;
-        worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-
-        worksheet.Cell("A2").Value = $"Generated On: {DateTime.Now:yyyy-MM-dd HH:mm}";
-        worksheet.Range("A2:B2").Merge();
-        worksheet.Cell("A2").Style.Font.Italic = true;
-        worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-
         // Headers
-        var headerRow = 4;
+        var headerRow = 1;
         for (var column = 0; column < PartyHeaders.Length; column++)
         {
             var cell = worksheet.Cell(headerRow, column + 1);
@@ -307,7 +279,7 @@ public class PartyStockExportService : IPartyStockExportService
         }
 
         // Data
-        var dataStartRow = 5;
+        var dataStartRow = 2;
         var row = dataStartRow;
         foreach (var product in products)
         {

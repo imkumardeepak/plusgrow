@@ -282,7 +282,7 @@ export default function App() {
                     />
                     <Route
                       path="product-movement"
-                      element={pageElement("stock-movement", <ProductMovement />)}
+                      element={pageElement("product-movement", <ProductMovement />)}
                     />
                     <Route
                       path="stock-movement"

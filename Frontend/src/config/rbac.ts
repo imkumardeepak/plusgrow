@@ -16,7 +16,10 @@ import {
   Truck,
   UserCog,
   Warehouse,
-  Handshake,
+  LayoutDashboard,
+  FolderCog,
+  QrCode,
+  Activity,
 } from "lucide-react";
 
 export type PermissionAction = "view" | "create" | "edit" | "delete";
@@ -32,8 +35,9 @@ export type PagePermission = {
 };
 
 export const SYSTEM_PAGES = [
+  { key: "dashboard", label: "Dashboard", path: "/", group: "Overview", icon: LayoutDashboard },
   { key: "inward", label: "Purchase Invoices", path: "/inward", group: "Inward", icon: ArrowDownToLine },
-  { key: "inward-verify", label: "Inward Verify", path: "/inward-verify", group: "Inward", icon: ClipboardCheck },
+  { key: "inward-verify", label: "Inward Verify", path: "/inward-verify", group: "Inward", icon: QrCode },
   { key: "mrp-tracking", label: "MRP Tracking", path: "/mrp-tracking", group: "Inward", icon: Package },
   { key: "putaway", label: "Put Away", path: "/putaway", group: "Inward", icon: Warehouse },
   { key: "outward", label: "Sales Invoice", path: "/outward", group: "Outward", icon: ArrowUpFromLine },
@@ -47,17 +51,18 @@ export const SYSTEM_PAGES = [
   { key: "bins", label: "Bin Master", path: "/bins", group: "Master Data", icon: Box },
   { key: "locations", label: "Location Master", path: "/locations", group: "Master Data", icon: MapPin },
   { key: "bin-movement", label: "Bin Movement", path: "/bin-movement", group: "Master Data", icon: Move },
+  { key: "sticker-printer-config", label: "Printer Config", path: "/sticker-printer-config", group: "Master Data", icon: Printer },
+  { key: "export-path-config", label: "Path Config", path: "/export-path-config", group: "Master Data", icon: FolderCog },
   { key: "mpd", label: "Products", path: "/mpd", group: "Inventory", icon: Box },
-  { key: "product-query", label: "Product Query", path: "/product-query", group: "Inventory", icon: Package },
+  { key: "product-query", label: "Product Query", path: "/product-query", group: "Inventory", icon: ScanLine },
   { key: "product-movement", label: "Product Movement", path: "/product-movement", group: "Inventory", icon: Move },
   { key: "product-mrp-wise-quantity", label: "MRP Wise Quantity", path: "/product-mrp-wise-quantity", group: "Inventory", icon: Package },
-  { key: "sticker-printer-config", label: "Printer Config", path: "/sticker-printer-config", group: "Master Data", icon: Printer },
   { key: "stock-check", label: "Stock Check", path: "/stock-check", group: "Inventory", icon: ClipboardCheck },
   { key: "stock-movement", label: "Stock Adjustment", path: "/stock-movement", group: "Inventory", icon: Move },
   { key: "warehouse-map", label: "Warehouse Map", path: "/warehouse-map", group: "Inventory", icon: Map },
   { key: "role-master", label: "Role Master", path: "/role-master", group: "Security", icon: ShieldCheck },
   { key: "user-master", label: "User Master", path: "/user-master", group: "Security", icon: UserCog },
-  { key: "audit-logs", label: "Audit Logs", path: "/audit-logs", group: "Security", icon: ShieldCheck },
+  { key: "audit-logs", label: "Audit Logs", path: "/audit-logs", group: "Security", icon: Activity },
   { key: "profile", label: "My Profile", path: "/profile", group: "Security", icon: UserCog },
 ] as const;
 
