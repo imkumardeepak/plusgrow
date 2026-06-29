@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Helpers;
@@ -10,13 +12,15 @@ namespace PlusgrowWms.Api.Controllers;
 public class ExportPathConfigsController : BaseController
 {
     private static readonly HashSet<string> ValidExportTypes =
-        new(StringComparer.OrdinalIgnoreCase) { "WmsStock", "SelfProducts", "TallyStock" };
+        new(StringComparer.OrdinalIgnoreCase) { "WmsStock", "SelfProducts", "TallyStock", "DatabaseBackup" };
 
     private readonly PlusgrowDbContext _context;
+    private readonly IConfiguration _config;
 
-    public ExportPathConfigsController(PlusgrowDbContext context)
+    public ExportPathConfigsController(PlusgrowDbContext context, IConfiguration config)
     {
         _context = context;
+        _config = config;
     }
 
     // GET api/exportpathconfigs
@@ -103,5 +107,73 @@ public class ExportPathConfigsController : BaseController
         await _context.SaveChangesAsync();
 
         return Ok("Export path config deleted successfully.");
+    }
+
+    // POST api/exportpathconfigs/5/trigger-backup
+    [HttpPost("{id:int}/trigger-backup")]
+    public async Task<ActionResult<ApiResponse<bool>>> TriggerBackup(int id)
+    {
+        var config = await _context.ExportPathConfigs.FindAsync(id);
+        if (config == null || config.ExportType != "DatabaseBackup")
+            return NotFound<bool>("Database backup config not found.");
+
+        if (!config.IsEnabled)
+            return BadRequest<bool>("This backup configuration is disabled.");
+
+        try
+        {
+            var folder = config.FolderPath.Trim();
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            var fileName = string.IsNullOrWhiteSpace(config.FileName) 
+                ? $"backup_{DateTime.Now:yyyyMMdd_HHmmss}.sql" 
+                : config.FileName;
+            
+            var filePath = Path.Combine(folder, fileName);
+
+            var connString = _config.GetConnectionString("DefaultConnection");
+            if (string.IsNullOrEmpty(connString))
+                return Error<bool>("Database connection string not found.");
+
+            var builder = new NpgsqlConnectionStringBuilder(connString);
+            var host = builder.Host;
+            var port = builder.Port > 0 ? builder.Port : 5432;
+            var database = builder.Database;
+            var user = builder.Username;
+            var password = builder.Password;
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "pg_dump",
+                Arguments = $"-h {host} -p {port} -U {user} -d {database} -F p -f \"{filePath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            
+            startInfo.EnvironmentVariables["PGPASSWORD"] = password;
+
+            using var process = Process.Start(startInfo);
+            if (process == null)
+                return Error<bool>("Failed to start pg_dump process.");
+
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                return Error<bool>($"Backup failed with exit code {process.ExitCode}: {error}");
+            }
+
+            return Success(true, "Database backup completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            return Error<bool>($"Error executing backup: {ex.Message}");
+        }
     }
 }

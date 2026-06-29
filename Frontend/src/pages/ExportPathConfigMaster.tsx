@@ -9,6 +9,7 @@ import {
   IconTrash,
   IconUpload,
   IconX,
+  IconDatabase,
 } from "@tabler/icons-react";
 import {
   ActionIcon,
@@ -50,12 +51,14 @@ const EXPORT_TYPE_LABEL: Record<ExportType, string> = {
   WmsStock: "WMS Stock",
   SelfProducts: "Self Products",
   TallyStock: "Tally Stock",
+  DatabaseBackup: "Database Backup",
 };
 
 const EXPORT_TYPE_COLOR: Record<ExportType, string> = {
   WmsStock: "blue",
   SelfProducts: "teal",
   TallyStock: "indigo",
+  DatabaseBackup: "orange",
 };
 
 export default function ExportPathConfigMaster() {
@@ -72,6 +75,30 @@ export default function ExportPathConfigMaster() {
   );
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState<number | null>(null);
+
+  const handleBackup = async (id: number) => {
+    setIsBackingUp(id);
+    try {
+      await exportPathConfigsApi.triggerDatabaseBackup(id);
+      notifications.show({
+        title: "Backup Complete",
+        message: "Database backup created successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to trigger backup";
+      notifications.show({
+        title: "Error",
+        message,
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsBackingUp(null);
+    }
+  };
 
   const form = useForm<CreateExportPathConfigDto>({
     initialValues: {
@@ -259,6 +286,20 @@ export default function ExportPathConfigMaster() {
       header: "Actions",
       render: (row) => (
         <Group gap="xs">
+          {row.exportType === "DatabaseBackup" && (
+            <Tooltip label="Backup Now">
+              <ActionIcon
+                variant="light"
+                color="orange"
+                size="sm"
+                onClick={() => handleBackup(row.id)}
+                loading={isBackingUp === row.id}
+                id={`backup-config-${row.id}`}
+              >
+                <IconDatabase size={14} />
+              </ActionIcon>
+            </Tooltip>
+          )}
           <Tooltip label="Edit">
             <ActionIcon
               variant="light"

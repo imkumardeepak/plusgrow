@@ -1753,12 +1753,13 @@ export const tallySyncApi = {
 
 // ─── Export Path Config Master ───────────────────────────────────────────────
 
-export type ExportType = 'WmsStock' | 'SelfProducts' | 'TallyStock';
+export type ExportType = 'WmsStock' | 'SelfProducts' | 'TallyStock' | 'DatabaseBackup';
 
 export const EXPORT_TYPE_OPTIONS: { value: ExportType; label: string }[] = [
   { value: 'WmsStock', label: 'WMS Stock' },
   { value: 'SelfProducts', label: 'Self Products' },
   { value: 'TallyStock', label: 'Tally Stock' },
+  { value: 'DatabaseBackup', label: 'Database Backup' },
 ];
 
 export interface ExportPathConfig {
@@ -1804,5 +1805,10 @@ export const exportPathConfigsApi = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/exportpathconfigs/${id}`);
+  },
+
+  triggerDatabaseBackup: async (id: number): Promise<void> => {
+    const response = await api.post<ApiResponse<boolean>>(`/exportpathconfigs/${id}/trigger-backup`);
+    if (!response.data.success) throw new Error(response.data.message || 'Error triggering database backup');
   },
 };

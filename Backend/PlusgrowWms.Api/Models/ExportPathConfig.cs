@@ -11,7 +11,7 @@ public class ExportPathConfig
     public int Id { get; set; }
 
     /// <summary>
-    /// Fixed values: WmsStock | SelfProducts | TallyStock
+    /// Fixed values: WmsStock | SelfProducts | TallyStock | DatabaseBackup
     /// </summary>
     [Required]
     [MaxLength(50)]
