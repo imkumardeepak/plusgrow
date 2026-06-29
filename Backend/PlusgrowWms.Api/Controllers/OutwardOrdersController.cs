@@ -1788,13 +1788,18 @@ public class OutwardOrdersController : BaseController
 
         if (matchingKey == null)
         {
-            matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
+            var binKey = row.LocationJson.Keys.FirstOrDefault(key =>
                 key.StartsWith(resolvedLocationCode + "::", StringComparison.OrdinalIgnoreCase) && 
-                row.LocationJson[key] >= quantity);
-        }
+                row.LocationJson[key] > 0);
 
-        if (matchingKey == null)
-            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU, or no single bin has enough quantity.", null);
+            if (binKey != null)
+            {
+                var binName = binKey.Split("::")[1];
+                return (false, $"This product is located on bin {binName}. Please scan that bin to process.", null);
+            }
+
+            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU.", null);
+        }
 
         var available = row.LocationJson[matchingKey];
         if (available < quantity)

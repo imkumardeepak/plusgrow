@@ -118,16 +118,30 @@ export const ProductMovement = memo(function ProductMovement() {
       e.preventDefault();
       const code = destLocInput.trim().toUpperCase();
 
-      // Find standard location code matching input or matching bin contents
-      const matched = locations.find(
-        (loc) =>
-          loc.locationCode.toUpperCase() === code ||
-          loc.bins?.some((bin) => bin.toUpperCase() === code)
-      );
+      let finalDestCode = "";
 
-      if (matched) {
-        setDestLocInput(matched.locationCode);
-        toast.success(`Destination identified: ${matched.locationCode}`);
+      if (code.includes("::")) {
+        const [parentLoc, bin] = code.split("::");
+        const matched = locations.find(
+          (loc) => loc.locationCode.toUpperCase() === parentLoc && loc.bins?.some((b) => b.toUpperCase() === bin)
+        );
+        if (matched) finalDestCode = code;
+      } else {
+        const matchedLoc = locations.find((loc) => loc.locationCode.toUpperCase() === code);
+        if (matchedLoc) {
+          finalDestCode = matchedLoc.locationCode.toUpperCase();
+        } else {
+          const matchedBinLoc = locations.find((loc) => loc.bins?.some((bin) => bin.toUpperCase() === code));
+          if (matchedBinLoc) {
+            const actualBin = matchedBinLoc.bins!.find((b) => b.toUpperCase() === code);
+            finalDestCode = `${matchedBinLoc.locationCode.toUpperCase()}::${actualBin}`;
+          }
+        }
+      }
+
+      if (finalDestCode) {
+        setDestLocInput(finalDestCode);
+        toast.success(`Destination identified: ${finalDestCode}`);
         setTimeout(() => qtyInputRef.current?.focus(), 50);
       } else {
         toast.error(`Location or Bin "${code}" not found in Location Master`);

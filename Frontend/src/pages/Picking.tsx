@@ -529,7 +529,7 @@ export const Picking = memo(function Picking() {
           productId: i.product.id,
           quantity: i.quantity,
           skuCode: i.skuCode,
-          locationCode: i.locationCode,
+          locationCode: i.binCode ? `${i.locationCode}::${i.binCode}` : i.locationCode,
           mrp: i.mrp,
           importDate: i.importDate,
         })),

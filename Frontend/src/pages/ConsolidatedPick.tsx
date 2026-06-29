@@ -353,17 +353,21 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     const loc = locationCode.trim().toUpperCase();
     if (!loc) { toast.error("Scan location code"); return; }
     
-    // Allow matching against either the rawCode (e.g. LOC::BIN), the binCode (e.g. BIN), or just the locationCode (e.g. LOC)
-    const validMatches = [
-      activeRow.rawCode.toUpperCase(),
-      activeRow.locationCode.toUpperCase(),
-      ...(activeRow.binCode ? [activeRow.binCode.toUpperCase()] : [])
-    ];
+    // If the product is assigned to a bin, they MUST scan the bin (or the raw code). They cannot scan just the location.
+    const validMatches = activeRow.binCode
+      ? [activeRow.rawCode.toUpperCase(), activeRow.binCode.toUpperCase()]
+      : [activeRow.locationCode.toUpperCase()];
     
     if (!validMatches.includes(loc)) {
       setScanTone("error");
-      setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''}.`);
-      toast.error(`Scan ${activeRow.locationCode} first`);
+      
+      if (activeRow.binCode && loc === activeRow.locationCode.toUpperCase()) {
+        setStatusMessage(`This product is located on bin ${activeRow.binCode}. Please scan that bin.`);
+        toast.error(`Please scan bin ${activeRow.binCode}`);
+      } else {
+        setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''}.`);
+        toast.error(`Scan ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''} first`);
+      }
       return;
     }
     
