@@ -24,9 +24,7 @@ public class PartyStockExportService : IPartyStockExportService
     // Column headers for the full party stock report
     private static readonly string[] PartyHeaders =
     {
-        "SKU Code", "Alias", "Product Name", "Commodity Name", "Manufacturer Name",
-        "Country of Origin", "Unit Type", "MRP", "USSP", "Net Qnty", "Factor",
-        "Best Before (Months)", "Weight", "Ownership", "Stock Qnty", "Note",
+        "SKU Code", "Inventory"
     };
 
     private readonly PlusgrowDbContext _context;
@@ -278,7 +276,7 @@ public class PartyStockExportService : IPartyStockExportService
 
         // Title
         worksheet.Cell("A1").Value = $"Stock Report - {partyName}";
-        worksheet.Range("A1:P1").Merge();
+        worksheet.Range("A1:B1").Merge();
         worksheet.Cell("A1").Style.Font.Bold = true;
         worksheet.Cell("A1").Style.Font.FontSize = 16;
         worksheet.Cell("A1").Style.Font.FontColor = XLColor.White;
@@ -286,7 +284,7 @@ public class PartyStockExportService : IPartyStockExportService
         worksheet.Cell("A1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
         worksheet.Cell("A2").Value = $"Generated On: {DateTime.Now:yyyy-MM-dd HH:mm}";
-        worksheet.Range("A2:P2").Merge();
+        worksheet.Range("A2:B2").Merge();
         worksheet.Cell("A2").Style.Font.Italic = true;
         worksheet.Cell("A2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
 
@@ -310,21 +308,7 @@ public class PartyStockExportService : IPartyStockExportService
             quantities.TryGetValue(product.Id, out var stockQty);
 
             worksheet.Cell(row, 1).Value = product.Sku ?? string.Empty;
-            worksheet.Cell(row, 2).Value = product.Alias ?? string.Empty;
-            worksheet.Cell(row, 3).Value = product.Name ?? string.Empty;
-            worksheet.Cell(row, 4).Value = product.Commodity?.Name ?? string.Empty;
-            worksheet.Cell(row, 5).Value = product.Manufacturer?.Name ?? string.Empty;
-            worksheet.Cell(row, 6).Value = product.CountryOfOrigin ?? string.Empty;
-            worksheet.Cell(row, 7).Value = product.UnitType ?? string.Empty;
-            worksheet.Cell(row, 8).Value = product.Mrp ?? 0m;
-            worksheet.Cell(row, 9).Value = product.Ussp ?? 0m;
-            worksheet.Cell(row, 10).Value = product.NetQuantity ?? string.Empty;
-            worksheet.Cell(row, 11).Value = product.Factor ?? string.Empty;
-            worksheet.Cell(row, 12).Value = product.BestBeforeMonths;
-            worksheet.Cell(row, 13).Value = product.Weight ?? 0m;
-            worksheet.Cell(row, 14).Value = product.Ownership ?? string.Empty;
-            worksheet.Cell(row, 15).Value = stockQty;
-            worksheet.Cell(row, 16).Value = product.Note ?? string.Empty;
+            worksheet.Cell(row, 2).Value = stockQty;
             row++;
         }
 

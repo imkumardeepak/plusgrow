@@ -19,6 +19,7 @@ import {
   Text,
   TextInput,
   SegmentedControl,
+  Autocomplete,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import confetti from "canvas-confetti";
@@ -43,6 +44,8 @@ import {
   productAllottedLocationsApi,
   productQuantitiesApi,
   productsApi,
+  locationsApi,
+  Location,
 } from "../services/masterApi";
 import { toast } from "../lib/toast";
 
@@ -89,6 +92,7 @@ export const StockMovement = memo(function StockMovement() {
   const [allottedLocations, setAllottedLocations] = useState<
     ProductAllottedLocationRecord[]
   >([]);
+  const [masterLocations, setMasterLocations] = useState<Location[]>([]);
   const [quantityRows, setQuantityRows] = useState<ProductQuantityRecord[]>([]);
   const [movements, setMovements] = useState<ProductStockMovementRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,18 +106,20 @@ export const StockMovement = memo(function StockMovement() {
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [productsData, allottedData, quantityData, movementData] =
+      const [productsData, allottedData, quantityData, movementData, locationsData] =
         await Promise.all([
           productsApi.getAll(),
           productAllottedLocationsApi.getAll(),
           productQuantitiesApi.getAll(),
           productQuantitiesApi.getMovements(),
+          locationsApi.getAll(),
         ]);
 
       setProducts(productsData);
       setAllottedLocations(allottedData);
       setQuantityRows(quantityData);
       setMovements(movementData);
+      setMasterLocations(locationsData);
     } catch {
       toast.error("Failed to load stock movement data");
     } finally {
@@ -475,9 +481,26 @@ export const StockMovement = memo(function StockMovement() {
       return;
     }
 
-    if (!adjustmentForm.locationCode.trim()) {
-      toast.error("Select location first");
+    let finalLoc = adjustmentForm.locationCode.trim().toUpperCase();
+    if (!finalLoc) {
+      toast.error("Select or type location first");
       return;
+    }
+
+    if (!finalLoc.includes("::")) {
+      const locMatch = masterLocations.find((l) => l.locationCode.toUpperCase() === finalLoc);
+      if (!locMatch) {
+        const binMatch = masterLocations.find((l) =>
+          l.bins?.some((b) => b.toUpperCase() === finalLoc)
+        );
+        if (binMatch) {
+          const actualBin = binMatch.bins!.find((b) => b.toUpperCase() === finalLoc);
+          finalLoc = `${binMatch.locationCode.toUpperCase()}::${actualBin}`;
+        } else {
+          toast.error(`Location or Bin "${finalLoc}" not found in master.`);
+          return;
+        }
+      }
     }
 
     if (!adjustmentForm.reason.trim()) {
@@ -495,7 +518,7 @@ export const StockMovement = memo(function StockMovement() {
       projectedLocationQuantity < 0
     ) {
       toast.error(
-        `This adjustment would reduce ${adjustmentForm.locationCode} below zero`,
+        `This adjustment would reduce ${finalLoc} below zero`,
       );
       return;
     }
@@ -504,7 +527,7 @@ export const StockMovement = memo(function StockMovement() {
       setIsSaving(true);
       const result = await productQuantitiesApi.adjust({
         productId: adjustmentForm.productId,
-        locationCode: adjustmentForm.locationCode,
+        locationCode: finalLoc,
         quantityChange: adjustmentForm.quantityChange,
         reason: adjustmentForm.reason,
         notes: adjustmentForm.notes?.trim() || null,
@@ -601,29 +624,25 @@ export const StockMovement = memo(function StockMovement() {
 
                 <Box>
                   <Text size="10px" fw={800} c="dimmed" mb={5}>
-                    LOCATION
+                    LOCATION / BIN
                   </Text>
-                  <Select
+                  <Autocomplete
                     size="sm"
                     radius="md"
-                    searchable
                     placeholder={
                       adjustmentForm.productId > 0
-                        ? "Select allotted location"
+                        ? "Scan/Type or Select location"
                         : "Select product first"
                     }
                     data={locationOptions}
-                    value={adjustmentForm.locationCode || null}
+                    value={adjustmentForm.locationCode}
                     onChange={(value) =>
                       setAdjustmentForm((current) => ({
                         ...current,
-                        locationCode: value || "",
+                        locationCode: value,
                       }))
                     }
-                    disabled={
-                      adjustmentForm.productId <= 0 || locationOptions.length === 0
-                    }
-                    nothingFoundMessage="No allotted location found"
+                    disabled={adjustmentForm.productId <= 0}
                   />
                 </Box>
 
