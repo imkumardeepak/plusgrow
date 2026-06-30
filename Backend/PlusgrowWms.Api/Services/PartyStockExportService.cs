@@ -50,85 +50,101 @@ public class PartyStockExportService : IPartyStockExportService
 
     public async Task ExportAllAsync(CancellationToken cancellationToken = default)
     {
-        // Load all enabled export path configs from DB
-        var configs = await _context.ExportPathConfigs
-            .AsNoTracking()
-            .Where(x => x.IsEnabled && x.ExportType != "TallyBackup")
-            .ToListAsync(cancellationToken);
-
-        if (configs.Count == 0)
+        // ── Section 1: ExportPathConfigs-based exports (WmsStock / SelfProducts / TallyStock) ──
+        // Fully isolated: a crash here does NOT affect the per-party exports below.
+        try
         {
-            _logger.LogInformation("Export skipped: no enabled export path configs found.");
-            return;
-        }
+            var configs = await _context.ExportPathConfigs
+                .AsNoTracking()
+                .Where(x => x.IsEnabled && x.ExportType != "TallyBackup")
+                .ToListAsync(cancellationToken);
 
-        // Process each config independently so one failure doesn't block others
-        foreach (var config in configs)
-        {
-            try
+            if (configs.Count == 0)
             {
-                switch (config.ExportType)
+                _logger.LogInformation("ExportPathConfigs: no enabled configs found, skipping config-based exports.");
+            }
+
+            foreach (var config in configs)
+            {
+                // Each config is independently isolated — one failure never blocks the next.
+                try
                 {
-                    case "WmsStock":
-                        await ExportSkuInventoryAsync(
-                            config.FolderPath,
-                            config.FileName ?? "Stock.xlsx",
-                            cancellationToken);
-                        break;
+                    switch (config.ExportType)
+                    {
+                        case "WmsStock":
+                            await ExportSkuInventoryAsync(
+                                config.FolderPath,
+                                config.FileName ?? "Stock.xlsx",
+                                cancellationToken);
+                            break;
 
-                    case "SelfProducts":
-                        await ExportSelfProductsAsync(
-                            config.FolderPath,
-                            config.FileName,
-                            cancellationToken);
-                        break;
+                        case "SelfProducts":
+                            await ExportSelfProductsAsync(
+                                config.FolderPath,
+                                config.FileName,
+                                cancellationToken);
+                            break;
 
-                    case "TallyStock":
-                        await ExportTallyStockAsync(
-                            config.FolderPath,
-                            config.FileName ?? "Tally_Stock.xlsx",
-                            cancellationToken);
-                        break;
+                        case "TallyStock":
+                            await ExportTallyStockAsync(
+                                config.FolderPath,
+                                config.FileName ?? "Tally_Stock.xlsx",
+                                cancellationToken);
+                            break;
 
-                    case "DatabaseBackup":
-                        // Handled manually via the trigger-backup API endpoint — skip in scheduled job.
-                        break;
+                        case "DatabaseBackup":
+                            // Handled manually via the trigger-backup API endpoint — skip in scheduled job.
+                            break;
 
-                    default:
-                        _logger.LogWarning(
-                            "Unknown ExportType '{ExportType}' for config Id={Id}. Skipping.",
-                            config.ExportType, config.Id);
-                        break;
+                        default:
+                            _logger.LogWarning(
+                                "Unknown ExportType '{ExportType}' for config Id={Id}. Skipping.",
+                                config.ExportType, config.Id);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Export failed for config Id={Id} (Type={ExportType}) -> {FolderPath}",
+                        config.Id, config.ExportType, config.FolderPath);
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Export failed for config Id={Id} (Type={ExportType}) -> {FolderPath}",
-                    config.Id, config.ExportType, config.FolderPath);
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ExportPathConfigs section failed (DB query or unexpected error). Party exports will still run.");
         }
 
-        // Export per-party files for all parties that have export enabled in the Parties master
-        var targets = await _context.Parties
-            .AsNoTracking()
-            .Where(x => x.ExportEnabled && x.ExportFolderPath != null && x.ExportFolderPath != "")
-            .ToListAsync(cancellationToken);
-
-        foreach (var party in targets)
+        // ── Section 2: Per-party exports ──
+        // Fully isolated: runs regardless of what happened in Section 1.
+        try
         {
-            try
+            var targets = await _context.Parties
+                .AsNoTracking()
+                .Where(x => x.ExportEnabled && x.ExportFolderPath != null && x.ExportFolderPath != "")
+                .ToListAsync(cancellationToken);
+
+            foreach (var party in targets)
             {
-                await ExportPartyAsync(party.Name, party.ExportFolderPath!, party.ExportFileName, cancellationToken);
+                // Each party is independently isolated — one failure never blocks the next.
+                try
+                {
+                    await ExportPartyAsync(party.Name, party.ExportFolderPath!, party.ExportFileName, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "Party stock export failed for {PartyName} -> {FolderPath}",
+                        party.Name, party.ExportFolderPath);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "Party stock export failed for {PartyName} -> {FolderPath}",
-                    party.Name, party.ExportFolderPath);
-            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Party exports section failed (DB query or unexpected error).");
         }
     }
 
