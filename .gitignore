@@ -31,6 +31,7 @@ build-verify/
 .codex/
 .agents/
 dev-dist/
+Project Documentation/
 
 # NuGet
 *.nupkg
