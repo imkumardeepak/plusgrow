@@ -53,7 +53,7 @@ public class PartyStockExportService : IPartyStockExportService
         // Load all enabled export path configs from DB
         var configs = await _context.ExportPathConfigs
             .AsNoTracking()
-            .Where(x => x.IsEnabled)
+            .Where(x => x.IsEnabled && x.ExportType != "TallyBackup")
             .ToListAsync(cancellationToken);
 
         if (configs.Count == 0)
@@ -88,6 +88,10 @@ public class PartyStockExportService : IPartyStockExportService
                             config.FolderPath,
                             config.FileName ?? "Tally_Stock.xlsx",
                             cancellationToken);
+                        break;
+
+                    case "DatabaseBackup":
+                        // Handled manually via the trigger-backup API endpoint — skip in scheduled job.
                         break;
 
                     default:

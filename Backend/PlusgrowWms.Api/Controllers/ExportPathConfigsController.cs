@@ -51,7 +51,7 @@ public class ExportPathConfigsController : BaseController
     public async Task<ActionResult<ApiResponse<ExportPathConfig>>> Create([FromBody] CreateExportPathConfigDto dto)
     {
         if (!ValidExportTypes.Contains(dto.ExportType))
-            return BadRequest<ExportPathConfig>($"Invalid ExportType '{dto.ExportType}'. Valid values: WmsStock, SelfProducts, TallyStock.");
+            return BadRequest<ExportPathConfig>($"Invalid ExportType '{dto.ExportType}'. Valid values: WmsStock, SelfProducts, TallyStock, DatabaseBackup.");
 
         if (string.IsNullOrWhiteSpace(dto.FolderPath))
             return BadRequest<ExportPathConfig>("FolderPath is required.");
@@ -80,7 +80,7 @@ public class ExportPathConfigsController : BaseController
             return NotFound<ExportPathConfig>("Export path config not found.");
 
         if (!ValidExportTypes.Contains(dto.ExportType))
-            return BadRequest<ExportPathConfig>($"Invalid ExportType '{dto.ExportType}'. Valid values: WmsStock, SelfProducts, TallyStock.");
+            return BadRequest<ExportPathConfig>($"Invalid ExportType '{dto.ExportType}'. Valid values: WmsStock, SelfProducts, TallyStock, DatabaseBackup.");
 
         if (string.IsNullOrWhiteSpace(dto.FolderPath))
             return BadRequest<ExportPathConfig>("FolderPath is required.");
