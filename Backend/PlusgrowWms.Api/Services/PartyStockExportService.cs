@@ -50,8 +50,12 @@ public class PartyStockExportService : IPartyStockExportService
 
     public async Task ExportAllAsync(CancellationToken cancellationToken = default)
     {
+        // All errors are collected here so every export runs independently.
+        // At the end, if any failed, we throw so Hangfire marks the job as Failed
+        // and shows the full error details in the dashboard.
+        var errors = new List<Exception>();
+
         // ── Section 1: ExportPathConfigs-based exports (WmsStock / SelfProducts / TallyStock) ──
-        // Fully isolated: a crash here does NOT affect the per-party exports below.
         try
         {
             var configs = await _context.ExportPathConfigs
@@ -66,7 +70,6 @@ public class PartyStockExportService : IPartyStockExportService
 
             foreach (var config in configs)
             {
-                // Each config is independently isolated — one failure never blocks the next.
                 try
                 {
                     switch (config.ExportType)
@@ -109,16 +112,20 @@ public class PartyStockExportService : IPartyStockExportService
                         ex,
                         "Export failed for config Id={Id} (Type={ExportType}) -> {FolderPath}",
                         config.Id, config.ExportType, config.FolderPath);
+
+                    errors.Add(new Exception(
+                        $"[{config.ExportType}] Id={config.Id} -> {config.FolderPath}: {ex.Message}", ex));
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ExportPathConfigs section failed (DB query or unexpected error). Party exports will still run.");
+            errors.Add(new Exception($"[ExportPathConfigs DB] {ex.Message}", ex));
         }
 
         // ── Section 2: Per-party exports ──
-        // Fully isolated: runs regardless of what happened in Section 1.
+        // Always runs regardless of what happened in Section 1.
         try
         {
             var targets = await _context.Parties
@@ -128,7 +135,6 @@ public class PartyStockExportService : IPartyStockExportService
 
             foreach (var party in targets)
             {
-                // Each party is independently isolated — one failure never blocks the next.
                 try
                 {
                     await ExportPartyAsync(party.Name, party.ExportFolderPath!, party.ExportFileName, cancellationToken);
@@ -139,13 +145,23 @@ public class PartyStockExportService : IPartyStockExportService
                         ex,
                         "Party stock export failed for {PartyName} -> {FolderPath}",
                         party.Name, party.ExportFolderPath);
+
+                    errors.Add(new Exception(
+                        $"[Party: {party.Name}] -> {party.ExportFolderPath}: {ex.Message}", ex));
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Party exports section failed (DB query or unexpected error).");
+            errors.Add(new Exception($"[Party DB] {ex.Message}", ex));
         }
+
+        // If any exports failed, throw so Hangfire marks this job as Failed
+        // and shows all individual error messages in the dashboard.
+        if (errors.Count > 0)
+            throw new AggregateException(
+                $"{errors.Count} export(s) failed. See inner exceptions for details.", errors);
     }
 
     // ──────────────────────────────────────────────────────────
