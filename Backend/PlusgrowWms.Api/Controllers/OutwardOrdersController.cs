@@ -1285,23 +1285,59 @@ public class OutwardOrdersController : BaseController
             var productLoc = await _context.ProductAllottedLocations
                 .FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
 
-            if (productLoc != null)
+            if (productLoc == null)
             {
-                string targetLocation = "UNKNOWN";
-                if (order.PickedLocationJson != null && order.PickedLocationJson.Count > 0)
+                productLoc = new ProductAllottedLocation
                 {
-                    // Prefer putting it back exactly where it was picked from
-                    targetLocation = order.PickedLocationJson.Keys.First();
+                    ProductId = order.ProductId,
+                    LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
+                    UpdatedAt = now
+                };
+                _context.ProductAllottedLocations.Add(productLoc);
+            }
+            else if (productLoc.LocationJson == null)
+            {
+                productLoc.LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (order.PickedLocationJson != null && order.PickedLocationJson.Count > 0)
+            {
+                var remainingShortage = shortage;
+                var keys = order.PickedLocationJson.Keys.ToList();
+                
+                foreach (var key in keys)
+                {
+                    if (remainingShortage <= 0) break;
+                    
+                    var pickedQty = order.PickedLocationJson[key];
+                    if (pickedQty <= 0) continue;
+                    
+                    var qtyToReturn = Math.Min(pickedQty, remainingShortage);
+                    order.PickedLocationJson[key] -= qtyToReturn;
+                    remainingShortage -= qtyToReturn;
+                    
+                    productLoc.LocationJson.TryGetValue(key, out var existingLocQty);
+                    productLoc.LocationJson[key] = existingLocQty + qtyToReturn;
                 }
-
-                if (productLoc.LocationJson == null)
-                    productLoc.LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
+                
+                // Cleanup empty locations from the pick record
+                foreach (var key in keys)
+                {
+                    if (order.PickedLocationJson[key] <= 0)
+                        order.PickedLocationJson.Remove(key);
+                }
+                _context.Entry(order).Property(x => x.PickedLocationJson).IsModified = true;
+            }
+            else
+            {
+                // Fallback if PickedLocationJson was empty
+                string targetLocation = "UNKNOWN";
                 productLoc.LocationJson.TryGetValue(targetLocation, out var existingLocQty);
                 productLoc.LocationJson[targetLocation] = existingLocQty + shortage;
-                productLoc.UpdatedAt = now;
-                _context.Entry(productLoc).Property(x => x.LocationJson).IsModified = true;
             }
+
+            productLoc.UpdatedAt = now;
+            _context.Entry(productLoc).Property(x => x.LocationJson).IsModified = true;
         }
 
         var skuLabel = order.Product?.Sku ?? "Item";
