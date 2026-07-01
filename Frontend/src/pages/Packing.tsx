@@ -371,7 +371,9 @@ export const Packing = memo(function Packing() {
                           {group.orderNumber}
                         </span>
                         <span className="block text-[11px] text-neutral-400 truncate">
-                          {group.customerName}
+                          {group.customerName === "Direct Outward" || group.orderNumber.startsWith("DO-")
+                            ? group.items.map((i) => i.skuCode).join(" | ")
+                            : group.customerName}
                         </span>
                         {/* mini progress bar */}
                         <div className="mt-1 h-1 w-full max-w-[120px] overflow-hidden rounded-full bg-white/[0.06]">
