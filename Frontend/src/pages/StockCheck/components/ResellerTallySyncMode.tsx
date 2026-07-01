@@ -31,7 +31,7 @@ export function ResellerTallySyncMode({
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/resellertally/pending`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
         },
       });
       if (!response.ok) throw new Error("Failed to fetch pending orders");
@@ -45,7 +45,7 @@ export function ResellerTallySyncMode({
       const response = await fetch(`${API_BASE_URL}/resellertally/sync/${orderNo}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
         },
       });
       const result = await response.json();
