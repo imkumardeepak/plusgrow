@@ -154,42 +154,28 @@ public class TallyService
 		sb.AppendLine("      </REQUESTDESC>");
 		sb.AppendLine("      <REQUESTDATA>");
 		sb.AppendLine("        <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">");
-		sb.AppendLine("          <VOUCHER VCHTYPE=\"Sales Order\" ACTION=\"Create\">");
+		sb.AppendLine("          <VOUCHER VCHTYPE=\"Sales Order\" ACTION=\"Create\" OBJVIEW=\"Invoice Voucher View\">");
 		sb.AppendLine($"            <DATE>{tallyDate}</DATE>");
+		sb.AppendLine($"            <REFERENCEDATE>{tallyDate}</REFERENCEDATE>");
+		sb.AppendLine("            <STATENAME>Maharashtra</STATENAME>");
+		sb.AppendLine("            <COUNTRYOFRESIDENCE>India</COUNTRYOFRESIDENCE>");
+		sb.AppendLine($"            <PARTYNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYNAME>");
 		sb.AppendLine("            <VOUCHERTYPENAME>Sales Order</VOUCHERTYPENAME>");
-		sb.AppendLine($"            <VOUCHERNUMBER>{order.OrderNo}</VOUCHERNUMBER>");
 		sb.AppendLine($"            <PARTYLEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYLEDGERNAME>");
+		sb.AppendLine($"            <REFERENCE>{System.Security.SecurityElement.Escape(order.OrderNo.ToString())}</REFERENCE>");
+		sb.AppendLine($"            <PARTYMAILINGNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYMAILINGNAME>");
+		sb.AppendLine($"            <BASICBASEPARTYNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</BASICBASEPARTYNAME>");
+		sb.AppendLine("            <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>");
+		sb.AppendLine("            <VCHENTRYMODE>Item Invoice</VCHENTRYMODE>");
 		sb.AppendLine($"            <EFFECTIVEDATE>{tallyDate}</EFFECTIVEDATE>");
 		sb.AppendLine("            <ISINVOICE>Yes</ISINVOICE>");
 
-		// Party Ledger Entry (Debit)
+		// Inventory Entries
 		decimal totalItemAmount = 0;
 		foreach (var item in order.Items)
 		{
-			totalItemAmount += item.Quantity * item.Rate;
-		}
-		decimal grandTotal = totalItemAmount + order.CompositeShippingCharges;
-
-		sb.AppendLine("            <ALLLEDGERENTRIES.LIST>");
-		sb.AppendLine($"              <LEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</LEDGERNAME>");
-		sb.AppendLine("              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>");
-		sb.AppendLine($"              <AMOUNT>-{grandTotal:F2}</AMOUNT>");
-		sb.AppendLine("            </ALLLEDGERENTRIES.LIST>");
-
-		// Shipping Ledger Entry (Credit)
-		if (order.CompositeShippingCharges > 0)
-		{
-			sb.AppendLine("            <ALLLEDGERENTRIES.LIST>");
-			sb.AppendLine("              <LEDGERNAME>Shipping Charges</LEDGERNAME>");
-			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
-			sb.AppendLine($"              <AMOUNT>{order.CompositeShippingCharges:F2}</AMOUNT>");
-			sb.AppendLine("            </ALLLEDGERENTRIES.LIST>");
-		}
-
-		// Inventory Entries
-		foreach (var item in order.Items)
-		{
 			decimal itemAmount = item.Quantity * item.Rate;
+			totalItemAmount += itemAmount;
 			sb.AppendLine("            <ALLINVENTORYENTRIES.LIST>");
 			sb.AppendLine($"              <STOCKITEMNAME>{System.Security.SecurityElement.Escape(item.Sku)}</STOCKITEMNAME>");
 			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
@@ -203,6 +189,31 @@ public class TallyService
 			sb.AppendLine($"                <AMOUNT>{itemAmount:F2}</AMOUNT>");
 			sb.AppendLine("              </ACCOUNTINGALLOCATIONS.LIST>");
 			sb.AppendLine("            </ALLINVENTORYENTRIES.LIST>");
+		}
+		
+		decimal grandTotal = totalItemAmount + order.CompositeShippingCharges;
+
+		// Party Ledger Entry (Debit)
+		sb.AppendLine("            <LEDGERENTRIES.LIST>");
+		sb.AppendLine($"              <LEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</LEDGERNAME>");
+		sb.AppendLine("              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>"); // It's Debit for Sales Order party
+		sb.AppendLine("              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>");
+		sb.AppendLine($"              <AMOUNT>-{grandTotal:F2}</AMOUNT>");
+		sb.AppendLine("              <BILLALLOCATIONS.LIST>");
+		sb.AppendLine($"                <NAME>{System.Security.SecurityElement.Escape(order.OrderNo.ToString())}</NAME>");
+		sb.AppendLine("                <BILLTYPE>New Ref</BILLTYPE>");
+		sb.AppendLine($"                <AMOUNT>-{grandTotal:F2}</AMOUNT>");
+		sb.AppendLine("              </BILLALLOCATIONS.LIST>");
+		sb.AppendLine("            </LEDGERENTRIES.LIST>");
+
+		// Shipping Ledger Entry (Credit)
+		if (order.CompositeShippingCharges > 0)
+		{
+			sb.AppendLine("            <LEDGERENTRIES.LIST>");
+			sb.AppendLine("              <LEDGERNAME>Shipping Charges</LEDGERNAME>");
+			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
+			sb.AppendLine($"              <AMOUNT>{order.CompositeShippingCharges:F2}</AMOUNT>");
+			sb.AppendLine("            </LEDGERENTRIES.LIST>");
 		}
 
 		sb.AppendLine("          </VOUCHER>");
