@@ -72,8 +72,9 @@ import { StockCheckHistoryMode } from "./StockCheck/components/StockCheckHistory
 import { StockVerifyMode } from "./StockCheck/components/StockVerifyMode";
 import { TallyDifferenceMode } from "./StockCheck/components/TallyDifferenceMode";
 import { ExcelStockCheckMode } from "./StockCheck/components/ExcelStockCheckMode";
+import { ResellerTallySyncMode } from "./StockCheck/components/ResellerTallySyncMode";
 
-type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff" | "excel-stock-check";
+type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff" | "excel-stock-check" | "reseller-tally";
 type CheckSessionStatus = "idle" | "running" | "paused";
 type StockCheckReportStatus = "PAUSED" | "COMPLETED";
 type StockCheckDraft = {
@@ -226,6 +227,7 @@ export const StockCheck = memo(function StockCheck({
       {activeMode === "history" && <StockCheckHistoryMode onBack={handleBack} isMobile={!!isMobile} onResume={handleResumePausedCheck} />}
       {activeMode === "tally-diff" && <TallyDifferenceMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "excel-stock-check" && <ExcelStockCheckMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "reseller-tally" && <ResellerTallySyncMode onBack={handleBack} isMobile={!!isMobile} />}
     </>
   );
 });
@@ -326,6 +328,14 @@ function StockCheckHub({
         description: "Upload Excel with SKU & Qty, compare with WMS stock, and export the variance report.",
         color: "rgba(52, 211, 153, 0.8)",
         gradient: "linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+      },
+      {
+        mode: "reseller-tally",
+        icon: Navigation,
+        title: "Reseller Tally Sync",
+        description: "Fetch pending Sales Orders from Reseller API and manually push to Tally.",
+        color: "rgba(59, 130, 246, 0.8)",
+        gradient: "linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(15,23,42,0.6) 100%)",
       },
       {
         href: "/audit-logs",

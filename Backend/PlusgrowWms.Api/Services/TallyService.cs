@@ -155,16 +155,19 @@ public class TallyService
 		sb.AppendLine("      <REQUESTDATA>");
 		sb.AppendLine("        <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">");
 		sb.AppendLine("          <VOUCHER VCHTYPE=\"Sales Order\" ACTION=\"Create\" OBJVIEW=\"Invoice Voucher View\">");
+		string partyName = System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? "Cash");
+		string orderNo = System.Security.SecurityElement.Escape(order.OrderNo.ToString());
+
 		sb.AppendLine($"            <DATE>{tallyDate}</DATE>");
 		sb.AppendLine($"            <REFERENCEDATE>{tallyDate}</REFERENCEDATE>");
 		sb.AppendLine("            <STATENAME>Maharashtra</STATENAME>");
 		sb.AppendLine("            <COUNTRYOFRESIDENCE>India</COUNTRYOFRESIDENCE>");
-		sb.AppendLine($"            <PARTYNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYNAME>");
+		sb.AppendLine($"            <PARTYNAME>{partyName}</PARTYNAME>");
 		sb.AppendLine("            <VOUCHERTYPENAME>Sales Order</VOUCHERTYPENAME>");
-		sb.AppendLine($"            <PARTYLEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYLEDGERNAME>");
-		sb.AppendLine($"            <REFERENCE>{System.Security.SecurityElement.Escape(order.OrderNo.ToString())}</REFERENCE>");
-		sb.AppendLine($"            <PARTYMAILINGNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYMAILINGNAME>");
-		sb.AppendLine($"            <BASICBASEPARTYNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</BASICBASEPARTYNAME>");
+		sb.AppendLine($"            <PARTYLEDGERNAME>{partyName}</PARTYLEDGERNAME>");
+		sb.AppendLine($"            <REFERENCE>{orderNo}</REFERENCE>");
+		sb.AppendLine($"            <PARTYMAILINGNAME>{partyName}</PARTYMAILINGNAME>");
+		sb.AppendLine($"            <BASICBASEPARTYNAME>{partyName}</BASICBASEPARTYNAME>");
 		sb.AppendLine("            <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>");
 		sb.AppendLine("            <VCHENTRYMODE>Item Invoice</VCHENTRYMODE>");
 		sb.AppendLine($"            <EFFECTIVEDATE>{tallyDate}</EFFECTIVEDATE>");
@@ -195,12 +198,12 @@ public class TallyService
 
 		// Party Ledger Entry (Debit)
 		sb.AppendLine("            <LEDGERENTRIES.LIST>");
-		sb.AppendLine($"              <LEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</LEDGERNAME>");
+		sb.AppendLine($"              <LEDGERNAME>{partyName}</LEDGERNAME>");
 		sb.AppendLine("              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>"); // It's Debit for Sales Order party
 		sb.AppendLine("              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>");
 		sb.AppendLine($"              <AMOUNT>-{grandTotal:F2}</AMOUNT>");
 		sb.AppendLine("              <BILLALLOCATIONS.LIST>");
-		sb.AppendLine($"                <NAME>{System.Security.SecurityElement.Escape(order.OrderNo.ToString())}</NAME>");
+		sb.AppendLine($"                <NAME>{orderNo}</NAME>");
 		sb.AppendLine("                <BILLTYPE>New Ref</BILLTYPE>");
 		sb.AppendLine($"                <AMOUNT>-{grandTotal:F2}</AMOUNT>");
 		sb.AppendLine("              </BILLALLOCATIONS.LIST>");

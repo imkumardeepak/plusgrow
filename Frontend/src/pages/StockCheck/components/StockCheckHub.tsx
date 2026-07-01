@@ -9,6 +9,7 @@ import {
   ChevronRight,
   ShieldCheck,
   TrendingUp,
+  Navigation,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -100,6 +101,14 @@ const cards: {
     description: "Select a product and scan all matching items. Unexpected products will be flagged for verification.",
     color: "rgba(16, 185, 129, 0.8)",
     gradient: "linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(15,23,42,0.6) 100%)",
+  },
+  {
+    mode: "reseller-tally",
+    icon: Navigation,
+    title: "Reseller Tally Sync",
+    description: "Fetch pending Sales Orders from Reseller API and manually push to Tally.",
+    color: "rgba(59, 130, 246, 0.8)",
+    gradient: "linear-gradient(135deg, rgba(59,130,246,0.18) 0%, rgba(15,23,42,0.6) 100%)",
   },
 ];
 

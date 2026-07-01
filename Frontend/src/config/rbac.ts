@@ -5,6 +5,7 @@ import {
   Building,
   ClipboardCheck,
   Factory,
+  Handshake,
   Layers,
   Map,
   MapPin,
