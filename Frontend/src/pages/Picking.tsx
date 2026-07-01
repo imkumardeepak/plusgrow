@@ -854,7 +854,9 @@ export const Picking = memo(function Picking() {
                               {group.orderNumber}
                             </span>
                             <span className="block text-[11px] text-neutral-400 truncate">
-                              {group.customerName}
+                              {group.customerName === "Direct Outward" || group.orderNumber.startsWith("DO-")
+                                ? group.items.map((i) => i.skuCode).join(" | ")
+                                : group.customerName}
                               <span className="ml-2 text-neutral-600 hidden sm:inline">
                                 {new Date(group.orderDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
                               </span>
