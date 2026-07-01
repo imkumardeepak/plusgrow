@@ -83,6 +83,10 @@ builder.Services.AddHttpClient<TallyService>();
 // Tally sync
 builder.Services.AddScoped<ITallySyncService, TallySyncService>();
 
+// Reseller API and Sync Job
+builder.Services.AddHttpClient<ResellerApiClient>();
+builder.Services.AddScoped<ResellerTallySyncJob>();
+
 // Party stock export to Dropbox (recurring job writes each enabled party's "Mapped Products"
 // Excel; per-party folder/file/enabled settings live in the parties table)
 builder.Services.AddScoped<IPartyStockExportService, PartyStockExportService>();
@@ -260,5 +264,11 @@ RecurringJob.AddOrUpdate<IPartyStockExportService>(
     "party-stock-export-every-1-hour",
     service => service.ExportAllAsync(CancellationToken.None),
     "0 * * * *"); // Every 1 hour (on the hour)
+
+// Reseller API to Tally Sync (Every 30 minutes)
+RecurringJob.AddOrUpdate<ResellerTallySyncJob>(
+    "reseller-tally-sync-every-30-min",
+    service => service.SyncOrdersAsync(),
+    "*/30 * * * *"); // Every 30 minutes
 
 app.Run();

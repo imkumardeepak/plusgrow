@@ -77,6 +77,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<PoInvoiceLocation> PoInvoiceLocations => Set<PoInvoiceLocation>();
     public DbSet<TallySyncSkippedOrder> TallySyncSkippedOrders => Set<TallySyncSkippedOrder>();
     public DbSet<ExportPathConfig> ExportPathConfigs => Set<ExportPathConfig>();
+    public DbSet<ResellerSyncedOrder> ResellerSyncedOrders => Set<ResellerSyncedOrder>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -290,7 +291,11 @@ public class PlusgrowDbContext : DbContext
         modelBuilder.Entity<AuditLog>()
             .HasIndex(x => x.Timestamp);
 
+        modelBuilder.Entity<ResellerSyncedOrder>()
+            .HasIndex(x => x.OrderNo)
+            .IsUnique();
     }
+
 
     private void NormalizeDateTimeKinds()
     {

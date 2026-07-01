@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PlusgrowWms.Api.DTOs;
 using TallyERPWebApi.Model;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -128,6 +129,106 @@ public class TallyService
 			.Replace("{todate}", toDate);
 
 		return await GetVouchersFromXmlContentAsync(xmlContent);
+	}
+
+	public async Task<string> PostSalesOrderAsync(ResellerPendingOrder order)
+	{
+		string tallyUrl = _configuration["TallySettings:TallyUrl"];
+		if (string.IsNullOrWhiteSpace(tallyUrl))
+			throw new InvalidOperationException("Tally URL is not configured.");
+
+		// Build Tally XML
+		// Tally Date format: yyyyMMdd
+		var parsedDate = DateTime.TryParseExact(order.OrderDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var d) ? d : DateTime.Now;
+		var tallyDate = parsedDate.ToString("yyyyMMdd");
+
+		var sb = new StringBuilder();
+		sb.AppendLine("<ENVELOPE>");
+		sb.AppendLine("  <HEADER>");
+		sb.AppendLine("    <TALLYREQUEST>Import Data</TALLYREQUEST>");
+		sb.AppendLine("  </HEADER>");
+		sb.AppendLine("  <BODY>");
+		sb.AppendLine("    <IMPORTDATA>");
+		sb.AppendLine("      <REQUESTDESC>");
+		sb.AppendLine("        <REPORTNAME>Vouchers</REPORTNAME>");
+		sb.AppendLine("      </REQUESTDESC>");
+		sb.AppendLine("      <REQUESTDATA>");
+		sb.AppendLine("        <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">");
+		sb.AppendLine("          <VOUCHER VCHTYPE=\"Sales Order\" ACTION=\"Create\">");
+		sb.AppendLine($"            <DATE>{tallyDate}</DATE>");
+		sb.AppendLine("            <VOUCHERTYPENAME>Sales Order</VOUCHERTYPENAME>");
+		sb.AppendLine($"            <VOUCHERNUMBER>{order.OrderNo}</VOUCHERNUMBER>");
+		sb.AppendLine($"            <PARTYLEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</PARTYLEDGERNAME>");
+		sb.AppendLine($"            <EFFECTIVEDATE>{tallyDate}</EFFECTIVEDATE>");
+		sb.AppendLine("            <ISINVOICE>Yes</ISINVOICE>");
+
+		// Party Ledger Entry (Debit)
+		decimal totalItemAmount = 0;
+		foreach (var item in order.Items)
+		{
+			totalItemAmount += item.Quantity * item.Rate;
+		}
+		decimal grandTotal = totalItemAmount + order.CompositeShippingCharges;
+
+		sb.AppendLine("            <ALLLEDGERENTRIES.LIST>");
+		sb.AppendLine($"              <LEDGERNAME>{System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? \"Cash\")}</LEDGERNAME>");
+		sb.AppendLine("              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>");
+		sb.AppendLine($"              <AMOUNT>-{grandTotal:F2}</AMOUNT>");
+		sb.AppendLine("            </ALLLEDGERENTRIES.LIST>");
+
+		// Shipping Ledger Entry (Credit)
+		if (order.CompositeShippingCharges > 0)
+		{
+			sb.AppendLine("            <ALLLEDGERENTRIES.LIST>");
+			sb.AppendLine("              <LEDGERNAME>Shipping Charges</LEDGERNAME>");
+			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
+			sb.AppendLine($"              <AMOUNT>{order.CompositeShippingCharges:F2}</AMOUNT>");
+			sb.AppendLine("            </ALLLEDGERENTRIES.LIST>");
+		}
+
+		// Inventory Entries
+		foreach (var item in order.Items)
+		{
+			decimal itemAmount = item.Quantity * item.Rate;
+			sb.AppendLine("            <ALLINVENTORYENTRIES.LIST>");
+			sb.AppendLine($"              <STOCKITEMNAME>{System.Security.SecurityElement.Escape(item.Sku)}</STOCKITEMNAME>");
+			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
+			sb.AppendLine($"              <RATE>{item.Rate:F2}</RATE>");
+			sb.AppendLine($"              <AMOUNT>{itemAmount:F2}</AMOUNT>");
+			sb.AppendLine($"              <ACTUALQTY>{item.Quantity}</ACTUALQTY>");
+			sb.AppendLine($"              <BILLEDQTY>{item.Quantity}</BILLEDQTY>");
+			sb.AppendLine("              <ACCOUNTINGALLOCATIONS.LIST>");
+			sb.AppendLine("                <LEDGERNAME>Sales Order</LEDGERNAME>");
+			sb.AppendLine("                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
+			sb.AppendLine($"                <AMOUNT>{itemAmount:F2}</AMOUNT>");
+			sb.AppendLine("              </ACCOUNTINGALLOCATIONS.LIST>");
+			sb.AppendLine("            </ALLINVENTORYENTRIES.LIST>");
+		}
+
+		sb.AppendLine("          </VOUCHER>");
+		sb.AppendLine("        </TALLYMESSAGE>");
+		sb.AppendLine("      </REQUESTDATA>");
+		sb.AppendLine("    </IMPORTDATA>");
+		sb.AppendLine("  </BODY>");
+		sb.AppendLine("</ENVELOPE>");
+
+		var request = new HttpRequestMessage(HttpMethod.Post, tallyUrl)
+		{
+			Content = new StringContent(sb.ToString(), Encoding.UTF8, "text/xml")
+		};
+
+		var response = await _httpClient.SendAsync(request);
+		response.EnsureSuccessStatusCode();
+
+		var responseContent = await response.Content.ReadAsStringAsync();
+		
+		// Typically Tally returns <CREATED>1</CREATED> on success.
+		if (responseContent.Contains("<CREATED>0</CREATED>") && responseContent.Contains("<ERRORS>"))
+		{
+			throw new Exception($"Tally returned an error: {responseContent}");
+		}
+
+		return responseContent;
 	}
 
 	private async Task<List<Voucher>> GetVouchersFromXmlContentAsync(string xmlContent)
