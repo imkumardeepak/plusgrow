@@ -53,8 +53,10 @@ public class OutwardOrdersController : BaseController
 
         if (!string.IsNullOrWhiteSpace(filter.Status) && !string.Equals(filter.Status, "all", StringComparison.OrdinalIgnoreCase))
         {
-            var status = filter.Status.Trim().ToLowerInvariant();
-            query = query.Where(x => x.Status.ToLower() == status);
+            var statuses = filter.Status.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(s => s.Trim().ToLowerInvariant())
+                                        .ToList();
+            query = query.Where(x => statuses.Contains(x.Status.ToLower()));
         }
 
         var total = await query.CountAsync();
@@ -93,8 +95,10 @@ public class OutwardOrdersController : BaseController
 
         if (!string.IsNullOrWhiteSpace(filter.Status) && !string.Equals(filter.Status, "all", StringComparison.OrdinalIgnoreCase))
         {
-            var status = filter.Status.Trim().ToLowerInvariant();
-            query = query.Where(x => x.Status.ToLower() == status);
+            var statuses = filter.Status.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(s => s.Trim().ToLowerInvariant())
+                                        .ToList();
+            query = query.Where(x => statuses.Contains(x.Status.ToLower()));
         }
 
         var total = await query.CountAsync();

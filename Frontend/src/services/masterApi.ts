@@ -487,7 +487,7 @@ export interface CreateOutwardOrderItemDto {
 
 export interface OutwardOrderFilters {
   search?: string;
-  status?: "all" | "open" | "picking" | "picked" | "packed" | "dispatched" | "canceled" | "Canceled";
+  status?: string;
   page?: number;
   pageSize?: number;
 }

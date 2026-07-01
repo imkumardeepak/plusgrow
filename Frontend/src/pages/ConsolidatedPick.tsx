@@ -149,7 +149,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     try {
       setIsLoading(true);
       const [ordersData, locsData] = await Promise.all([
-        outwardOrdersApi.getSalesOrders({ status: "open", pageSize: 500 }),
+        outwardOrdersApi.getSalesOrders({ status: "open,picking", pageSize: 500 }),
         productAllottedLocationsApi.getAll(),
       ]);
       setOrders(ordersData.filter((o) => o.status !== "Canceled"));
