@@ -143,20 +143,51 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
     const sku = normalizeSku(rawInput.split("#")[0]);
     setScanInput(sku);
 
-    const product =
-      products.find((item) => normalizeSku(item.sku) === sku || normalizeSku(item.alias) === sku) ?? null;
-    const quantityRow =
-      quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
-    const resolvedProductId = product?.id ?? quantityRow?.productId ?? null;
-
-    const resolvedSku = product?.sku
-      ? normalizeSku(product.sku)
-      : quantityRow?.skuCode
-        ? normalizeSku(quantityRow.skuCode)
-        : sku;
-
     try {
       setIsSearching(true);
+
+      let fetchedProduct = null;
+      let fetchedCurrentStock = 0;
+      let fetchedLocations: { locationCode: string; quantity: number }[] | null = null;
+
+      try {
+        const lookupRes = await productsApi.lookup(sku);
+        fetchedProduct = lookupRes.product;
+        fetchedCurrentStock = lookupRes.currentStock;
+        fetchedLocations = lookupRes.locations;
+      } catch (err) {
+        // Fallback to local state if lookup fails
+      }
+
+      const product =
+        fetchedProduct ?? products.find((item) => normalizeSku(item.sku) === sku || normalizeSku(item.alias) === sku) ?? null;
+      
+      const localQuantityRow =
+        quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
+
+      const quantityRow = fetchedProduct
+        ? ({
+            id: localQuantityRow?.id ?? 0,
+            productId: fetchedProduct.id,
+            skuCode: fetchedProduct.sku || sku,
+            alias: fetchedProduct.alias,
+            productName: fetchedProduct.name,
+            currentQuantity: fetchedCurrentStock,
+            pendingOutwardQuantity: localQuantityRow?.pendingOutwardQuantity ?? 0,
+            pendingInwardQuantity: localQuantityRow?.pendingInwardQuantity ?? 0,
+            createdAt: localQuantityRow?.createdAt ?? "",
+            updatedAt: localQuantityRow?.updatedAt ?? "",
+          } as ProductQuantityRecord)
+        : localQuantityRow;
+
+      const resolvedProductId = product?.id ?? quantityRow?.productId ?? null;
+
+      const resolvedSku = product?.sku
+        ? normalizeSku(product.sku)
+        : quantityRow?.skuCode
+          ? normalizeSku(quantityRow.skuCode)
+          : sku;
+
       const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
         poInvoicesApi.getAll({ search: resolvedSku, pageSize: 100 }),
         productQuantitiesApi.getMovements(resolvedSku),
@@ -165,15 +196,18 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
       const invoices = invoiceRows
         .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
         .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.id - a.id);
+      
       const allottedLocation = allottedLocations.find((row) =>
         resolvedProductId
           ? row.productId === resolvedProductId
           : normalizeSku(row.skuCode) === resolvedSku || normalizeSku(row.alias) === sku,
       ) ?? null;
-      const locations = Object.entries(getLocationJson(allottedLocation))
+      
+      const locations = fetchedLocations ?? Object.entries(getLocationJson(allottedLocation))
         .map(([locationCode, quantity]) => ({ locationCode, quantity: Number(quantity) || 0 }))
         .filter((location) => location.locationCode && location.quantity > 0)
         .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
+        
       const totalLocationStock = locations.reduce((sum, location) => sum + location.quantity, 0);
       const movements = movementRows
         .filter((row) =>
