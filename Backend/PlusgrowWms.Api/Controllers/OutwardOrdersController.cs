@@ -1281,6 +1281,27 @@ public class OutwardOrdersController : BaseController
                     CreatedAt = now
                 });
             }
+
+            var productLoc = await _context.ProductAllottedLocations
+                .FirstOrDefaultAsync(x => x.ProductId == order.ProductId);
+
+            if (productLoc != null)
+            {
+                string targetLocation = "UNKNOWN";
+                if (order.PickedLocationJson != null && order.PickedLocationJson.Count > 0)
+                {
+                    // Prefer putting it back exactly where it was picked from
+                    targetLocation = order.PickedLocationJson.Keys.First();
+                }
+
+                if (productLoc.LocationJson == null)
+                    productLoc.LocationJson = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                productLoc.LocationJson.TryGetValue(targetLocation, out var existingLocQty);
+                productLoc.LocationJson[targetLocation] = existingLocQty + shortage;
+                productLoc.UpdatedAt = now;
+                _context.Entry(productLoc).Property(x => x.LocationJson).IsModified = true;
+            }
         }
 
         var skuLabel = order.Product?.Sku ?? "Item";
