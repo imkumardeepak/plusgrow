@@ -168,3 +168,16 @@ public class ConsolidatedPickResultDto
     public List<ConsolidatedPickAllocationDto> Allocations { get; set; } = [];
     public List<OutwardOrderDto> UpdatedItems { get; set; } = [];
 }
+
+public class ConsolidatedShortPickDto
+{
+    public List<int> SalesOrderIds { get; set; } = [];
+    public int ProductId { get; set; }
+    public string Remark { get; set; } = string.Empty;
+}
+
+public class ConsolidatedShortPickResultDto
+{
+    public int ProductId { get; set; }
+    public List<OutwardOrderDto> UpdatedItems { get; set; } = [];
+}

@@ -563,6 +563,17 @@ export interface ConsolidatedPickResult {
   updatedItems: OutwardOrder[];
 }
 
+export interface ConsolidatedShortPickDto {
+  salesOrderIds: number[];
+  productId: number;
+  remark: string;
+}
+
+export interface ConsolidatedShortPickResult {
+  productId: number;
+  updatedItems: OutwardOrder[];
+}
+
 export interface DispatchSalesOrderResult {
   salesOrderId: number;
   orderNumber: string;
@@ -1442,6 +1453,12 @@ export const outwardOrdersApi = {
 
   consolidatedPick: async (data: ConsolidatedPickDto): Promise<ConsolidatedPickResult> => {
     const response = await api.post<ApiResponse<ConsolidatedPickResult>>('/outwardorders/consolidated-pick', data);
+    if (!response.data.success) throw new Error(response.data.message);
+    return response.data.data!;
+  },
+
+  consolidatedShortPick: async (data: ConsolidatedShortPickDto): Promise<ConsolidatedShortPickResult> => {
+    const response = await api.post<ApiResponse<ConsolidatedShortPickResult>>('/outwardorders/consolidated-short-pick', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
   },

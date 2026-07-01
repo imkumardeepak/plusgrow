@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NumberInput } from "@mantine/core";
+import { NumberInput, Modal, Checkbox, TextInput, Textarea } from "@mantine/core";
 import {
   AlertTriangle,
   Check,
@@ -134,6 +134,12 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const [scanTone, setScanTone] = useState<ScanTone>("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const [isPicking, setIsPicking] = useState(false);
+
+  // short pick state
+  const [shortPickModalOpen, setShortPickModalOpen] = useState(false);
+  const [shortPickRemark, setShortPickRemark] = useState("");
+  const [shortPickSelectedSOs, setShortPickSelectedSOs] = useState<number[]>([]);
+  const [isShortPicking, setIsShortPicking] = useState(false);
 
   const locationRef = useRef<HTMLInputElement>(null);
   const skuRef = useRef<HTMLInputElement>(null);
@@ -426,6 +432,43 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     }
   };
 
+  const handleOpenShortPick = () => {
+    if (!activeRow || !activeGroup) { toast.error("Select a row first"); return; }
+    const pendingLines = activeGroup.lines.filter(l => l.pendingQuantity > 0);
+    if (pendingLines.length === 0) { toast.error("No pending quantity for this product"); return; }
+    setShortPickSelectedSOs(pendingLines.map(l => l.salesOrderId));
+    setShortPickRemark("");
+    setShortPickModalOpen(true);
+  };
+
+  const submitShortPick = async () => {
+    if (!activeRow || !activeGroup) return;
+    if (shortPickSelectedSOs.length === 0) {
+      toast.error("Please select at least one Sales Order");
+      return;
+    }
+    if (!shortPickRemark.trim()) {
+      toast.error("Please enter a reason for the short pick");
+      return;
+    }
+    try {
+      setIsShortPicking(true);
+      const result = await outwardOrdersApi.consolidatedShortPick({
+        salesOrderIds: shortPickSelectedSOs,
+        productId: activeGroup.productId,
+        remark: shortPickRemark,
+      });
+      applyUpdatedItems(result.updatedItems);
+      toast.success(`Short picked ${result.updatedItems.length} items`);
+      setShortPickModalOpen(false);
+      setShortPickRemark("");
+    } catch (err: any) {
+      toast.error(err.message || "Short pick failed");
+    } finally {
+      setIsShortPicking(false);
+    }
+  };
+
   const handleSkuScan = async () => {
     if (!activeRow || !activeGroup) { toast.error("Select a row first"); return; }
     if (!isLocationLocked) { toast.error("Scan location first"); window.setTimeout(() => locationRef.current?.focus(), 0); return; }
@@ -660,9 +703,17 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                               >
                                 Pick Qty
                               </Button>
+                              <Button
+                                onClick={handleOpenShortPick}
+                                variant="danger"
+                                size="xs"
+                                className="h-[30px]"
+                              >
+                                Short Pick
+                              </Button>
                             </div>
-                          </div>
-                        )}
+                            </div>
+                          )}
 
                         {statusMessage && (
                           <div className={`rounded-lg border px-2.5 py-1.5 text-[11px] ${
@@ -688,6 +739,86 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
           </>
         )}
       </div>
+
+      <Modal
+        opened={shortPickModalOpen}
+        onClose={() => setShortPickModalOpen(false)}
+        title={<span className="font-bold text-red-400">Short Pick Confirmation</span>}
+        size="md"
+        styles={{
+          header: { backgroundColor: '#10151e', borderBottom: '1px solid rgba(255,255,255,0.1)' },
+          body: { backgroundColor: '#0b0f17', padding: '1rem' },
+          content: { backgroundColor: '#10151e', border: '1px solid rgba(255,255,255,0.1)' },
+        }}
+      >
+        {activeGroup && (() => {
+          const pendingLines = activeGroup.lines.filter(l => l.pendingQuantity > 0);
+          return (
+            <div className="space-y-4">
+              {pendingLines.length > 1 ? (
+                <div>
+                  <p className="text-xs text-neutral-400 mb-2">
+                    Select the Sales Orders you want to short close for <span className="text-white font-bold">{activeGroup.skuCode}</span>:
+                  </p>
+                  <div className="border border-white/10 rounded-lg overflow-hidden bg-black/20">
+                    {pendingLines.map((line) => (
+                      <div key={line.salesOrderId} className="flex items-center gap-3 p-2.5 border-b border-white/5 last:border-0 hover:bg-white/[0.02]">
+                        <Checkbox
+                          checked={shortPickSelectedSOs.includes(line.salesOrderId)}
+                          onChange={(e) => {
+                            if (e.currentTarget.checked) {
+                              setShortPickSelectedSOs(prev => [...prev, line.salesOrderId]);
+                            } else {
+                              setShortPickSelectedSOs(prev => prev.filter(id => id !== line.salesOrderId));
+                            }
+                          }}
+                          color="red"
+                          size="xs"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-white truncate">{line.orderNumber} - {line.customerName}</div>
+                          <div className="text-[10px] text-neutral-400">Pending: <span className="text-brand-200 font-mono">{line.pendingQuantity}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                  <p className="text-xs text-red-200">
+                    Short closing <strong>{activeGroup.skuCode}</strong> for order <strong>{pendingLines[0]?.orderNumber}</strong> ({pendingLines[0]?.customerName}).
+                  </p>
+                  <p className="text-[10px] text-red-300/70 mt-1">
+                    Pending quantity to short close: <strong>{pendingLines[0]?.pendingQuantity}</strong>
+                  </p>
+                </div>
+              )}
+
+            <Textarea
+              label="Reason for Short Pick"
+              placeholder="e.g., Stock missing, Damaged"
+              value={shortPickRemark}
+              onChange={(e) => setShortPickRemark(e.currentTarget.value)}
+              required
+              minRows={2}
+              styles={{
+                input: { backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(255,255,255,0.1)', color: 'white', fontSize: '12px' },
+                label: { color: 'rgba(255,255,255,0.7)', fontSize: '11px', marginBottom: '4px' }
+              }}
+            />
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShortPickModalOpen(false)} disabled={isShortPicking}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={submitShortPick} loading={isShortPicking}>
+                Confirm Short Pick
+              </Button>
+            </div>
+          </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 });

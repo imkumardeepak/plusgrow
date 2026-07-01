@@ -1121,6 +1121,98 @@ public class OutwardOrdersController : BaseController
         return Success(result, $"Picked {pickQty} unit(s) across {affectedSalesOrderIds.Count} sales order(s)");
     }
 
+    [HttpPost("consolidated-short-pick")]
+    public async Task<ActionResult<ApiResponse<ConsolidatedShortPickResultDto>>> ConsolidatedShortPick([FromBody] ConsolidatedShortPickDto dto)
+    {
+        if (dto.SalesOrderIds == null || dto.SalesOrderIds.Count == 0)
+            return BadRequest<ConsolidatedShortPickResultDto>("No sales orders provided");
+        if (dto.ProductId <= 0)
+            return BadRequest<ConsolidatedShortPickResultDto>("Invalid product ID");
+        if (string.IsNullOrWhiteSpace(dto.Remark))
+            return BadRequest<ConsolidatedShortPickResultDto>("Remark is required for short pick");
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        var orders = await _context.OutwardOrders
+            .Include(x => x.Product)
+            .Include(x => x.SalesOrder)
+            .Where(x => x.ProductId == dto.ProductId && dto.SalesOrderIds.Contains(x.SalesOrderId))
+            .ToListAsync();
+
+        var remarkLine = $"[Short Picked: {dto.Remark.Trim()}]";
+        var updatedItems = new List<OutwardOrder>();
+
+        foreach (var order in orders)
+        {
+            if (order.Status == "Dispatched" || order.Status == "Canceled")
+                continue;
+
+            if (order.PickedQuantity < order.Quantity)
+            {
+                if (order.PickedQuantity == 0)
+                {
+                    order.Status = "Canceled";
+                    order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? remarkLine : $"{order.Notes}\n{remarkLine}";
+                }
+                else
+                {
+                    var originalQty = order.Quantity;
+                    order.Quantity = order.PickedQuantity;
+                    order.Status = "Picked";
+                    
+                    var itemRemark = $"[Original Qty: {originalQty}. Short Picked: {dto.Remark.Trim()}]";
+                    order.Notes = string.IsNullOrWhiteSpace(order.Notes) ? itemRemark : $"{order.Notes}\n{itemRemark}";
+                }
+                order.UpdatedAt = now;
+                updatedItems.Add(order);
+
+                if (order.SalesOrder != null)
+                {
+                    var soRemark = $"[{order.Product?.Sku ?? "Item"} Short Picked: {dto.Remark.Trim()}]";
+                    order.SalesOrder.CancelRemark = string.IsNullOrWhiteSpace(order.SalesOrder.CancelRemark) 
+                        ? soRemark 
+                        : $"{order.SalesOrder.CancelRemark}\n{soRemark}";
+                    order.SalesOrder.UpdatedAt = now;
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        foreach (var salesOrderId in dto.SalesOrderIds.Distinct())
+        {
+            await UpdateSalesOrderStatusAsync(salesOrderId);
+        }
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        var result = new ConsolidatedShortPickResultDto
+        {
+            ProductId = dto.ProductId,
+            UpdatedItems = updatedItems.Select(MapOrder).ToList(),
+        };
+
+        if (updatedItems.Count > 0)
+        {
+            await SendNotificationAsync(new RealtimeNotificationDto
+            {
+                Type = "outward.consolidated-short-picked",
+                Title = "Consolidated short pick",
+                Message = $"Short picked {updatedItems.Count} item(s) for product ID {dto.ProductId}. Reason: {dto.Remark.Trim()}",
+                Severity = "warning",
+                Data = new Dictionary<string, object?>
+                {
+                    ["productId"] = dto.ProductId,
+                    ["orderCount"] = updatedItems.Count,
+                    ["remark"] = dto.Remark.Trim(),
+                },
+            });
+        }
+
+        return Success(result, $"Short picked {updatedItems.Count} item(s) successfully");
+    }
+
     [HttpPost("{id}/mark-packed")]
     public async Task<ActionResult<ApiResponse<OutwardOrderDto>>> MarkPacked(int id)
     {
