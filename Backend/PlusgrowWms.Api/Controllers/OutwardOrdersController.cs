@@ -103,6 +103,15 @@ public class OutwardOrdersController : BaseController
             query = query.Where(x => statuses.Contains(x.Status.ToLower()));
         }
 
+        if (DateTime.TryParse(filter.FromDate, out var fromDate) && DateTime.TryParse(filter.ToDate, out var toDate))
+        {
+            query = query.Where(x => 
+                (x.CreatedAt.Date >= fromDate.Date && x.CreatedAt.Date <= toDate.Date) ||
+                (x.PickedAt != null && x.PickedAt.Value.Date >= fromDate.Date && x.PickedAt.Value.Date <= toDate.Date) ||
+                (x.PackedAt != null && x.PackedAt.Value.Date >= fromDate.Date && x.PackedAt.Value.Date <= toDate.Date) ||
+                (x.DispatchedAt != null && x.DispatchedAt.Value.Date >= fromDate.Date && x.DispatchedAt.Value.Date <= toDate.Date));
+        }
+
         var total = await query.CountAsync();
         var rows = await query
             .OrderByDescending(x => x.SalesOrder != null ? x.SalesOrder.OrderDate : x.CreatedAt)

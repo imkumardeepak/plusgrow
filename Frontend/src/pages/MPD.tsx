@@ -173,6 +173,16 @@ export const MPD = memo(function MPD() {
   }, [refreshTableData]);
 
   useEffect(() => {
+    if (commodities.length > 0 && formData.commodityId === undefined && !isEditing) {
+      const defaultCommodity = commodities.find(c => c.name.toUpperCase() === "MOTORCYCLE PARTS AND ACCESSORIES");
+      if (defaultCommodity) {
+        setFormData(prev => ({ ...prev, commodityId: defaultCommodity.id }));
+      }
+    }
+  }, [commodities, formData.commodityId, isEditing]);
+
+
+  useEffect(() => {
     const sku = formData.sku?.trim().toUpperCase() || "";
     if (!isModalOpen || !sku) {
       setSkuQrDataUrl(null);

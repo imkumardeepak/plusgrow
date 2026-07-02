@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
 using PlusgrowWms.Api.Helpers;
@@ -45,6 +45,16 @@ public class ProductsController : BaseController
 	[HttpPost]
 	public async Task<ActionResult<ApiResponse<Product>>> CreateProduct([FromBody] Product product)
 	{
+		if (!product.CommodityId.HasValue)
+		{
+			var defaultCommodity = await _context.Commodities
+				.FirstOrDefaultAsync(c => c.Name.ToUpper() == "MOTORCYCLE PARTS AND ACCESSORIES");
+			if (defaultCommodity != null)
+			{
+				product.CommodityId = defaultCommodity.Id;
+			}
+		}
+
 		if (string.IsNullOrWhiteSpace(product.CountryOfOrigin))
 		{
 			if (product.ManufacturerId.HasValue)
@@ -329,6 +339,10 @@ public class ProductsController : BaseController
 						GetCell(row, "Manufacturer Name").GetString()?.Trim() ?? "", out var manufacturer);
 					existingCommodities.TryGetValue(
 						GetCell(row, "Commodity Name").GetString()?.Trim() ?? "", out var commodity);
+					if (commodity == null)
+					{
+						existingCommodities.TryGetValue("MOTORCYCLE PARTS AND ACCESSORIES", out commodity);
+					}
 
 					decimal.TryParse(GetCell(row, "MRP").GetString(), out decimal mrp);
 					int.TryParse(GetCell(row, "Best Before", "Best Before (Months)").GetString(), out int bestBefore);

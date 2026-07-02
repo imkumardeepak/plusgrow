@@ -46,9 +46,10 @@ import { toast } from "../lib/toast";
 
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
-const isOnDate = (dateStr: string | null | undefined, targetDate: string) => {
+const isWithinRange = (dateStr: string | null | undefined, startStr: string, endStr: string) => {
   if (!dateStr) return false;
-  return dateStr.slice(0, 10) === targetDate;
+  const d = dateStr.slice(0, 10);
+  return d >= startStr && d <= endStr;
 };
 
 const formatTime = (dateStr?: string | null) => {
@@ -69,17 +70,19 @@ export const TodayOperations = memo(function TodayOperations() {
   const [movements, setMovements] = useState<ProductStockMovementRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Date filter state — defaults to today
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+  // Date filter state
+  const [fromDate, setFromDate] = useState<Date>(new Date());
+  const [toDate, setToDate] = useState<Date>(new Date());
+  const fromDateStr = format(fromDate, "yyyy-MM-dd");
+  const toDateStr = format(toDate, "yyyy-MM-dd");
 
-  const loadData = useCallback(async (dateStr: string) => {
+  const loadData = useCallback(async (startStr: string, endStr: string) => {
     try {
       setIsLoading(true);
       const [invoiceResult, outwardResult, movementResult] = await Promise.all([
-        poInvoicesApi.getHeaders({ fromDate: dateStr, toDate: dateStr, page: 1, pageSize: 200 }),
-        outwardOrdersApi.getAll({ page: 1, pageSize: 2000 }),
-        productQuantitiesApi.getMovements(),
+        poInvoicesApi.getHeaders({ fromDate: startStr, toDate: endStr, page: 1, pageSize: 2000 }),
+        outwardOrdersApi.getAll({ fromDate: startStr, toDate: endStr, page: 1, pageSize: 5000 }),
+        productQuantitiesApi.getMovements({ fromDate: startStr, toDate: endStr }),
       ]);
 
       setInvoices(invoiceResult.data.filter((inv) => inv.status !== "Canceled"));
@@ -93,9 +96,9 @@ export const TodayOperations = memo(function TodayOperations() {
   }, []);
 
   useEffect(() => {
-    void loadData(selectedDateStr);
+    void loadData(fromDateStr, toDateStr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadData, selectedDateStr]);
+  }, [loadData, fromDateStr, toDateStr]);
 
   // ── Computed data ──────────────────────────────────────────────────────────
 
@@ -106,25 +109,25 @@ export const TodayOperations = memo(function TodayOperations() {
   const todayOutward = useMemo(
     () => outwardOrders.filter(
       (o) =>
-        isOnDate(o.createdAt, selectedDateStr) ||
-        isOnDate(o.pickedAt, selectedDateStr) ||
-        isOnDate(o.packedAt, selectedDateStr) ||
-        isOnDate(o.dispatchedAt, selectedDateStr),
+        isWithinRange(o.createdAt, fromDateStr, toDateStr) ||
+        isWithinRange(o.pickedAt, fromDateStr, toDateStr) ||
+        isWithinRange(o.packedAt, fromDateStr, toDateStr) ||
+        isWithinRange(o.dispatchedAt, fromDateStr, toDateStr),
     ),
-    [outwardOrders, selectedDateStr],
+    [outwardOrders, fromDateStr, toDateStr],
   );
 
   const todayPicked = useMemo(
-    () => outwardOrders.filter((o) => isOnDate(o.pickedAt, selectedDateStr)),
-    [outwardOrders, selectedDateStr],
+    () => outwardOrders.filter((o) => isWithinRange(o.pickedAt, fromDateStr, toDateStr)),
+    [outwardOrders, fromDateStr, toDateStr],
   );
   const todayPacked = useMemo(
-    () => outwardOrders.filter((o) => isOnDate(o.packedAt, selectedDateStr)),
-    [outwardOrders, selectedDateStr],
+    () => outwardOrders.filter((o) => isWithinRange(o.packedAt, fromDateStr, toDateStr)),
+    [outwardOrders, fromDateStr, toDateStr],
   );
   const todayDispatched = useMemo(
-    () => outwardOrders.filter((o) => isOnDate(o.dispatchedAt, selectedDateStr)),
-    [outwardOrders, selectedDateStr],
+    () => outwardOrders.filter((o) => isWithinRange(o.dispatchedAt, fromDateStr, toDateStr)),
+    [outwardOrders, fromDateStr, toDateStr],
   );
 
   const totalOutwardQty = todayOutward.reduce((sum, o) => sum + o.quantity, 0);
@@ -133,8 +136,8 @@ export const TodayOperations = memo(function TodayOperations() {
   const totalDispatchedQty = todayDispatched.reduce((sum, o) => sum + o.quantity, 0);
 
   const todayMovements = useMemo(
-    () => movements.filter((m) => isOnDate(m.createdAt, selectedDateStr)).slice(0, 50),
-    [movements, selectedDateStr],
+    () => movements.filter((m) => isWithinRange(m.createdAt, fromDateStr, toDateStr)).slice(0, 500),
+    [movements, fromDateStr, toDateStr],
   );
   const inwardMovements = todayMovements.filter((m) => m.quantityChange > 0);
   const outwardMovements = todayMovements.filter((m) => m.quantityChange < 0);
@@ -145,10 +148,10 @@ export const TodayOperations = memo(function TodayOperations() {
   const packedPct = Math.round((todayPacked.length / pipelineTotal) * 100);
   const dispatchedPct = Math.round((todayDispatched.length / pipelineTotal) * 100);
 
-  const isToday = selectedDateStr === todayStr();
+  const isToday = fromDateStr === todayStr() && toDateStr === todayStr();
   const displayLabel = isToday
-    ? format(selectedDate, "EEEE, dd MMMM yyyy") + " (Today)"
-    : format(selectedDate, "EEEE, dd MMMM yyyy");
+    ? format(fromDate, "EEEE, dd MMMM yyyy") + " (Today)"
+    : `${format(fromDate, "dd MMM yyyy")} - ${format(toDate, "dd MMM yyyy")}`;
 
   const exportToExcel = useCallback(() => {
     try {
@@ -194,11 +197,11 @@ export const TodayOperations = memo(function TodayOperations() {
       XLSX.utils.book_append_sheet(wb, wsMovements, "Stock Movements");
 
       // Save
-      XLSX.writeFile(wb, `Operations_${selectedDateStr}.xlsx`);
+      XLSX.writeFile(wb, `Operations_${fromDateStr}_to_${toDateStr}.xlsx`);
     } catch (error) {
       toast.error("Failed to export Excel file.");
     }
-  }, [todayInvoices, todayOutward, todayMovements, selectedDateStr]);
+  }, [todayInvoices, todayOutward, todayMovements, fromDateStr, toDateStr]);
 
   return (
     <OperationsPage
@@ -233,7 +236,7 @@ export const TodayOperations = memo(function TodayOperations() {
                 variant="outline"
                 leftIcon={<RefreshCw size={14} />}
                 loading={isLoading}
-                onClick={() => void loadData(selectedDateStr)}
+                onClick={() => void loadData(fromDateStr, toDateStr)}
               >
                 Refresh
               </Button>
@@ -268,47 +271,111 @@ export const TodayOperations = memo(function TodayOperations() {
               </Text>
             </Group>
 
-            <input
-              type="date"
-              value={selectedDateStr}
-              max={todayStr()}
-              onChange={(e) => {
-                if (e.target.value) {
-                  const [y, mo, d] = e.target.value.split("-").map(Number);
-                  setSelectedDate(new Date(y, mo - 1, d));
-                }
-              }}
-              style={{
-                background: "rgba(2,6,23,0.7)",
-                border: "1.5px solid rgba(14,165,233,0.5)",
-                color: "white",
-                fontWeight: 800,
-                borderRadius: 8,
-                padding: "6px 14px",
-                fontSize: 13,
-                outline: "none",
-                cursor: "pointer",
-                colorScheme: "dark",
-                minWidth: 155,
-              }}
-            />
-
-            <Text size="11px" c="dimmed">
-              {isToday
-                ? "Showing data for today. Pick a past date to view historical records."
-                : `Showing all records from ${displayLabel}.`}
-            </Text>
-
-            {!isToday && (
+            <Group gap="xs">
+              <Button
+                size="xs"
+                variant={isToday ? "filled" : "light"}
+                color="cyan"
+                onClick={() => {
+                  setFromDate(new Date());
+                  setToDate(new Date());
+                }}
+              >
+                Today
+              </Button>
               <Button
                 size="xs"
                 variant="light"
                 color="cyan"
-                onClick={() => setSelectedDate(new Date())}
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 7);
+                  setFromDate(d);
+                  setToDate(new Date());
+                }}
               >
-                Back to Today
+                7 Days
               </Button>
-            )}
+              <Button
+                size="xs"
+                variant="light"
+                color="cyan"
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 30);
+                  setFromDate(d);
+                  setToDate(new Date());
+                }}
+              >
+                30 Days
+              </Button>
+              <Button
+                size="xs"
+                variant="light"
+                color="cyan"
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 90);
+                  setFromDate(d);
+                  setToDate(new Date());
+                }}
+              >
+                90 Days
+              </Button>
+            </Group>
+
+            <Group gap="xs" align="center">
+              <input
+                type="date"
+                value={fromDateStr}
+                max={toDateStr}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [y, mo, d] = e.target.value.split("-").map(Number);
+                    setFromDate(new Date(y, mo - 1, d));
+                  }
+                }}
+                style={{
+                  background: "rgba(2,6,23,0.7)",
+                  border: "1.5px solid rgba(14,165,233,0.5)",
+                  color: "white",
+                  fontWeight: 800,
+                  borderRadius: 8,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  outline: "none",
+                  colorScheme: "dark",
+                }}
+              />
+              <Text c="dimmed" size="xs">to</Text>
+              <input
+                type="date"
+                value={toDateStr}
+                min={fromDateStr}
+                max={todayStr()}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    const [y, mo, d] = e.target.value.split("-").map(Number);
+                    setToDate(new Date(y, mo - 1, d));
+                  }
+                }}
+                style={{
+                  background: "rgba(2,6,23,0.7)",
+                  border: "1.5px solid rgba(14,165,233,0.5)",
+                  color: "white",
+                  fontWeight: 800,
+                  borderRadius: 8,
+                  padding: "6px 10px",
+                  fontSize: 12,
+                  outline: "none",
+                  colorScheme: "dark",
+                }}
+              />
+            </Group>
+
+            <Text size="11px" c="dimmed">
+              Showing records from {displayLabel}
+            </Text>
           </Group>
         </Paper>
 

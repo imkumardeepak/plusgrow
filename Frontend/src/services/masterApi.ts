@@ -489,6 +489,8 @@ export interface CreateOutwardOrderItemDto {
 export interface OutwardOrderFilters {
   search?: string;
   status?: string;
+  fromDate?: string;
+  toDate?: string;
   page?: number;
   pageSize?: number;
 }
@@ -1309,9 +1311,10 @@ export const productQuantitiesApi = {
     return response.data.data || [];
   },
 
-  getMovements: async (search?: string): Promise<ProductStockMovementRecord[]> => {
-    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  getMovements: async (params?: { search?: string, fromDate?: string, toDate?: string }): Promise<ProductStockMovementRecord[]> => {
+    const query = params ? `?${new URLSearchParams(params as any).toString()}` : "";
     const response = await api.get<ApiResponse<ProductStockMovementRecord[]>>(`/productquantities/movements${query}`);
+    if (!response.data.success) throw new Error(response.data.message || "Failed to fetch stock movements");
     return response.data.data || [];
   },
 

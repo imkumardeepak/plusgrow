@@ -96,7 +96,10 @@ public class ProductQuantitiesController : BaseController
     }
 
     [HttpGet("movements")]
-    public async Task<ActionResult<ApiResponse<List<ProductStockMovementDto>>>> GetMovements([FromQuery] string? search)
+    public async Task<ActionResult<ApiResponse<List<ProductStockMovementDto>>>> GetMovements(
+        [FromQuery] string? search,
+        [FromQuery] string? fromDate = null,
+        [FromQuery] string? toDate = null)
     {
         var query = _context.ProductStockMovements
             .Include(x => x.Product)
@@ -113,9 +116,14 @@ public class ProductQuantitiesController : BaseController
                 (x.PerformedByName != null && x.PerformedByName.ToLower().Contains(normalized)));
         }
 
+        if (DateTime.TryParse(fromDate, out var fromD) && DateTime.TryParse(toDate, out var toD))
+        {
+            query = query.Where(x => x.CreatedAt.Date >= fromD.Date && x.CreatedAt.Date <= toD.Date);
+        }
+
         var rows = await query
             .OrderByDescending(x => x.CreatedAt)
-            .Take(200)
+            .Take(2000)
             .ToListAsync();
 
         return Success(rows.Select(MapMovement).ToList());

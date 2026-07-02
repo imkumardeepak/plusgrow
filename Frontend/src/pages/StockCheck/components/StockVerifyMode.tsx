@@ -190,7 +190,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
       const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
         poInvoicesApi.getAll({ search: resolvedSku, pageSize: 100 }),
-        productQuantitiesApi.getMovements(resolvedSku),
+        productQuantitiesApi.getMovements({ search: resolvedSku }),
         outwardOrdersApi.getSalesOrders({ search: resolvedSku, pageSize: 100 }),
       ]);
       const invoices = invoiceRows
