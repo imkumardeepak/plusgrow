@@ -2258,6 +2258,7 @@ public class OutwardOrdersController : BaseController
         {
             Id = row.Id,
             OrderNumber = salesOrder?.OrderNumber ?? string.Empty,
+            ReferenceNumber = salesOrder?.ReferenceNumber,
             SalesOrderId = row.SalesOrderId,
             SalesOrderStatus = salesOrder?.Status ?? row.Status,
             SalesOrderNotes = salesOrder?.Notes,

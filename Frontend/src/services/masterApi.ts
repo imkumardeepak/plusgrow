@@ -409,6 +409,7 @@ export interface PutAwayScanAssignmentResult {
 export interface OutwardOrder {
   id: number;
   orderNumber: string;
+  referenceNumber?: string | null;
   salesOrderId: number;
   salesOrderStatus: "Open" | "Picking" | "Picked" | "Packed" | "Dispatched" | "Canceled";
   salesOrderNotes?: string | null;

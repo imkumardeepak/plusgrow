@@ -171,7 +171,7 @@ export const TodayOperations = memo(function TodayOperations() {
         "SKU": order.skuCode,
         "Qty": order.quantity,
         "Ownership": order.customerName,
-        "Ref No": order.orderNumber,
+        "Ref No": order.referenceNumber || order.orderNumber,
         "Tracking No": order.trackingNumber || "",
         "Status": order.status,
         "Notes": order.notes || "",
@@ -519,7 +519,7 @@ export const TodayOperations = memo(function TodayOperations() {
                               {order.skuCode}
                             </Text>
                             <Text size="10px" c="dimmed" truncate>
-                              {order.customerName} &middot; {order.orderNumber}
+                              {order.customerName} &middot; {order.referenceNumber || order.orderNumber}
                             </Text>
                           </Box>
                           <Badge size="xs" variant="filled" color={statusColor(order.status)} c="slate.9" fw={900}>
@@ -585,7 +585,7 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="11px" truncate maw={120}>{order.customerName || "—"}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="11px" fw={700} c="blue.3">{order.orderNumber}</Text>
+                            <Text size="11px" fw={700} c="blue.3">{order.referenceNumber || order.orderNumber}</Text>
                           </Table.Td>
                           <Table.Td>
                             {order.trackingNumber ? (
