@@ -169,14 +169,12 @@ export const TodayOperations = memo(function TodayOperations() {
       // 2. Outward Sheet
       const outwardData = todayOutward.map((order) => ({
         "SKU": order.skuCode,
-        "Customer": order.customerName,
         "Qty": order.quantity,
-        "Picked Time": formatTime(order.pickedAt),
-        "Packed Time": formatTime(order.packedAt),
-        "Dispatched Time": formatTime(order.dispatchedAt),
-        "Tracking / AWB": order.trackingNumber || "",
-        "Notes/Remarks": order.notes || "",
+        "Ownership": order.customerName,
+        "Ref No": order.orderNumber,
+        "Tracking No": order.trackingNumber || "",
         "Status": order.status,
+        "Notes": order.notes || "",
       }));
       const wsOutward = XLSX.utils.json_to_sheet(outwardData);
       XLSX.utils.book_append_sheet(wb, wsOutward, "Outward Sales");
@@ -566,14 +564,12 @@ export const TodayOperations = memo(function TodayOperations() {
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>SKU</Table.Th>
-                        <Table.Th>Customer</Table.Th>
                         <Table.Th style={{ textAlign: "right" }}>Qty</Table.Th>
-                        <Table.Th>Picked</Table.Th>
-                        <Table.Th>Packed</Table.Th>
-                        <Table.Th>Dispatched</Table.Th>
-                        <Table.Th>Tracking / AWB</Table.Th>
-                        <Table.Th>Notes</Table.Th>
+                        <Table.Th>Ownership</Table.Th>
+                        <Table.Th>Ref No</Table.Th>
+                        <Table.Th>Tracking No</Table.Th>
                         <Table.Th>Status</Table.Th>
+                        <Table.Th>Notes</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -582,20 +578,14 @@ export const TodayOperations = memo(function TodayOperations() {
                           <Table.Td>
                             <Text size="11px" fw={900} ff="monospace" c="teal.3">{order.skuCode}</Text>
                           </Table.Td>
-                          <Table.Td>
-                            <Text size="11px" truncate maw={120}>{order.customerName}</Text>
-                          </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
                             <Text size="11px" fw={900} ff="monospace">{order.quantity}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="10px" c="cyan.3">{formatTime(order.pickedAt)}</Text>
+                            <Text size="11px" truncate maw={120}>{order.customerName || "—"}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="10px" c="violet.3">{formatTime(order.packedAt)}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="10px" c="green.3">{formatTime(order.dispatchedAt)}</Text>
+                            <Text size="11px" fw={700} c="blue.3">{order.orderNumber}</Text>
                           </Table.Td>
                           <Table.Td>
                             {order.trackingNumber ? (
@@ -607,12 +597,12 @@ export const TodayOperations = memo(function TodayOperations() {
                             )}
                           </Table.Td>
                           <Table.Td>
-                            <Text size="10px" c="dimmed" truncate maw={80}>{order.notes || "-"}</Text>
-                          </Table.Td>
-                          <Table.Td>
                             <Badge size="xs" variant="filled" color={statusColor(order.status)} c="slate.9" fw={900}>
                               {order.status}
                             </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="10px" c="dimmed" truncate maw={150}>{order.notes || "-"}</Text>
                           </Table.Td>
                         </Table.Tr>
                       ))}

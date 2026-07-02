@@ -793,7 +793,7 @@ export const Inward = memo(function Inward() {
     return `${product.sku || "NO-SKU"} - ${product.name}`;
   };
 
-  const handleAddInvoiceLine = () => {
+  const handleAddInvoiceLine = async () => {
     if (!invoiceForm.productId) {
       toast.error("Select product first");
       return;
@@ -803,6 +803,22 @@ export const Inward = memo(function Inward() {
       toast.error("Billed quantity must be greater than zero");
       return;
     }
+
+    let product = products.find((item) => item.id === invoiceForm.productId);
+    if (!product) {
+      try {
+        product = await productsApi.getById(invoiceForm.productId);
+        setProducts((current) => {
+          if (current.some((item) => item.id === product!.id)) return current;
+          return [...current, product!];
+        });
+      } catch {
+        // Fallback
+      }
+    }
+
+    const sku = product?.sku || "";
+    const productName = product?.name || `Product #${invoiceForm.productId}`;
 
     const existing = invoiceLines.find(
       (line) =>
@@ -823,6 +839,8 @@ export const Inward = memo(function Inward() {
         {
           id: `line-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           productId: invoiceForm.productId,
+          sku,
+          productName,
           billedQty: invoiceForm.billedQty,
           mrp: invoiceForm.mrp ?? null,
         },
@@ -1005,6 +1023,8 @@ export const Inward = memo(function Inward() {
           nextLines.push({
             id: `line-${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
             productId: lookup.product.id,
+            sku: lookup.product.sku || "",
+            productName: lookup.product.name,
             billedQty: quantity,
             mrp: Number.isFinite(mrp) ? mrp : lookup.product.mrp ?? null,
           });

@@ -22,6 +22,8 @@ export type InwardEntryMode = "manufacturer" | "thirdParty";
 export type InvoiceLineDraft = {
   id: string;
   productId: number;
+  sku: string;
+  productName: string;
   billedQty: number;
   mrp?: number | null;
 };
@@ -404,7 +406,7 @@ export function InwardInvoiceModal({
                               <Group justify="space-between" wrap="nowrap">
                                 <Box style={{ minWidth: 0 }}>
                                   <Text size="xs" fw={800} lineClamp={1}>
-                                    {index + 1}. {getProductLabel(line.productId)}
+                                    {index + 1}. {line.sku || "NO-SKU"} - {line.productName}
                                   </Text>
                                   <Text size="11px" c="dimmed">
                                     Billed Qty: {line.billedQty} · MRP:{" "}
