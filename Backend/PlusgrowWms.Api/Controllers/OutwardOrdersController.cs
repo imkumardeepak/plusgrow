@@ -35,6 +35,7 @@ public class OutwardOrdersController : BaseController
             .Include(x => x.Items)
                 .ThenInclude(x => x.Product)
             .AsNoTracking()
+            .Where(x => x.IsReadyForProcessing)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -79,6 +80,7 @@ public class OutwardOrdersController : BaseController
             .Include(x => x.SalesOrder)
             .Include(x => x.Product)
             .AsNoTracking()
+            .Where(x => x.SalesOrder == null || x.SalesOrder.IsReadyForProcessing)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -111,6 +113,62 @@ public class OutwardOrdersController : BaseController
 
         return Success(rows.Select(MapOrder).ToList(), page, pageSize, total);
     }
+
+    [HttpGet("sales-orders/unprocessed")]
+    public async Task<ActionResult<ApiResponse<List<SalesOrderDto>>>> GetUnprocessedSalesOrders([FromQuery] SalesOrderFilterDto filter)
+    {
+        var page = Math.Max(filter.Page, 1);
+        var pageSize = Math.Clamp(filter.PageSize, 1, 500);
+        var query = _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .AsNoTracking()
+            .Where(x => !x.IsReadyForProcessing)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var search = filter.Search.Trim().ToLower();
+            query = query.Where(x =>
+                x.OrderNumber.ToLower().Contains(search) ||
+                x.CustomerName.ToLower().Contains(search) ||
+                x.Status.ToLower().Contains(search) ||
+                (x.Notes != null && x.Notes.ToLower().Contains(search)));
+        }
+
+        var total = await query.CountAsync();
+        var rows = await query
+            .OrderByDescending(x => x.OrderDate)
+            .ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Success(rows.Select(MapSalesOrder).ToList(), page, pageSize, total);
+    }
+
+    [HttpPost("sales-orders/{id}/process")]
+    public async Task<ActionResult<ApiResponse<SalesOrderDto>>> ProcessSalesOrder(long id)
+    {
+        var salesOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+                .ThenInclude(x => x.Product)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (salesOrder == null)
+            return NotFound<SalesOrderDto>("Sales order not found");
+
+        if (salesOrder.IsReadyForProcessing)
+            return BadRequest<SalesOrderDto>("Sales order is already processed");
+
+        salesOrder.IsReadyForProcessing = true;
+        salesOrder.UpdatedAt = DateTime.Now;
+
+        await _context.SaveChangesAsync();
+
+        return Success(MapSalesOrder(salesOrder), "Sales order processed successfully");
+    }
+
 
     [HttpGet("quick-sale-products")]
     public async Task<ActionResult<ApiResponse<List<QuickSaleProductDto>>>> GetQuickSaleProducts([FromQuery] int days = 30, [FromQuery] int limit = 20)

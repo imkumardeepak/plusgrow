@@ -229,6 +229,7 @@ public class TallySyncService : ITallySyncService
             OrderDate = ParseTallyDate(voucher.Date) ?? now.Date,
             CustomerName = NormalizeValue(voucher.PartyName),
             Status = "Open",
+            IsReadyForProcessing = false, // Set to false for Tally sync
             Notes = "Imported from Tally",
             ReferenceNumber = tallyReference,
             CreatedAt = now,

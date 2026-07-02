@@ -1373,13 +1373,22 @@ export const productAllottedLocationsApi = {
 };
 
 export const outwardOrdersApi = {
-  getSalesOrders: async (filters: OutwardOrderFilters = {}): Promise<SalesOrderRecord[]> => {
-    const result = await outwardOrdersApi.getSalesOrderPaged({
-      page: filters.page ?? 1,
-      pageSize: filters.pageSize ?? 500,
-      ...filters,
-    });
-    return result.data;
+  getSalesOrders: async (params?: any): Promise<SalesOrderRecord[]> => {
+    const result = await outwardOrdersApi.getSalesOrderPaged(params);
+    return result.data || [];
+  },
+
+  getUnprocessedSalesOrders: async (params?: any): Promise<SalesOrderRecord[]> => {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+    const response = await api.get<ApiResponse<SalesOrderRecord[]>>(`/outwardorders/sales-orders/unprocessed${query}`);
+    if (!response.data.success) throw new Error(response.data.message || "Failed to fetch unprocessed sales orders");
+    return response.data.data || [];
+  },
+
+  processSalesOrder: async (id: number): Promise<SalesOrderRecord> => {
+    const response = await api.post<ApiResponse<SalesOrderRecord>>(`/outwardorders/sales-orders/${id}/process`);
+    if (!response.data.success) throw new Error(response.data.message || "Failed to process sales order");
+    return response.data.data!;
   },
 
   getSalesOrderPaged: async (filters: OutwardOrderFilters = {}): Promise<PagedResult<SalesOrderRecord>> => {

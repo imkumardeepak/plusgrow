@@ -9,3 +9,4 @@ export { VarianceTable } from "./VarianceTable";
 export { ScanInput } from "./ScanInput";
 export { ModeHeader } from "./ModeHeader";
 export { Info, MetricLabel, MasterLink, ReferenceLink, EmptyInline } from "./SharedComponents";
+export { TallySalesOrderProcessMode } from "./TallySalesOrderProcessMode";

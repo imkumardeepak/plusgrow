@@ -73,8 +73,9 @@ import { StockVerifyMode } from "./StockCheck/components/StockVerifyMode";
 import { TallyDifferenceMode } from "./StockCheck/components/TallyDifferenceMode";
 import { ExcelStockCheckMode } from "./StockCheck/components/ExcelStockCheckMode";
 import { ResellerTallySyncMode } from "./StockCheck/components/ResellerTallySyncMode";
+import { TallySalesOrderProcessMode } from "./StockCheck/components/TallySalesOrderProcessMode";
 
-type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff" | "excel-stock-check" | "reseller-tally";
+type ActiveMode = "hub" | "verify" | "quick-sale" | "location" | "manufacturer" | "product" | "history" | "tally-diff" | "excel-stock-check" | "reseller-tally" | "tally-so-process";
 type CheckSessionStatus = "idle" | "running" | "paused";
 type StockCheckReportStatus = "PAUSED" | "COMPLETED";
 type StockCheckDraft = {
@@ -228,6 +229,7 @@ export const StockCheck = memo(function StockCheck({
       {activeMode === "tally-diff" && <TallyDifferenceMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "excel-stock-check" && <ExcelStockCheckMode onBack={handleBack} isMobile={!!isMobile} />}
       {activeMode === "reseller-tally" && <ResellerTallySyncMode onBack={handleBack} isMobile={!!isMobile} />}
+      {activeMode === "tally-so-process" && <TallySalesOrderProcessMode onBack={handleBack} isMobile={!!isMobile} />}
     </>
   );
 });
@@ -278,6 +280,15 @@ function StockCheckHub({
         description: "View most frequently sold products without leaving Stock Check.",
         color: "rgba(244, 114, 182, 0.8)",
         gradient: "linear-gradient(135deg, rgba(244,114,182,0.16) 0%, rgba(15,23,42,0.6) 100%)",
+        small: true,
+      },
+      {
+        mode: "tally-so-process",
+        icon: FileText,
+        title: "Tally SO Process",
+        description: "Process imported Sales Orders from Tally before dispatch.",
+        color: "rgba(16, 185, 129, 0.8)",
+        gradient: "linear-gradient(135deg, rgba(16,185,129,0.16) 0%, rgba(15,23,42,0.6) 100%)",
         small: true,
       },
       {

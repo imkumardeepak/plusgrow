@@ -22,6 +22,9 @@ public class SalesOrder
     [Column("status")]
     public string Status { get; set; } = "Open";
 
+    [Column("is_ready_for_processing")]
+    public bool IsReadyForProcessing { get; set; } = true;
+
     [Column("notes")]
     public string? Notes { get; set; }
 
