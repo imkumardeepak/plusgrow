@@ -78,6 +78,7 @@ public class PlusgrowDbContext : DbContext
     public DbSet<TallySyncSkippedOrder> TallySyncSkippedOrders => Set<TallySyncSkippedOrder>();
     public DbSet<ExportPathConfig> ExportPathConfigs => Set<ExportPathConfig>();
     public DbSet<ResellerSyncedOrder> ResellerSyncedOrders => Set<ResellerSyncedOrder>();
+    public DbSet<ResellerSyncedOrderItem> ResellerSyncedOrderItems => Set<ResellerSyncedOrderItem>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

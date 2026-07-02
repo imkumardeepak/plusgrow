@@ -1,7 +1,22 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace PlusgrowWms.Api.Models
 {
+    [Owned]
+    public class ResellerAddressDb
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Line1 { get; set; } = string.Empty;
+        public string Line2 { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public long Pincode { get; set; }
+        public long ContactNo { get; set; }
+    }
+
     public class ResellerSyncedOrder
     {
         public int Id { get; set; }
@@ -12,10 +27,26 @@ namespace PlusgrowWms.Api.Models
         public string OrderDate { get; set; } = string.Empty;
         
         public string CustomerName { get; set; } = string.Empty;
+
+        // --- New API fields ---
+        public string VoucherType { get; set; } = string.Empty;
+        public string CommonCostCentre { get; set; } = string.Empty;
         
-        public DateTime SyncedAt { get; set; } = DateTime.UtcNow;
+        public ResellerAddressDb? BillingAddress { get; set; }
+        public ResellerAddressDb? ShippingAddress { get; set; }
         
-        public string Status { get; set; } = "Success"; // Or "Failed"
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal CompositeShippingCharges { get; set; }
+        
+        public List<ResellerSyncedOrderItem> Items { get; set; } = new List<ResellerSyncedOrderItem>();
+        // ----------------------
+
+        // Tracking fields
+        public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? SyncedAt { get; set; }
+        
+        public string Status { get; set; } = "Pending"; // "Pending", "Success", "Failed"
         
         public string? ErrorMessage { get; set; }
     }

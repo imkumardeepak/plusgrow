@@ -34,22 +34,19 @@ namespace PlusgrowWms.Api.Controllers
         {
             try
             {
-                var pendingOrders = await _apiClient.GetPendingOrdersAsync();
+                var pendingOrders = await _context.ResellerSyncedOrders
+                    .Include(o => o.Items)
+                    .OrderByDescending(o => o.FetchedAt)
+                    .ToListAsync();
                 
-                // For manual UI sync, we might want to know if it's already synced in DB
-                var orderNos = pendingOrders.Select(o => o.OrderNo).ToList();
-                var existingSyncs = await _context.ResellerSyncedOrders
-                    .Where(o => orderNos.Contains(o.OrderNo))
-                    .ToDictionaryAsync(o => o.OrderNo, o => o.Status);
-
                 var response = pendingOrders.Select(o => new
                 {
                     o.OrderNo,
                     o.OrderDate,
-                    CustomerName = o.BillingAddress?.Name ?? "Cash",
+                    CustomerName = o.CustomerName,
                     o.CompositeShippingCharges,
                     TotalItems = o.Items.Count,
-                    SyncStatus = existingSyncs.ContainsKey(o.OrderNo) ? existingSyncs[o.OrderNo] : "Pending"
+                    SyncStatus = o.Status
                 });
 
                 return Ok(new { success = true, data = response });
@@ -65,34 +62,57 @@ namespace PlusgrowWms.Api.Controllers
         {
             try
             {
-                // Fetch all pending to find the specific order
-                // (In a real app, you might have an endpoint to fetch a single order, but we only have GetPendingOrders)
-                var pendingOrders = await _apiClient.GetPendingOrdersAsync();
-                var targetOrder = pendingOrders.FirstOrDefault(o => o.OrderNo == orderNo);
+                var existing = await _context.ResellerSyncedOrders
+                    .Include(o => o.Items)
+                    .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
 
-                if (targetOrder == null)
+                if (existing == null)
                 {
-                    return NotFound(new { success = false, message = "Order not found in pending list." });
+                    return NotFound(new { success = false, message = "Order not found in local database." });
                 }
 
+                // Map local database entity back to ResellerPendingOrder DTO for TallyService
+                var targetOrder = new PlusgrowWms.Api.DTOs.ResellerPendingOrder
+                {
+                    OrderNo = existing.OrderNo,
+                    OrderDate = existing.OrderDate,
+                    VoucherType = existing.VoucherType,
+                    CommonCostCentre = existing.CommonCostCentre,
+                    CompositeShippingCharges = existing.CompositeShippingCharges,
+                    BillingAddress = existing.BillingAddress != null ? new PlusgrowWms.Api.DTOs.ResellerAddress
+                    {
+                        Name = existing.BillingAddress.Name,
+                        Line1 = existing.BillingAddress.Line1,
+                        Line2 = existing.BillingAddress.Line2,
+                        City = existing.BillingAddress.City,
+                        State = existing.BillingAddress.State,
+                        Pincode = existing.BillingAddress.Pincode,
+                        ContactNo = existing.BillingAddress.ContactNo
+                    } : null,
+                    ShippingAddress = existing.ShippingAddress != null ? new PlusgrowWms.Api.DTOs.ResellerAddress
+                    {
+                        Name = existing.ShippingAddress.Name,
+                        Line1 = existing.ShippingAddress.Line1,
+                        Line2 = existing.ShippingAddress.Line2,
+                        City = existing.ShippingAddress.City,
+                        State = existing.ShippingAddress.State,
+                        Pincode = existing.ShippingAddress.Pincode,
+                        ContactNo = existing.ShippingAddress.ContactNo
+                    } : null,
+                    Items = existing.Items.Select(i => new PlusgrowWms.Api.DTOs.ResellerOrderItem
+                    {
+                        Sku = i.Sku,
+                        Quantity = i.Quantity,
+                        Rate = i.Rate
+                    }).ToList()
+                };
+
                 string tallyResponse = string.Empty;
-                var existing = await _context.ResellerSyncedOrders.FirstOrDefaultAsync(o => o.OrderNo == orderNo);
 
                 try
                 {
                     // Post to Tally
                     tallyResponse = await _tallyService.PostSalesOrderAsync(targetOrder);
-
-                    if (existing == null)
-                    {
-                        existing = new ResellerSyncedOrder
-                        {
-                            OrderNo = targetOrder.OrderNo,
-                            OrderDate = targetOrder.OrderDate,
-                            CustomerName = targetOrder.BillingAddress?.Name ?? "Unknown"
-                        };
-                        _context.ResellerSyncedOrders.Add(existing);
-                    }
 
                     existing.SyncedAt = DateTime.UtcNow;
                     existing.Status = "Success";
@@ -100,17 +120,6 @@ namespace PlusgrowWms.Api.Controllers
                 }
                 catch (Exception syncEx)
                 {
-                    if (existing == null)
-                    {
-                        existing = new ResellerSyncedOrder
-                        {
-                            OrderNo = targetOrder.OrderNo,
-                            OrderDate = targetOrder.OrderDate,
-                            CustomerName = targetOrder.BillingAddress?.Name ?? "Unknown"
-                        };
-                        _context.ResellerSyncedOrders.Add(existing);
-                    }
-
                     existing.SyncedAt = DateTime.UtcNow;
                     existing.Status = "Failed";
                     existing.ErrorMessage = syncEx.Message;
