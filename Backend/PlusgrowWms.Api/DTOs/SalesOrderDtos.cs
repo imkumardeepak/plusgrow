@@ -38,6 +38,8 @@ public class SalesOrderFilterDto
 {
     public string? Search { get; set; }
     public string? Status { get; set; }
+    public string? FromDate { get; set; }
+    public string? ToDate { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 25;
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { format, subDays } from "date-fns";
 import {
   Card,
   Group,
@@ -28,13 +29,15 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
   const [orders, setOrders] = useState<SalesOrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState<string>(format(subDays(new Date(), 10), "yyyy-MM-dd"));
+  const [toDate, setToDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [selectedOrder, setSelectedOrder] = useState<SalesOrderRecord | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const data = await outwardOrdersApi.getUnprocessedSalesOrders({ search });
+      const data = await outwardOrdersApi.getUnprocessedSalesOrders({ search, fromDate, toDate });
       setOrders(data);
     } catch (err: any) {
       toast.error(err.message || "Failed to load unprocessed orders");
@@ -48,7 +51,7 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
       loadOrders();
     }, 300);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, fromDate, toDate]);
 
   const handleProcess = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation(); // Prevent opening modal
@@ -71,24 +74,65 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
     <Stack gap="lg" h="100%">
       <ModeHeader title="Tally Sales Order Process" icon={FileText} onBack={onBack} isMobile={isMobile} />
 
-      <Group justify="space-between" align="center">
-        <div className="relative max-w-sm w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Search by order no, customer, sku..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-          />
-        </div>
+      <Group justify="space-between" align="center" wrap="wrap">
+        <Group gap="sm" align="center" style={{ flex: 1 }}>
+          <div className="relative max-w-sm w-full" style={{ flex: isMobile ? "1 1 100%" : undefined }}>
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search by order no, customer, sku..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+            />
+          </div>
+
+          <Group gap="xs">
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              style={{
+                background: "rgba(2,6,23,0.7)",
+                border: "1px solid rgba(51,65,85,1)",
+                color: "white",
+                borderRadius: 8,
+                padding: "6px 12px",
+                fontSize: 14,
+                outline: "none",
+                cursor: "pointer",
+                colorScheme: "dark",
+              }}
+            />
+            <Text c="dimmed" size="xs">to</Text>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              style={{
+                background: "rgba(2,6,23,0.7)",
+                border: "1px solid rgba(51,65,85,1)",
+                color: "white",
+                borderRadius: 8,
+                padding: "6px 12px",
+                fontSize: 14,
+                outline: "none",
+                cursor: "pointer",
+                colorScheme: "dark",
+              }}
+            />
+          </Group>
+        </Group>
+
         <ActionIcon variant="subtle" color="cyan" onClick={loadOrders} loading={loading}>
           <ExternalLink size={18} />
         </ActionIcon>
       </Group>
+
+      <Box style={{ opacity: loading && orders.length > 0 ? 0.5 : 1, transition: "opacity 0.2s ease" }}>
 
       {loading && orders.length === 0 ? (
         <Center h={200}>
@@ -249,7 +293,8 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
             </Group>
           </Stack>
         )}
-      </Modal>
+        </Modal>
+      </Box>
     </Stack>
   );
 }

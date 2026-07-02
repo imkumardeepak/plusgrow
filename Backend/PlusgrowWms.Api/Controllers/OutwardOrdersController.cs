@@ -136,6 +136,15 @@ public class OutwardOrdersController : BaseController
                 (x.Notes != null && x.Notes.ToLower().Contains(search)));
         }
 
+        if (DateTime.TryParse(filter.FromDate, out var fromDate))
+        {
+            query = query.Where(x => x.OrderDate.Date >= fromDate.Date);
+        }
+        if (DateTime.TryParse(filter.ToDate, out var toDate))
+        {
+            query = query.Where(x => x.OrderDate.Date <= toDate.Date);
+        }
+
         var total = await query.CountAsync();
         var rows = await query
             .OrderByDescending(x => x.OrderDate)
