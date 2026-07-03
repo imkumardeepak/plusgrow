@@ -45,7 +45,7 @@ public class TallySyncService : ITallySyncService
 
         int added = 0, skipped = 0;
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
-        var productsByName = await GetUniqueProductsByNameAsync(ct);
+        var productsBySku = await GetUniqueProductsBySkuAsync(ct);
 
         foreach (var v in vouchers)
         {
@@ -57,13 +57,13 @@ public class TallySyncService : ITallySyncService
                 continue;
             }
 
-            var mapResult = MapSalesOrderItems(v.Items, productsByName);
+            var mapResult = MapSalesOrderItems(v.Items, productsBySku);
             if (mapResult.Items is null || mapResult.Items.Count == 0)
             {
                 _logger.LogWarning("Tally sales order {OrderNumber} skipped because one or more products were not matched.", tallyReference);
 
                 var unmatchedNames = mapResult.UnmatchedProducts;
-                var details = $"Unmatched products: {string.Join(", ", unmatchedNames)}";
+                var details = $"Unmatched SKUs: {string.Join(", ", unmatchedNames)}";
                 
                 await UpsertSkippedOrderAsync(v, tallyReference, "ProductNotFound", details, unmatchedNames, ct);
 
@@ -238,15 +238,15 @@ public class TallySyncService : ITallySyncService
         };
     }
 
-    private async Task<Dictionary<string, Product>> GetUniqueProductsByNameAsync(CancellationToken ct)
+    private async Task<Dictionary<string, Product>> GetUniqueProductsBySkuAsync(CancellationToken ct)
     {
         var products = await _context.Products
             .AsNoTracking()
-            .Where(x => x.Name != "")
+            .Where(x => x.Sku != null && x.Sku != "")
             .ToListAsync(ct);
 
         return products
-            .GroupBy(x => NormalizeKey(x.Name))
+            .GroupBy(x => NormalizeKey(x.Sku))
             .Where(group => !string.IsNullOrWhiteSpace(group.Key) && group.Count() == 1)
             .ToDictionary(group => group.Key, group => group.First());
     }
@@ -254,11 +254,11 @@ public class TallySyncService : ITallySyncService
     /// <summary>
     /// Result of mapping Tally voucher items to outward orders.
     /// Items is null when one or more products could not be matched.
-    /// UnmatchedProducts contains the Tally stock item names that had no WMS product match.
+    /// UnmatchedProducts contains the Tally stock item SKUs that had no WMS product match.
     /// </summary>
     private record MapResult(List<OutwardOrder>? Items, List<string> UnmatchedProducts);
 
-    private static MapResult MapSalesOrderItems(List<TallyERPWebApi.Model.ItemDetails>? items, Dictionary<string, Product> productsByName)
+    private static MapResult MapSalesOrderItems(List<TallyERPWebApi.Model.ItemDetails>? items, Dictionary<string, Product> productsBySku)
     {
         if (items is null || items.Count == 0)
             return new MapResult(null, new List<string>());
@@ -269,7 +269,7 @@ public class TallySyncService : ITallySyncService
         foreach (var item in items)
         {
             var productKey = NormalizeKey(item.StockItemName);
-            if (!productsByName.TryGetValue(productKey, out var product))
+            if (!productsBySku.TryGetValue(productKey, out var product))
             {
                 unmatched.Add(item.StockItemName ?? "Unknown");
                 continue;
@@ -381,15 +381,15 @@ public class TallySyncService : ITallySyncService
             ? new List<TallyERPWebApi.Model.ItemDetails>() 
             : JsonSerializer.Deserialize<List<TallyERPWebApi.Model.ItemDetails>>(skipped.RawItemsJson) ?? new List<TallyERPWebApi.Model.ItemDetails>();
 
-        var productsByName = await GetUniqueProductsByNameAsync(ct);
-        var mapResult = MapSalesOrderItems(items, productsByName);
+        var productsBySku = await GetUniqueProductsBySkuAsync(ct);
+        var mapResult = MapSalesOrderItems(items, productsBySku);
 
         if (mapResult.Items is null || mapResult.Items.Count == 0)
         {
             // Still fails, update the unmatched products just in case they changed
             skipped.UnmatchedProducts = mapResult.UnmatchedProducts != null ? JsonSerializer.Serialize(mapResult.UnmatchedProducts) : null;
             skipped.SkipReason = "ProductNotFound";
-            skipped.Details = $"Unmatched products: {string.Join(", ", mapResult.UnmatchedProducts ?? new List<string>())}";
+            skipped.Details = $"Unmatched SKUs: {string.Join(", ", mapResult.UnmatchedProducts ?? new List<string>())}";
             await _context.SaveChangesAsync(ct);
             throw new Exception($"Retry failed: {skipped.Details}");
         }
