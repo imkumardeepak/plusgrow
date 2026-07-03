@@ -61,6 +61,7 @@ export type DirectPickCartItem = {
   locationCode: string;
   binCode?: string;
   quantity: number;
+  availableQuantity: number;
   mrp: number | null;
   importDate: string | null;
   lookupResult: ProductLookupResult;
@@ -128,6 +129,92 @@ const getCartonQty = (
   const norm = normalizeProductScan(cartonQr);
   if (!norm || normalizeProductScan(scan) !== norm) return 0;
   return cartonPerItem && cartonPerItem > 0 ? cartonPerItem : 1;
+};
+
+const splitLocationCode = (rawLocationCode: string) => {
+  const [locationCode = "", binCode] = rawLocationCode.split("::");
+  return { locationCode, binCode };
+};
+
+const getDirectItemLocationKey = (item: DirectPickCartItem) =>
+  item.binCode ? `${item.locationCode}::${item.binCode}` : item.locationCode;
+
+const createDirectItemId = () => Math.random().toString(36).slice(7);
+
+const allocateDirectPickScan = (
+  currentItems: DirectPickCartItem[],
+  result: ProductLookupResult,
+  pickQty: number,
+  parsed: StickerScan,
+) => {
+  const productId = result.product.id;
+  const locations = result.locations.filter((entry) => entry.quantity > 0);
+  let remainingQuantity = pickQty;
+  let allocatedQuantity = 0;
+  let lastLocationCode = "";
+  let nextItems = currentItems;
+
+  for (const location of locations) {
+    if (remainingQuantity <= 0) break;
+
+    const rawLocationCode = location.locationCode || "";
+    const { locationCode, binCode } = splitLocationCode(rawLocationCode);
+    if (!locationCode) continue;
+
+    const reservedAtLocation = nextItems.reduce((sum, item) => {
+      const sameProduct = item.product.id === productId;
+      const sameLocation =
+        getDirectItemLocationKey(item).toLowerCase() === rawLocationCode.toLowerCase();
+      return sameProduct && sameLocation ? sum + item.quantity : sum;
+    }, 0);
+    const availableToReserve = Math.max(location.quantity - reservedAtLocation, 0);
+    if (availableToReserve <= 0) continue;
+
+    const reserveQty = Math.min(availableToReserve, remainingQuantity);
+    const existingIndex = nextItems.findIndex((item) => {
+      const sameProduct = item.product.id === productId;
+      const sameLocation =
+        getDirectItemLocationKey(item).toLowerCase() === rawLocationCode.toLowerCase();
+      return sameProduct && sameLocation;
+    });
+
+    if (existingIndex >= 0) {
+      nextItems = nextItems.map((item, index) =>
+        index === existingIndex
+          ? {
+              ...item,
+              quantity: item.quantity + reserveQty,
+              availableQuantity: location.quantity,
+              lookupResult: result,
+            }
+          : item,
+      );
+    } else {
+      nextItems = [{
+        id: createDirectItemId(),
+        product: result.product,
+        skuCode: result.product.sku || result.product.alias || parsed.sku,
+        locationCode,
+        binCode,
+        quantity: reserveQty,
+        availableQuantity: location.quantity,
+        mrp: parsed.mrp,
+        importDate: parsed.importDate,
+        lookupResult: result,
+      }, ...nextItems];
+    }
+
+    remainingQuantity -= reserveQty;
+    allocatedQuantity += reserveQty;
+    lastLocationCode = rawLocationCode;
+  }
+
+  return {
+    items: nextItems,
+    allocatedQuantity,
+    remainingQuantity,
+    lastLocationCode,
+  };
 };
 
 const statusColor: Record<string, string> = {
@@ -476,38 +563,21 @@ export const Picking = memo(function Picking() {
       const result = await productsApi.lookup(parsed.sku);
       const cartonQty = getCartonQty(parsed.raw, result.product.cartonQr, result.product.cartonPerItem);
       const pickQty = cartonQty > 0 ? cartonQty : 1;
-      const firstLoc = result.locations.find((e) => e.quantity > 0);
-      
-      const rawLocCode = firstLoc?.locationCode || "";
-      const locParts = rawLocCode.split("::");
-      const locCode = locParts[0];
-      const binCode = locParts.length > 1 ? locParts[1] : undefined;
-      if (!locCode) toast.error("No allotted location found for this product");
+      const allocation = allocateDirectPickScan(directItems, result, pickQty, parsed);
 
-      setDirectItems((cur) => {
-        const idx = cur.findIndex(
-          (i) =>
-            i.product.sku?.toLowerCase() === result.product.sku?.toLowerCase() ||
-            (i.product.alias && i.product.alias.toLowerCase() === result.product.alias?.toLowerCase()),
+      if (allocation.allocatedQuantity <= 0) {
+        toast.error("No remaining allotted location stock found for this product");
+        return;
+      }
+
+      setDirectItems(allocation.items);
+      if (allocation.remainingQuantity > 0) {
+        toast.error(
+          `Only ${allocation.allocatedQuantity} of ${pickQty} unit(s) available across locations`,
         );
-        if (idx >= 0) {
-          return cur.map((i, n) => (n === idx ? { ...i, quantity: i.quantity + pickQty } : i));
-        }
-        return [
-          {
-            id: Math.random().toString(36).slice(7),
-            product: result.product,
-            skuCode: result.product.sku || result.product.alias || parsed.sku,
-            locationCode: locCode,
-            binCode: binCode,
-            quantity: pickQty,
-            mrp: parsed.mrp,
-            importDate: parsed.importDate,
-            lookupResult: result,
-          },
-          ...cur,
-        ];
-      });
+      } else if (allocation.lastLocationCode) {
+        toast.success(`Added ${allocation.allocatedQuantity} unit(s) from ${allocation.lastLocationCode}`);
+      }
       setDirectSkuInput("");
     } catch (err: any) {
       toast.error(err.message || "Product not found");
@@ -515,7 +585,7 @@ export const Picking = memo(function Picking() {
       setIsDirectLoading(false);
       window.setTimeout(() => directRef.current?.focus(), 50);
     }
-  }, [directSkuInput]);
+  }, [directItems, directSkuInput]);
 
   const handleDirectSubmit = async () => {
     if (!directItems.length) { toast.error("Cart is empty"); return; }
@@ -709,6 +779,9 @@ export const Picking = memo(function Picking() {
                         {item.locationCode || "—"}
                         {item.binCode && <span className="ml-1 text-blue-200">[{item.binCode}]</span>}
                       </span>
+                      <span className="text-[9px] font-bold text-neutral-500">
+                        {item.quantity}/{item.availableQuantity} here
+                      </span>
                       {item.locationCode && masterLocations.find(l => l.locationCode.toUpperCase() === item.locationCode.toUpperCase())?.bins?.length ? (
                         <div className="flex flex-wrap gap-1">
                           {masterLocations.find(l => l.locationCode.toUpperCase() === item.locationCode.toUpperCase())?.bins?.map(bin => (
@@ -734,8 +807,17 @@ export const Picking = memo(function Picking() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => setDirectItems((c) => c.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))}
-                        className="h-6 w-6 rounded-md border border-brand-500/30 bg-brand-500/10 text-sm font-black text-brand-200 hover:bg-brand-500/20 transition-colors flex items-center justify-center"
+                        onClick={() =>
+                          setDirectItems((c) =>
+                            c.map((i) =>
+                              i.id === item.id
+                                ? { ...i, quantity: Math.min(i.availableQuantity, i.quantity + 1) }
+                                : i,
+                            ),
+                          )
+                        }
+                        disabled={item.quantity >= item.availableQuantity}
+                        className="h-6 w-6 rounded-md border border-brand-500/30 bg-brand-500/10 text-sm font-black text-brand-200 hover:bg-brand-500/20 transition-colors flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         +
                       </button>

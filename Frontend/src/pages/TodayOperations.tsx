@@ -64,6 +64,12 @@ const formatTime = (dateStr?: string | null) => {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
+const getOutwardReference = (order: OutwardOrder) =>
+  order.referenceNumber?.trim() || order.orderNumber;
+
+const getOutwardNotes = (order: OutwardOrder) =>
+  order.salesOrderNotes?.trim() || order.notes?.trim() || "";
+
 export const TodayOperations = memo(function TodayOperations() {
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 48em)");
@@ -176,10 +182,10 @@ export const TodayOperations = memo(function TodayOperations() {
         "SKU": order.skuCode,
         "Qty": order.quantity,
         "Ownership": order.customerName,
-        "Ref No": order.referenceNumber || order.orderNumber,
+        "Ref No": getOutwardReference(order),
         "Tracking No": order.trackingNumber || "",
         "Status": order.status,
-        "Notes": order.notes || "",
+        "Notes": getOutwardNotes(order),
       }));
       const wsOutward = XLSX.utils.json_to_sheet(outwardData);
       XLSX.utils.book_append_sheet(wb, wsOutward, "Outward Sales");
@@ -593,10 +599,10 @@ export const TodayOperations = memo(function TodayOperations() {
                                 style={{ cursor: "pointer", textDecoration: "underline" }} 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  navigate(`/outward?search=${encodeURIComponent(order.referenceNumber || order.orderNumber)}`);
+                                  navigate(`/outward?search=${encodeURIComponent(getOutwardReference(order))}`);
                                 }}
                               >
-                                {order.referenceNumber || order.orderNumber}
+                                {getOutwardReference(order)}
                               </span>
                             </Text>
                           </Box>
@@ -634,6 +640,11 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="10px" c="yellow.3" ff="monospace" fw={700}>{order.trackingNumber}</Text>
                           </Group>
                         )}
+                        {getOutwardNotes(order) && (
+                          <Text size="10px" c="dimmed" mt={4} truncate title={getOutwardNotes(order)}>
+                            {getOutwardNotes(order)}
+                          </Text>
+                        )}
                       </Paper>
                     ))}
                   </Stack>
@@ -663,7 +674,7 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="11px" truncate maw={120}>{order.customerName || "—"}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="11px" fw={700} c="blue.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/outward?search=${encodeURIComponent(order.referenceNumber || order.orderNumber)}`)}>{order.referenceNumber || order.orderNumber}</Text>
+                            <Text size="11px" fw={700} c="blue.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/outward?search=${encodeURIComponent(getOutwardReference(order))}`)}>{getOutwardReference(order)}</Text>
                           </Table.Td>
                           <Table.Td>
                             {order.trackingNumber ? (
@@ -680,7 +691,7 @@ export const TodayOperations = memo(function TodayOperations() {
                             </Badge>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="10px" c="dimmed" truncate maw={150}>{order.notes || "-"}</Text>
+                            <Text size="10px" c="dimmed" truncate maw={150} title={getOutwardNotes(order)}>{getOutwardNotes(order) || "-"}</Text>
                           </Table.Td>
                         </Table.Tr>
                       ))}

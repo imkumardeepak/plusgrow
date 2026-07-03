@@ -202,14 +202,18 @@ export const Outward = memo(function Outward() {
   const loadOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const ordersData = await outwardOrdersApi.getSalesOrders();
+      const search = searchParams.get("search")?.trim();
+      const ordersData = await outwardOrdersApi.getSalesOrders({
+        pageSize: 500,
+        ...(search ? { search, status: "all" } : {}),
+      });
       setOrders(ordersData);
     } catch {
       toast.error("Failed to load outward orders");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     void loadProducts();
@@ -230,11 +234,15 @@ export const Outward = memo(function Outward() {
       const matchesSearch =
         !query ||
         group.orderNumber.toLowerCase().includes(query) ||
+        (group.referenceNumber && group.referenceNumber.toLowerCase().includes(query)) ||
         group.customerName.toLowerCase().includes(query) ||
+        (group.notes && group.notes.toLowerCase().includes(query)) ||
         group.items.some((item) =>
           item.productName.toLowerCase().includes(query) ||
           item.skuCode.toLowerCase().includes(query) ||
-          (item.alias && item.alias.toLowerCase().includes(query)),
+          (item.alias && item.alias.toLowerCase().includes(query)) ||
+          (item.notes && item.notes.toLowerCase().includes(query)) ||
+          (item.salesOrderNotes && item.salesOrderNotes.toLowerCase().includes(query)),
         );
 
       return matchesStatus && matchesSearch;
@@ -619,6 +627,7 @@ export const Outward = memo(function Outward() {
   };
 
   const openEditModal = (order: SalesOrderRecord) => {
+    setSelectedGroup(order);
     setEditForm({
       customerName: order.customerName,
       orderDate: order.orderDate.slice(0, 10),

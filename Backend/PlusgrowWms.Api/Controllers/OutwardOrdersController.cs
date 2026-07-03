@@ -43,6 +43,7 @@ public class OutwardOrdersController : BaseController
             var search = filter.Search.Trim().ToLower();
             query = query.Where(x =>
                 x.OrderNumber.ToLower().Contains(search) ||
+                (x.ReferenceNumber != null && x.ReferenceNumber.ToLower().Contains(search)) ||
                 x.CustomerName.ToLower().Contains(search) ||
                 x.Status.ToLower().Contains(search) ||
                 (x.Notes != null && x.Notes.ToLower().Contains(search)) ||
@@ -88,8 +89,11 @@ public class OutwardOrdersController : BaseController
             var search = filter.Search.Trim().ToLower();
             query = query.Where(x =>
                 (x.SalesOrder != null && x.SalesOrder.OrderNumber.ToLower().Contains(search)) ||
+                (x.SalesOrder != null && x.SalesOrder.ReferenceNumber != null && x.SalesOrder.ReferenceNumber.ToLower().Contains(search)) ||
                 (x.SalesOrder != null && x.SalesOrder.CustomerName.ToLower().Contains(search)) ||
+                (x.SalesOrder != null && x.SalesOrder.Notes != null && x.SalesOrder.Notes.ToLower().Contains(search)) ||
                 x.Status.ToLower().Contains(search) ||
+                (x.Notes != null && x.Notes.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Name.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Sku != null && x.Product.Sku.ToLower().Contains(search)) ||
                 (x.Product != null && x.Product.Alias != null && x.Product.Alias.ToLower().Contains(search)));
@@ -1810,9 +1814,22 @@ public class OutwardOrdersController : BaseController
             DateTime.TryParse(dto.OrderDate, out var parsedDate))
             salesOrder.OrderDate = DateTime.SpecifyKind(parsedDate, DateTimeKind.Unspecified);
 
-        salesOrder.Notes = dto.Notes?.Trim();
+        var previousNotes = string.IsNullOrWhiteSpace(salesOrder.Notes) ? null : salesOrder.Notes.Trim();
+        var updatedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
+
+        salesOrder.Notes = updatedNotes;
         salesOrder.ReferenceNumber = dto.ReferenceNumber?.Trim();
         salesOrder.UpdatedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        foreach (var item in salesOrder.Items)
+        {
+            var itemNotes = string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim();
+            if (itemNotes == previousNotes)
+            {
+                item.Notes = updatedNotes;
+                item.UpdatedAt = salesOrder.UpdatedAt;
+            }
+        }
 
         await _context.SaveChangesAsync();
 
