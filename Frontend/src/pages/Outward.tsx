@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
+import { useSearchParams } from "react-router-dom";
 import {
   ActionIcon,
   Badge,
@@ -105,11 +106,19 @@ const statusTone = (status: SalesOrderRecord["status"]) => {
 
 export const Outward = memo(function Outward() {
   const isLargeScreen = useMediaQuery("(min-width: 90em)");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<SalesOrderRecord[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>("open");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [statusFilter, setStatusFilter] = useState<OutwardStatusFilter>(searchParams.get("search") ? "all" : "open");
+
+  useEffect(() => {
+    if (searchParams.has("search")) {
+      setSearchTerm(searchParams.get("search") || "");
+      setStatusFilter("all");
+    }
+  }, [searchParams]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<SalesOrderRecord | null>(null);

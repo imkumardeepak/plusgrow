@@ -188,7 +188,14 @@ export const Inward = memo(function Inward() {
   const [isExporting, setIsExporting] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>("open");
+  const [statusFilter, setStatusFilter] = useState<InwardStatusFilter>(searchParams.get("search") ? "all" : "open");
+
+  useEffect(() => {
+    if (searchParams.has("search")) {
+      setSearch(searchParams.get("search") || "");
+      setStatusFilter("all");
+    }
+  }, [searchParams]);
   const defaultRange = getDefaultDateRange();
   const [fromDate, setFromDate] = useState(defaultRange.fromDate);
   const [toDate, setToDate] = useState(defaultRange.toDate);

@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Badge,
@@ -64,6 +65,7 @@ const formatTime = (dateStr?: string | null) => {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export const TodayOperations = memo(function TodayOperations() {
+  const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [invoices, setInvoices] = useState<PoInvoiceHeaderSummary[]>([]);
   const [outwardOrders, setOutwardOrders] = useState<OutwardOrder[]>([]);
@@ -478,7 +480,7 @@ export const TodayOperations = memo(function TodayOperations() {
                       <Paper key={inv.id} radius="md" p="xs" withBorder style={{ background: "rgba(15,23,42,0.5)" }}>
                         <Group justify="space-between" gap="xs" wrap="nowrap">
                           <Box className="min-w-0" style={{ flex: 1 }}>
-                            <Text size="xs" fw={800} c="cyan.3" truncate>
+                            <Text size="xs" fw={800} c="cyan.3" truncate style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/inward?search=${encodeURIComponent(inv.invoiceNumber)}`)}>
                               {inv.invoiceNumber}
                             </Text>
                             <Text size="10px" c="dimmed" truncate>
@@ -518,7 +520,7 @@ export const TodayOperations = memo(function TodayOperations() {
                       {todayInvoices.map((inv) => (
                         <Table.Tr key={inv.id}>
                           <Table.Td>
-                            <Text size="11px" fw={900} ff="monospace" c="cyan.3">{inv.invoiceNumber}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="cyan.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/inward?search=${encodeURIComponent(inv.invoiceNumber)}`)}>{inv.invoiceNumber}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="11px" truncate maw={140}>{inv.partyName}</Text>
@@ -582,11 +584,20 @@ export const TodayOperations = memo(function TodayOperations() {
                       <Paper key={order.id} radius="md" p="xs" withBorder style={{ background: "rgba(15,23,42,0.5)" }}>
                         <Group justify="space-between" gap="xs" wrap="nowrap">
                           <Box className="min-w-0" style={{ flex: 1 }}>
-                            <Text size="xs" fw={800} c="teal.3" truncate>
+                            <Text size="xs" fw={800} c="teal.3" truncate style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/product-query?search=${encodeURIComponent(order.skuCode)}`)}>
                               {order.skuCode}
                             </Text>
                             <Text size="10px" c="dimmed" truncate>
-                              {order.customerName} &middot; {order.referenceNumber || order.orderNumber}
+                              {order.customerName} &middot;{" "}
+                              <span 
+                                style={{ cursor: "pointer", textDecoration: "underline" }} 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/outward?search=${encodeURIComponent(order.referenceNumber || order.orderNumber)}`);
+                                }}
+                              >
+                                {order.referenceNumber || order.orderNumber}
+                              </span>
                             </Text>
                           </Box>
                           <Badge size="xs" variant="filled" color={statusColor(order.status)} c="slate.9" fw={900}>
@@ -643,7 +654,7 @@ export const TodayOperations = memo(function TodayOperations() {
                       {todayOutward.map((order) => (
                         <Table.Tr key={order.id}>
                           <Table.Td>
-                            <Text size="11px" fw={900} ff="monospace" c="teal.3">{order.skuCode}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="teal.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/product-query?search=${encodeURIComponent(order.skuCode)}`)}>{order.skuCode}</Text>
                           </Table.Td>
                           <Table.Td style={{ textAlign: "right" }}>
                             <Text size="11px" fw={900} ff="monospace">{order.quantity}</Text>
@@ -652,7 +663,7 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="11px" truncate maw={120}>{order.customerName || "—"}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="11px" fw={700} c="blue.3">{order.referenceNumber || order.orderNumber}</Text>
+                            <Text size="11px" fw={700} c="blue.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/outward?search=${encodeURIComponent(order.referenceNumber || order.orderNumber)}`)}>{order.referenceNumber || order.orderNumber}</Text>
                           </Table.Td>
                           <Table.Td>
                             {order.trackingNumber ? (
@@ -726,7 +737,18 @@ export const TodayOperations = memo(function TodayOperations() {
                         <Group justify="space-between" gap="xs" wrap="nowrap">
                           <Box className="min-w-0" style={{ flex: 1 }}>
                             <Text size="xs" fw={700} c="white" truncate>{m.productName}</Text>
-                            <Text size="10px" c="dimmed">{m.skuCode} &middot; {m.reason}</Text>
+                            <Text size="10px" c="dimmed">
+                              <span 
+                                style={{ cursor: "pointer", textDecoration: "underline" }} 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/product-query?search=${encodeURIComponent(m.skuCode)}`);
+                                }}
+                              >
+                                {m.skuCode}
+                              </span>{" "}
+                              &middot; {m.reason}
+                            </Text>
                           </Box>
                           <Text size="sm" fw={900} c={m.quantityChange > 0 ? "green.4" : "red.4"}>
                             {m.quantityChange > 0 ? "+" : ""}{m.quantityChange}
@@ -766,7 +788,7 @@ export const TodayOperations = memo(function TodayOperations() {
                             <Text size="10px" c="dimmed">{formatTime(m.createdAt)}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="11px" fw={900} ff="monospace" c="cyan.3">{m.skuCode}</Text>
+                            <Text size="11px" fw={900} ff="monospace" c="cyan.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/product-query?search=${encodeURIComponent(m.skuCode)}`)}>{m.skuCode}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="11px" truncate maw={160}>{m.productName}</Text>
