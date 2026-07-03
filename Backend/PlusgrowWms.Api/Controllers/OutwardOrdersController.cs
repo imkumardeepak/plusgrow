@@ -203,7 +203,7 @@ public class OutwardOrdersController : BaseController
 
         if (salesOrder.Items != null && salesOrder.Items.Any())
         {
-            _context.SalesOrderItems.RemoveRange(salesOrder.Items);
+            _context.RemoveRange(salesOrder.Items);
         }
         
         _context.SalesOrders.Remove(salesOrder);
