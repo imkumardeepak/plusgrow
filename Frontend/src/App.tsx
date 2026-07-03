@@ -281,6 +281,14 @@ export default function App() {
                       element={pageElement(["product-query", "stock-check"], <StockCheck initialMode="verify" />)}
                     />
                     <Route
+                      path="tally-so-process"
+                      element={pageElement("stock-check", <StockCheck initialMode="tally-so-process" />)}
+                    />
+                    <Route
+                      path="reseller-tally-sync"
+                      element={pageElement("stock-check", <StockCheck initialMode="reseller-tally" />)}
+                    />
+                    <Route
                       path="product-movement"
                       element={pageElement("product-movement", <ProductMovement />)}
                     />
