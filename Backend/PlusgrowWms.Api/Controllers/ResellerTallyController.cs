@@ -36,6 +36,7 @@ namespace PlusgrowWms.Api.Controllers
             {
                 var pendingOrders = await _context.ResellerSyncedOrders
                     .Include(o => o.Items)
+                    .Where(o => o.Status != "Success")
                     .OrderByDescending(o => o.FetchedAt)
                     .ToListAsync();
                 
@@ -69,6 +70,11 @@ namespace PlusgrowWms.Api.Controllers
                 if (existing == null)
                 {
                     return NotFound(new { success = false, message = "Order not found in local database." });
+                }
+
+                if (existing.Status == "Success")
+                {
+                    return Conflict(new { success = false, message = "Order already synced to Tally." });
                 }
 
                 // Map local database entity back to ResellerPendingOrder DTO for TallyService

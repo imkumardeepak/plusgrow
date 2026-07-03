@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,8 @@ namespace PlusgrowWms.Api.Services
             _configuration = configuration;
             _logger = logger;
             _httpClient.BaseAddress = new Uri(_configuration["ResellerApi:BaseUrl"] ?? "https://resellers.plusgrow.org/api/wms/");
+            _httpClient.DefaultRequestHeaders.Accept.Clear();
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
         public async Task<string> LoginAsync()
@@ -89,7 +92,7 @@ namespace PlusgrowWms.Api.Services
                 return new List<ResellerPendingOrder>();
             }
 
-            var orders = await response.Content.ReadFromJsonAsync<List<ResellerPendingOrder>>();
+            var orders = JsonSerializer.Deserialize<List<ResellerPendingOrder>>(content);
             return orders ?? new List<ResellerPendingOrder>();
         }
     }
