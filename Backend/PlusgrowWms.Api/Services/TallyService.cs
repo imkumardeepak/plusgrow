@@ -558,6 +558,12 @@ public class TallyService
 		}
 	}
 
+	public async Task<List<StockItem>> GetStockItemsFromDefaultTemplateAsync()
+	{
+		var xmlFilePath = Path.Combine(_environment.ContentRootPath, "wwwroot", "TallyXML", "GetStockItem.xml");
+		return await GetStockItem(xmlFilePath);
+	}
+
 	private int ConvertToInt(string value)
 	{
 		if (string.IsNullOrWhiteSpace(value)) return 0;

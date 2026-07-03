@@ -42,6 +42,7 @@ public class TallySyncService : ITallySyncService
         }
 
         var vouchers = await _tallyService.GetVoucherByDateRangeAsync(today, today);
+        var tallySkuByStockItemName = await GetTallySkuByStockItemNameAsync();
 
         int added = 0, skipped = 0;
         var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
@@ -57,7 +58,7 @@ public class TallySyncService : ITallySyncService
                 continue;
             }
 
-            var mapResult = MapSalesOrderItems(v.Items, productsBySku);
+            var mapResult = MapSalesOrderItems(v.Items, productsBySku, tallySkuByStockItemName);
             if (mapResult.Items is null || mapResult.Items.Count == 0)
             {
                 _logger.LogWarning("Tally sales order {OrderNumber} skipped because one or more products were not matched.", tallyReference);
@@ -251,14 +252,28 @@ public class TallySyncService : ITallySyncService
             .ToDictionary(group => group.Key, group => group.First());
     }
 
+    private async Task<Dictionary<string, string>> GetTallySkuByStockItemNameAsync()
+    {
+        var stockItems = await _tallyService.GetStockItemsFromDefaultTemplateAsync();
+
+        return stockItems
+            .Where(x => !string.IsNullOrWhiteSpace(x.name) && !string.IsNullOrWhiteSpace(x.skuCode) && x.skuCode != "NA")
+            .GroupBy(x => NormalizeKey(x.name))
+            .Where(group => !string.IsNullOrWhiteSpace(group.Key) && group.Count() == 1)
+            .ToDictionary(group => group.Key, group => NormalizeValue(group.First().skuCode));
+    }
+
     /// <summary>
     /// Result of mapping Tally voucher items to outward orders.
     /// Items is null when one or more products could not be matched.
-    /// UnmatchedProducts contains the Tally stock item SKUs that had no WMS product match.
+    /// UnmatchedProducts contains the Tally mailing-name SKUs that had no WMS product match.
     /// </summary>
     private record MapResult(List<OutwardOrder>? Items, List<string> UnmatchedProducts);
 
-    private static MapResult MapSalesOrderItems(List<TallyERPWebApi.Model.ItemDetails>? items, Dictionary<string, Product> productsBySku)
+    private static MapResult MapSalesOrderItems(
+        List<TallyERPWebApi.Model.ItemDetails>? items,
+        Dictionary<string, Product> productsBySku,
+        Dictionary<string, string> tallySkuByStockItemName)
     {
         if (items is null || items.Count == 0)
             return new MapResult(null, new List<string>());
@@ -268,17 +283,24 @@ public class TallySyncService : ITallySyncService
 
         foreach (var item in items)
         {
-            var productKey = NormalizeKey(item.StockItemName);
+            var stockItemKey = NormalizeKey(item.StockItemName);
+            if (!tallySkuByStockItemName.TryGetValue(stockItemKey, out var tallySku))
+            {
+                unmatched.Add($"{item.StockItemName ?? "Unknown"} (missing Tally mailing SKU)");
+                continue;
+            }
+
+            var productKey = NormalizeKey(tallySku);
             if (!productsBySku.TryGetValue(productKey, out var product))
             {
-                unmatched.Add(item.StockItemName ?? "Unknown");
+                unmatched.Add(tallySku);
                 continue;
             }
 
             var quantity = ParseTallyQuantity(item.ActualQty);
             if (quantity <= 0)
             {
-                unmatched.Add($"{item.StockItemName} (invalid qty: {item.ActualQty})");
+                unmatched.Add($"{tallySku} (invalid qty: {item.ActualQty})");
                 continue;
             }
 
@@ -382,7 +404,8 @@ public class TallySyncService : ITallySyncService
             : JsonSerializer.Deserialize<List<TallyERPWebApi.Model.ItemDetails>>(skipped.RawItemsJson) ?? new List<TallyERPWebApi.Model.ItemDetails>();
 
         var productsBySku = await GetUniqueProductsBySkuAsync(ct);
-        var mapResult = MapSalesOrderItems(items, productsBySku);
+        var tallySkuByStockItemName = await GetTallySkuByStockItemNameAsync();
+        var mapResult = MapSalesOrderItems(items, productsBySku, tallySkuByStockItemName);
 
         if (mapResult.Items is null || mapResult.Items.Count == 0)
         {
