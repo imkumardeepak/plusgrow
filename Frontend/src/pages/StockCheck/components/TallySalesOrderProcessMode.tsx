@@ -15,7 +15,7 @@ import {
   Button,
   Box,
 } from "@mantine/core";
-import { Search, ExternalLink, Calendar, User, Hash, FileText } from "lucide-react";
+import { Search, ExternalLink, Calendar, User, Hash, FileText, Trash2 } from "lucide-react";
 import { toast } from "../../../lib/toast";
 import { outwardOrdersApi, SalesOrderRecord } from "../../../services/masterApi";
 import { ModeHeader } from "./ModeHeader";
@@ -33,6 +33,8 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
   const [toDate, setToDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [selectedOrder, setSelectedOrder] = useState<SalesOrderRecord | null>(null);
   const [processingId, setProcessingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<number | null>(null);
 
   const loadOrders = async () => {
     try {
@@ -67,6 +69,24 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
       toast.error(err.message || "Failed to process order");
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!orderToDelete) return;
+    try {
+      setDeletingId(orderToDelete);
+      await outwardOrdersApi.deleteSalesOrder(orderToDelete);
+      toast.success("Order deleted successfully.");
+      setOrders(orders.filter((o) => o.id !== orderToDelete));
+      if (selectedOrder?.id === orderToDelete) {
+        setSelectedOrder(null);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete order");
+    } finally {
+      setDeletingId(null);
+      setOrderToDelete(null);
     }
   };
 
@@ -179,9 +199,22 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
                         {order.orderNumber}
                       </Text>
                     </Group>
-                    <Badge color="yellow" variant="light" size="sm">
-                      {order.status}
-                    </Badge>
+                    <Group gap="xs">
+                      <Badge color="yellow" variant="light" size="sm">
+                        {order.status}
+                      </Badge>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        loading={deletingId === order.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOrderToDelete(order.id);
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </ActionIcon>
+                    </Group>
                   </Group>
                 </Card.Section>
 
@@ -219,6 +252,7 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
           })}
         </SimpleGrid>
       )}
+      </Box>
 
       <Modal
         opened={!!selectedOrder}
@@ -293,8 +327,15 @@ export function TallySalesOrderProcessMode({ onBack, isMobile }: Props) {
             </Group>
           </Stack>
         )}
-        </Modal>
-      </Box>
+      </Modal>
+
+      <Modal opened={!!orderToDelete} onClose={() => setOrderToDelete(null)} title="Confirm Deletion" centered size="sm">
+        <Text size="sm" mb="lg">Are you sure you want to delete this sales order? This action cannot be undone.</Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setOrderToDelete(null)}>Cancel</Button>
+          <Button color="red" onClick={confirmDelete} loading={!!deletingId}>Delete</Button>
+        </Group>
+      </Modal>
     </Stack>
   );
 }

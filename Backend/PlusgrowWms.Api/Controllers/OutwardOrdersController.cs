@@ -187,6 +187,31 @@ public class OutwardOrdersController : BaseController
         return Success(MapSalesOrder(salesOrder), "Sales order processed successfully");
     }
 
+    [HttpDelete("sales-orders/{id}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteSalesOrder(long id)
+    {
+        var salesOrder = await _context.SalesOrders
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (salesOrder == null)
+            return NotFound<bool>("Sales order not found");
+
+        var hasOutwardOrders = await _context.OutwardOrders.AnyAsync(x => x.SalesOrderId == id);
+        if (hasOutwardOrders)
+            return BadRequest<bool>("Cannot delete sales order as it already has associated outward orders.");
+
+        if (salesOrder.Items != null && salesOrder.Items.Any())
+        {
+            _context.SalesOrderItems.RemoveRange(salesOrder.Items);
+        }
+        
+        _context.SalesOrders.Remove(salesOrder);
+        await _context.SaveChangesAsync();
+
+        return Success(true, "Sales order deleted successfully");
+    }
+
 
     [HttpGet("quick-sale-products")]
     public async Task<ActionResult<ApiResponse<List<QuickSaleProductDto>>>> GetQuickSaleProducts([FromQuery] int days = 30, [FromQuery] int limit = 20)

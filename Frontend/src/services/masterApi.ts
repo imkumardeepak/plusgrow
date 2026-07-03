@@ -1395,6 +1395,11 @@ export const outwardOrdersApi = {
     return response.data.data!;
   },
 
+  deleteSalesOrder: async (id: number): Promise<void> => {
+    const response = await api.delete<ApiResponse<boolean>>(`/outwardorders/sales-orders/${id}`);
+    if (!response.data.success) throw new Error(response.data.message || "Failed to delete sales order");
+  },
+
   getSalesOrderPaged: async (filters: OutwardOrderFilters = {}): Promise<PagedResult<SalesOrderRecord>> => {
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
