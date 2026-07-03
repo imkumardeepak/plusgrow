@@ -197,9 +197,12 @@ public class OutwardOrdersController : BaseController
         if (salesOrder == null)
             return NotFound<bool>("Sales order not found");
 
-        var hasOutwardOrders = await _context.OutwardOrders.AnyAsync(x => x.SalesOrderId == id);
-        if (hasOutwardOrders)
-            return BadRequest<bool>("Cannot delete sales order as it already has associated outward orders.");
+        // Fetch associated outward orders and remove them explicitly
+        var outwardOrders = await _context.OutwardOrders.Where(x => x.SalesOrderId == id).ToListAsync();
+        if (outwardOrders.Any())
+        {
+            _context.OutwardOrders.RemoveRange(outwardOrders);
+        }
 
         if (salesOrder.Items != null && salesOrder.Items.Any())
         {
