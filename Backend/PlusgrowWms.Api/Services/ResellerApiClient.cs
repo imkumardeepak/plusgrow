@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -65,7 +66,8 @@ namespace PlusgrowWms.Api.Services
                 accessToken = await LoginAsync();
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Get, "orders/pending");
+            var requestUri = BuildPendingOrdersRequestUri();
+            var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -77,7 +79,7 @@ namespace PlusgrowWms.Api.Services
                 // Token might be expired, retry once with a new token
                 _logger.LogInformation("Reseller API token expired. Retrying login...");
                 accessToken = await LoginAsync();
-                request = new HttpRequestMessage(HttpMethod.Get, "orders/pending");
+                request = new HttpRequestMessage(HttpMethod.Get, requestUri);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 response = await _httpClient.SendAsync(request);
@@ -94,6 +96,12 @@ namespace PlusgrowWms.Api.Services
 
             var orders = JsonSerializer.Deserialize<List<ResellerPendingOrder>>(content);
             return orders ?? new List<ResellerPendingOrder>();
+        }
+
+        private static string BuildPendingOrdersRequestUri()
+        {
+            var currentDate = DateTime.Today.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+            return $"orders/pending?date={currentDate}";
         }
     }
 }

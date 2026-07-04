@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
@@ -42,16 +43,32 @@ namespace PlusgrowWms.Api.Services
 
                 _logger.LogInformation($"Found {pendingOrders.Count} pending orders from Reseller API.");
 
+                var orderNos = pendingOrders
+                    .Select(order => order.OrderNo)
+                    .Where(orderNo => orderNo > 0)
+                    .Distinct()
+                    .ToList();
+
+                var existingOrderNos = await _context.ResellerSyncedOrders
+                    .Where(o => orderNos.Contains(o.OrderNo))
+                    .Select(o => o.OrderNo)
+                    .ToListAsync();
+
+                var skippedOrderNos = new HashSet<long>(existingOrderNos);
+
                 foreach (var order in pendingOrders)
                 {
                     try
                     {
-                        var existing = await _context.ResellerSyncedOrders
-                            .FirstOrDefaultAsync(o => o.OrderNo == order.OrderNo);
-
-                        if (existing != null)
+                        if (order.OrderNo <= 0)
                         {
-                            _logger.LogInformation($"Order {order.OrderNo} already exists in local database with status {existing.Status}. Skipping.");
+                            _logger.LogWarning("Reseller API returned an order without a valid order number. Skipping.");
+                            continue;
+                        }
+
+                        if (!skippedOrderNos.Add(order.OrderNo))
+                        {
+                            _logger.LogInformation($"Order {order.OrderNo} already exists or was already received in this fetch. Skipping duplicate.");
                             continue;
                         }
 
