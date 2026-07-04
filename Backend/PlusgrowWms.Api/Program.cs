@@ -241,18 +241,19 @@ Log.Information("Plusgrow WMS API starting up...");
 
 // Register Hangfire recurring jobs
 var tallySyncEnabled = builder.Configuration.GetValue("TallySettings:TallySyncEnabled", false);
-// Remove the previous 2-minute job id so it does not linger in Hangfire storage after the rename.
+// Remove previous Tally job ids so old intervals do not linger in Hangfire storage after renames.
 RecurringJob.RemoveIfExists("tally-sync-every-2-min");
+RecurringJob.RemoveIfExists("tally-sync-every-10-min");
 if (tallySyncEnabled)
 {
     RecurringJob.AddOrUpdate<ITallySyncService>(
-        "tally-sync-every-10-min",
+        "tally-sync-every-30-min",
         service => service.SyncTodayVouchersAsync(CancellationToken.None),
-        "*/10 * * * *"); // Every 10 minutes
+        "*/30 * * * *"); // Every 30 minutes
 }
 else
 {
-    RecurringJob.RemoveIfExists("tally-sync-every-10-min");
+    RecurringJob.RemoveIfExists("tally-sync-every-30-min");
 }
 
 RecurringJob.AddOrUpdate<IPartyStockExportService>(
