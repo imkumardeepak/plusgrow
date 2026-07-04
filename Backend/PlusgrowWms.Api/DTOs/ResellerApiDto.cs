@@ -43,6 +43,7 @@ namespace PlusgrowWms.Api.DTOs
     public class ResellerPendingOrder
     {
         [JsonPropertyName("orderNo")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public long OrderNo { get; set; }
 
         [JsonPropertyName("orderDate")]
@@ -61,6 +62,7 @@ namespace PlusgrowWms.Api.DTOs
         public ResellerAddress? ShippingAddress { get; set; }
 
         [JsonPropertyName("compositeShippingCharges")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public decimal CompositeShippingCharges { get; set; }
 
         [JsonPropertyName("items")]
@@ -85,9 +87,11 @@ namespace PlusgrowWms.Api.DTOs
         public string State { get; set; } = string.Empty;
 
         [JsonPropertyName("pincode")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public long Pincode { get; set; }
 
         [JsonPropertyName("contactNo")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public long ContactNo { get; set; }
     }
 
@@ -97,9 +101,11 @@ namespace PlusgrowWms.Api.DTOs
         public string Sku { get; set; } = string.Empty;
 
         [JsonPropertyName("quantity")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public int Quantity { get; set; }
 
         [JsonPropertyName("rate")]
+        [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
         public decimal Rate { get; set; }
     }
 }

@@ -2,7 +2,7 @@ namespace PlusgrowWms.Api.Services;
 
 public class TallySyncBackgroundService : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(20);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TallySyncBackgroundService> _logger;

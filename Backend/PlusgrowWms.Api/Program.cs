@@ -244,16 +244,17 @@ var tallySyncEnabled = builder.Configuration.GetValue("TallySettings:TallySyncEn
 // Remove previous Tally job ids so old intervals do not linger in Hangfire storage after renames.
 RecurringJob.RemoveIfExists("tally-sync-every-2-min");
 RecurringJob.RemoveIfExists("tally-sync-every-10-min");
+RecurringJob.RemoveIfExists("tally-sync-every-30-min");
 if (tallySyncEnabled)
 {
     RecurringJob.AddOrUpdate<ITallySyncService>(
-        "tally-sync-every-30-min",
+        "tally-sync-every-20-min",
         service => service.SyncTodayVouchersAsync(CancellationToken.None),
-        "*/30 * * * *"); // Every 30 minutes
+        "*/20 * * * *"); // Every 20 minutes
 }
 else
 {
-    RecurringJob.RemoveIfExists("tally-sync-every-30-min");
+    RecurringJob.RemoveIfExists("tally-sync-every-20-min");
 }
 
 RecurringJob.AddOrUpdate<IPartyStockExportService>(
@@ -261,10 +262,11 @@ RecurringJob.AddOrUpdate<IPartyStockExportService>(
     service => service.ExportAllAsync(CancellationToken.None),
     "0 * * * *"); // Every 1 hour (on the hour)
 
-// Reseller API to local DB Fetch Job (Every 2 minutes)
+// Reseller API to local DB Fetch Job (Every 30 minutes)
+RecurringJob.RemoveIfExists("reseller-api-fetch-every-2-min");
 RecurringJob.AddOrUpdate<ResellerApiFetchJob>(
-    "reseller-api-fetch-every-2-min",
+    "reseller-api-fetch-every-30-min",
     service => service.FetchOrdersAsync(),
-    "*/2 * * * *"); // Every 2 minutes
+    "*/30 * * * *"); // Every 30 minutes
 
 app.Run();
