@@ -120,13 +120,13 @@ namespace PlusgrowWms.Api.Controllers
                     // Post to Tally
                     tallyResponse = await _tallyService.PostSalesOrderAsync(targetOrder);
 
-                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                     existing.Status = "Success";
                     existing.ErrorMessage = null;
                 }
                 catch (Exception syncEx)
                 {
-                    existing.SyncedAt = DateTime.UtcNow;
+                    existing.SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                     existing.Status = "Failed";
                     existing.ErrorMessage = syncEx.Message;
 

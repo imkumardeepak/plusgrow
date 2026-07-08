@@ -42,7 +42,7 @@ namespace PlusgrowWms.Api.Models
         // ----------------------
 
         // Tracking fields
-        public DateTime FetchedAt { get; set; } = DateTime.UtcNow;
+        public DateTime FetchedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         public DateTime? SyncedAt { get; set; }
         

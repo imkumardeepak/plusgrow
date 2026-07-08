@@ -74,7 +74,7 @@ namespace PlusgrowWms.Api.Services
                             _context.ResellerSyncedOrders.Add(existing);
                         }
 
-                        existing.SyncedAt = DateTime.UtcNow;
+                        existing.SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                         existing.Status = "Success";
                         existing.ErrorMessage = null;
                     }
@@ -96,7 +96,7 @@ namespace PlusgrowWms.Api.Services
                             _context.ResellerSyncedOrders.Add(existing);
                         }
 
-                        existing.SyncedAt = DateTime.UtcNow;
+                        existing.SyncedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                         existing.Status = "Failed";
                         existing.ErrorMessage = ex.Message;
                     }

@@ -101,7 +101,7 @@ namespace PlusgrowWms.Api.Services
                                 ContactNo = order.ShippingAddress.ContactNo
                             } : null,
                             Status = "Pending",
-                            FetchedAt = DateTime.UtcNow,
+                            FetchedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
                             Items = order.Items.Select(i => new ResellerSyncedOrderItem
                             {
                                 Sku = i.Sku,
