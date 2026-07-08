@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PlusgrowWms.Api.Data;
+using PlusgrowWms.Api.DTOs;
 using PlusgrowWms.Api.Models;
 using PlusgrowWms.Api.Services;
 
@@ -58,13 +59,20 @@ namespace PlusgrowWms.Api.Controllers
             }
         }
 
-        [HttpPatch("orders/{orderNo:long}/hide")]
-        public async Task<IActionResult> HideOrder(long orderNo)
+        [HttpPatch("orders/{orderNo}/hide")]
+        public async Task<IActionResult> HideOrder(string orderNo)
         {
             try
             {
+                var normalizedOrderNo = NormalizeOrderNo(orderNo);
+
+                if (string.IsNullOrWhiteSpace(normalizedOrderNo))
+                {
+                    return BadRequest(new { success = false, message = "Order number is required." });
+                }
+
                 var existing = await _context.ResellerSyncedOrders
-                    .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+                    .FirstOrDefaultAsync(o => o.OrderNo == normalizedOrderNo);
 
                 if (existing == null)
                 {
@@ -83,13 +91,20 @@ namespace PlusgrowWms.Api.Controllers
         }
 
         [HttpPost("sync/{orderNo}")]
-        public async Task<IActionResult> SyncOrder(long orderNo)
+        public async Task<IActionResult> SyncOrder(string orderNo)
         {
             try
             {
+                var normalizedOrderNo = NormalizeOrderNo(orderNo);
+
+                if (string.IsNullOrWhiteSpace(normalizedOrderNo))
+                {
+                    return BadRequest(new { success = false, message = "Order number is required." });
+                }
+
                 var existing = await _context.ResellerSyncedOrders
                     .Include(o => o.Items)
-                    .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+                    .FirstOrDefaultAsync(o => o.OrderNo == normalizedOrderNo);
 
                 if (existing == null)
                 {
@@ -101,15 +116,42 @@ namespace PlusgrowWms.Api.Controllers
                     return Conflict(new { success = false, message = "Order already synced to Tally." });
                 }
 
+                if (existing.IsHiddenFromTallySync)
+                {
+                    return Conflict(new { success = false, message = "Order is hidden from the Tally sync list." });
+                }
+
+                if (existing.Items.Any(i => string.IsNullOrWhiteSpace(i.Sku)))
+                {
+                    return BadRequest(new { success = false, message = "Cannot push to Tally because one or more order items has no SKU." });
+                }
+
+                var productLookup = await GetProductLookupBySkuOrAliasAsync(existing.Items.Select(i => i.Sku));
+                var missingSkus = existing.Items
+                    .Select(i => i.Sku)
+                    .Where(sku => !string.IsNullOrWhiteSpace(sku))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(sku => !productLookup.ContainsKey(NormalizeLookupKey(sku)))
+                    .ToList();
+
+                if (missingSkus.Count > 0)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Product master not found for SKU(s): {string.Join(", ", missingSkus)}. Please add these products before pushing to Tally."
+                    });
+                }
+
                 // Map local database entity back to ResellerPendingOrder DTO for TallyService
-                var targetOrder = new PlusgrowWms.Api.DTOs.ResellerPendingOrder
+                var targetOrder = new ResellerPendingOrder
                 {
                     OrderNo = existing.OrderNo,
                     OrderDate = existing.OrderDate,
                     VoucherType = existing.VoucherType,
                     CommonCostCentre = existing.CommonCostCentre,
                     CompositeShippingCharges = existing.CompositeShippingCharges,
-                    BillingAddress = existing.BillingAddress != null ? new PlusgrowWms.Api.DTOs.ResellerAddress
+                    BillingAddress = existing.BillingAddress != null ? new ResellerAddress
                     {
                         Name = existing.BillingAddress.Name,
                         Line1 = existing.BillingAddress.Line1,
@@ -119,7 +161,7 @@ namespace PlusgrowWms.Api.Controllers
                         Pincode = existing.BillingAddress.Pincode,
                         ContactNo = existing.BillingAddress.ContactNo
                     } : null,
-                    ShippingAddress = existing.ShippingAddress != null ? new PlusgrowWms.Api.DTOs.ResellerAddress
+                    ShippingAddress = existing.ShippingAddress != null ? new ResellerAddress
                     {
                         Name = existing.ShippingAddress.Name,
                         Line1 = existing.ShippingAddress.Line1,
@@ -129,11 +171,18 @@ namespace PlusgrowWms.Api.Controllers
                         Pincode = existing.ShippingAddress.Pincode,
                         ContactNo = existing.ShippingAddress.ContactNo
                     } : null,
-                    Items = existing.Items.Select(i => new PlusgrowWms.Api.DTOs.ResellerOrderItem
+                    Items = existing.Items.Select(i =>
                     {
-                        Sku = i.Sku,
-                        Quantity = i.Quantity,
-                        Rate = i.Rate
+                        var product = productLookup[NormalizeLookupKey(i.Sku)];
+
+                        return new ResellerOrderItem
+                        {
+                            Sku = i.Sku,
+                            StockItemName = product.Name,
+                            Unit = product.UnitType ?? string.Empty,
+                            Quantity = i.Quantity,
+                            Rate = i.Rate
+                        };
                     }).ToList()
                 };
 
@@ -168,5 +217,66 @@ namespace PlusgrowWms.Api.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        private async Task<Dictionary<string, ProductTallyMatch>> GetProductLookupBySkuOrAliasAsync(IEnumerable<string> skus)
+        {
+            var skuKeys = skus
+                .Select(NormalizeLookupKey)
+                .Where(key => !string.IsNullOrWhiteSpace(key))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (skuKeys.Count == 0)
+                return new Dictionary<string, ProductTallyMatch>(StringComparer.OrdinalIgnoreCase);
+
+            var products = await _context.Products
+                .AsNoTracking()
+                .Where(product => product.Sku != null || product.Alias != null)
+                .Select(product => new ProductTallyMatch(
+                    product.Name,
+                    product.Sku,
+                    product.Alias,
+                    product.UnitType))
+                .ToListAsync();
+
+            var lookup = new Dictionary<string, ProductTallyMatch>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var product in products)
+            {
+                AddProductLookup(lookup, skuKeys, product.Sku, product);
+            }
+
+            foreach (var product in products)
+            {
+                AddProductLookup(lookup, skuKeys, product.Alias, product);
+            }
+
+            return lookup;
+        }
+
+        private static void AddProductLookup(
+            Dictionary<string, ProductTallyMatch> lookup,
+            HashSet<string> skuKeys,
+            string? productKey,
+            ProductTallyMatch product)
+        {
+            var normalizedKey = NormalizeLookupKey(productKey);
+
+            if (string.IsNullOrWhiteSpace(normalizedKey) || !skuKeys.Contains(normalizedKey) || lookup.ContainsKey(normalizedKey))
+                return;
+
+            lookup[normalizedKey] = product;
+        }
+
+        private static string NormalizeLookupKey(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
+        }
+
+        private static string NormalizeOrderNo(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
+        }
+
+        private sealed record ProductTallyMatch(string Name, string? Sku, string? Alias, string? UnitType);
     }
 }

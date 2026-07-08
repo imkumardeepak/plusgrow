@@ -8,7 +8,7 @@ import { toast } from "../../../lib/toast";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5179/api";
 
 type PendingOrder = {
-  orderNo: number;
+  orderNo: string;
   orderDate: string;
   customerName: string;
   compositeShippingCharges: number;
@@ -24,7 +24,7 @@ export function ResellerTallySyncMode({
   isMobile: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [tallyResponses, setTallyResponses] = useState<Record<number, string>>({});
+  const [tallyResponses, setTallyResponses] = useState<Record<string, string>>({});
 
   const { data: orders, isLoading, isError, refetch } = useQuery({
     queryKey: ["reseller-tally-pending"],
@@ -41,8 +41,8 @@ export function ResellerTallySyncMode({
   });
 
   const syncMutation = useMutation({
-    mutationFn: async (orderNo: number) => {
-      const response = await fetch(`${API_BASE_URL}/resellertally/sync/${orderNo}`, {
+    mutationFn: async (orderNo: string) => {
+      const response = await fetch(`${API_BASE_URL}/resellertally/sync/${encodeURIComponent(orderNo)}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
@@ -67,8 +67,8 @@ export function ResellerTallySyncMode({
   });
 
   const hideMutation = useMutation({
-    mutationFn: async (orderNo: number) => {
-      const response = await fetch(`${API_BASE_URL}/resellertally/orders/${orderNo}/hide`, {
+    mutationFn: async (orderNo: string) => {
+      const response = await fetch(`${API_BASE_URL}/resellertally/orders/${encodeURIComponent(orderNo)}/hide`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
@@ -92,7 +92,7 @@ export function ResellerTallySyncMode({
     },
   });
 
-  const handleHideOrder = (orderNo: number) => {
+  const handleHideOrder = (orderNo: string) => {
     const confirmed = window.confirm(
       `Hide order #${orderNo} from this list? It will not be fetched again because the order number remains saved.`,
     );

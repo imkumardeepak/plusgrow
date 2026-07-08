@@ -838,8 +838,9 @@ namespace PlusgrowWms.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<long>("OrderNo")
-                        .HasColumnType("bigint");
+                    b.Property<string>("OrderNo")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()

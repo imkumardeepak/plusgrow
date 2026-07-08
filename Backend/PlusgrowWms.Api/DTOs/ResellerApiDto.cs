@@ -45,8 +45,8 @@ namespace PlusgrowWms.Api.DTOs
     public class ResellerPendingOrder
     {
         [JsonPropertyName("orderNo")]
-        [JsonConverter(typeof(FlexibleLongJsonConverter))]
-        public long OrderNo { get; set; }
+        [JsonConverter(typeof(FlexibleStringJsonConverter))]
+        public string OrderNo { get; set; } = string.Empty;
 
         [JsonPropertyName("orderDate")]
         public string OrderDate { get; set; } = string.Empty; // DD/MM/YYYY
@@ -102,6 +102,12 @@ namespace PlusgrowWms.Api.DTOs
         [JsonPropertyName("sku")]
         public string Sku { get; set; } = string.Empty;
 
+        [JsonPropertyName("stockItemName")]
+        public string StockItemName { get; set; } = string.Empty;
+
+        [JsonPropertyName("unit")]
+        public string Unit { get; set; } = string.Empty;
+
         [JsonPropertyName("quantity")]
         [JsonConverter(typeof(FlexibleIntJsonConverter))]
         public int Quantity { get; set; }
@@ -109,6 +115,37 @@ namespace PlusgrowWms.Api.DTOs
         [JsonPropertyName("rate")]
         [JsonConverter(typeof(FlexibleDecimalJsonConverter))]
         public decimal Rate { get; set; }
+    }
+
+    public class FlexibleStringJsonConverter : JsonConverter<string>
+    {
+        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return reader.GetString()?.Trim() ?? string.Empty;
+            }
+
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                if (reader.TryGetInt64(out var longValue))
+                {
+                    return longValue.ToString(CultureInfo.InvariantCulture);
+                }
+
+                if (reader.TryGetDecimal(out var decimalValue))
+                {
+                    return decimalValue.ToString("0.#############################", CultureInfo.InvariantCulture);
+                }
+            }
+
+            return string.Empty;
+        }
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value);
+        }
     }
 
     public class FlexibleLongJsonConverter : JsonConverter<long>

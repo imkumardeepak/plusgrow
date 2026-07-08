@@ -44,9 +44,9 @@ namespace PlusgrowWms.Api.Services
                 _logger.LogInformation($"Found {pendingOrders.Count} pending orders from Reseller API.");
 
                 var orderNos = pendingOrders
-                    .Select(order => order.OrderNo)
-                    .Where(orderNo => orderNo > 0)
-                    .Distinct()
+                    .Select(order => NormalizeOrderNo(order.OrderNo))
+                    .Where(orderNo => !string.IsNullOrWhiteSpace(orderNo))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 var existingOrderNos = await _context.ResellerSyncedOrders
@@ -54,27 +54,29 @@ namespace PlusgrowWms.Api.Services
                     .Select(o => o.OrderNo)
                     .ToListAsync();
 
-                var skippedOrderNos = new HashSet<long>(existingOrderNos);
+                var skippedOrderNos = new HashSet<string>(existingOrderNos, StringComparer.OrdinalIgnoreCase);
 
                 foreach (var order in pendingOrders)
                 {
                     try
                     {
-                        if (order.OrderNo <= 0)
+                        var orderNo = NormalizeOrderNo(order.OrderNo);
+
+                        if (string.IsNullOrWhiteSpace(orderNo))
                         {
                             _logger.LogWarning("Reseller API returned an order without a valid order number. Skipping.");
                             continue;
                         }
 
-                        if (!skippedOrderNos.Add(order.OrderNo))
+                        if (!skippedOrderNos.Add(orderNo))
                         {
-                            _logger.LogInformation($"Order {order.OrderNo} already exists or was already received in this fetch. Skipping duplicate.");
+                            _logger.LogInformation($"Order {orderNo} already exists or was already received in this fetch. Skipping duplicate.");
                             continue;
                         }
 
                         var newOrder = new ResellerSyncedOrder
                         {
-                            OrderNo = order.OrderNo,
+                            OrderNo = orderNo,
                             OrderDate = order.OrderDate,
                             CustomerName = order.BillingAddress?.Name ?? "Cash",
                             VoucherType = order.VoucherType,
@@ -111,7 +113,7 @@ namespace PlusgrowWms.Api.Services
                         };
 
                         _context.ResellerSyncedOrders.Add(newOrder);
-                        _logger.LogInformation($"Added new order {order.OrderNo} to local database.");
+                        _logger.LogInformation($"Added new order {orderNo} to local database.");
                     }
                     catch (Exception ex)
                     {
@@ -127,6 +129,11 @@ namespace PlusgrowWms.Api.Services
                 _logger.LogError(ex, "A critical error occurred during the Reseller API fetch job.");
                 throw;
             }
+        }
+
+        private static string NormalizeOrderNo(string? orderNo)
+        {
+            return string.IsNullOrWhiteSpace(orderNo) ? string.Empty : orderNo.Trim().ToUpperInvariant();
         }
     }
 }

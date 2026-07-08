@@ -1,17 +1,18 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PlusgrowWms.Api.DTOs;
 using TallyERPWebApi.Model;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 public class TallyService
 {
@@ -137,113 +138,557 @@ public class TallyService
 		if (string.IsNullOrWhiteSpace(tallyUrl))
 			throw new InvalidOperationException("Tally URL is not configured.");
 
-		// Build Tally XML
-		// Tally Date format: yyyyMMdd
-		var parsedDate = DateTime.TryParseExact(order.OrderDate, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var d) ? d : DateTime.Now;
-		var tallyDate = parsedDate.ToString("yyyyMMdd");
-
-		var sb = new StringBuilder();
-		sb.AppendLine("<ENVELOPE>");
-		sb.AppendLine("  <HEADER>");
-		sb.AppendLine("    <TALLYREQUEST>Import Data</TALLYREQUEST>");
-		sb.AppendLine("  </HEADER>");
-		sb.AppendLine("  <BODY>");
-		sb.AppendLine("    <IMPORTDATA>");
-		sb.AppendLine("      <REQUESTDESC>");
-		sb.AppendLine("        <REPORTNAME>Vouchers</REPORTNAME>");
-		sb.AppendLine("      </REQUESTDESC>");
-		sb.AppendLine("      <REQUESTDATA>");
-		sb.AppendLine("        <TALLYMESSAGE xmlns:UDF=\"TallyUDF\">");
-		sb.AppendLine("          <VOUCHER VCHTYPE=\"Sales Order\" ACTION=\"Create\" OBJVIEW=\"Invoice Voucher View\">");
-		string partyName = System.Security.SecurityElement.Escape(order.BillingAddress?.Name ?? "Cash");
-		string orderNo = System.Security.SecurityElement.Escape(order.OrderNo.ToString());
-
-		sb.AppendLine($"            <DATE>{tallyDate}</DATE>");
-		sb.AppendLine($"            <REFERENCEDATE>{tallyDate}</REFERENCEDATE>");
-		sb.AppendLine("            <STATENAME>Maharashtra</STATENAME>");
-		sb.AppendLine("            <COUNTRYOFRESIDENCE>India</COUNTRYOFRESIDENCE>");
-		sb.AppendLine($"            <PARTYNAME>{partyName}</PARTYNAME>");
-		sb.AppendLine("            <VOUCHERTYPENAME>Sales Order</VOUCHERTYPENAME>");
-		sb.AppendLine($"            <PARTYLEDGERNAME>{partyName}</PARTYLEDGERNAME>");
-		sb.AppendLine($"            <REFERENCE>{orderNo}</REFERENCE>");
-		sb.AppendLine($"            <PARTYMAILINGNAME>{partyName}</PARTYMAILINGNAME>");
-		sb.AppendLine($"            <BASICBASEPARTYNAME>{partyName}</BASICBASEPARTYNAME>");
-		sb.AppendLine("            <PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>");
-		sb.AppendLine("            <VCHENTRYMODE>Item Invoice</VCHENTRYMODE>");
-		sb.AppendLine($"            <EFFECTIVEDATE>{tallyDate}</EFFECTIVEDATE>");
-		sb.AppendLine("            <ISINVOICE>Yes</ISINVOICE>");
-
-		// Inventory Entries
-		decimal totalItemAmount = 0;
-		foreach (var item in order.Items)
-		{
-			decimal itemAmount = item.Quantity * item.Rate;
-			totalItemAmount += itemAmount;
-			sb.AppendLine("            <ALLINVENTORYENTRIES.LIST>");
-			sb.AppendLine($"              <STOCKITEMNAME>{System.Security.SecurityElement.Escape(item.Sku)}</STOCKITEMNAME>");
-			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
-			sb.AppendLine($"              <RATE>{item.Rate:F2}</RATE>");
-			sb.AppendLine($"              <AMOUNT>{itemAmount:F2}</AMOUNT>");
-			sb.AppendLine($"              <ACTUALQTY>{item.Quantity}</ACTUALQTY>");
-			sb.AppendLine($"              <BILLEDQTY>{item.Quantity}</BILLEDQTY>");
-			sb.AppendLine("              <ACCOUNTINGALLOCATIONS.LIST>");
-			sb.AppendLine("                <LEDGERNAME>Sales Order</LEDGERNAME>");
-			sb.AppendLine("                <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
-			sb.AppendLine($"                <AMOUNT>{itemAmount:F2}</AMOUNT>");
-			sb.AppendLine("              </ACCOUNTINGALLOCATIONS.LIST>");
-			sb.AppendLine("            </ALLINVENTORYENTRIES.LIST>");
-		}
-		
-		decimal grandTotal = totalItemAmount + order.CompositeShippingCharges;
-
-		// Party Ledger Entry (Debit)
-		sb.AppendLine("            <LEDGERENTRIES.LIST>");
-		sb.AppendLine($"              <LEDGERNAME>{partyName}</LEDGERNAME>");
-		sb.AppendLine("              <ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>"); // It's Debit for Sales Order party
-		sb.AppendLine("              <ISPARTYLEDGER>Yes</ISPARTYLEDGER>");
-		sb.AppendLine($"              <AMOUNT>-{grandTotal:F2}</AMOUNT>");
-		sb.AppendLine("              <BILLALLOCATIONS.LIST>");
-		sb.AppendLine($"                <NAME>{orderNo}</NAME>");
-		sb.AppendLine("                <BILLTYPE>New Ref</BILLTYPE>");
-		sb.AppendLine($"                <AMOUNT>-{grandTotal:F2}</AMOUNT>");
-		sb.AppendLine("              </BILLALLOCATIONS.LIST>");
-		sb.AppendLine("            </LEDGERENTRIES.LIST>");
-
-		// Shipping Ledger Entry (Credit)
-		if (order.CompositeShippingCharges > 0)
-		{
-			sb.AppendLine("            <LEDGERENTRIES.LIST>");
-			sb.AppendLine("              <LEDGERNAME>Shipping Charges</LEDGERNAME>");
-			sb.AppendLine("              <ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE>");
-			sb.AppendLine($"              <AMOUNT>{order.CompositeShippingCharges:F2}</AMOUNT>");
-			sb.AppendLine("            </LEDGERENTRIES.LIST>");
-		}
-
-		sb.AppendLine("          </VOUCHER>");
-		sb.AppendLine("        </TALLYMESSAGE>");
-		sb.AppendLine("      </REQUESTDATA>");
-		sb.AppendLine("    </IMPORTDATA>");
-		sb.AppendLine("  </BODY>");
-		sb.AppendLine("</ENVELOPE>");
+		var salesOrderXml = BuildSalesOrderXml(order);
 
 		var request = new HttpRequestMessage(HttpMethod.Post, tallyUrl)
 		{
-			Content = new StringContent(sb.ToString(), Encoding.UTF8, "text/xml")
+			Content = new StringContent(salesOrderXml, Encoding.UTF8, "text/xml")
 		};
 
 		var response = await _httpClient.SendAsync(request);
 		response.EnsureSuccessStatusCode();
 
 		var responseContent = await response.Content.ReadAsStringAsync();
-		
-		// Typically Tally returns <CREATED>1</CREATED> on success.
-		if (responseContent.Contains("<CREATED>0</CREATED>") && responseContent.Contains("<ERRORS>"))
-		{
-			throw new Exception($"Tally returned an error: {responseContent}");
-		}
+		EnsureTallyImportSucceeded(responseContent);
 
 		return responseContent;
 	}
+
+	private string BuildSalesOrderXml(ResellerPendingOrder order)
+	{
+		ValidateSalesOrder(order);
+
+		var parsedDate = ParseResellerOrderDate(order.OrderDate);
+		var tallyDate = parsedDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+		var tallyDueDate = FormatTallyDisplayDate(parsedDate);
+		var voucherTypeName = GetVoucherTypeName(order);
+		var shippingLedgerName = GetTallySetting("ShippingLedgerName", "SHIPPING / PACKAGING CHARGES");
+		var companyStateName = GetTallySetting("CompanyStateName", "Maharashtra");
+		var companyGstin = NormalizeOptionalValue(_configuration["TallySettings:CompanyGstin"]);
+		var companyGstRegistration = NormalizeOptionalValue(_configuration["TallySettings:CompanyGstRegistrationName"]);
+		var godownName = GetTallySetting("GodownName", "PDC");
+		var batchName = GetTallySetting("BatchName", "Primary Batch");
+		var partyName = NormalizeConfigValue(order.BillingAddress?.Name, "Cash");
+		var orderNo = NormalizeOrderNo(order.OrderNo);
+		var stateName = NormalizeConfigValue(order.BillingAddress?.State ?? order.ShippingAddress?.State, companyStateName);
+		var countryName = GetTallySetting("CountryName", "India");
+		var placeOfSupply = NormalizeConfigValue(order.ShippingAddress?.State ?? order.BillingAddress?.State, stateName);
+		var partyLedger = ResolvePartyLedger(orderNo, partyName);
+		var amounts = CalculateTallyAmounts(order, placeOfSupply, companyStateName);
+		var buyerPincode = order.BillingAddress?.Pincode > 0 ? order.BillingAddress.Pincode.ToString(CultureInfo.InvariantCulture) : null;
+		var consigneePincode = order.ShippingAddress?.Pincode > 0 ? order.ShippingAddress.Pincode.ToString(CultureInfo.InvariantCulture) : buyerPincode;
+		var paymentTerms = partyLedger.UsesCustomerLedger
+			? null
+			: NormalizeOptionalValue(_configuration["TallySettings:ConsumerPaymentTerms"]);
+
+		var voucher = new XElement("VOUCHER",
+			new XAttribute("VCHTYPE", voucherTypeName),
+			new XAttribute("ACTION", "Create"),
+			new XAttribute("OBJVIEW", "Invoice Voucher View"),
+			new XElement("DATE", tallyDate),
+			new XElement("VCHSTATUSDATE", tallyDate),
+			new XElement("REFERENCEDATE", tallyDate),
+			new XElement("GSTREGISTRATIONTYPE", partyLedger.UsesCustomerLedger ? GetTallySetting("CustomerLedgerGstRegistrationType", "Regular") : GetTallySetting("ConsumerGstRegistrationType", "Unregistered/Consumer")),
+			new XElement("VATDEALERTYPE", "Regular"),
+			new XElement("STATENAME", stateName),
+			new XElement("COUNTRYOFRESIDENCE", countryName),
+			new XElement("PLACEOFSUPPLY", placeOfSupply),
+			new XElement("PARTYNAME", partyName),
+			CreateGstRegistrationElement(companyGstRegistration, companyGstin),
+			CreateOptionalElement("CMPGSTIN", companyGstin),
+			new XElement("VOUCHERTYPENAME", voucherTypeName),
+			new XElement("VOUCHERNUMBER", orderNo),
+			new XElement("PARTYLEDGERNAME", partyLedger.PartyLedgerName),
+			new XElement("REFERENCE", orderNo),
+			new XElement("BASICORDERREF", orderNo),
+			new XElement("PARTYMAILINGNAME", partyName),
+			new XElement("BASICBUYERNAME", partyName),
+			new XElement("CMPGSTREGISTRATIONTYPE", "Regular"),
+			CreateOptionalElement("PARTYPINCODE", buyerPincode),
+			new XElement("CONSIGNEEMAILINGNAME", NormalizeConfigValue(order.ShippingAddress?.Name, partyName)),
+			CreateOptionalElement("CONSIGNEEPINCODE", consigneePincode),
+			new XElement("CONSIGNEESTATENAME", placeOfSupply),
+			new XElement("CMPGSTSTATE", companyStateName),
+			new XElement("CONSIGNEECOUNTRYNAME", countryName),
+			new XElement("BASICBASEPARTYNAME", partyLedger.PartyLedgerName),
+			new XElement("NUMBERINGSTYLE", "Manual"),
+			CreateAddressList("ADDRESS.LIST", "ADDRESS", order.BillingAddress),
+			CreateAddressList("BASICBUYERADDRESS.LIST", "BASICBUYERADDRESS", order.ShippingAddress ?? order.BillingAddress),
+			new XElement("PERSISTEDVIEW", "Invoice Voucher View"),
+			new XElement("VCHSTATUSVOUCHERTYPE", voucherTypeName),
+			CreateOptionalElement("VCHSTATUSTAXUNIT", companyGstRegistration),
+			CreateOptionalElement("BASICDUEDATEOFPYMT", paymentTerms),
+			new XElement("VOUCHERTYPEORIGNAME", voucherTypeName),
+			new XElement("DIFFACTUALQTY", "No"),
+			new XElement("ISMSTFROMSYNC", "No"),
+			new XElement("ISDELETED", "No"),
+			new XElement("ASORIGINAL", "No"),
+			new XElement("ISCOMMONPARTY", partyLedger.UsesCustomerLedger ? "No" : "Yes"),
+			new XElement("FORJOBCOSTING", "No"),
+			new XElement("ISOPTIONAL", "No"),
+			new XElement("VCHENTRYMODE", "Item Invoice"),
+			new XElement("EFFECTIVEDATE", tallyDate),
+			new XElement("USEFORINTEREST", "No"),
+			new XElement("USEFORGODOWNTRANSFER", "No"),
+			new XElement("ISGSTOVERRIDDEN", "No"),
+			new XElement("ISCANCELLED", "No"),
+			new XElement("ISECOMMERCESUPPLY", "No"),
+			new XElement("ISINVOICE", "No"),
+			new XElement("ORDERLINESTATUS", "No"));
+
+		XNamespace udf = "TallyUDF";
+
+		foreach (var line in amounts.Lines)
+		{
+			voucher.Add(CreateInventoryEntry(line, orderNo, tallyDueDate, partyLedger.SalesLedgerName, godownName, batchName, udf));
+		}
+
+		voucher.Add(CreatePartyLedgerEntry(partyLedger.PartyLedgerName, amounts.GrandTotal));
+
+		if (amounts.ShippingBaseAmount > 0)
+		{
+			voucher.Add(CreateCreditLedgerEntry(shippingLedgerName, amounts.ShippingBaseAmount, includeVatAmount: false));
+		}
+
+		if (amounts.IntegratedTaxAmount > 0)
+		{
+			voucher.Add(CreateCreditLedgerEntry(GetTallySetting("IntegratedTaxLedgerName", "TAXES OUTPUT :- IGST (INTEGRATED) (MH)"), amounts.IntegratedTaxAmount, includeVatAmount: true));
+		}
+
+		if (amounts.CentralTaxAmount > 0)
+		{
+			voucher.Add(CreateCreditLedgerEntry(GetTallySetting("CentralTaxLedgerName", "TAXES OUTPUT :- CGST (CENTRAL) (MH)"), amounts.CentralTaxAmount, includeVatAmount: true));
+		}
+
+		if (amounts.StateTaxAmount > 0)
+		{
+			voucher.Add(CreateCreditLedgerEntry(GetTallySetting("StateTaxLedgerName", "TAXES OUTPUT :- SGST (STATE) (MH)"), amounts.StateTaxAmount, includeVatAmount: true));
+		}
+
+		if (amounts.RoundOffAmount != 0)
+		{
+			voucher.Add(CreateRoundOffLedgerEntry(GetTallySetting("RoundOffLedgerName", "Round Off"), amounts.RoundOffAmount));
+		}
+
+		var document = new XDocument(
+			new XElement("ENVELOPE",
+				new XElement("HEADER",
+					new XElement("TALLYREQUEST", "Import Data")),
+				new XElement("BODY",
+					new XElement("IMPORTDATA",
+						CreateRequestDescription(),
+						new XElement("REQUESTDATA",
+							new XElement("TALLYMESSAGE",
+								new XAttribute(XNamespace.Xmlns + "UDF", udf),
+								voucher))))));
+
+		return document.ToString(SaveOptions.DisableFormatting);
+	}
+
+	private XElement CreateRequestDescription()
+	{
+		var requestDesc = new XElement("REQUESTDESC", new XElement("REPORTNAME", "Vouchers"));
+		var currentCompany = NormalizeOptionalValue(_configuration["TallySettings:CurrentCompany"]);
+
+		if (!string.IsNullOrWhiteSpace(currentCompany))
+		{
+			requestDesc.Add(new XElement("STATICVARIABLES", new XElement("SVCURRENTCOMPANY", currentCompany)));
+		}
+
+		return requestDesc;
+	}
+
+	private static XElement CreatePartyLedgerEntry(string partyLedgerName, decimal grandTotal)
+	{
+		return new XElement("LEDGERENTRIES.LIST",
+			new XElement("LEDGERNAME", partyLedgerName),
+			new XElement("ISDEEMEDPOSITIVE", "Yes"),
+			new XElement("LEDGERFROMITEM", "No"),
+			new XElement("ISPARTYLEDGER", "Yes"),
+			new XElement("ISLASTDEEMEDPOSITIVE", "Yes"),
+			new XElement("AMOUNT", $"-{FormatMoney(grandTotal)}"));
+	}
+
+	private static XElement CreateCreditLedgerEntry(string ledgerName, decimal amount, bool includeVatAmount)
+	{
+		var ledgerEntry = new XElement("LEDGERENTRIES.LIST",
+			new XElement("LEDGERNAME", ledgerName),
+			new XElement("GSTCLASS", "Not Applicable"),
+			new XElement("ISDEEMEDPOSITIVE", amount < 0 ? "Yes" : "No"),
+			new XElement("LEDGERFROMITEM", "No"),
+			new XElement("ISPARTYLEDGER", "No"),
+			new XElement("ISLASTDEEMEDPOSITIVE", amount < 0 ? "Yes" : "No"),
+			new XElement("AMOUNT", FormatMoney(amount)));
+
+		if (includeVatAmount)
+		{
+			ledgerEntry.Add(new XElement("VATEXPAMOUNT", FormatMoney(amount)));
+		}
+
+		return ledgerEntry;
+	}
+
+	private static XElement CreateRoundOffLedgerEntry(string ledgerName, decimal amount)
+	{
+		var ledgerEntry = CreateCreditLedgerEntry(ledgerName, amount, includeVatAmount: true);
+		ledgerEntry.AddFirst(new XElement("ROUNDTYPE", "Normal Rounding"));
+		ledgerEntry.Add(new XElement("ROUNDLIMIT", " 1"));
+		return ledgerEntry;
+	}
+
+	private XElement CreateInventoryEntry(
+		TallyInventoryLine line,
+		string orderNo,
+		string tallyDueDate,
+		string salesLedgerName,
+		string godownName,
+		string batchName,
+		XNamespace udf)
+	{
+		var amount = FormatMoney(line.Amount);
+		var quantity = FormatQuantity(line.Item.Quantity, line.Unit);
+
+		return new XElement("ALLINVENTORYENTRIES.LIST",
+			new XElement("STOCKITEMNAME", line.StockItemName),
+			new XElement("GSTOVRDNTAXABILITY", "Taxable"),
+			new XElement("GSTSOURCETYPE", "Stock Item"),
+			new XElement("GSTITEMSOURCE", line.StockItemName),
+			new XElement("HSNSOURCETYPE", "Stock Item"),
+			new XElement("HSNITEMSOURCE", line.StockItemName),
+			new XElement("GSTOVRDNTYPEOFSUPPLY", "Goods"),
+			new XElement("GSTRATEINFERAPPLICABILITY", "As per Masters/Company"),
+			new XElement("ISDEEMEDPOSITIVE", "No"),
+			new XElement("ISLASTDEEMEDPOSITIVE", "No"),
+			new XElement("RATE", $"{FormatMoney(line.BaseRate)}/{line.Unit}"),
+			new XElement("AMOUNT", amount),
+			new XElement("ACTUALQTY", quantity),
+			new XElement("BILLEDQTY", quantity),
+			new XElement("INCLVATRATE", $"{FormatMoney(line.InclusiveRate)}/{line.Unit}"),
+			new XElement("BATCHALLOCATIONS.LIST",
+				new XElement("GODOWNNAME", godownName),
+				new XElement("BATCHNAME", batchName),
+				new XElement("INDENTNO", "Not Applicable"),
+				new XElement("ORDERNO", orderNo),
+				new XElement("TRACKINGNUMBER", "Not Applicable"),
+				new XElement("AMOUNT", amount),
+				new XElement("ACTUALQTY", quantity),
+				new XElement("BILLEDQTY", quantity),
+				new XElement("INCLVATRATE", $"{FormatMoney(line.InclusiveRate)}/{line.Unit}"),
+				new XElement("ORDERDUEDATE", new XAttribute("P", tallyDueDate), tallyDueDate)),
+			new XElement("ACCOUNTINGALLOCATIONS.LIST",
+				new XElement("LEDGERNAME", salesLedgerName),
+				new XElement("GSTCLASS", "Not Applicable"),
+				new XElement("ISDEEMEDPOSITIVE", "No"),
+				new XElement("LEDGERFROMITEM", "No"),
+				new XElement("ISPARTYLEDGER", "No"),
+				new XElement("ISLASTDEEMEDPOSITIVE", "No"),
+				new XElement("AMOUNT", amount)),
+			new XElement(udf + "ITEMCODEINVCH.LIST",
+				new XAttribute("DESC", "`ItemCodeinVch`"),
+				new XAttribute("ISLIST", "YES"),
+				new XAttribute("TYPE", "String"),
+				new XAttribute("INDEX", "550"),
+				new XElement(udf + "ITEMCODEINVCH", new XAttribute("DESC", "`ItemCodeinVch`"), line.Item.Sku)));
+	}
+
+	private static XElement? CreateAddressList(string listElementName, string childElementName, ResellerAddress? address)
+	{
+		if (address == null)
+			return null;
+
+		var lines = new string?[]
+			{
+				address.Line1,
+				address.Line2,
+				JoinAddressParts(address.City, address.State),
+				address.Pincode > 0 ? address.Pincode.ToString(CultureInfo.InvariantCulture) : string.Empty,
+				address.ContactNo > 0 ? address.ContactNo.ToString(CultureInfo.InvariantCulture) : string.Empty
+			}
+			.Where(line => !string.IsNullOrWhiteSpace(line))
+			.Select(line => new XElement(childElementName, line!.Trim()))
+			.ToList();
+
+		return lines.Count == 0
+			? null
+			: new XElement(listElementName, new XAttribute("TYPE", "String"), lines);
+	}
+
+	private static string JoinAddressParts(params string[] parts)
+	{
+		return string.Join(", ", parts.Where(part => !string.IsNullOrWhiteSpace(part)).Select(part => part.Trim()));
+	}
+
+	private static DateTime ParseResellerOrderDate(string orderDate)
+	{
+		return DateTime.TryParseExact(orderDate, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate)
+			? parsedDate
+			: DateTime.Today;
+	}
+
+	private void ValidateSalesOrder(ResellerPendingOrder order)
+	{
+		ArgumentNullException.ThrowIfNull(order);
+
+		if (string.IsNullOrWhiteSpace(order.OrderNo))
+			throw new InvalidOperationException("Cannot push to Tally because the reseller order number is missing.");
+
+		if (order.Items == null || order.Items.Count == 0)
+			throw new InvalidOperationException($"Cannot push order {order.OrderNo} to Tally because it has no items.");
+
+		for (var index = 0; index < order.Items.Count; index++)
+		{
+			var item = order.Items[index];
+			var displayIndex = index + 1;
+
+			if (string.IsNullOrWhiteSpace(item.Sku) && string.IsNullOrWhiteSpace(item.StockItemName))
+				throw new InvalidOperationException($"Cannot push order {order.OrderNo} to Tally because item {displayIndex} has no SKU or stock item name.");
+
+			if (item.Quantity <= 0)
+				throw new InvalidOperationException($"Cannot push order {order.OrderNo} to Tally because item {item.Sku} has invalid quantity {item.Quantity}.");
+
+			if (item.Rate < 0)
+				throw new InvalidOperationException($"Cannot push order {order.OrderNo} to Tally because item {item.Sku} has a negative rate.");
+		}
+	}
+
+	private void EnsureTallyImportSucceeded(string responseContent)
+	{
+		if (string.IsNullOrWhiteSpace(responseContent))
+			throw new InvalidOperationException("Tally returned an empty response.");
+
+		XDocument responseXml;
+		try
+		{
+			responseXml = XDocument.Parse(RemoveInvalidCharacters(responseContent));
+		}
+		catch (XmlException ex)
+		{
+			throw new InvalidOperationException($"Tally returned a non-XML response: {responseContent}", ex);
+		}
+
+		var lineErrors = responseXml
+			.Descendants()
+			.Where(element => string.Equals(element.Name.LocalName, "LINEERROR", StringComparison.OrdinalIgnoreCase))
+			.Select(element => element.Value.Trim())
+			.Where(value => !string.IsNullOrWhiteSpace(value))
+			.ToList();
+
+		var importResult = responseXml.Descendants().FirstOrDefault(element =>
+				string.Equals(element.Name.LocalName, "IMPORTRESULT", StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(element.Name.LocalName, "RESPONSE", StringComparison.OrdinalIgnoreCase))
+			?? responseXml.Root;
+
+		var created = ReadTallyImportValue(importResult, "CREATED");
+		var altered = ReadTallyImportValue(importResult, "ALTERED");
+		var ignored = ReadTallyImportValue(importResult, "IGNORED");
+		var errors = ReadTallyImportValue(importResult, "ERRORS");
+		var hasImportCounters = created.HasValue || altered.HasValue || ignored.HasValue || errors.HasValue;
+
+		if (lineErrors.Count > 0 || errors.GetValueOrDefault() > 0)
+		{
+			var details = lineErrors.Count > 0
+				? string.Join("; ", lineErrors)
+				: $"Tally reported {errors.GetValueOrDefault()} error(s).";
+
+			throw new InvalidOperationException($"Tally import failed: {details}. Response: {responseContent}");
+		}
+
+		if (ignored.GetValueOrDefault() > 0)
+			throw new InvalidOperationException($"Tally ignored the voucher import. Response: {responseContent}");
+
+		if (hasImportCounters && created.GetValueOrDefault() + altered.GetValueOrDefault() == 0)
+			throw new InvalidOperationException($"Tally did not create or alter the voucher. Response: {responseContent}");
+	}
+
+	private static int? ReadTallyImportValue(XElement? parent, string elementName)
+	{
+		var value = parent?
+			.Elements()
+			.FirstOrDefault(element => string.Equals(element.Name.LocalName, elementName, StringComparison.OrdinalIgnoreCase))
+			?.Value;
+
+		return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+			? number
+			: null;
+	}
+
+	private string GetTallySetting(string key, string fallback)
+	{
+		return NormalizeConfigValue(_configuration[$"TallySettings:{key}"], fallback);
+	}
+
+	private string GetVoucherTypeName(ResellerPendingOrder order)
+	{
+		var configuredVoucherType = NormalizeOptionalValue(_configuration["TallySettings:VoucherTypeName"]);
+
+		if (!string.IsNullOrWhiteSpace(configuredVoucherType))
+			return configuredVoucherType;
+
+		var apiVoucherType = NormalizeConfigValue(order.VoucherType, "SO-Online");
+		return string.Equals(apiVoucherType, "SO Online", StringComparison.OrdinalIgnoreCase)
+			? "SO-Online"
+			: apiVoucherType;
+	}
+
+	private string NormalizeTallyUnit(string? unit)
+	{
+		var defaultUnit = NormalizeConfigValue(_configuration["TallySettings:DefaultUnit"], "pcs");
+		var useProductUnit = _configuration.GetValue("TallySettings:UseProductUnitForResellerOrders", false);
+		var normalized = NormalizeConfigValue(useProductUnit ? unit : null, defaultUnit).Trim();
+
+		return normalized.ToLowerInvariant() switch
+		{
+			"n" or "no" or "nos." or "number" or "numbers" => "nos",
+			"pc" or "pcs." or "piece" or "pieces" => "pcs",
+			_ => normalized
+		};
+	}
+
+	private TallyPartyLedger ResolvePartyLedger(string orderNo, string partyName)
+	{
+		var customerLedgerPrefixes = GetStringListSetting("CustomerLedgerOrderPrefixes", "P");
+		var usesCustomerLedger = _configuration.GetValue("TallySettings:AlwaysUseCustomerAsPartyLedger", false) ||
+			customerLedgerPrefixes.Any(prefix => orderNo.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+		var partyLedgerName = usesCustomerLedger
+			? partyName
+			: GetTallySetting("DefaultPartyLedgerName", "Website Order CC Avenue - MOTO");
+
+		var salesLedgerName = usesCustomerLedger
+			? GetTallySetting("BusinessSalesLedgerName", "A SALES MH (BUSINESS)")
+			: GetTallySetting("ConsumerSalesLedgerName", "A SALES MH (CONSUMER)");
+
+		return new TallyPartyLedger(partyLedgerName, salesLedgerName, usesCustomerLedger);
+	}
+
+	private TallyAmounts CalculateTallyAmounts(ResellerPendingOrder order, string placeOfSupply, string companyStateName)
+	{
+		var gstRatePercent = GetDecimalSetting("GstRatePercent", 18m);
+		var addGstLedgers = _configuration.GetValue("TallySettings:AddGstLedgers", true);
+		var itemRatesIncludeGst = _configuration.GetValue("TallySettings:ItemRatesIncludeGst", true);
+		var shippingChargesAreTaxable = _configuration.GetValue("TallySettings:ShippingChargesAreTaxable", true);
+		var shippingChargesIncludeGst = _configuration.GetValue("TallySettings:ShippingChargesIncludeGst", false);
+		var roundOffOrders = _configuration.GetValue("TallySettings:RoundOffResellerOrders", true);
+		var gstMultiplier = 1 + (gstRatePercent / 100m);
+
+		var lines = order.Items.Select(item =>
+		{
+			var unit = NormalizeTallyUnit(item.Unit);
+			var inclusiveRate = itemRatesIncludeGst ? item.Rate : RoundMoney(item.Rate * gstMultiplier);
+			var baseRate = itemRatesIncludeGst && gstMultiplier > 0 ? RoundMoney(item.Rate / gstMultiplier) : item.Rate;
+			var amount = RoundMoney(baseRate * item.Quantity);
+
+			return new TallyInventoryLine(
+				item,
+				NormalizeConfigValue(item.StockItemName, item.Sku),
+				unit,
+				baseRate,
+				inclusiveRate,
+				amount);
+		}).ToList();
+
+		var itemBaseTotal = RoundMoney(lines.Sum(line => line.Amount));
+		var rawShipping = Math.Max(order.CompositeShippingCharges, 0);
+		var shippingBase = shippingChargesIncludeGst && gstMultiplier > 0 ? RoundMoney(rawShipping / gstMultiplier) : rawShipping;
+		var taxableAmount = itemBaseTotal + (shippingChargesAreTaxable ? shippingBase : 0);
+		var totalTax = addGstLedgers ? RoundMoney(taxableAmount * gstRatePercent / 100m) : 0;
+		var isIntraState = string.Equals(NormalizeKey(placeOfSupply), NormalizeKey(companyStateName), StringComparison.OrdinalIgnoreCase);
+		var integratedTax = isIntraState ? 0 : totalTax;
+		var centralTax = isIntraState ? RoundMoney(totalTax / 2m) : 0;
+		var stateTax = isIntraState ? RoundMoney(totalTax - centralTax) : 0;
+		var subtotal = RoundMoney(itemBaseTotal + shippingBase + integratedTax + centralTax + stateTax);
+		var grandTotal = roundOffOrders ? Math.Round(subtotal, 0, MidpointRounding.AwayFromZero) : subtotal;
+		var roundOff = RoundMoney(grandTotal - subtotal);
+
+		return new TallyAmounts(lines, itemBaseTotal, shippingBase, integratedTax, centralTax, stateTax, roundOff, grandTotal);
+	}
+
+	private decimal GetDecimalSetting(string key, decimal fallback)
+	{
+		var value = _configuration[$"TallySettings:{key}"];
+		return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed) ? parsed : fallback;
+	}
+
+	private IEnumerable<string> GetStringListSetting(string key, string fallback)
+	{
+		return NormalizeConfigValue(_configuration[$"TallySettings:{key}"], fallback)
+			.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+	}
+
+	private static XElement? CreateOptionalElement(string elementName, string? value)
+	{
+		return string.IsNullOrWhiteSpace(value) ? null : new XElement(elementName, value.Trim());
+	}
+
+	private static XElement? CreateGstRegistrationElement(string? registrationName, string? gstin)
+	{
+		return string.IsNullOrWhiteSpace(registrationName)
+			? null
+			: new XElement("GSTREGISTRATION",
+				new XAttribute("TAXTYPE", "GST"),
+				new XAttribute("TAXREGISTRATION", NormalizeConfigValue(gstin, registrationName.Trim())),
+				registrationName.Trim());
+	}
+
+	private static string NormalizeConfigValue(string? value, string fallback)
+	{
+		return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+	}
+
+	private static string? NormalizeOptionalValue(string? value)
+	{
+		return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+	}
+
+	private static string NormalizeOrderNo(string? value)
+	{
+		return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
+	}
+
+	private static string NormalizeKey(string? value)
+	{
+		return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
+	}
+
+	private static string FormatMoney(decimal value)
+	{
+		return value.ToString("0.00", CultureInfo.InvariantCulture);
+	}
+
+	private static string FormatQuantity(int quantity, string unit)
+	{
+		return $" {quantity.ToString("0.00", CultureInfo.InvariantCulture)} {unit}";
+	}
+
+	private static string FormatTallyDisplayDate(DateTime value)
+	{
+		return value.ToString("d-MMM-yy", CultureInfo.InvariantCulture);
+	}
+
+	private static decimal RoundMoney(decimal value)
+	{
+		return Math.Round(value, 2, MidpointRounding.AwayFromZero);
+	}
+
+	private sealed record TallyPartyLedger(string PartyLedgerName, string SalesLedgerName, bool UsesCustomerLedger);
+
+	private sealed record TallyInventoryLine(
+		ResellerOrderItem Item,
+		string StockItemName,
+		string Unit,
+		decimal BaseRate,
+		decimal InclusiveRate,
+		decimal Amount);
+
+	private sealed record TallyAmounts(
+		List<TallyInventoryLine> Lines,
+		decimal ItemBaseTotal,
+		decimal ShippingBaseAmount,
+		decimal IntegratedTaxAmount,
+		decimal CentralTaxAmount,
+		decimal StateTaxAmount,
+		decimal RoundOffAmount,
+		decimal GrandTotal);
 
 	private async Task<List<Voucher>> GetVouchersFromXmlContentAsync(string xmlContent)
 	{

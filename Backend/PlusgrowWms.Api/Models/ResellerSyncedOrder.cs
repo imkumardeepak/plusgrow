@@ -22,7 +22,7 @@ namespace PlusgrowWms.Api.Models
         public int Id { get; set; }
         
         // The original order number from the Reseller API
-        public long OrderNo { get; set; }
+        public string OrderNo { get; set; } = string.Empty;
         
         public string OrderDate { get; set; } = string.Empty;
         
