@@ -16,6 +16,7 @@ public class OutwardOrderDto
     public int ProductId { get; set; }
     public string SkuCode { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string? Ownership { get; set; }
     public string? Alias { get; set; }
     public string? CartonQr { get; set; }
     public int? CartonPerItem { get; set; }

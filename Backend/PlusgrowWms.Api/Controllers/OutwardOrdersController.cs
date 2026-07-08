@@ -2333,6 +2333,7 @@ public class OutwardOrdersController : BaseController
             ProductId = row.ProductId,
             SkuCode = row.Product?.Sku ?? string.Empty,
             ProductName = row.Product?.Name ?? string.Empty,
+            Ownership = row.Product?.Ownership,
             Alias = row.Product?.Alias,
             CartonQr = row.Product?.CartonQr,
             CartonPerItem = row.Product?.CartonPerItem,

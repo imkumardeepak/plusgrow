@@ -421,6 +421,7 @@ export interface OutwardOrder {
   productId: number;
   skuCode: string;
   productName: string;
+  ownership?: string | null;
   alias?: string;
   cartonQr?: string | null;
   cartonPerItem?: number | null;

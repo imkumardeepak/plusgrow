@@ -181,7 +181,8 @@ export const TodayOperations = memo(function TodayOperations() {
       const outwardData = todayOutward.map((order) => ({
         "SKU": order.skuCode,
         "Qty": order.quantity,
-        "Ownership": order.customerName,
+        "Customer": order.customerName,
+        "Ownership": order.ownership || "",
         "Ref No": getOutwardReference(order),
         "Tracking No": order.trackingNumber || "",
         "Status": order.status,
@@ -649,11 +650,12 @@ export const TodayOperations = memo(function TodayOperations() {
                     ))}
                   </Stack>
                 ) : (
-                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={1000}>
+                  <Table striped highlightOnHover withTableBorder withColumnBorders verticalSpacing={2} horizontalSpacing="xs" fz="xs" miw={1100}>
                     <Table.Thead>
                       <Table.Tr>
                         <Table.Th>SKU</Table.Th>
                         <Table.Th style={{ textAlign: "right" }}>Qty</Table.Th>
+                        <Table.Th>Customer</Table.Th>
                         <Table.Th>Ownership</Table.Th>
                         <Table.Th>Ref No</Table.Th>
                         <Table.Th>Tracking No</Table.Th>
@@ -672,6 +674,9 @@ export const TodayOperations = memo(function TodayOperations() {
                           </Table.Td>
                           <Table.Td>
                             <Text size="11px" truncate maw={120}>{order.customerName || "—"}</Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="11px" truncate maw={120}>{order.ownership || "—"}</Text>
                           </Table.Td>
                           <Table.Td>
                             <Text size="11px" fw={700} c="blue.3" style={{ cursor: "pointer", textDecoration: "underline" }} onClick={() => navigate(`/outward?search=${encodeURIComponent(getOutwardReference(order))}`)}>{getOutwardReference(order)}</Text>
