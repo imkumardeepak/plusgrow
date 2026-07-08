@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using Hangfire;
@@ -49,10 +50,7 @@ namespace PlusgrowWms.Api.Services
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                var existingOrderNos = await _context.ResellerSyncedOrders
-                    .Where(o => orderNos.Contains(o.OrderNo))
-                    .Select(o => o.OrderNo)
-                    .ToListAsync();
+                var existingOrderNos = await GetExistingOrderNosAsync(orderNos);
 
                 var skippedOrderNos = new HashSet<string>(existingOrderNos, StringComparer.OrdinalIgnoreCase);
 
@@ -134,6 +132,53 @@ namespace PlusgrowWms.Api.Services
         private static string NormalizeOrderNo(string? orderNo)
         {
             return string.IsNullOrWhiteSpace(orderNo) ? string.Empty : orderNo.Trim().ToUpperInvariant();
+        }
+
+        private async Task<List<string>> GetExistingOrderNosAsync(List<string> orderNos)
+        {
+            if (orderNos.Count == 0)
+            {
+                return new List<string>();
+            }
+
+            var existingOrderNos = new List<string>();
+            var connection = _context.Database.GetDbConnection();
+            var shouldCloseConnection = connection.State != ConnectionState.Open;
+
+            if (shouldCloseConnection)
+            {
+                await connection.OpenAsync();
+            }
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT "OrderNo"::text
+                    FROM resellersyncedorders
+                    WHERE "OrderNo"::text = ANY(@orderNos)
+                    """;
+
+                var orderNosParameter = command.CreateParameter();
+                orderNosParameter.ParameterName = "orderNos";
+                orderNosParameter.Value = orderNos.ToArray();
+                command.Parameters.Add(orderNosParameter);
+
+                await using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    existingOrderNos.Add(reader.GetString(0));
+                }
+            }
+            finally
+            {
+                if (shouldCloseConnection)
+                {
+                    await connection.CloseAsync();
+                }
+            }
+
+            return existingOrderNos;
         }
     }
 }

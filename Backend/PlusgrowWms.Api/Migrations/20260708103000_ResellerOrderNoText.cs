@@ -1,10 +1,14 @@
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using PlusgrowWms.Api.Data;
 
 #nullable disable
 
 namespace PlusgrowWms.Api.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(PlusgrowDbContext))]
+    [Migration("20260708103000_ResellerOrderNoText")]
     public partial class ResellerOrderNoText : Migration
     {
         /// <inheritdoc />
