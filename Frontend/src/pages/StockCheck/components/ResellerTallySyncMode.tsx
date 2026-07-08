@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowLeft, RefreshCw, Navigation, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Navigation, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { Box, Group, Paper, Stack, Text, Badge, ActionIcon, ScrollArea, Code } from "@mantine/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../../components/atoms/Button";
@@ -65,6 +65,42 @@ export function ResellerTallySyncMode({
       }
     },
   });
+
+  const hideMutation = useMutation({
+    mutationFn: async (orderNo: number) => {
+      const response = await fetch(`${API_BASE_URL}/resellertally/orders/${orderNo}/hide`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+        },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Failed to hide order");
+      return { orderNo, message: result.message };
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+      setTallyResponses((prev) => {
+        const next = { ...prev };
+        delete next[data.orderNo];
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["reseller-tally-pending"] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to hide order");
+    },
+  });
+
+  const handleHideOrder = (orderNo: number) => {
+    const confirmed = window.confirm(
+      `Hide order #${orderNo} from this list? It will not be fetched again because the order number remains saved.`,
+    );
+
+    if (confirmed) {
+      hideMutation.mutate(orderNo);
+    }
+  };
 
   return (
     <Stack gap="md" h="100%">
@@ -138,15 +174,29 @@ export function ResellerTallySyncMode({
                       Items: {order.totalItems} &bull; Shipping: {order.compositeShippingCharges}
                     </Text>
                   </Box>
-                  <Button
-                    onClick={() => syncMutation.mutate(order.orderNo)}
-                    loading={syncMutation.isPending && syncMutation.variables === order.orderNo}
-                    disabled={order.syncStatus === "Success"}
-                    leftSection={<Navigation size={16} />}
-                    color="blue"
-                  >
-                    Push to Tally
-                  </Button>
+                  <Group gap="xs">
+                    <ActionIcon
+                      aria-label={`Hide order ${order.orderNo} from Tally sync list`}
+                      title="Hide from this list"
+                      color="red"
+                      variant="light"
+                      size="lg"
+                      loading={hideMutation.isPending && hideMutation.variables === order.orderNo}
+                      disabled={syncMutation.isPending && syncMutation.variables === order.orderNo}
+                      onClick={() => handleHideOrder(order.orderNo)}
+                    >
+                      <Trash2 size={16} />
+                    </ActionIcon>
+                    <Button
+                      onClick={() => syncMutation.mutate(order.orderNo)}
+                      loading={syncMutation.isPending && syncMutation.variables === order.orderNo}
+                      disabled={order.syncStatus === "Success" || (hideMutation.isPending && hideMutation.variables === order.orderNo)}
+                      leftSection={<Navigation size={16} />}
+                      color="blue"
+                    >
+                      Push to Tally
+                    </Button>
+                  </Group>
                 </Group>
                 
                 {tallyResponses[order.orderNo] && (

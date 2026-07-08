@@ -45,6 +45,8 @@ namespace PlusgrowWms.Api.Models
         public DateTime FetchedAt { get; set; } = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         public DateTime? SyncedAt { get; set; }
+
+        public bool IsHiddenFromTallySync { get; set; } = false;
         
         public string Status { get; set; } = "Pending"; // "Pending", "Success", "Failed"
         

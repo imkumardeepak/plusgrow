@@ -51,6 +51,12 @@ namespace PlusgrowWms.Api.Services
                         var existing = await _context.ResellerSyncedOrders
                             .FirstOrDefaultAsync(o => o.OrderNo == order.OrderNo);
 
+                        if (existing != null && existing.IsHiddenFromTallySync)
+                        {
+                            _logger.LogInformation($"Order {order.OrderNo} is hidden from Tally sync. Skipping.");
+                            continue;
+                        }
+
                         if (existing != null && existing.Status == "Success")
                         {
                             _logger.LogInformation($"Order {order.OrderNo} already synced to Tally. Skipping.");

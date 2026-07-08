@@ -36,7 +36,7 @@ namespace PlusgrowWms.Api.Controllers
             {
                 var pendingOrders = await _context.ResellerSyncedOrders
                     .Include(o => o.Items)
-                    .Where(o => o.Status != "Success")
+                    .Where(o => o.Status != "Success" && !o.IsHiddenFromTallySync)
                     .OrderByDescending(o => o.FetchedAt)
                     .ToListAsync();
                 
@@ -51,6 +51,30 @@ namespace PlusgrowWms.Api.Controllers
                 });
 
                 return Ok(new { success = true, data = response });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPatch("orders/{orderNo:long}/hide")]
+        public async Task<IActionResult> HideOrder(long orderNo)
+        {
+            try
+            {
+                var existing = await _context.ResellerSyncedOrders
+                    .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+
+                if (existing == null)
+                {
+                    return NotFound(new { success = false, message = "Order not found in local database." });
+                }
+
+                existing.IsHiddenFromTallySync = true;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Order hidden from Tally sync list" });
             }
             catch (Exception ex)
             {

@@ -831,6 +831,9 @@ namespace PlusgrowWms.Api.Migrations
                     b.Property<DateTime>("FetchedAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<bool>("IsHiddenFromTallySync")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("OrderDate")
                         .IsRequired()
                         .HasColumnType("text");
