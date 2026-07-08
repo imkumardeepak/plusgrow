@@ -288,9 +288,10 @@ public class TallyService
 	private XElement CreateRequestDescription()
 	{
 		var requestDesc = new XElement("REQUESTDESC", new XElement("REPORTNAME", "Vouchers"));
+		var shouldSendCurrentCompany = _configuration.GetValue("TallySettings:SendCurrentCompany", false);
 		var currentCompany = NormalizeOptionalValue(_configuration["TallySettings:CurrentCompany"]);
 
-		if (!string.IsNullOrWhiteSpace(currentCompany))
+		if (shouldSendCurrentCompany && !string.IsNullOrWhiteSpace(currentCompany))
 		{
 			requestDesc.Add(new XElement("STATICVARIABLES", new XElement("SVCURRENTCOMPANY", currentCompany)));
 		}

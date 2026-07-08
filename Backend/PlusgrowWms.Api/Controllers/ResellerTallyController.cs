@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,6 +41,9 @@ namespace PlusgrowWms.Api.Controllers
                     .Where(o => o.Status != "Success" && !o.IsHiddenFromTallySync)
                     .OrderByDescending(o => o.FetchedAt)
                     .ToListAsync();
+
+                var productLookup = await GetProductLookupBySkuOrAliasAsync(
+                    pendingOrders.SelectMany(o => o.Items).Select(i => i.Sku));
                 
                 var response = pendingOrders.Select(o => new
                 {
@@ -48,7 +52,26 @@ namespace PlusgrowWms.Api.Controllers
                     CustomerName = o.CustomerName,
                     o.CompositeShippingCharges,
                     TotalItems = o.Items.Count,
-                    SyncStatus = o.Status
+                    SyncStatus = o.Status,
+                    Items = o.Items.Select(i =>
+                    {
+                        productLookup.TryGetValue(NormalizeLookupKey(i.Sku), out var product);
+
+                        return new
+                        {
+                            i.Sku,
+                            i.Quantity,
+                            i.Rate,
+                            LineTotal = i.Quantity * i.Rate,
+                            ProductName = product?.Name,
+                            ProductSku = product?.Sku,
+                            ProductAlias = product?.Alias,
+                            UnitType = product?.UnitType,
+                            Ownership = product?.Ownership,
+                            Mrp = product?.Mrp,
+                            ProductFound = product != null
+                        };
+                    }).ToList()
                 });
 
                 return Ok(new { success = true, data = response });
@@ -205,7 +228,12 @@ namespace PlusgrowWms.Api.Controllers
 
                     await _context.SaveChangesAsync();
 
-                    return StatusCode(500, new { success = false, message = syncEx.Message, tallyResponse = syncEx.Message });
+                    return StatusCode(500, new
+                    {
+                        success = false,
+                        message = BuildTallySyncFailureMessage(syncEx.Message),
+                        tallyResponse = syncEx.Message
+                    });
                 }
 
                 await _context.SaveChangesAsync();
@@ -235,7 +263,9 @@ namespace PlusgrowWms.Api.Controllers
                     product.Name,
                     product.Sku,
                     product.Alias,
-                    product.UnitType))
+                    product.UnitType,
+                    product.Ownership,
+                    product.Mrp))
                 .ToListAsync();
 
             var lookup = new Dictionary<string, ProductTallyMatch>(StringComparer.OrdinalIgnoreCase);
@@ -277,6 +307,37 @@ namespace PlusgrowWms.Api.Controllers
             return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim().ToUpperInvariant();
         }
 
-        private sealed record ProductTallyMatch(string Name, string? Sku, string? Alias, string? UnitType);
+        private static string BuildTallySyncFailureMessage(string message)
+        {
+            var decodedMessage = WebUtility.HtmlDecode(message);
+
+            if (!decodedMessage.Contains("SVCurrentCompany", StringComparison.OrdinalIgnoreCase))
+                return message;
+
+            var companyName = ExtractConfiguredCompanyName(decodedMessage);
+            var companyLabel = string.IsNullOrWhiteSpace(companyName)
+                ? "the configured Tally company"
+                : $"configured Tally company '{companyName}'";
+
+            return $"Tally could not switch to {companyLabel}. Open/select the exact company in Tally or update TallySettings:CurrentCompany.";
+        }
+
+        private static string? ExtractConfiguredCompanyName(string message)
+        {
+            const string marker = "SVCurrentCompany' to '";
+            var markerIndex = message.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+            if (markerIndex < 0)
+                return null;
+
+            var startIndex = markerIndex + marker.Length;
+            var endIndex = message.IndexOf("'", startIndex, StringComparison.Ordinal);
+
+            return endIndex > startIndex
+                ? message[startIndex..endIndex]
+                : null;
+        }
+
+        private sealed record ProductTallyMatch(string Name, string? Sku, string? Alias, string? UnitType, string? Ownership, decimal? Mrp);
     }
 }
