@@ -1009,8 +1009,8 @@ export const Outward = memo(function Outward() {
               </Button>
             </Group>
 
-            <ScrollArea type="auto" offsetScrollbars="y" style={{ maxHeight: "500px", paddingRight: "8px" }}>
-              <Stack gap="md">
+            <ScrollArea.Autosize type="auto" offsetScrollbars mah={480}>
+              <Stack gap="md" pr={8}>
                 {orderForm.items.map((item, index) => {
                   const selectedProduct = products.find((p) => p.id === item.productId);
                   const availableStock = selectedProduct?.stockQty ?? null;
@@ -1114,7 +1114,7 @@ export const Outward = memo(function Outward() {
                   );
                 })}
               </Stack>
-            </ScrollArea>
+            </ScrollArea.Autosize>
           </Box>
         </Stack>
       </Modal>

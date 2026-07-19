@@ -16,7 +16,6 @@ import {
   Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
   IconCheck,
@@ -89,12 +88,6 @@ export function Register() {
 
     if (result.success) {
       setSuccess(true);
-      notifications.show({
-        title: "Account created",
-        message: "Operator account registered successfully.",
-        color: "green",
-        icon: <IconCheck size={18} />,
-      });
       setTimeout(() => {
         navigate("/login");
       }, 1800);

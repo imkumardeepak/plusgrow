@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  IconAlertCircle,
-  IconCheck,
   IconEdit,
   IconPlus,
   IconPrinter,
@@ -25,7 +23,6 @@ import {
   TextInput,
   Tooltip,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useForm } from "@mantine/form";
 import {
   OperationsPage,
@@ -39,6 +36,7 @@ import {
   StickerPrinterConfig,
   stickerPrinterConfigsApi,
 } from "../services/stickerPrinterConfigsApi";
+import { toast } from "../lib/toast";
 
 const STICKER_SIZES = [
   { value: "25x25", label: "25 x 25 MM" },
@@ -80,12 +78,7 @@ export default function StickerPrinterConfigMaster() {
       const data = await stickerPrinterConfigsApi.getAll();
       setConfigs(data);
     } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to load printer configurations",
-        color: "red",
-        icon: <IconAlertCircle size={18} />,
-      });
+      toast.error("Failed to load printer configurations");
     } finally {
       setIsLoading(false);
     }
@@ -229,31 +222,16 @@ export default function StickerPrinterConfigMaster() {
           ...editingConfig,
           ...form.values,
         });
-        notifications.show({
-          title: "Success",
-          message: "Printer config updated",
-          color: "green",
-          icon: <IconCheck size={18} />,
-        });
+        toast.success("Printer config updated");
       } else {
         await stickerPrinterConfigsApi.create(form.values);
-        notifications.show({
-          title: "Success",
-          message: "Printer config created",
-          color: "green",
-          icon: <IconCheck size={18} />,
-        });
+        toast.success("Printer config created");
       }
 
       handleCloseModal();
       await loadData();
     } catch (error: any) {
-      notifications.show({
-        title: "Error",
-        message: error.message || "Failed to save printer config",
-        color: "red",
-        icon: <IconAlertCircle size={18} />,
-      });
+      toast.error(error.message || "Failed to save printer config");
     }
   }, [editingConfig, form, handleCloseModal, loadData]);
 
@@ -261,20 +239,10 @@ export default function StickerPrinterConfigMaster() {
     async (config: StickerPrinterConfig) => {
       try {
         await stickerPrinterConfigsApi.delete(config.id);
-        notifications.show({
-          title: "Success",
-          message: "Printer config deleted",
-          color: "green",
-          icon: <IconCheck size={18} />,
-        });
+        toast.success("Printer config deleted");
         await loadData();
       } catch (error: any) {
-        notifications.show({
-          title: "Error",
-          message: error.message || "Failed to delete printer config",
-          color: "red",
-          icon: <IconAlertCircle size={18} />,
-        });
+        toast.error(error.message || "Failed to delete printer config");
       }
     },
     [loadData],

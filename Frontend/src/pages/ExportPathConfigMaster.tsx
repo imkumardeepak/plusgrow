@@ -8,7 +8,6 @@ import {
   IconSearch,
   IconTrash,
   IconUpload,
-  IconX,
   IconDatabase,
 } from "@tabler/icons-react";
 import {
@@ -27,7 +26,6 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useForm } from "@mantine/form";
 import {
   OperationsPage,
@@ -44,6 +42,7 @@ import {
   EXPORT_TYPE_OPTIONS,
   exportPathConfigsApi,
 } from "../services/masterApi";
+import { toast } from "../lib/toast";
 
 type StatusFilter = "all" | "enabled" | "disabled";
 
@@ -81,20 +80,10 @@ export default function ExportPathConfigMaster() {
     setIsBackingUp(id);
     try {
       await exportPathConfigsApi.triggerDatabaseBackup(id);
-      notifications.show({
-        title: "Backup Complete",
-        message: "Database backup created successfully",
-        color: "green",
-        icon: <IconCheck size={16} />,
-      });
+      toast.success("Database backup created successfully");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to trigger backup";
-      notifications.show({
-        title: "Error",
-        message,
-        color: "red",
-        icon: <IconX size={16} />,
-      });
+      toast.error(message);
     } finally {
       setIsBackingUp(null);
     }
@@ -120,12 +109,7 @@ export default function ExportPathConfigMaster() {
       const data = await exportPathConfigsApi.getAll();
       setConfigs(data);
     } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to load export path configs",
-        color: "red",
-        icon: <IconX size={16} />,
-      });
+      toast.error("Failed to load export path configs");
     } finally {
       setIsLoading(false);
     }
@@ -162,20 +146,10 @@ export default function ExportPathConfigMaster() {
 
       if (editingConfig) {
         await exportPathConfigsApi.update(editingConfig.id, dto);
-        notifications.show({
-          title: "Updated",
-          message: "Export path config updated successfully",
-          color: "green",
-          icon: <IconCheck size={16} />,
-        });
+        toast.success("Export path config updated successfully");
       } else {
         await exportPathConfigsApi.create(dto);
-        notifications.show({
-          title: "Created",
-          message: "Export path config created successfully",
-          color: "green",
-          icon: <IconCheck size={16} />,
-        });
+        toast.success("Export path config created successfully");
       }
 
       setIsModalOpen(false);
@@ -183,12 +157,7 @@ export default function ExportPathConfigMaster() {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to save export path config";
-      notifications.show({
-        title: "Error",
-        message,
-        color: "red",
-        icon: <IconX size={16} />,
-      });
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -199,21 +168,11 @@ export default function ExportPathConfigMaster() {
     setIsDeleting(true);
     try {
       await exportPathConfigsApi.delete(deleteTarget.id);
-      notifications.show({
-        title: "Deleted",
-        message: "Export path config deleted",
-        color: "green",
-        icon: <IconCheck size={16} />,
-      });
+      toast.success("Export path config deleted");
       setDeleteTarget(null);
       await loadData();
     } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to delete config",
-        color: "red",
-        icon: <IconX size={16} />,
-      });
+      toast.error("Failed to delete config");
     } finally {
       setIsDeleting(false);
     }

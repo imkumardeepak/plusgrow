@@ -30,6 +30,7 @@ import {
 import { Button } from "../../../components/atoms/Button";
 import { Badge } from "../../../components/atoms/Badge";
 import { toast } from "../../../lib/toast";
+import { ProductNotFound } from "../../../components/molecules/ProductNotFound";
 import {
   OperationsPage,
   OperationsEmptyState,
@@ -63,6 +64,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const [isSearching, setIsSearching] = useState(false);
   const [scanInput, setScanInput] = useState("");
   const [lookupResult, setLookupResult] = useState<ProductLookupResult | null>(null);
+  const [notFoundSku, setNotFoundSku] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
@@ -224,21 +226,32 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
         .filter((order) => order.items.length > 0)
         .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime() || b.id - a.id);
 
-      setLookupResult({
-        sku,
-        product,
-        quantityRow,
-        allottedLocation,
-        invoices,
-        salesOrders,
-        movements,
-        locations,
-        totalPoQuantity: 0,
-        totalLocationStock,
-      });
+      const hasAnyData =
+        Boolean(product) ||
+        Boolean(quantityRow) ||
+        movements.length > 0 ||
+        invoices.length > 0 ||
+        salesOrders.length > 0;
 
-      if (!product && !quantityRow && movements.length === 0) {
-        toast.error("No product details found for this SKU");
+      if (!hasAnyData) {
+        // Nothing matched this SKU anywhere — show an in-page
+        // "Product Not Found" state instead of an error toast.
+        setLookupResult(null);
+        setNotFoundSku(sku);
+      } else {
+        setLookupResult({
+          sku,
+          product,
+          quantityRow,
+          allottedLocation,
+          invoices,
+          salesOrders,
+          movements,
+          locations,
+          totalPoQuantity: 0,
+          totalLocationStock,
+        });
+        setNotFoundSku(null);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to load SKU details");
@@ -322,12 +335,12 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
             <Button type="submit" size="xs" disabled={isLoading} loading={isSearching} style={{ height: 30 }}>
               Verify
             </Button>
-            {lookupResult && (
+            {(lookupResult || notFoundSku) && (
               <Button
                 type="button"
                 size="xs"
                 variant="subtle"
-                onClick={() => { setScanInput(""); setLookupResult(null); focusScanner(); }}
+                onClick={() => { setScanInput(""); setLookupResult(null); setNotFoundSku(null); focusScanner(); }}
                 style={{ padding: "0 8px", height: 30 }}
               >
                 <X size={14} />
@@ -339,7 +352,9 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
       {/* ── Main Content Area ── */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-        {!lookupResult ? (
+        {notFoundSku && !lookupResult ? (
+          <ProductNotFound sku={notFoundSku} />
+        ) : !lookupResult ? (
           <OperationsEmptyState
             icon={ClipboardCheck}
             title="Scan or Enter SKU to Verify"
