@@ -2,6 +2,10 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import {
   ActionIcon,
   Badge as MantineBadge,
+  Group,
+  SimpleGrid,
+  Stack,
+  Text,
   TextInput,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
@@ -9,6 +13,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Pencil,
   RefreshCw,
   ScanLine,
   Search,
@@ -18,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "../components/atoms/Button";
+import { Modal } from "../components/atoms/Modal";
 import { OperationsPage } from "../components/organisms/Operations/OperationsShell";
 import { OutboundStageNav } from "../components/organisms/Operations/OutboundTaskUI";
 import { OutwardOrder, outwardOrdersApi } from "../services/masterApi";
@@ -30,6 +36,9 @@ type DispatchOrderGroup = {
   orderNumber: string;
   customerName: string;
   orderDate: string;
+  referenceNumber?: string | null;
+  salesOrderStatus?: OutwardOrder["salesOrderStatus"];
+  salesOrderNotes?: string | null;
   items: OutwardOrder[];
   totalQuantity: number;
 };
@@ -53,6 +62,24 @@ export const Dispatch = memo(function Dispatch() {
   const [isDispatching, setIsDispatching] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState("");
   const trackingRef = useRef<HTMLInputElement>(null);
+
+  // Edit sales order modal state (mirrors the Outward edit modal)
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSalesOrderId, setEditSalesOrderId] = useState<number | null>(null);
+  const [editOrderNumber, setEditOrderNumber] = useState("");
+  const [editStatus, setEditStatus] = useState<string>("");
+  const [editForm, setEditForm] = useState<{
+    customerName: string;
+    orderDate: string;
+    notes: string;
+    referenceNumber: string;
+  }>({
+    customerName: "",
+    orderDate: "",
+    notes: "",
+    referenceNumber: "",
+  });
 
   /* ── Load ─────────────────────────────────────────────────────────────── */
   const loadData = useCallback(async () => {
@@ -89,6 +116,9 @@ export const Dispatch = memo(function Dispatch() {
           orderNumber: o.orderNumber,
           customerName: o.customerName,
           orderDate: o.orderDate,
+          referenceNumber: o.referenceNumber,
+          salesOrderStatus: o.salesOrderStatus,
+          salesOrderNotes: o.salesOrderNotes,
           items: [o],
           totalQuantity: o.quantity,
         });
@@ -136,6 +166,45 @@ export const Dispatch = memo(function Dispatch() {
       toast.error(err.message || "Failed to dispatch order");
     } finally {
       setIsDispatching(false);
+    }
+  };
+
+  /* ── Edit sales order (reference number, etc.) ───────────────────────── */
+  const openEditModal = (group: DispatchOrderGroup) => {
+    setEditSalesOrderId(group.salesOrderId);
+    setEditOrderNumber(group.orderNumber);
+    setEditStatus(group.salesOrderStatus ?? "");
+    setEditForm({
+      customerName: group.customerName,
+      orderDate: group.orderDate ? group.orderDate.slice(0, 10) : "",
+      notes: group.salesOrderNotes ?? "",
+      referenceNumber: group.referenceNumber ?? "",
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditOrder = async () => {
+    if (!editSalesOrderId) return;
+    const isCanceled = editStatus === "Canceled";
+    if (!editForm.customerName.trim() && !isCanceled) {
+      toast.error("Customer name is required");
+      return;
+    }
+    try {
+      setIsEditing(true);
+      await outwardOrdersApi.updateSalesOrder(editSalesOrderId, {
+        customerName: isCanceled ? undefined : editForm.customerName.trim() || undefined,
+        orderDate: isCanceled ? undefined : editForm.orderDate || undefined,
+        notes: isCanceled ? undefined : editForm.notes.trim() || null,
+        referenceNumber: editForm.referenceNumber.trim() || null,
+      });
+      toast.success("Sales order updated");
+      setIsEditOpen(false);
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update order");
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -211,10 +280,17 @@ export const Dispatch = memo(function Dispatch() {
                   <div key={group.salesOrderId} className="border-b border-white/[0.05] last:border-0">
 
                     {/* ── Group row ─────────────────────────────────────── */}
-                    <button
-                      type="button"
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setExpandedOrderId(isExpanded ? null : group.salesOrderId)}
-                      className={`w-full grid grid-cols-[auto_1fr_auto_auto] gap-x-3 items-center px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400 ${
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setExpandedOrderId(isExpanded ? null : group.salesOrderId);
+                        }
+                      }}
+                      className={`w-full grid grid-cols-[auto_1fr_auto_auto] gap-x-3 items-center px-3 py-2.5 text-left cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400 ${
                         isExpanded ? "bg-indigo-500/8" : "hover:bg-white/[0.04]"
                       }`}
                     >
@@ -225,9 +301,19 @@ export const Dispatch = memo(function Dispatch() {
                       </span>
 
                       <span className="min-w-0">
-                        <span className="block font-mono text-xs font-black text-white">
-                          {group.orderNumber}
-                        </span>
+                        {/* Clickable order number → opens edit modal */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(group); }}
+                          title="Edit order / reference number"
+                          className="group/edit inline-flex items-center gap-1 font-mono text-xs font-black text-white hover:text-indigo-300 transition-colors"
+                        >
+                          <span className="underline decoration-dotted decoration-white/30 underline-offset-2 group-hover/edit:decoration-indigo-300">
+                            {group.orderNumber}
+                          </span>
+                          <Pencil size={10} className="opacity-0 group-hover/edit:opacity-100 text-indigo-300 transition-opacity" />
+                        </button>
+
                         <span className="block text-[11px] text-neutral-400 truncate">
                           {group.customerName === "Direct Outward" || group.orderNumber.startsWith("DO-")
                             ? group.items.map((i) => i.skuCode).join(" | ")
@@ -238,6 +324,16 @@ export const Dispatch = memo(function Dispatch() {
                             </span>
                           )}
                         </span>
+
+                        {/* Clickable reference number → opens edit modal */}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openEditModal(group); }}
+                          title="Edit reference number"
+                          className="mt-0.5 inline-flex items-center gap-1 font-mono text-[10px] font-bold text-indigo-300/80 hover:text-indigo-200 transition-colors"
+                        >
+                          Ref: {group.referenceNumber ? group.referenceNumber : "— add"}
+                        </button>
                       </span>
 
                       <span className="hidden sm:block text-xs text-neutral-400 text-right">
@@ -247,7 +343,7 @@ export const Dispatch = memo(function Dispatch() {
                       <span className="font-mono text-xs font-bold text-indigo-200 text-right tabular-nums">
                         {group.totalQuantity}
                       </span>
-                    </button>
+                    </div>
 
                     {/* ── Expanded panel ─────────────────────────────────── */}
                     {isExpanded && (
@@ -363,6 +459,94 @@ export const Dispatch = memo(function Dispatch() {
           )}
         </div>
       </div>
+
+      {/* ── Edit Sales Order Modal (same as Outward) ──────────────────────── */}
+      <Modal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        title={
+          editStatus === "Canceled"
+            ? `Edit Reference — ${editOrderNumber}`
+            : `Edit Order — ${editOrderNumber}`
+        }
+        size="md"
+        footer={
+          <Group justify="flex-end">
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleEditOrder()} loading={isEditing}>
+              Save Changes
+            </Button>
+          </Group>
+        }
+      >
+        <Stack gap="md">
+          {editStatus === "Canceled" ? (
+            <>
+              <Text size="sm" c="dimmed">
+                This order is canceled. Only the reference number can be updated.
+              </Text>
+              <TextInput
+                label="Reference Number"
+                placeholder="e.g. PO-12345 or customer ref"
+                value={editForm.referenceNumber}
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, referenceNumber: val }));
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <TextInput
+                label="Order Number"
+                value={editOrderNumber}
+                disabled
+                description="Order number cannot be changed"
+              />
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="sm">
+                <TextInput
+                  label="Customer Name"
+                  placeholder="e.g. Acme Corp"
+                  value={editForm.customerName}
+                  onChange={(e) => {
+                    const val = e.currentTarget.value;
+                    setEditForm((f) => ({ ...f, customerName: val }));
+                  }}
+                />
+                <TextInput
+                  label="Order Date"
+                  type="date"
+                  value={editForm.orderDate}
+                  onChange={(e) => {
+                    const val = e.currentTarget.value;
+                    setEditForm((f) => ({ ...f, orderDate: val }));
+                  }}
+                />
+              </SimpleGrid>
+              <TextInput
+                label="Reference Number"
+                placeholder="e.g. PO-12345 or customer ref"
+                value={editForm.referenceNumber}
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, referenceNumber: val }));
+                }}
+              />
+              <TextInput
+                label="Notes"
+                placeholder="Optional remarks"
+                value={editForm.notes}
+                onChange={(e) => {
+                  const val = e.currentTarget.value;
+                  setEditForm((f) => ({ ...f, notes: val }));
+                }}
+              />
+            </>
+          )}
+        </Stack>
+      </Modal>
     </OperationsPage>
   );
 });
