@@ -191,9 +191,9 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
           : sku;
 
       const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
-        poInvoicesApi.getAll({ search: resolvedSku, pageSize: 100 }),
+        poInvoicesApi.getAll({ search: resolvedSku, pageSize: 200 }),
         productQuantitiesApi.getMovements({ search: resolvedSku }),
-        outwardOrdersApi.getSalesOrders({ search: resolvedSku, pageSize: 100 }),
+        outwardOrdersApi.getSalesOrders({ search: resolvedSku, pageSize: 500 }),
       ]);
       const invoices = invoiceRows
         .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
