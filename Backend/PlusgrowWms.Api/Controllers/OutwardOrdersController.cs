@@ -334,12 +334,14 @@ public class OutwardOrdersController : BaseController
         var normalizedOrderDate = DateTime.SpecifyKind(dto.OrderDate.Date, DateTimeKind.Unspecified);
         var normalizedCustomerName = dto.CustomerName.Trim();
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
+        var normalizedReferenceNumber = string.IsNullOrWhiteSpace(dto.ReferenceNumber) ? null : dto.ReferenceNumber.Trim();
 
         var salesOrder = new SalesOrder
         {
             OrderNumber = orderNumber,
             OrderDate = normalizedOrderDate,
             CustomerName = normalizedCustomerName,
+            ReferenceNumber = normalizedReferenceNumber,
             Status = "Open",
             Notes = normalizedNotes,
             CreatedAt = now,
