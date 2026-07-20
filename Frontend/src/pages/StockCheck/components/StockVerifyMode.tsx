@@ -36,15 +36,16 @@ import {
   OperationsEmptyState,
 } from "../../../components/organisms/Operations/OperationsShell";
 import {
-  poInvoicesApi,
   PoInvoice,
   productQuantitiesApi,
   productAllottedLocationsApi,
   Product,
   ProductAllottedLocationRecord,
   ProductQuantityRecord,
+  ProductStockMovementRecord,
+  OutwardOrder,
   productsApi,
-  outwardOrdersApi,
+  productHistoryApi,
 } from "../../../services/masterApi";
 import { ProductUpdateModal } from "../../../components/organisms/ProductUpdateModal";
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
@@ -55,6 +56,44 @@ import { ModeHeader } from "./ModeHeader";
 import { Info, MetricLabel, MasterLink, EmptyInline } from "./SharedComponents";
 
 const TABLE_ROW_LIMIT = 10;
+const TAB_PAGE_SIZE = 50;
+
+// Per-section, server-side paginated history state
+type HistorySection<T> = { rows: T[]; page: number; total: number; loading: boolean };
+const EMPTY_SECTION = { rows: [], page: 1, total: 0, loading: false };
+
+function TabPagination({
+  page,
+  total,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  if (total <= TAB_PAGE_SIZE) return null;
+  const totalPages = Math.max(1, Math.ceil(total / TAB_PAGE_SIZE));
+  const from = (page - 1) * TAB_PAGE_SIZE + 1;
+  const to = Math.min(page * TAB_PAGE_SIZE, total);
+  return (
+    <Group justify="space-between" mt={8} px={2} wrap="nowrap">
+      <Text size="10px" c="dimmed">
+        Showing {from}–{to} of {total}
+      </Text>
+      <Group gap={6} wrap="nowrap">
+        <Button size="xs" variant="outline" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          Prev
+        </Button>
+        <Text size="10px" c="dimmed" ff="monospace">
+          {page}/{totalPages}
+        </Text>
+        <Button size="xs" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+          Next
+        </Button>
+      </Group>
+    </Group>
+  );
+}
 
 export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -65,6 +104,10 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const [scanInput, setScanInput] = useState("");
   const [lookupResult, setLookupResult] = useState<ProductLookupResult | null>(null);
   const [notFoundSku, setNotFoundSku] = useState<string | null>(null);
+  const [activeProductId, setActiveProductId] = useState<number | null>(null);
+  const [movements, setMovements] = useState<HistorySection<ProductStockMovementRecord>>(EMPTY_SECTION);
+  const [invoices, setInvoices] = useState<HistorySection<PoInvoice>>(EMPTY_SECTION);
+  const [sales, setSales] = useState<HistorySection<OutwardOrder>>(EMPTY_SECTION);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintProduct, setSelectedPrintProduct] = useState<Product | null>(null);
@@ -137,6 +180,47 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
     setIsPrintModalOpen(true);
   };
 
+  /* ── Server-side paginated section fetchers ──────────────────────────── */
+  const fetchMovements = useCallback(async (productId: number, page: number) => {
+    setMovements((s) => ({ ...s, loading: true }));
+    try {
+      const res = await productHistoryApi.getMovements(productId, page, TAB_PAGE_SIZE);
+      setMovements({ rows: res.data, page, total: res.pagination.total, loading: false });
+    } catch {
+      setMovements((s) => ({ ...s, loading: false }));
+      toast.error("Failed to load movements");
+    }
+  }, []);
+
+  const fetchInvoices = useCallback(async (productId: number, page: number) => {
+    setInvoices((s) => ({ ...s, loading: true }));
+    try {
+      const res = await productHistoryApi.getInvoices(productId, page, TAB_PAGE_SIZE);
+      setInvoices({ rows: res.data, page, total: res.pagination.total, loading: false });
+    } catch {
+      setInvoices((s) => ({ ...s, loading: false }));
+      toast.error("Failed to load invoices");
+    }
+  }, []);
+
+  const fetchSales = useCallback(async (productId: number, page: number) => {
+    setSales((s) => ({ ...s, loading: true }));
+    try {
+      const res = await productHistoryApi.getSalesOrders(productId, page, TAB_PAGE_SIZE);
+      setSales({ rows: res.data, page, total: res.pagination.total, loading: false });
+    } catch {
+      setSales((s) => ({ ...s, loading: false }));
+      toast.error("Failed to load sales orders");
+    }
+  }, []);
+
+  const resetSections = () => {
+    setActiveProductId(null);
+    setMovements(EMPTY_SECTION);
+    setInvoices(EMPTY_SECTION);
+    setSales(EMPTY_SECTION);
+  };
+
   const handleLookup = async (event: React.FormEvent) => {
     event.preventDefault();
     const rawInput = scanInput.trim();
@@ -163,7 +247,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
       const product =
         fetchedProduct ?? products.find((item) => normalizeSku(item.sku) === sku || normalizeSku(item.alias) === sku) ?? null;
-      
+
       const localQuantityRow =
         quantityRows.find((row) => normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku) ?? null;
 
@@ -184,74 +268,51 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
 
       const resolvedProductId = product?.id ?? quantityRow?.productId ?? null;
 
-      const resolvedSku = product?.sku
-        ? normalizeSku(product.sku)
-        : quantityRow?.skuCode
-          ? normalizeSku(quantityRow.skuCode)
-          : sku;
-
-      const [invoiceRows, movementRows, salesOrderRows] = await Promise.all([
-        poInvoicesApi.getAll({ search: resolvedSku, pageSize: 200 }),
-        productQuantitiesApi.getMovements({ search: resolvedSku }),
-        outwardOrdersApi.getSalesOrders({ search: resolvedSku, pageSize: 500 }),
-      ]);
-      const invoices = invoiceRows
-        .filter((row) => normalizeSku(row.skuCode) === resolvedSku)
-        .sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.id - a.id);
-      
       const allottedLocation = allottedLocations.find((row) =>
         resolvedProductId
           ? row.productId === resolvedProductId
-          : normalizeSku(row.skuCode) === resolvedSku || normalizeSku(row.alias) === sku,
+          : normalizeSku(row.skuCode) === sku || normalizeSku(row.alias) === sku,
       ) ?? null;
-      
+
       const locations = fetchedLocations ?? Object.entries(getLocationJson(allottedLocation))
         .map(([locationCode, quantity]) => ({ locationCode, quantity: Number(quantity) || 0 }))
         .filter((location) => location.locationCode && location.quantity > 0)
         .sort((a, b) => a.locationCode.localeCompare(b.locationCode));
-        
+
       const totalLocationStock = locations.reduce((sum, location) => sum + location.quantity, 0);
-      const movements = movementRows
-        .filter((row) =>
-          resolvedProductId ? row.productId === resolvedProductId : normalizeSku(row.skuCode) === resolvedSku,
-        )
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.id - a.id);
-      const salesOrders = salesOrderRows
-        .map((order) => ({
-          ...order,
-          items: order.items.filter((item) =>
-            resolvedProductId ? item.productId === resolvedProductId : normalizeSku(item.skuCode) === resolvedSku,
-          ),
-        }))
-        .filter((order) => order.items.length > 0)
-        .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime() || b.id - a.id);
 
-      const hasAnyData =
-        Boolean(product) ||
-        Boolean(quantityRow) ||
-        movements.length > 0 ||
-        invoices.length > 0 ||
-        salesOrders.length > 0;
-
-      if (!hasAnyData) {
-        // Nothing matched this SKU anywhere — show an in-page
-        // "Product Not Found" state instead of an error toast.
+      // Nothing resolves to a product → show the in-page "Product Not Found" state.
+      if (!resolvedProductId && !product && !quantityRow) {
         setLookupResult(null);
         setNotFoundSku(sku);
+        resetSections();
+        return;
+      }
+
+      setLookupResult({
+        sku,
+        product,
+        quantityRow,
+        allottedLocation,
+        invoices: [],
+        salesOrders: [],
+        movements: [],
+        locations,
+        totalPoQuantity: 0,
+        totalLocationStock,
+      });
+      setNotFoundSku(null);
+      setActiveProductId(resolvedProductId);
+
+      // Load the first page (50) of each history section from the server.
+      if (resolvedProductId) {
+        await Promise.all([
+          fetchMovements(resolvedProductId, 1),
+          fetchInvoices(resolvedProductId, 1),
+          fetchSales(resolvedProductId, 1),
+        ]);
       } else {
-        setLookupResult({
-          sku,
-          product,
-          quantityRow,
-          allottedLocation,
-          invoices,
-          salesOrders,
-          movements,
-          locations,
-          totalPoQuantity: 0,
-          totalLocationStock,
-        });
-        setNotFoundSku(null);
+        resetSections();
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to load SKU details");
@@ -272,9 +333,6 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
     ? lookupResult.quantityRow?.currentQuantity ?? 0
     : 0;
   const visibleLocations = lookupResult?.locations.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleMovements = lookupResult?.movements.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleInvoices = lookupResult?.invoices.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleSalesOrders = lookupResult?.salesOrders.slice(0, TABLE_ROW_LIMIT) ?? [];
 
   return (
     <OperationsPage
@@ -340,7 +398,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                 type="button"
                 size="xs"
                 variant="subtle"
-                onClick={() => { setScanInput(""); setLookupResult(null); setNotFoundSku(null); focusScanner(); }}
+                onClick={() => { setScanInput(""); setLookupResult(null); setNotFoundSku(null); resetSections(); focusScanner(); }}
                 style={{ padding: "0 8px", height: 30 }}
               >
                 <X size={14} />
@@ -411,15 +469,15 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                   </div>
                   <div className="text-center">
                     <Text size="9px" fw={800} c="dimmed" lh={1}>MRP</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{formatMoney(lookupResult.invoices[0]?.mrp)}</Text>
+                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{formatMoney(invoices.rows[0]?.mrp ?? lookupResult.product?.mrp)}</Text>
                   </div>
                   <div className="text-center">
                     <Text size="9px" fw={800} c="dimmed" lh={1}>MOVES</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.movements.length}</Text>
+                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{movements.total}</Text>
                   </div>
                   <div className="text-center">
                     <Text size="9px" fw={800} c="dimmed" lh={1}>SALES</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.salesOrders.length}</Text>
+                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{sales.total}</Text>
                   </div>
                 </Group>
               </Group>
@@ -517,17 +575,17 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       radius="sm"
                       ml={6}
                       style={{
-                        backgroundColor: lookupResult.movements.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.movements.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.movements.length > 0 ? 800 : 600,
+                        backgroundColor: movements.total > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                        color: movements.total > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                        fontWeight: movements.total > 0 ? 800 : 600,
                         fontSize: "10px",
                         padding: "0 6px",
                         height: "18px",
                         lineHeight: "18px",
-                        border: lookupResult.movements.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        border: movements.total > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
                       }}
                     >
-                      {lookupResult.movements.length}
+                      {movements.total}
                     </Badge>
                   </Tabs.Tab>
                   <Tabs.Tab value="invoices" leftSection={<FileText size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
@@ -537,17 +595,17 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       radius="sm"
                       ml={6}
                       style={{
-                        backgroundColor: lookupResult.invoices.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.invoices.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.invoices.length > 0 ? 800 : 600,
+                        backgroundColor: invoices.total > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                        color: invoices.total > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                        fontWeight: invoices.total > 0 ? 800 : 600,
                         fontSize: "10px",
                         padding: "0 6px",
                         height: "18px",
                         lineHeight: "18px",
-                        border: lookupResult.invoices.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        border: invoices.total > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
                       }}
                     >
-                      {lookupResult.invoices.length}
+                      {invoices.total}
                     </Badge>
                   </Tabs.Tab>
                   <Tabs.Tab value="sales" leftSection={<Boxes size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
@@ -557,26 +615,27 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       radius="sm"
                       ml={6}
                       style={{
-                        backgroundColor: lookupResult.salesOrders.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.salesOrders.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.salesOrders.length > 0 ? 800 : 600,
+                        backgroundColor: sales.total > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                        color: sales.total > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                        fontWeight: sales.total > 0 ? 800 : 600,
                         fontSize: "10px",
                         padding: "0 6px",
                         height: "18px",
                         lineHeight: "18px",
-                        border: lookupResult.salesOrders.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        border: sales.total > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
                       }}
                     >
-                      {lookupResult.salesOrders.length}
+                      {sales.total}
                     </Badge>
                   </Tabs.Tab>
                 </Tabs.List>
 
                 {/* ── Movements Tab ── */}
                 <Tabs.Panel value="movements">
-                  {lookupResult.movements.length === 0 ? (
+                  {movements.total === 0 && !movements.loading ? (
                     <EmptyInline message="No stock adjustment or movement history found for this SKU." />
                   ) : (
+                    <>
                     <ScrollArea type="auto" h={280} offsetScrollbars>
                       <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
                         <Table.Thead>
@@ -592,7 +651,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {visibleMovements.map((movement) => (
+                          {movements.rows.map((movement) => (
                             <Table.Tr key={movement.id}>
                               <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
                               <Table.Td>
@@ -617,14 +676,21 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                         </Table.Tbody>
                       </Table>
                     </ScrollArea>
+                    <TabPagination
+                      page={movements.page}
+                      total={movements.total}
+                      onPage={(p) => activeProductId && fetchMovements(activeProductId, p)}
+                    />
+                    </>
                   )}
                 </Tabs.Panel>
 
                 {/* ── Invoices Tab ── */}
                 <Tabs.Panel value="invoices">
-                  {lookupResult.invoices.length === 0 ? (
+                  {invoices.total === 0 && !invoices.loading ? (
                     <EmptyInline message="No purchase invoices found for this SKU." />
                   ) : (
+                    <>
                     <ScrollArea type="auto" h={280} offsetScrollbars>
                       <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
                         <Table.Thead>
@@ -638,7 +704,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {visibleInvoices.map((inv) => (
+                          {invoices.rows.map((inv) => (
                             <Table.Tr key={inv.id}>
                               <Table.Td>{format(new Date(inv.invoiceDate), "dd MMM yyyy")}</Table.Td>
                               <Table.Td>
@@ -659,14 +725,21 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                         </Table.Tbody>
                       </Table>
                     </ScrollArea>
+                    <TabPagination
+                      page={invoices.page}
+                      total={invoices.total}
+                      onPage={(p) => activeProductId && fetchInvoices(activeProductId, p)}
+                    />
+                    </>
                   )}
                 </Tabs.Panel>
 
                 {/* ── Sales Orders Tab ── */}
                 <Tabs.Panel value="sales">
-                  {lookupResult.salesOrders.length === 0 ? (
+                  {sales.total === 0 && !sales.loading ? (
                     <EmptyInline message="No sales orders found for this SKU." />
                   ) : (
+                    <>
                     <ScrollArea type="auto" h={280} offsetScrollbars>
                       <Table striped highlightOnHover withTableBorder withColumnBorders miw={920}>
                         <Table.Thead>
@@ -683,49 +756,48 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {visibleSalesOrders.map((order) => {
-                            const skuItems = order.items;
-                            const quantity = skuItems.reduce((sum, item) => sum + item.quantity, 0);
-                            const pickedQuantity = skuItems.reduce((sum, item) => sum + item.pickedQuantity, 0);
-                            const pendingQuantity = skuItems.reduce((sum, item) => sum + item.pendingQuantity, 0);
-
-                            return (
-                              <Table.Tr key={order.id}>
-                                <Table.Td>{format(new Date(order.orderDate), "dd MMM yyyy")}</Table.Td>
-                                <Table.Td>
-                                  <Text size="12px" fw={900} ff="monospace">{order.orderNumber}</Text>
-                                </Table.Td>
-                                <Table.Td>{order.customerName}</Table.Td>
-                                <Table.Td>
-                                  <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
-                                    {order.status}
-                                  </Badge>
-                                </Table.Td>
-                                <Table.Td>
-                                  {order.trackingNumber ? (
-                                    <Text size="11px" fw={800} ff="monospace" c="yellow.3" truncate maw={140} title={order.trackingNumber}>
-                                      {order.trackingNumber}
-                                    </Text>
-                                  ) : (
-                                    <Text size="11px" c="dimmed">—</Text>
-                                  )}
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                  <Text size="12px" fw={900} ff="monospace" c="cyan.3">{quantity}</Text>
-                                </Table.Td>
-                                <Table.Td ta="right">{pickedQuantity}</Table.Td>
-                                <Table.Td ta="right">{pendingQuantity}</Table.Td>
-                                <Table.Td>
-                                  <Text size="12px" maw={200} lineClamp={2}>
-                                    {order.cancelRemark || order.notes || "-"}
+                          {sales.rows.map((order) => (
+                            <Table.Tr key={order.id}>
+                              <Table.Td>{format(new Date(order.orderDate), "dd MMM yyyy")}</Table.Td>
+                              <Table.Td>
+                                <Text size="12px" fw={900} ff="monospace">{order.orderNumber}</Text>
+                              </Table.Td>
+                              <Table.Td>{order.customerName}</Table.Td>
+                              <Table.Td>
+                                <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
+                                  {order.status}
+                                </Badge>
+                              </Table.Td>
+                              <Table.Td>
+                                {order.trackingNumber ? (
+                                  <Text size="11px" fw={800} ff="monospace" c="yellow.3" truncate maw={140} title={order.trackingNumber}>
+                                    {order.trackingNumber}
                                   </Text>
-                                </Table.Td>
-                              </Table.Tr>
-                            );
-                          })}
+                                ) : (
+                                  <Text size="11px" c="dimmed">—</Text>
+                                )}
+                              </Table.Td>
+                              <Table.Td ta="right">
+                                <Text size="12px" fw={900} ff="monospace" c="cyan.3">{order.quantity}</Text>
+                              </Table.Td>
+                              <Table.Td ta="right">{order.pickedQuantity}</Table.Td>
+                              <Table.Td ta="right">{order.pendingQuantity}</Table.Td>
+                              <Table.Td>
+                                <Text size="12px" maw={200} lineClamp={2}>
+                                  {order.notes || order.salesOrderNotes || "-"}
+                                </Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          ))}
                         </Table.Tbody>
                       </Table>
                     </ScrollArea>
+                    <TabPagination
+                      page={sales.page}
+                      total={sales.total}
+                      onPage={(p) => activeProductId && fetchSales(activeProductId, p)}
+                    />
+                    </>
                   )}
                 </Tabs.Panel>
               </Tabs>

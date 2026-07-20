@@ -475,6 +475,7 @@ export interface SalesOrderRecord {
 export interface CreateOutwardOrderDto {
   orderDate: string;
   customerName: string;
+  referenceNumber?: string | null;
   productId?: number | null;
   quantity?: number | null;
   notes?: string | null;
@@ -1374,6 +1375,54 @@ export const productAllottedLocationsApi = {
     const response = await api.post<ApiResponse<ProductAllottedLocationRecord>>('/productallottedlocations/move', data);
     if (!response.data.success) throw new Error(response.data.message);
     return response.data.data!;
+  },
+};
+
+// Product-scoped, server-side paginated history (Stock Verify / Product Query)
+export const productHistoryApi = {
+  getMovements: async (
+    productId: number,
+    page = 1,
+    pageSize = 50,
+  ): Promise<PagedResult<ProductStockMovementRecord>> => {
+    const response = await api.get<ApiResponse<ProductStockMovementRecord[]>>(
+      `/producthistory/${productId}/movements`,
+      { params: { page, pageSize } },
+    );
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(page, pageSize),
+    };
+  },
+
+  getInvoices: async (
+    productId: number,
+    page = 1,
+    pageSize = 50,
+  ): Promise<PagedResult<PoInvoice>> => {
+    const response = await api.get<ApiResponse<PoInvoice[]>>(
+      `/producthistory/${productId}/invoices`,
+      { params: { page, pageSize } },
+    );
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(page, pageSize),
+    };
+  },
+
+  getSalesOrders: async (
+    productId: number,
+    page = 1,
+    pageSize = 50,
+  ): Promise<PagedResult<OutwardOrder>> => {
+    const response = await api.get<ApiResponse<OutwardOrder[]>>(
+      `/producthistory/${productId}/sales-orders`,
+      { params: { page, pageSize } },
+    );
+    return {
+      data: response.data.data || [],
+      pagination: response.data.pagination || emptyPagination(page, pageSize),
+    };
   },
 };
 
