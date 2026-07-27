@@ -15,6 +15,10 @@ public class ProductStockMovementDto
     public int? PerformedByUserId { get; set; }
     public string? PerformedByName { get; set; }
     public DateTime CreatedAt { get; set; }
+    // Resolved from the linked sales order when the movement references one
+    // (e.g. outward picks / cancels). Null for adjustments and other movements.
+    public string? CustomerName { get; set; }
+    public string? ReferenceNumber { get; set; }
 }
 
 public class CreateStockAdjustmentDto

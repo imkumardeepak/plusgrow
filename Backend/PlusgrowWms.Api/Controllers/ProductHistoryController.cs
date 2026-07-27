@@ -25,6 +25,18 @@ public class ProductHistoryController : BaseController
         _context = context;
     }
 
+    // Pulls the first sales-order number out of a stock-movement note, e.g.
+    // "Sales Order: SO-260719-001; Picked Qty: 1; ..." or "Direct Outward: DO-...".
+    private static string? ExtractOrderNumber(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+            return null;
+        var match = System.Text.RegularExpressions.Regex.Match(
+            notes,
+            @"(?:Sales Orders?|Direct Outward):\s*([^;,]+)");
+        return match.Success ? match.Groups[1].Value.Trim() : null;
+    }
+
     /// <summary>Stock movements for a product (newest first).</summary>
     [HttpGet("{productId:int}/movements")]
     public async Task<ActionResult<ApiResponse<List<ProductStockMovementDto>>>> GetMovements(
@@ -48,21 +60,55 @@ public class ProductHistoryController : BaseController
             .Take(pageSize)
             .ToListAsync();
 
-        var result = rows.Select(x => new ProductStockMovementDto
+        // Resolve customer + reference for movements that reference a sales order in their notes
+        // (e.g. "Sales Order: SO-...", "Sales Orders: SO-..., ...", "Direct Outward: DO-...").
+        var orderNumbers = rows
+            .Select(x => ExtractOrderNumber(x.Notes))
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Distinct()
+            .ToList();
+
+        var orderMap = orderNumbers.Count == 0
+            ? new Dictionary<string, (string Customer, string? Reference)>()
+            : (await _context.SalesOrders
+                .AsNoTracking()
+                .Where(s => orderNumbers.Contains(s.OrderNumber))
+                .Select(s => new { s.OrderNumber, s.CustomerName, s.ReferenceNumber })
+                .ToListAsync())
+                .ToDictionary(
+                    s => s.OrderNumber,
+                    s => (Customer: s.CustomerName, Reference: (string?)s.ReferenceNumber),
+                    StringComparer.OrdinalIgnoreCase);
+
+        var result = rows.Select(x =>
         {
-            Id = x.Id,
-            ProductId = x.ProductId,
-            SkuCode = x.Product?.Sku ?? string.Empty,
-            ProductName = x.Product?.Name ?? string.Empty,
-            QuantityChange = x.QuantityChange,
-            QuantityBefore = x.QuantityBefore,
-            QuantityAfter = x.QuantityAfter,
-            Reason = x.Reason,
-            MovementType = x.MovementType,
-            Notes = x.Notes,
-            PerformedByUserId = x.PerformedByUserId,
-            PerformedByName = x.PerformedByName,
-            CreatedAt = x.CreatedAt,
+            var orderNumber = ExtractOrderNumber(x.Notes);
+            string? customerName = null;
+            string? referenceNumber = null;
+            if (!string.IsNullOrEmpty(orderNumber) && orderMap.TryGetValue(orderNumber, out var info))
+            {
+                customerName = info.Customer;
+                referenceNumber = string.IsNullOrWhiteSpace(info.Reference) ? orderNumber : info.Reference;
+            }
+
+            return new ProductStockMovementDto
+            {
+                Id = x.Id,
+                ProductId = x.ProductId,
+                SkuCode = x.Product?.Sku ?? string.Empty,
+                ProductName = x.Product?.Name ?? string.Empty,
+                QuantityChange = x.QuantityChange,
+                QuantityBefore = x.QuantityBefore,
+                QuantityAfter = x.QuantityAfter,
+                Reason = x.Reason,
+                MovementType = x.MovementType,
+                Notes = x.Notes,
+                PerformedByUserId = x.PerformedByUserId,
+                PerformedByName = x.PerformedByName,
+                CreatedAt = x.CreatedAt,
+                CustomerName = customerName,
+                ReferenceNumber = referenceNumber,
+            };
         }).ToList();
 
         return Success(result, page, pageSize, total);

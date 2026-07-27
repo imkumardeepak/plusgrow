@@ -645,9 +645,9 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                             <Table.Th>Change</Table.Th>
                             <Table.Th>Before</Table.Th>
                             <Table.Th>After</Table.Th>
-                            <Table.Th>Reason</Table.Th>
+                            <Table.Th>Customer</Table.Th>
+                            <Table.Th>Reference No.</Table.Th>
                             <Table.Th>By</Table.Th>
-                            <Table.Th>Notes</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
@@ -666,11 +666,25 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                               </Table.Td>
                               <Table.Td>{movement.quantityBefore}</Table.Td>
                               <Table.Td>{movement.quantityAfter}</Table.Td>
-                              <Table.Td>{movement.reason}</Table.Td>
-                              <Table.Td>{movement.performedByName || "-"}</Table.Td>
                               <Table.Td>
-                                <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
+                                <Text size="12px" truncate maw={140}>{movement.customerName || "-"}</Text>
                               </Table.Td>
+                              <Table.Td>
+                                {movement.referenceNumber ? (
+                                  <Text
+                                    size="12px"
+                                    fw={700}
+                                    c="blue.3"
+                                    style={{ cursor: "pointer", textDecoration: "underline" }}
+                                    onClick={() => navigate(`/outward?search=${encodeURIComponent(movement.referenceNumber!)}`)}
+                                  >
+                                    {movement.referenceNumber}
+                                  </Text>
+                                ) : (
+                                  <Text size="12px" c="dimmed">-</Text>
+                                )}
+                              </Table.Td>
+                              <Table.Td>{movement.performedByName || "-"}</Table.Td>
                             </Table.Tr>
                           ))}
                         </Table.Tbody>

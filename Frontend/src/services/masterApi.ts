@@ -348,6 +348,8 @@ export interface ProductStockMovementRecord {
   performedByUserId?: number | null;
   performedByName?: string | null;
   createdAt: string;
+  customerName?: string | null;
+  referenceNumber?: string | null;
 }
 
 export interface CreateStockAdjustmentDto {
