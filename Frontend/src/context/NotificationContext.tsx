@@ -42,7 +42,14 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined,
 );
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:81/api";
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && !envUrl.includes('localhost')) return envUrl;
+  const host = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : 'localhost';
+  return `http://${host}:81/api`;
+};
+
+const apiBaseUrl = getApiBaseUrl();
 const hubUrl = apiBaseUrl.replace(/\/api\/?$/, "") + "/hubs/notifications";
 
 function showRealtimeToast(notification: IncomingRealtimeNotification) {

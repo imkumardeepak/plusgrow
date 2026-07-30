@@ -49,6 +49,7 @@ import {
 } from "../../../services/masterApi";
 import { ProductUpdateModal } from "../../../components/organisms/ProductUpdateModal";
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
+import { ErrorBoundary } from "../../../components/atoms/ErrorBoundary";
 
 import type { ProductLookupResult } from "../types";
 import { normalizeSku, masterHref, formatMoney, getLocationJson } from "../types";
@@ -94,6 +95,19 @@ function TabPagination({
     </Group>
   );
 }
+
+const formatDateSafe = (dateVal?: string | Date | null, formatStr: string = "dd MMM yyyy HH:mm") => {
+  if (!dateVal) return "-";
+  try {
+    const dateObj = typeof dateVal === "string" ? new Date(dateVal) : dateVal;
+    if (isNaN(dateObj.getTime())) {
+      return "-";
+    }
+    return format(dateObj, formatStr);
+  } catch {
+    return "-";
+  }
+};
 
 export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -418,49 +432,48 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
             title="Scan or Enter SKU to Verify"
             description="Type a SKU code, alias, or scan a barcode to view complete stock details, warehouse locations, purchase history, and sales orders."
           />
+        ) : !lookupResult.product && !lookupResult.quantityRow ? (
+          <OperationsEmptyState
+            icon={X}
+            title="Item not found"
+            description={`No product details found for SKU: "${lookupResult.sku}". Please check the spelling or enter a different SKU.`}
+          />
         ) : (
-          <Stack gap={6}>
-            {/* ── Product Hero + Inline Metrics ── */}
-            <Paper
-              radius="md"
-              px="sm"
-              py={8}
-              withBorder
-              style={{
-                background: "linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.75))",
-                borderColor: "rgba(34, 211, 238, 0.16)",
-              }}
-            >
-              <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                <div className="min-w-0 flex-1">
-                  <Group gap={4} wrap="wrap" mb={2}>
-                    <Badge size="sm" radius="sm" variant="default" color="gray">{lookupResult.sku}</Badge>
-                    {lookupResult.product?.alias && lookupResult.product.alias !== lookupResult.sku && (
-                      <Badge size="sm" radius="sm" variant="default" color="gray">Alias: {lookupResult.product.alias}</Badge>
-                    )}
-                    <Badge size="sm" radius="sm" variant={lookupResult.quantityRow ? "success" : "warning"}>
-                      {lookupResult.quantityRow ? "In Stock" : "No Stock Row"}
-                    </Badge>
-                  </Group>
-                  <MasterLink
-                    onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
-                    size="sm"
-                    weight={900}
-                  >
-                    {productTitle}
-                  </MasterLink>
-                  <Text size="10px" c="dimmed" mt={1}>
-                    {lookupResult.quantityRow
-                      ? `Updated ${format(new Date(lookupResult.quantityRow.updatedAt), "dd MMM yyyy HH:mm")}`
-                      : "No stock row"}
-                  </Text>
-                </div>
-                {/* ── Inline Metric Strip ── */}
-                <Group gap="md" wrap="nowrap" className="shrink-0">
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>STOCK</Text>
-                    <Text size="18px" fw={900} ff="monospace" c={displayedCurrentStock > 0 ? "cyan.3" : "orange.3"} lh={1.2}>
-                      {displayedCurrentStock}
+          <ErrorBoundary>
+            <Stack gap={6}>
+              {/* ── Product Hero + Inline Metrics ── */}
+              <Paper
+                radius="md"
+                px="sm"
+                py={8}
+                withBorder
+                style={{
+                  background: "linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.75))",
+                  borderColor: "rgba(34, 211, 238, 0.16)",
+                }}
+              >
+                <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+                  <div className="min-w-0 flex-1">
+                    <Group gap={4} wrap="wrap" mb={2}>
+                      <Badge size="sm" radius="sm" variant="default" color="gray">{lookupResult.sku}</Badge>
+                      {lookupResult.product?.alias && lookupResult.product.alias !== lookupResult.sku && (
+                        <Badge size="sm" radius="sm" variant="default" color="gray">Alias: {lookupResult.product.alias}</Badge>
+                      )}
+                      <Badge size="sm" radius="sm" variant={lookupResult.quantityRow ? "success" : "warning"}>
+                        {lookupResult.quantityRow ? "In Stock" : "No Stock Row"}
+                      </Badge>
+                    </Group>
+                    <MasterLink
+                      onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
+                      size="sm"
+                      weight={900}
+                    >
+                      {productTitle}
+                    </MasterLink>
+                    <Text size="10px" c="dimmed" mt={1}>
+                      {lookupResult.quantityRow?.updatedAt
+                        ? `Updated ${formatDateSafe(lookupResult.quantityRow.updatedAt, "dd MMM yyyy HH:mm")}`
+                        : "No stock row"}
                     </Text>
                   </div>
                   <div className="text-center">
@@ -514,53 +527,24 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                         {lookupResult.product.note}
                       </Text>
                     </div>
-                  </>
-                )}
-              </Paper>
-
-              <Paper radius="md" px="xs" py={8} withBorder bg="transparent">
-                <Group justify="space-between" mb={4}>
-                  <MetricLabel icon={MapPin} label="Location Breakdown" />
-                  <Badge size="sm" radius="sm" variant="default" color="gray">
-                    {lookupResult.locations.length} loc
-                  </Badge>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>LOCATIONS</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.locations?.length ?? 0}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>MRP</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{formatMoney(lookupResult.invoices?.[0]?.mrp)}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>MOVES</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.movements?.length ?? 0}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>SALES</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.salesOrders?.length ?? 0}</Text>
+                    </div>
+                  </Group>
                 </Group>
-                {lookupResult.locations.length === 0 ? (
-                  <EmptyInline message="No allotted location quantity found." />
-                ) : (
-                  <ScrollArea type="auto" mah={180}>
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={180}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Location</Table.Th>
-                          <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Bin</Table.Th>
-                          <Table.Th ta="right" style={{ fontSize: 11, padding: "4px 8px" }}>Qty</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {visibleLocations.map((location) => {
-                          const parts = location.locationCode.split("::");
-                          const locCode = parts[0];
-                          const binCode = parts.length > 1 ? parts[1] : "-";
-                          
-                          return (
-                            <Table.Tr key={location.locationCode}>
-                              <Table.Td style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace">{locCode}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace" c="dimmed">{binCode}</Text>
-                              </Table.Td>
-                              <Table.Td ta="right" style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          );
-                        })}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
               </Paper>
             </SimpleGrid>
 
@@ -697,7 +681,7 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                     />
                     </>
                   )}
-                </Tabs.Panel>
+                </Paper>
 
                 {/* ── Invoices Tab ── */}
                 <Tabs.Panel value="invoices">
@@ -709,12 +693,9 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
                         <Table.Thead>
                           <Table.Tr>
-                            <Table.Th>Invoice Date</Table.Th>
-                            <Table.Th>Invoice No.</Table.Th>
-                            <Table.Th>Party</Table.Th>
-                            <Table.Th>MRP</Table.Th>
-                            <Table.Th ta="right">Billed Qty</Table.Th>
-                            <Table.Th>Notes</Table.Th>
+                            <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Location</Table.Th>
+                            <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Bin</Table.Th>
+                            <Table.Th ta="right" style={{ fontSize: 11, padding: "4px 8px" }}>Qty</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
