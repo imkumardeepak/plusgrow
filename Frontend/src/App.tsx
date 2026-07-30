@@ -165,7 +165,7 @@ export default function App() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
       <GlobalInputClearButtons />
-      <Notifications position="top-right" autoClose={1000} />
+      <Notifications position="top-right" autoClose={3000} />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>

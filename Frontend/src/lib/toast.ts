@@ -13,7 +13,7 @@ interface ToastPromiseMessages<T> {
   error: string | ((error: unknown) => string);
 }
 
-const DEFAULT_TOAST_DURATION = 1000;
+const DEFAULT_TOAST_DURATION = 3000;
 
 function showToast(
   color: "green" | "red" | "blue" | "yellow",
@@ -55,20 +55,18 @@ export const toast = {
 
     try {
       const result = await promise;
-      notifications.update({
-        id,
-        loading: false,
-        autoClose: DEFAULT_TOAST_DURATION,
+      notifications.hide(id);
+      notifications.show({
         color: "green",
+        autoClose: DEFAULT_TOAST_DURATION,
         message: typeof messages.success === "function" ? messages.success(result) : messages.success,
       });
       return result;
     } catch (error) {
-      notifications.update({
-        id,
-        loading: false,
-        autoClose: DEFAULT_TOAST_DURATION,
+      notifications.hide(id);
+      notifications.show({
         color: "red",
+        autoClose: DEFAULT_TOAST_DURATION,
         message: typeof messages.error === "function" ? messages.error(error) : messages.error,
       });
       throw error;

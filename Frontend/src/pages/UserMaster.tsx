@@ -89,8 +89,8 @@ export const UserMaster = memo(function UserMaster() {
     return users.filter((user) => {
       const matchesSearch =
         !normalized ||
-        user.username.toLowerCase().includes(normalized) ||
-        user.fullName.toLowerCase().includes(normalized) ||
+        (user.username || "").toLowerCase().includes(normalized) ||
+        (user.fullName || "").toLowerCase().includes(normalized) ||
         (user.email || "").toLowerCase().includes(normalized) ||
         (user.roleName || "").toLowerCase().includes(normalized);
       const matchesStatus =

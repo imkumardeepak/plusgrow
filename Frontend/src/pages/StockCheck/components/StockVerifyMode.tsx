@@ -47,6 +47,7 @@ import {
 } from "../../../services/masterApi";
 import { ProductUpdateModal } from "../../../components/organisms/ProductUpdateModal";
 import { StickerPrintModal } from "../../../components/organisms/StickerPrintModal";
+import { ErrorBoundary } from "../../../components/atoms/ErrorBoundary";
 
 import type { ProductLookupResult } from "../types";
 import { normalizeSku, masterHref, formatMoney, getLocationJson } from "../types";
@@ -54,6 +55,19 @@ import { ModeHeader } from "./ModeHeader";
 import { Info, MetricLabel, MasterLink, EmptyInline } from "./SharedComponents";
 
 const TABLE_ROW_LIMIT = 10;
+
+const formatDateSafe = (dateVal?: string | Date | null, formatStr: string = "dd MMM yyyy HH:mm") => {
+  if (!dateVal) return "-";
+  try {
+    const dateObj = typeof dateVal === "string" ? new Date(dateVal) : dateVal;
+    if (isNaN(dateObj.getTime())) {
+      return "-";
+    }
+    return format(dateObj, formatStr);
+  } catch {
+    return "-";
+  }
+};
 
 export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMobile: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -258,10 +272,10 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
   const displayedCurrentStock = lookupResult
     ? lookupResult.quantityRow?.currentQuantity ?? 0
     : 0;
-  const visibleLocations = lookupResult?.locations.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleMovements = lookupResult?.movements.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleInvoices = lookupResult?.invoices.slice(0, TABLE_ROW_LIMIT) ?? [];
-  const visibleSalesOrders = lookupResult?.salesOrders.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleLocations = lookupResult?.locations?.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleMovements = lookupResult?.movements?.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleInvoices = lookupResult?.invoices?.slice(0, TABLE_ROW_LIMIT) ?? [];
+  const visibleSalesOrders = lookupResult?.salesOrders?.slice(0, TABLE_ROW_LIMIT) ?? [];
 
   return (
     <OperationsPage
@@ -345,365 +359,148 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
             title="Scan or Enter SKU to Verify"
             description="Type a SKU code, alias, or scan a barcode to view complete stock details, warehouse locations, purchase history, and sales orders."
           />
+        ) : !lookupResult.product && !lookupResult.quantityRow ? (
+          <OperationsEmptyState
+            icon={X}
+            title="Item not found"
+            description={`No product details found for SKU: "${lookupResult.sku}". Please check the spelling or enter a different SKU.`}
+          />
         ) : (
-          <Stack gap={6}>
-            {/* ── Product Hero + Inline Metrics ── */}
-            <Paper
-              radius="md"
-              px="sm"
-              py={8}
-              withBorder
-              style={{
-                background: "linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.75))",
-                borderColor: "rgba(34, 211, 238, 0.16)",
-              }}
-            >
-              <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
-                <div className="min-w-0 flex-1">
-                  <Group gap={4} wrap="wrap" mb={2}>
-                    <Badge size="sm" radius="sm" variant="default" color="gray">{lookupResult.sku}</Badge>
-                    {lookupResult.product?.alias && lookupResult.product.alias !== lookupResult.sku && (
-                      <Badge size="sm" radius="sm" variant="default" color="gray">Alias: {lookupResult.product.alias}</Badge>
-                    )}
-                    <Badge size="sm" radius="sm" variant={lookupResult.quantityRow ? "success" : "warning"}>
-                      {lookupResult.quantityRow ? "In Stock" : "No Stock Row"}
-                    </Badge>
-                  </Group>
-                  <MasterLink
-                    onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
-                    size="sm"
-                    weight={900}
-                  >
-                    {productTitle}
-                  </MasterLink>
-                  <Text size="10px" c="dimmed" mt={1}>
-                    {lookupResult.quantityRow
-                      ? `Updated ${format(new Date(lookupResult.quantityRow.updatedAt), "dd MMM yyyy HH:mm")}`
-                      : "No stock row"}
-                  </Text>
-                </div>
-                {/* ── Inline Metric Strip ── */}
-                <Group gap="md" wrap="nowrap" className="shrink-0">
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>STOCK</Text>
-                    <Text size="18px" fw={900} ff="monospace" c={displayedCurrentStock > 0 ? "cyan.3" : "orange.3"} lh={1.2}>
-                      {displayedCurrentStock}
+          <ErrorBoundary>
+            <Stack gap={6}>
+              {/* ── Product Hero + Inline Metrics ── */}
+              <Paper
+                radius="md"
+                px="sm"
+                py={8}
+                withBorder
+                style={{
+                  background: "linear-gradient(135deg, rgba(14, 165, 233, 0.10), rgba(15, 23, 42, 0.75))",
+                  borderColor: "rgba(34, 211, 238, 0.16)",
+                }}
+              >
+                <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+                  <div className="min-w-0 flex-1">
+                    <Group gap={4} wrap="wrap" mb={2}>
+                      <Badge size="sm" radius="sm" variant="default" color="gray">{lookupResult.sku}</Badge>
+                      {lookupResult.product?.alias && lookupResult.product.alias !== lookupResult.sku && (
+                        <Badge size="sm" radius="sm" variant="default" color="gray">Alias: {lookupResult.product.alias}</Badge>
+                      )}
+                      <Badge size="sm" radius="sm" variant={lookupResult.quantityRow ? "success" : "warning"}>
+                        {lookupResult.quantityRow ? "In Stock" : "No Stock Row"}
+                      </Badge>
+                    </Group>
+                    <MasterLink
+                      onClick={() => openProductFromSku(lookupResult.sku, productTitle)}
+                      size="sm"
+                      weight={900}
+                    >
+                      {productTitle}
+                    </MasterLink>
+                    <Text size="10px" c="dimmed" mt={1}>
+                      {lookupResult.quantityRow?.updatedAt
+                        ? `Updated ${formatDateSafe(lookupResult.quantityRow.updatedAt, "dd MMM yyyy HH:mm")}`
+                        : "No stock row"}
                     </Text>
                   </div>
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>LOCATIONS</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.locations.length}</Text>
-                  </div>
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>MRP</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{formatMoney(lookupResult.invoices[0]?.mrp)}</Text>
-                  </div>
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>MOVES</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.movements.length}</Text>
-                  </div>
-                  <div className="text-center">
-                    <Text size="9px" fw={800} c="dimmed" lh={1}>SALES</Text>
-                    <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.salesOrders.length}</Text>
-                  </div>
-                </Group>
-              </Group>
-            </Paper>
-
-            {/* ── Product Master + Locations Side-by-Side ── */}
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing={6} style={{ alignItems: "start" }}>
-              <Paper radius="md" px="xs" py={8} withBorder bg="transparent">
-                <MetricLabel icon={Package} label="Product Master" />
-                <SimpleGrid cols={2} spacing={4} mt={4}>
-                  <Info label="Name" value={
-                    <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)}>
-                      {lookupResult.product?.name || productTitle}
-                    </MasterLink>
-                  } />
-                  <Info label="SKU" value={
-                    <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)} mono>
-                      {lookupResult.product?.sku || lookupResult.sku}
-                    </MasterLink>
-                  } />
-                  <Info label="MRP" value={formatMoney(lookupResult.product?.mrp)} />
-                  <Info label="USSP" value={formatMoney(lookupResult.product?.ussp)} />
-                  <Info label="Net Qty." value={lookupResult.product?.netQuantity || "-"} />
-                  <Info label="Unit" value={lookupResult.product?.unitType || "-"} />
-                  <Info label="Country" value={lookupResult.product?.countryOfOrigin || "-"} />
-                  <Info label="Best Before" value={`${lookupResult.product?.bestBeforeMonths ?? "-"} months`} />
-                </SimpleGrid>
-                {lookupResult.product?.note && (
-                  <>
-                    <Divider my={4} style={{ borderColor: "rgba(255,255,255,0.08)" }} />
-                    <div className="min-w-0">
-                      <Text size="9px" fw={800} c="dimmed">NOTE</Text>
-                      <Text size="11px" fw={700} mt={1} lineClamp={2} style={{ whiteSpace: "pre-wrap" }}>
-                        {lookupResult.product.note}
+                  {/* ── Inline Metric Strip ── */}
+                  <Group gap="md" wrap="nowrap" className="shrink-0">
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>STOCK</Text>
+                      <Text size="18px" fw={900} ff="monospace" c={displayedCurrentStock > 0 ? "cyan.3" : "orange.3"} lh={1.2}>
+                        {displayedCurrentStock}
                       </Text>
                     </div>
-                  </>
-                )}
-              </Paper>
-
-              <Paper radius="md" px="xs" py={8} withBorder bg="transparent">
-                <Group justify="space-between" mb={4}>
-                  <MetricLabel icon={MapPin} label="Location Breakdown" />
-                  <Badge size="sm" radius="sm" variant="default" color="gray">
-                    {lookupResult.locations.length} loc
-                  </Badge>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>LOCATIONS</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.locations?.length ?? 0}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>MRP</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{formatMoney(lookupResult.invoices?.[0]?.mrp)}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>MOVES</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.movements?.length ?? 0}</Text>
+                    </div>
+                    <div className="text-center">
+                      <Text size="9px" fw={800} c="dimmed" lh={1}>SALES</Text>
+                      <Text size="18px" fw={900} ff="monospace" lh={1.2}>{lookupResult.salesOrders?.length ?? 0}</Text>
+                    </div>
+                  </Group>
                 </Group>
-                {lookupResult.locations.length === 0 ? (
-                  <EmptyInline message="No allotted location quantity found." />
-                ) : (
-                  <ScrollArea type="auto" mah={180}>
-                    <Table striped highlightOnHover withTableBorder withColumnBorders miw={180}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Location</Table.Th>
-                          <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Bin</Table.Th>
-                          <Table.Th ta="right" style={{ fontSize: 11, padding: "4px 8px" }}>Qty</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {visibleLocations.map((location) => {
-                          const parts = location.locationCode.split("::");
-                          const locCode = parts[0];
-                          const binCode = parts.length > 1 ? parts[1] : "-";
-                          
-                          return (
-                            <Table.Tr key={location.locationCode}>
-                              <Table.Td style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace">{locCode}</Text>
-                              </Table.Td>
-                              <Table.Td style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace" c="dimmed">{binCode}</Text>
-                              </Table.Td>
-                              <Table.Td ta="right" style={{ padding: "3px 8px" }}>
-                                <Text size="11px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          );
-                        })}
-                      </Table.Tbody>
-                    </Table>
-                  </ScrollArea>
-                )}
               </Paper>
-            </SimpleGrid>
 
-            {/* ── Tabbed Data Sections ── */}
-            <Paper radius="md" px="xs" py={6} withBorder bg="transparent">
-              <Tabs defaultValue="movements" variant="default" radius="sm">
-                <Tabs.List mb={10} grow>
-                  <Tabs.Tab value="movements" leftSection={<History size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
-                    Movements
-                    <Badge
-                      size="sm"
-                      radius="sm"
-                      ml={6}
-                      style={{
-                        backgroundColor: lookupResult.movements.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.movements.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.movements.length > 0 ? 800 : 600,
-                        fontSize: "10px",
-                        padding: "0 6px",
-                        height: "18px",
-                        lineHeight: "18px",
-                        border: lookupResult.movements.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
-                      }}
-                    >
-                      {lookupResult.movements.length}
-                    </Badge>
-                  </Tabs.Tab>
-                  <Tabs.Tab value="invoices" leftSection={<FileText size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
-                    Invoices
-                    <Badge
-                      size="sm"
-                      radius="sm"
-                      ml={6}
-                      style={{
-                        backgroundColor: lookupResult.invoices.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.invoices.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.invoices.length > 0 ? 800 : 600,
-                        fontSize: "10px",
-                        padding: "0 6px",
-                        height: "18px",
-                        lineHeight: "18px",
-                        border: lookupResult.invoices.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
-                      }}
-                    >
-                      {lookupResult.invoices.length}
-                    </Badge>
-                  </Tabs.Tab>
-                  <Tabs.Tab value="sales" leftSection={<Boxes size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
-                    Sales Orders
-                    <Badge
-                      size="sm"
-                      radius="sm"
-                      ml={6}
-                      style={{
-                        backgroundColor: lookupResult.salesOrders.length > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
-                        color: lookupResult.salesOrders.length > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
-                        fontWeight: lookupResult.salesOrders.length > 0 ? 800 : 600,
-                        fontSize: "10px",
-                        padding: "0 6px",
-                        height: "18px",
-                        lineHeight: "18px",
-                        border: lookupResult.salesOrders.length > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
-                      }}
-                    >
-                      {lookupResult.salesOrders.length}
-                    </Badge>
-                  </Tabs.Tab>
-                </Tabs.List>
-
-                {/* ── Movements Tab ── */}
-                <Tabs.Panel value="movements">
-                  {lookupResult.movements.length === 0 ? (
-                    <EmptyInline message="No stock adjustment or movement history found for this SKU." />
-                  ) : (
-                    <ScrollArea type="auto" h={280} offsetScrollbars>
-                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Date</Table.Th>
-                            <Table.Th>Type</Table.Th>
-                            <Table.Th>Change</Table.Th>
-                            <Table.Th>Before</Table.Th>
-                            <Table.Th>After</Table.Th>
-                            <Table.Th>Reason</Table.Th>
-                            <Table.Th>By</Table.Th>
-                            <Table.Th>Notes</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {visibleMovements.map((movement) => (
-                            <Table.Tr key={movement.id}>
-                              <Table.Td>{format(new Date(movement.createdAt), "dd MMM yyyy HH:mm")}</Table.Td>
-                              <Table.Td>
-                                <Badge size="sm" radius="md" variant={movement.quantityChange >= 0 ? "success" : "warning"}>
-                                  {movement.movementType || (movement.quantityChange >= 0 ? "increase" : "decrease")}
-                                </Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="12px" fw={900} ff="monospace" c={movement.quantityChange >= 0 ? "green.3" : "orange.3"}>
-                                  {movement.quantityChange > 0 ? "+" : ""}{movement.quantityChange}
-                                </Text>
-                              </Table.Td>
-                              <Table.Td>{movement.quantityBefore}</Table.Td>
-                              <Table.Td>{movement.quantityAfter}</Table.Td>
-                              <Table.Td>{movement.reason}</Table.Td>
-                              <Table.Td>{movement.performedByName || "-"}</Table.Td>
-                              <Table.Td>
-                                <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
-                    </ScrollArea>
+              {/* ── Product Master + Locations Side-by-Side ── */}
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing={6} style={{ alignItems: "start" }}>
+                <Paper radius="md" px="xs" py={8} withBorder bg="transparent">
+                  <MetricLabel icon={Package} label="Product Master" />
+                  <SimpleGrid cols={2} spacing={4} mt={4}>
+                    <Info label="Name" value={
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)}>
+                        {lookupResult.product?.name || productTitle}
+                      </MasterLink>
+                    } />
+                    <Info label="SKU" value={
+                      <MasterLink onClick={() => openProductFromSku(lookupResult.sku, productTitle)} mono>
+                        {lookupResult.product?.sku || lookupResult.sku}
+                      </MasterLink>
+                    } />
+                    <Info label="MRP" value={formatMoney(lookupResult.product?.mrp)} />
+                    <Info label="USSP" value={formatMoney(lookupResult.product?.ussp)} />
+                    <Info label="Net Qty." value={lookupResult.product?.netQuantity || "-"} />
+                    <Info label="Unit" value={lookupResult.product?.unitType || "-"} />
+                    <Info label="Country" value={lookupResult.product?.countryOfOrigin || "-"} />
+                    <Info label="Best Before" value={`${lookupResult.product?.bestBeforeMonths ?? "-"} months`} />
+                  </SimpleGrid>
+                  {lookupResult.product?.note && (
+                    <>
+                      <Divider my={4} style={{ borderColor: "rgba(255,255,255,0.08)" }} />
+                      <div className="min-w-0">
+                        <Text size="9px" fw={800} c="dimmed">NOTE</Text>
+                        <Text size="11px" fw={700} mt={1} lineClamp={2} style={{ whiteSpace: "pre-wrap" }}>
+                          {lookupResult.product.note}
+                        </Text>
+                      </div>
+                    </>
                   )}
-                </Tabs.Panel>
+                </Paper>
 
-                {/* ── Invoices Tab ── */}
-                <Tabs.Panel value="invoices">
-                  {lookupResult.invoices.length === 0 ? (
-                    <EmptyInline message="No purchase invoices found for this SKU." />
+                <Paper radius="md" px="xs" py={8} withBorder bg="transparent">
+                  <Group justify="space-between" mb={4}>
+                    <MetricLabel icon={MapPin} label="Location Breakdown" />
+                    <Badge size="sm" radius="sm" variant="default" color="gray">
+                      {lookupResult.locations?.length ?? 0} loc
+                    </Badge>
+                  </Group>
+                  {(lookupResult.locations?.length ?? 0) === 0 ? (
+                    <EmptyInline message="No allotted location quantity found." />
                   ) : (
-                    <ScrollArea type="auto" h={280} offsetScrollbars>
-                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
+                    <ScrollArea type="auto" mah={180}>
+                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={180}>
                         <Table.Thead>
                           <Table.Tr>
-                            <Table.Th>Invoice Date</Table.Th>
-                            <Table.Th>Invoice No.</Table.Th>
-                            <Table.Th>Party</Table.Th>
-                            <Table.Th>MRP</Table.Th>
-                            <Table.Th ta="right">Billed Qty</Table.Th>
-                            <Table.Th>Notes</Table.Th>
+                            <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Location</Table.Th>
+                            <Table.Th style={{ fontSize: 11, padding: "4px 8px" }}>Bin</Table.Th>
+                            <Table.Th ta="right" style={{ fontSize: 11, padding: "4px 8px" }}>Qty</Table.Th>
                           </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
-                          {visibleInvoices.map((inv) => (
-                            <Table.Tr key={inv.id}>
-                              <Table.Td>{format(new Date(inv.invoiceDate), "dd MMM yyyy")}</Table.Td>
-                              <Table.Td>
-                                <Text size="12px" fw={900} ff="monospace">{inv.invoiceNumber}</Text>
-                              </Table.Td>
-                              <Table.Td>{inv.partyName}</Table.Td>
-                              <Table.Td>{formatMoney(inv.mrp)}</Table.Td>
-                              <Table.Td ta="right">
-                                <Text size="12px" fw={900} ff="monospace" c="cyan.3">{inv.billedQty}</Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="12px" maw={200} lineClamp={2}>
-                                  {inv.cancelRemark || "-"}
-                                </Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
-                    </ScrollArea>
-                  )}
-                </Tabs.Panel>
-
-                {/* ── Sales Orders Tab ── */}
-                <Tabs.Panel value="sales">
-                  {lookupResult.salesOrders.length === 0 ? (
-                    <EmptyInline message="No sales orders found for this SKU." />
-                  ) : (
-                    <ScrollArea type="auto" h={280} offsetScrollbars>
-                      <Table striped highlightOnHover withTableBorder withColumnBorders miw={920}>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Order Date</Table.Th>
-                            <Table.Th>Order No.</Table.Th>
-                            <Table.Th>Customer</Table.Th>
-                            <Table.Th>Status</Table.Th>
-                            <Table.Th>Tracking / AWB</Table.Th>
-                            <Table.Th ta="right">Qty</Table.Th>
-                            <Table.Th ta="right">Picked</Table.Th>
-                            <Table.Th ta="right">Pending</Table.Th>
-                            <Table.Th>Notes</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {visibleSalesOrders.map((order) => {
-                            const skuItems = order.items;
-                            const quantity = skuItems.reduce((sum, item) => sum + item.quantity, 0);
-                            const pickedQuantity = skuItems.reduce((sum, item) => sum + item.pickedQuantity, 0);
-                            const pendingQuantity = skuItems.reduce((sum, item) => sum + item.pendingQuantity, 0);
-
+                          {visibleLocations.map((location) => {
+                            const parts = location.locationCode.split("::");
+                            const locCode = parts[0];
+                            const binCode = parts.length > 1 ? parts[1] : "-";
+                            
                             return (
-                              <Table.Tr key={order.id}>
-                                <Table.Td>{format(new Date(order.orderDate), "dd MMM yyyy")}</Table.Td>
-                                <Table.Td>
-                                  <Text size="12px" fw={900} ff="monospace">{order.orderNumber}</Text>
+                              <Table.Tr key={location.locationCode}>
+                                <Table.Td style={{ padding: "3px 8px" }}>
+                                  <Text size="11px" fw={900} ff="monospace">{locCode}</Text>
                                 </Table.Td>
-                                <Table.Td>{order.customerName}</Table.Td>
-                                <Table.Td>
-                                  <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
-                                    {order.status}
-                                  </Badge>
+                                <Table.Td style={{ padding: "3px 8px" }}>
+                                  <Text size="11px" fw={900} ff="monospace" c="dimmed">{binCode}</Text>
                                 </Table.Td>
-                                <Table.Td>
-                                  {order.trackingNumber ? (
-                                    <Text size="11px" fw={800} ff="monospace" c="yellow.3" truncate maw={140} title={order.trackingNumber}>
-                                      {order.trackingNumber}
-                                    </Text>
-                                  ) : (
-                                    <Text size="11px" c="dimmed">—</Text>
-                                  )}
-                                </Table.Td>
-                                <Table.Td ta="right">
-                                  <Text size="12px" fw={900} ff="monospace" c="cyan.3">{quantity}</Text>
-                                </Table.Td>
-                                <Table.Td ta="right">{pickedQuantity}</Table.Td>
-                                <Table.Td ta="right">{pendingQuantity}</Table.Td>
-                                <Table.Td>
-                                  <Text size="12px" maw={200} lineClamp={2}>
-                                    {order.cancelRemark || order.notes || "-"}
-                                  </Text>
+                                <Table.Td ta="right" style={{ padding: "3px 8px" }}>
+                                  <Text size="11px" fw={900} ff="monospace" c="cyan.3">{location.quantity}</Text>
                                 </Table.Td>
                               </Table.Tr>
                             );
@@ -712,10 +509,235 @@ export function StockVerifyMode({ onBack, isMobile }: { onBack: () => void; isMo
                       </Table>
                     </ScrollArea>
                   )}
-                </Tabs.Panel>
-              </Tabs>
-            </Paper>
-          </Stack>
+                </Paper>
+              </SimpleGrid>
+
+              {/* ── Tabbed Data Sections ── */}
+              <Paper radius="md" px="xs" py={6} withBorder bg="transparent">
+                <Tabs defaultValue="movements" variant="default" radius="sm">
+                  <Tabs.List mb={10} grow>
+                    <Tabs.Tab value="movements" leftSection={<History size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
+                      Movements
+                      <Badge
+                        size="sm"
+                        radius="sm"
+                        ml={6}
+                        style={{
+                          backgroundColor: (lookupResult.movements?.length ?? 0) > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                          color: (lookupResult.movements?.length ?? 0) > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                          fontWeight: (lookupResult.movements?.length ?? 0) > 0 ? 800 : 600,
+                          fontSize: "10px",
+                          padding: "0 6px",
+                          height: "18px",
+                          lineHeight: "18px",
+                          border: (lookupResult.movements?.length ?? 0) > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                      >
+                        {lookupResult.movements?.length ?? 0}
+                      </Badge>
+                    </Tabs.Tab>
+                    <Tabs.Tab value="invoices" leftSection={<FileText size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
+                      Invoices
+                      <Badge
+                        size="sm"
+                        radius="sm"
+                        ml={6}
+                        style={{
+                          backgroundColor: (lookupResult.invoices?.length ?? 0) > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                          color: (lookupResult.invoices?.length ?? 0) > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                          fontWeight: (lookupResult.invoices?.length ?? 0) > 0 ? 800 : 600,
+                          fontSize: "10px",
+                          padding: "0 6px",
+                          height: "18px",
+                          lineHeight: "18px",
+                          border: (lookupResult.invoices?.length ?? 0) > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                      >
+                        {lookupResult.invoices?.length ?? 0}
+                      </Badge>
+                    </Tabs.Tab>
+                    <Tabs.Tab value="sales" leftSection={<Boxes size={14} />} style={{ fontSize: 12, padding: "8px 12px", fontWeight: 600 }}>
+                      Sales Orders
+                      <Badge
+                        size="sm"
+                        radius="sm"
+                        ml={6}
+                        style={{
+                          backgroundColor: (lookupResult.salesOrders?.length ?? 0) > 0 ? "#22d3ee" : "rgba(255, 255, 255, 0.08)",
+                          color: (lookupResult.salesOrders?.length ?? 0) > 0 ? "#0f172a" : "rgba(255, 255, 255, 0.5)",
+                          fontWeight: (lookupResult.salesOrders?.length ?? 0) > 0 ? 800 : 600,
+                          fontSize: "10px",
+                          padding: "0 6px",
+                          height: "18px",
+                          lineHeight: "18px",
+                          border: (lookupResult.salesOrders?.length ?? 0) > 0 ? "none" : "1px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                      >
+                        {lookupResult.salesOrders?.length ?? 0}
+                      </Badge>
+                    </Tabs.Tab>
+                  </Tabs.List>
+
+                  {/* ── Movements Tab ── */}
+                  <Tabs.Panel value="movements">
+                    {(lookupResult.movements?.length ?? 0) === 0 ? (
+                      <EmptyInline message="No stock adjustment or movement history found for this SKU." />
+                    ) : (
+                      <ScrollArea type="auto" h={280} offsetScrollbars>
+                        <Table striped highlightOnHover withTableBorder withColumnBorders miw={860}>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Date</Table.Th>
+                              <Table.Th>Type</Table.Th>
+                              <Table.Th>Change</Table.Th>
+                              <Table.Th>Before</Table.Th>
+                              <Table.Th>After</Table.Th>
+                              <Table.Th>Reason</Table.Th>
+                              <Table.Th>By</Table.Th>
+                              <Table.Th>Notes</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {visibleMovements.map((movement) => (
+                              <Table.Tr key={movement.id}>
+                                <Table.Td>{formatDateSafe(movement.createdAt, "dd MMM yyyy HH:mm")}</Table.Td>
+                                <Table.Td>
+                                  <Badge size="sm" radius="md" variant={(movement.quantityChange ?? 0) >= 0 ? "success" : "warning"}>
+                                    {movement.movementType || ((movement.quantityChange ?? 0) >= 0 ? "increase" : "decrease")}
+                                  </Badge>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="12px" fw={900} ff="monospace" c={(movement.quantityChange ?? 0) >= 0 ? "green.3" : "orange.3"}>
+                                    {(movement.quantityChange ?? 0) > 0 ? "+" : ""}{movement.quantityChange ?? 0}
+                                  </Text>
+                                </Table.Td>
+                                <Table.Td>{movement.quantityBefore ?? 0}</Table.Td>
+                                <Table.Td>{movement.quantityAfter ?? 0}</Table.Td>
+                                <Table.Td>{movement.reason || "-"}</Table.Td>
+                                <Table.Td>{movement.performedByName || "-"}</Table.Td>
+                                <Table.Td>
+                                  <Text size="12px" maw={280} lineClamp={2}>{movement.notes || "-"}</Text>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </Tabs.Panel>
+
+                  {/* ── Invoices Tab ── */}
+                  <Tabs.Panel value="invoices">
+                    {(lookupResult.invoices?.length ?? 0) === 0 ? (
+                      <EmptyInline message="No purchase invoices found for this SKU." />
+                    ) : (
+                      <ScrollArea type="auto" h={280} offsetScrollbars>
+                        <Table striped highlightOnHover withTableBorder withColumnBorders miw={600}>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Invoice Date</Table.Th>
+                              <Table.Th>Invoice No.</Table.Th>
+                              <Table.Th>Party</Table.Th>
+                              <Table.Th>MRP</Table.Th>
+                              <Table.Th ta="right">Billed Qty</Table.Th>
+                              <Table.Th>Notes</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {visibleInvoices.map((inv) => (
+                              <Table.Tr key={inv.id}>
+                                <Table.Td>{formatDateSafe(inv.invoiceDate, "dd MMM yyyy")}</Table.Td>
+                                <Table.Td>
+                                  <Text size="12px" fw={900} ff="monospace">{inv.invoiceNumber || "-"}</Text>
+                                </Table.Td>
+                                <Table.Td>{inv.partyName || "-"}</Table.Td>
+                                <Table.Td>{formatMoney(inv.mrp)}</Table.Td>
+                                <Table.Td ta="right">
+                                  <Text size="12px" fw={900} ff="monospace" c="cyan.3">{inv.billedQty ?? 0}</Text>
+                                </Table.Td>
+                                <Table.Td>
+                                  <Text size="12px" maw={200} lineClamp={2}>
+                                    {inv.cancelRemark || "-"}
+                                  </Text>
+                                </Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </Tabs.Panel>
+
+                  {/* ── Sales Orders Tab ── */}
+                  <Tabs.Panel value="sales">
+                    {(lookupResult.salesOrders?.length ?? 0) === 0 ? (
+                      <EmptyInline message="No sales orders found for this SKU." />
+                    ) : (
+                      <ScrollArea type="auto" h={280} offsetScrollbars>
+                        <Table striped highlightOnHover withTableBorder withColumnBorders miw={920}>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Order Date</Table.Th>
+                              <Table.Th>Order No.</Table.Th>
+                              <Table.Th>Customer</Table.Th>
+                              <Table.Th>Status</Table.Th>
+                              <Table.Th>Tracking / AWB</Table.Th>
+                              <Table.Th ta="right">Qty</Table.Th>
+                              <Table.Th ta="right">Picked</Table.Th>
+                              <Table.Th ta="right">Pending</Table.Th>
+                              <Table.Th>Notes</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {visibleSalesOrders.map((order) => {
+                              const skuItems = order.items || [];
+                              const quantity = skuItems.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+                              const pickedQuantity = skuItems.reduce((sum, item) => sum + (item.pickedQuantity ?? 0), 0);
+                              const pendingQuantity = skuItems.reduce((sum, item) => sum + (item.pendingQuantity ?? 0), 0);
+
+                              return (
+                                <Table.Tr key={order.id}>
+                                  <Table.Td>{formatDateSafe(order.orderDate, "dd MMM yyyy")}</Table.Td>
+                                  <Table.Td>
+                                    <Text size="12px" fw={900} ff="monospace">{order.orderNumber || "-"}</Text>
+                                  </Table.Td>
+                                  <Table.Td>{order.customerName || "-"}</Table.Td>
+                                  <Table.Td>
+                                    <Badge size="sm" radius="md" variant={order.status === "Dispatched" ? "success" : order.status === "Canceled" ? "warning" : "default"}>
+                                      {order.status || "-"}
+                                    </Badge>
+                                  </Table.Td>
+                                  <Table.Td>
+                                    {order.trackingNumber ? (
+                                      <Text size="11px" fw={800} ff="monospace" c="yellow.3" truncate maw={140} title={order.trackingNumber}>
+                                        {order.trackingNumber}
+                                      </Text>
+                                    ) : (
+                                      <Text size="11px" c="dimmed">—</Text>
+                                    )}
+                                  </Table.Td>
+                                  <Table.Td ta="right">
+                                    <Text size="12px" fw={900} ff="monospace" c="cyan.3">{quantity}</Text>
+                                  </Table.Td>
+                                  <Table.Td ta="right">{pickedQuantity}</Table.Td>
+                                  <Table.Td ta="right">{pendingQuantity}</Table.Td>
+                                  <Table.Td>
+                                    <Text size="12px" maw={200} lineClamp={2}>
+                                      {order.cancelRemark || order.notes || "-"}
+                                    </Text>
+                                  </Table.Td>
+                                </Table.Tr>
+                              );
+                            })}
+                          </Table.Tbody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </Tabs.Panel>
+                </Tabs>
+              </Paper>
+            </Stack>
+          </ErrorBoundary>
         )}
       </div>
 
