@@ -11,7 +11,6 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { notifications } from "@mantine/notifications";
 import {
   IconAlertCircle,
   IconArrowRight,
@@ -55,11 +54,6 @@ export function Login() {
     });
 
     if (result.success) {
-      notifications.show({
-        message: "Welcome back",
-        color: "blue",
-        icon: <IconShieldCheck size={18} />,
-      });
       navigate("/");
     } else {
       setError(result.message || "Invalid credentials");

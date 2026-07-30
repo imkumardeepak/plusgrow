@@ -85,6 +85,7 @@ const createOrderItemInput = (): OrderItemInput => ({
 const emptyOrderForm = (): OrderForm => ({
   orderDate: new Date().toISOString().slice(0, 10),
   customerName: "",
+  referenceNumber: "",
   notes: "",
   items: [createOrderItemInput()],
 });
@@ -583,6 +584,7 @@ export const Outward = memo(function Outward() {
       await outwardOrdersApi.create({
         orderDate: orderForm.orderDate,
         customerName: orderForm.customerName.trim(),
+        referenceNumber: orderForm.referenceNumber?.trim() || null,
         notes: orderForm.notes?.trim() || null,
         items: mergedItems,
       });
@@ -980,6 +982,19 @@ export const Outward = memo(function Outward() {
               size="sm"
             />
             <TextInput
+              label="Reference Number"
+              placeholder="e.g. PO-12345 or customer ref"
+              value={orderForm.referenceNumber || ""}
+              onChange={(event) => {
+                const { value } = event.currentTarget;
+                setOrderForm((current) => ({
+                  ...current,
+                  referenceNumber: value,
+                }));
+              }}
+              size="sm"
+            />
+            <TextInput
               label="Notes"
               placeholder="Optional remarks"
               value={orderForm.notes || ""}
@@ -1009,8 +1024,8 @@ export const Outward = memo(function Outward() {
               </Button>
             </Group>
 
-            <ScrollArea type="auto" offsetScrollbars="y" style={{ maxHeight: "500px", paddingRight: "8px" }}>
-              <Stack gap="md">
+            <ScrollArea.Autosize type="auto" offsetScrollbars mah={480}>
+              <Stack gap="md" pr={8}>
                 {orderForm.items.map((item, index) => {
                   const selectedProduct = products.find((p) => p.id === item.productId);
                   const availableStock = selectedProduct?.stockQty ?? null;
@@ -1114,7 +1129,7 @@ export const Outward = memo(function Outward() {
                   );
                 })}
               </Stack>
-            </ScrollArea>
+            </ScrollArea.Autosize>
           </Box>
         </Stack>
       </Modal>

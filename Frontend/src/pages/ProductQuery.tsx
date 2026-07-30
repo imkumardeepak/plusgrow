@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Group, Paper, SimpleGrid, Stack, Text, TextInput, Loader, Box, Badge } from "@mantine/core";
 import { Button } from "../components/atoms/Button";
-import { toast } from "../lib/toast";
+import { ProductNotFound } from "../components/molecules/ProductNotFound";
 import {
   OperationsPage,
   OperationsPanel,
@@ -22,6 +22,7 @@ export const ProductQuery = memo(function ProductQuery() {
   const [scanInput, setScanInput] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [lookupResult, setQueryResult] = useState<ProductLookupResult | null>(null);
+  const [notFoundSku, setNotFoundSku] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -44,9 +45,11 @@ export const ProductQuery = memo(function ProductQuery() {
     try {
       const result = await productsApi.lookup(sku);
       setQueryResult(result);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || "No product found matching this SKU");
+      setNotFoundSku(null);
+    } catch {
+      // Show an in-page "Product Not Found" state instead of an error toast.
       setQueryResult(null);
+      setNotFoundSku(sku);
     } finally {
       setIsSearching(false);
       focusScanner();
@@ -108,6 +111,7 @@ export const ProductQuery = memo(function ProductQuery() {
                 onClick={() => {
                   setScanInput("");
                   setQueryResult(null);
+                  setNotFoundSku(null);
                   focusScanner();
                 }}
               >
@@ -124,7 +128,9 @@ export const ProductQuery = memo(function ProductQuery() {
           className="lg:col-span-8 flex flex-col overflow-hidden h-full"
           contentClassName="overflow-y-auto scrollbar-thin"
         >
-          {!lookupResult ? (
+          {notFoundSku && !lookupResult ? (
+            <ProductNotFound sku={notFoundSku} />
+          ) : !lookupResult ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Boxes size={48} style={{ opacity: 0.2 }} className="text-slate-500 mb-3" />
               <Text size="sm" c="dimmed">

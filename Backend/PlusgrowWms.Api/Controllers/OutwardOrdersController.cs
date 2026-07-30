@@ -334,12 +334,14 @@ public class OutwardOrdersController : BaseController
         var normalizedOrderDate = DateTime.SpecifyKind(dto.OrderDate.Date, DateTimeKind.Unspecified);
         var normalizedCustomerName = dto.CustomerName.Trim();
         var normalizedNotes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
+        var normalizedReferenceNumber = string.IsNullOrWhiteSpace(dto.ReferenceNumber) ? null : dto.ReferenceNumber.Trim();
 
         var salesOrder = new SalesOrder
         {
             OrderNumber = orderNumber,
             OrderDate = normalizedOrderDate,
             CustomerName = normalizedCustomerName,
+            ReferenceNumber = normalizedReferenceNumber,
             Status = "Open",
             Notes = normalizedNotes,
             CreatedAt = now,
@@ -753,7 +755,7 @@ public class OutwardOrdersController : BaseController
         if (string.IsNullOrWhiteSpace(dto.LocationCode))
             return BadRequest<OutwardOrderDto>("Location scan is required");
 
-        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        var (resolvedLocationCode, resolvedBin) = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
         if (string.IsNullOrWhiteSpace(resolvedLocationCode))
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
@@ -766,6 +768,7 @@ public class OutwardOrdersController : BaseController
         var reduceLocationResult = await ReduceAllocatedLocationAsync(
             order.ProductId,
             resolvedLocationCode,
+            resolvedBin,
             pickQty,
             effectiveMrp,
             pickUserId,
@@ -845,7 +848,7 @@ public class OutwardOrdersController : BaseController
             }
         }
 
-        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        var (resolvedLocationCode, resolvedBin) = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
         if (string.IsNullOrWhiteSpace(resolvedLocationCode))
             return BadRequest<OutwardOrderDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
@@ -859,6 +862,7 @@ public class OutwardOrdersController : BaseController
         var reduceLocationResult = await ReduceAllocatedLocationAsync(
             product.Id,
             resolvedLocationCode,
+            resolvedBin,
             pickQty,
             effectiveMrp,
             pickUserId,
@@ -984,7 +988,7 @@ public class OutwardOrdersController : BaseController
                 }
             }
 
-            var resolvedLocationCode = await ResolveLocationCodeAsync(item.LocationCode.Trim());
+            var (resolvedLocationCode, resolvedBin) = await ResolveLocationCodeAsync(item.LocationCode.Trim());
             if (string.IsNullOrWhiteSpace(resolvedLocationCode))
                 return BadRequest<List<OutwardOrderDto>>($"Scanned location {item.LocationCode.Trim()} was not found");
 
@@ -992,6 +996,7 @@ public class OutwardOrdersController : BaseController
             var reduceLocationResult = await ReduceAllocatedLocationAsync(
                 product.Id,
                 resolvedLocationCode,
+                resolvedBin,
                 pickQty,
                 effectiveMrp,
                 bulkPickUserId,
@@ -1079,7 +1084,7 @@ public class OutwardOrdersController : BaseController
                 return BadRequest<ConsolidatedPickResultDto>($"Scanned code {scanned} does not match product SKU ({expectedSku}) or Alias ({expectedAlias})");
         }
 
-        var resolvedLocationCode = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
+        var (resolvedLocationCode, resolvedBin) = await ResolveLocationCodeAsync(dto.LocationCode.Trim());
         if (string.IsNullOrWhiteSpace(resolvedLocationCode))
             return BadRequest<ConsolidatedPickResultDto>($"Scanned location {dto.LocationCode.Trim()} was not found");
 
@@ -1140,6 +1145,7 @@ public class OutwardOrdersController : BaseController
         var reduceLocationResult = await ReduceAllocatedLocationAsync(
             product.Id,
             resolvedLocationCode,
+            resolvedBin,
             pickQty,
             groupMrp,
             pickUserId,
@@ -2025,27 +2031,59 @@ public class OutwardOrdersController : BaseController
         return $"{prefix}-{nextSequence:000}";
     }
 
-    private async Task<string?> ResolveLocationCodeAsync(string scannedLocationCode)
+    // Resolves a scanned code to a canonical (LocationCode, BinCode?) pair.
+    // Accepts a plain location code, a bare bin code (bins are linked to a location),
+    // or a composed "LOCATION::BIN" key. When a bin is identified, BinCode is returned
+    // so the caller can deduct from the exact bin slot.
+    private async Task<(string? LocationCode, string? BinCode)> ResolveLocationCodeAsync(string scannedLocationCode)
     {
         var normalized = scannedLocationCode.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            return (null, null);
 
+        // Composed "LOCATION::BIN" key (e.g. sent by the picking screens).
+        if (normalized.Contains("::"))
+        {
+            var parts = normalized.Split("::", 2);
+            var locPart = parts[0].Trim();
+            var binPart = parts.Length > 1 ? parts[1].Trim() : null;
+
+            var loc = await _context.Locations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.LocationCode.ToLower() == locPart.ToLower());
+            if (loc == null)
+                return (null, null);
+
+            var canonicalBin = string.IsNullOrWhiteSpace(binPart)
+                ? null
+                : loc.Bins.FirstOrDefault(b => b.ToLower() == binPart.ToLower()) ?? binPart;
+            return (loc.LocationCode, canonicalBin);
+        }
+
+        // Plain location code.
         var directLocation = await _context.Locations
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.LocationCode.ToLower() == normalized.ToLower());
-
         if (directLocation != null)
-            return directLocation.LocationCode;
+            return (directLocation.LocationCode, null);
 
+        // Bare bin code → resolve to its parent location plus the canonical bin name.
         var binLocation = await _context.Locations
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Bins.Any(bin => bin.ToLower() == normalized.ToLower()));
+        if (binLocation != null)
+        {
+            var canonicalBin = binLocation.Bins.FirstOrDefault(b => b.ToLower() == normalized.ToLower()) ?? normalized;
+            return (binLocation.LocationCode, canonicalBin);
+        }
 
-        return binLocation?.LocationCode;
+        return (null, null);
     }
 
     private async Task<(bool Success, string? Message, string? LocationCode)> ReduceAllocatedLocationAsync(
         int productId,
         string resolvedLocationCode,
+        string? scannedBin,
         int quantity,
         decimal? mrp,
         int? performedByUserId,
@@ -2057,22 +2095,41 @@ public class OutwardOrdersController : BaseController
         if (row == null || row.LocationJson == null || row.LocationJson.Count == 0)
             return (false, "No allotted location stock found for this product", null);
 
-        var matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
-            string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
+        string? matchingKey;
 
-        if (matchingKey == null)
+        if (!string.IsNullOrWhiteSpace(scannedBin))
         {
-            var binKey = row.LocationJson.Keys.FirstOrDefault(key =>
-                key.StartsWith(resolvedLocationCode + "::", StringComparison.OrdinalIgnoreCase) && 
-                row.LocationJson[key] > 0);
+            // A bin was scanned: deduct from the exact "LOCATION::BIN" slot, and if the product
+            // is stored at the location level (no bin key), fall back to the plain location.
+            var binFullKey = $"{resolvedLocationCode}::{scannedBin}";
+            matchingKey =
+                row.LocationJson.Keys.FirstOrDefault(key =>
+                    string.Equals(key, binFullKey, StringComparison.OrdinalIgnoreCase))
+                ?? row.LocationJson.Keys.FirstOrDefault(key =>
+                    string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
 
-            if (binKey != null)
+            if (matchingKey == null)
+                return (false, $"Scanned bin {scannedBin} at {resolvedLocationCode} is not allotted for this SKU.", null);
+        }
+        else
+        {
+            matchingKey = row.LocationJson.Keys.FirstOrDefault(key =>
+                string.Equals(key, resolvedLocationCode, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingKey == null)
             {
-                var binName = binKey.Split("::")[1];
-                return (false, $"This product is located on bin {binName}. Please scan that bin to process.", null);
-            }
+                var binKey = row.LocationJson.Keys.FirstOrDefault(key =>
+                    key.StartsWith(resolvedLocationCode + "::", StringComparison.OrdinalIgnoreCase) &&
+                    row.LocationJson[key] > 0);
 
-            return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU.", null);
+                if (binKey != null)
+                {
+                    var binName = binKey.Split("::")[1];
+                    return (false, $"This product is located on bin {binName}. Please scan that bin to process.", null);
+                }
+
+                return (false, $"Scanned location {resolvedLocationCode} is not allotted for this SKU.", null);
+            }
         }
 
         var available = row.LocationJson[matchingKey];

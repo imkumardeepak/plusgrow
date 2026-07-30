@@ -59,15 +59,19 @@ type ConsolidatedGroup = {
   lines: ConsolidatedLine[];
 };
 
+type AllottedLocationEntry = {
+  rawCode: string;
+  locationCode: string;
+  binCode?: string;
+  qty: number;
+};
+
 type PickLocationRow = {
   key: string;
   group: ConsolidatedGroup;
-  locationCode: string;
-  rawCode: string;
-  binCode?: string;
-  locationStock: number;
+  locations: AllottedLocationEntry[];
+  totalLocationStock: number;
   pickQuantity: number;
-  sequence: number;
   isMapped: boolean;
 };
 
@@ -129,6 +133,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   // scan state
   const [locationCode, setLocationCode] = useState("");
   const [isLocationLocked, setIsLocationLocked] = useState(false);
+  const [lockedLocationStock, setLockedLocationStock] = useState(0);
   const [skuCode, setSkuCode] = useState("");
   const [pickQty, setPickQty] = useState<number | "">("");
   const [scanTone, setScanTone] = useState<ScanTone>("idle");
@@ -233,11 +238,11 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   const totalSelectedQuantity = groups.reduce((s, g) => s + g.totalQuantity, 0);
 
   const pickRows = useMemo<PickLocationRow[]>(() => {
-    return groups.flatMap((group) => {
+    return groups.map((group) => {
       const row = locations.find((r) => r.productId === group.productId);
       const locationEntries = Object.entries(row?.locationJson || {})
         .map(([rawCode, qty]) => {
-          const parts = rawCode.split('::');
+          const parts = rawCode.split("::");
           return {
             rawCode,
             locationCode: parts[0],
@@ -245,42 +250,24 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
             qty: Number(qty) || 0,
           };
         })
-        .filter((entry) => entry.qty > 0);
+        .filter((entry) => entry.qty > 0)
+        // Highest stock first so the default suggestion is the fullest bin,
+        // but the operator may scan ANY of these locations.
+        .sort((a, b) => b.qty - a.qty || a.locationCode.localeCompare(b.locationCode));
 
-      let remaining = group.totalPending;
-      const rows: PickLocationRow[] = [];
+      const totalLocationStock = locationEntries.reduce((sum, entry) => sum + entry.qty, 0);
 
-      locationEntries.forEach((entry, index) => {
-        if (remaining <= 0) return;
-        const pickQuantity = Math.min(entry.qty, remaining);
-        rows.push({
-          key: `${group.key}__${entry.rawCode}`,
-          group,
-          rawCode: entry.rawCode,
-          locationCode: entry.locationCode,
-          binCode: entry.binCode,
-          locationStock: entry.qty,
-          pickQuantity,
-          sequence: index + 1,
-          isMapped: true,
-        });
-        remaining -= pickQuantity;
-      });
-
-      if (remaining > 0) {
-        rows.push({
-          key: `${group.key}__unmapped`,
-          group,
-          rawCode: "Not mapped",
-          locationCode: "Not mapped",
-          locationStock: 0,
-          pickQuantity: remaining,
-          sequence: locationEntries.length + 1,
-          isMapped: false,
-        });
-      }
-
-      return rows;
+      return {
+        key: group.key,
+        group,
+        locations: locationEntries,
+        totalLocationStock,
+        pickQuantity: Math.min(
+          group.totalPending,
+          totalLocationStock > 0 ? totalLocationStock : group.totalPending,
+        ),
+        isMapped: locationEntries.length > 0,
+      };
     });
   }, [groups, locations]);
 
@@ -303,6 +290,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
   useEffect(() => {
     setLocationCode("");
     setIsLocationLocked(false);
+    setLockedLocationStock(0);
     setSkuCode("");
     setScanTone("idle");
     if (activeRow) {
@@ -358,39 +346,44 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     if (!activeRow.isMapped) { toast.error("No allotted location found for this row"); return; }
     const loc = locationCode.trim().toUpperCase();
     if (!loc) { toast.error("Scan location code"); return; }
-    
-    // If the product is assigned to a bin, they MUST scan the bin (or the raw code). They cannot scan just the location.
-    const validMatches = activeRow.binCode
-      ? [activeRow.rawCode.toUpperCase(), activeRow.binCode.toUpperCase()]
-      : [activeRow.locationCode.toUpperCase()];
-    
-    if (!validMatches.includes(loc)) {
+
+    // Accept ANY of this product's allotted locations that still has stock.
+    // A scan matches by full raw key (LOC::BIN), by location code, or by bin code.
+    const match = activeRow.locations.find((entry) =>
+      entry.rawCode.toUpperCase() === loc ||
+      entry.locationCode.toUpperCase() === loc ||
+      (entry.binCode ? entry.binCode.toUpperCase() === loc : false),
+    );
+
+    if (!match) {
       setScanTone("error");
-      
-      if (activeRow.binCode && loc === activeRow.locationCode.toUpperCase()) {
-        setStatusMessage(`This product is located on bin ${activeRow.binCode}. Please scan that bin.`);
-        toast.error(`Please scan bin ${activeRow.binCode}`);
-      } else {
-        setStatusMessage(`Wrong location. Go to ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''}.`);
-        toast.error(`Scan ${activeRow.locationCode}${activeRow.binCode ? ` [${activeRow.binCode}]` : ''} first`);
-      }
+      const available = activeRow.locations
+        .map((entry) =>
+          `${entry.binCode ? `${entry.locationCode} [${entry.binCode}]` : entry.locationCode} (${entry.qty})`,
+        )
+        .join(", ");
+      setStatusMessage(`${loc} is not an allotted location for this SKU. Available: ${available}`);
+      toast.error("Not an allotted location for this SKU");
       return;
     }
-    
-    // If they scanned a bin, make sure we use the rawCode so the backend can deduct from the correct bin
-    const finalLocationCode = (loc === activeRow.binCode?.toUpperCase()) ? activeRow.rawCode : loc;
-    
+
     setIsLocationLocked(true);
-    // Store the exact key we need to send to the backend for accurate deduction
-    setLocationCode(finalLocationCode);
+    // Store the exact key so the backend deducts from the correct location/bin.
+    setLocationCode(match.rawCode);
+    setLockedLocationStock(match.qty);
+    const capped = Math.min(activeRow.group.totalPending, match.qty);
+    setPickQty(capped > 0 ? capped : 1);
     setScanTone("success");
-    setStatusMessage(`${activeRow.locationCode} verified`);
+    setStatusMessage(
+      `${match.locationCode}${match.binCode ? ` [${match.binCode}]` : ""} verified · ${match.qty} in stock`,
+    );
     window.setTimeout(() => skuRef.current?.focus(), 0);
   };
 
   const handleChangeLocation = () => {
     setIsLocationLocked(false);
     setLocationCode("");
+    setLockedLocationStock(0);
     setStatusMessage("Scan new location.");
     window.setTimeout(() => locationRef.current?.focus(), 0);
   };
@@ -401,7 +394,9 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
     const loc = locationCode.trim();
     if (!loc) { toast.error("Scan location first"); return; }
     if (quantity <= 0) { toast.error("Quantity must be > 0"); return; }
-    const capped = Math.min(quantity, activeRow.pickQuantity);
+    // Cap by what is available at the scanned location AND the group's pending.
+    const capped = Math.min(quantity, lockedLocationStock, activeGroup.totalPending);
+    if (capped <= 0) { toast.error("No stock left at this location"); return; }
     try {
       setIsPicking(true);
       const result = await outwardOrdersApi.consolidatedPick({
@@ -415,14 +410,34 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
       applyUpdatedItems(result.updatedItems);
       reduceLocationStock(activeGroup.productId, result.locationCode, result.pickedQuantity);
       setScanTone("success");
-      setStatusMessage(
-        `Picked ${result.pickedQuantity} of ${activeGroup.skuCode} from ${result.locationCode} across ${result.allocations.length} order(s).`,
-      );
-      toast.success(`Picked ${result.pickedQuantity} unit(s) across ${result.allocations.length} order(s)`);
       const remaining = Math.max(activeGroup.totalPending - result.pickedQuantity, 0);
-      setPickQty(remaining > 0 ? remaining : "");
+      const remainingAtLocation = Math.max(lockedLocationStock - result.pickedQuantity, 0);
+      setLockedLocationStock(remainingAtLocation);
+      toast.success(`Picked ${result.pickedQuantity} unit(s) across ${result.allocations.length} order(s)`);
       setSkuCode("");
-      window.setTimeout(() => skuRef.current?.focus(), 0);
+
+      if (remaining <= 0) {
+        setStatusMessage(
+          `Picked ${result.pickedQuantity} of ${activeGroup.skuCode} from ${result.locationCode}. Product complete.`,
+        );
+        setPickQty("");
+      } else if (remainingAtLocation <= 0) {
+        // This location is exhausted — release the lock so the operator can
+        // scan another allotted location for the remaining quantity.
+        setIsLocationLocked(false);
+        setLocationCode("");
+        setPickQty(remaining);
+        setStatusMessage(
+          `${result.locationCode} is empty. Scan another location to pick the remaining ${remaining}.`,
+        );
+        window.setTimeout(() => locationRef.current?.focus(), 0);
+      } else {
+        setPickQty(Math.min(remaining, remainingAtLocation));
+        setStatusMessage(
+          `Picked ${result.pickedQuantity} from ${result.locationCode}. ${remaining} left for this product.`,
+        );
+        window.setTimeout(() => skuRef.current?.focus(), 0);
+      }
     } catch (err: any) {
       setScanTone("error");
       setStatusMessage(err.message || "Consolidated pick failed.");
@@ -495,7 +510,8 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
       if (!ok) { setSkuCode(""); window.setTimeout(() => skuRef.current?.focus(), 0); return; }
     }
     const cartonQty = getCartonQuantity(parsed.raw, activeGroup.cartonQr, activeGroup.cartonPerItem);
-    const increment = Math.min(cartonQty > 0 ? cartonQty : 1, activeRow.pickQuantity);
+    const maxPickNow = Math.min(lockedLocationStock, activeGroup.totalPending);
+    const increment = Math.min(cartonQty > 0 ? cartonQty : 1, maxPickNow);
     await submitPick(increment);
   };
 
@@ -574,11 +590,19 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                         <span className={`block truncate font-mono text-[11px] font-black ${
                           row.isMapped ? "text-brand-200" : "text-yellow-300"
                         }`}>
-                          {row.locationCode}
-                          {row.binCode && <span className="ml-1 text-[10px] text-brand-400 bg-brand-900/40 px-1 rounded">[{row.binCode}]</span>}
+                          {row.isMapped
+                            ? `${row.locations[0].locationCode}${row.locations[0].binCode ? ` [${row.locations[0].binCode}]` : ""}`
+                            : "Not mapped"}
+                          {row.isMapped && row.locations.length > 1 && (
+                            <span className="ml-1 text-[10px] text-brand-400 bg-brand-900/40 px-1 rounded">
+                              +{row.locations.length - 1}
+                            </span>
+                          )}
                         </span>
                         <span className="block text-[9px] font-black text-neutral-500">
-                          {row.isMapped ? `#${row.sequence} · ${row.locationStock}` : "assign"}
+                          {row.isMapped
+                            ? `${row.locations.length} loc · ${row.totalLocationStock}`
+                            : "assign"}
                         </span>
                       </span>
 
@@ -625,34 +649,59 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                     {isActive && (
                       <div className="border-t border-white/10 bg-[#0b0f17] px-2.5 py-2.5 space-y-2">
                         {!isLocationLocked ? (
-                          <div className="grid grid-cols-[1fr_auto] gap-2">
-                            <div className="relative">
-                              <MapPin size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
-                              <input
-                                ref={locationRef}
-                                value={locationCode}
-                                onChange={(e) => setLocationCode(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSetLocation(); } }}
-                                placeholder={`Verify ${row.locationCode}`}
-                                autoComplete="off"
+                          <div className="space-y-1.5">
+                            <div className="grid grid-cols-[1fr_auto] gap-2">
+                              <div className="relative">
+                                <MapPin size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+                                <input
+                                  ref={locationRef}
+                                  value={locationCode}
+                                  onChange={(e) => setLocationCode(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSetLocation(); } }}
+                                  placeholder="Scan location"
+                                  autoComplete="off"
+                                  disabled={!row.isMapped}
+                                  className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleSetLocation}
                                 disabled={!row.isMapped}
-                                className="h-9 w-full rounded-lg border border-white/10 bg-black/30 pl-8 pr-3 font-mono text-xs font-bold text-white outline-none placeholder:text-neutral-600 focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-400/30 disabled:opacity-50"
-                              />
+                                className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                              >
+                                Set
+                              </button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={handleSetLocation}
-                              disabled={!row.isMapped}
-                              className="h-9 px-4 rounded-lg border border-brand-500/35 bg-brand-500/10 text-xs font-black uppercase tracking-wide text-brand-200 hover:bg-brand-500/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-                            >
-                              Set
-                            </button>
+                            {row.isMapped && row.locations.length > 1 && (
+                              <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin pb-0.5">
+                                {row.locations.map((entry) => (
+                                  <button
+                                    key={entry.rawCode}
+                                    type="button"
+                                    onClick={() => {
+                                      setLocationCode(entry.rawCode);
+                                      window.setTimeout(() => handleSetLocation(), 0);
+                                    }}
+                                    className="shrink-0 rounded border border-brand-500/25 bg-brand-500/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-200 hover:bg-brand-500/20 transition-colors"
+                                  >
+                                    {entry.locationCode}
+                                    {entry.binCode ? ` [${entry.binCode}]` : ""}
+                                    <span className="ml-0.5 text-brand-400">({entry.qty})</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-300">
-                                <Check size={11} /> {row.locationCode}
+                                <Check size={11} />
+                                {locationCode.includes("::")
+                                  ? `${locationCode.split("::")[0]} [${locationCode.split("::")[1]}]`
+                                  : locationCode}
+                                <span className="ml-1 text-green-400/70">· {lockedLocationStock} here</span>
                               </span>
                               <button
                                 type="button"
@@ -690,7 +739,7 @@ export const ConsolidatedPick = memo(function ConsolidatedPick() {
                                 size="xs"
                                 className="flex-1"
                                 min={1}
-                                max={row.pickQuantity}
+                                max={Math.min(lockedLocationStock, group.totalPending)}
                                 value={pickQty}
                                 onChange={(v) => setPickQty(typeof v === "number" ? v : v === "" ? "" : Number(v))}
                               />

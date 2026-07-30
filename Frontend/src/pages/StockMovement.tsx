@@ -288,9 +288,9 @@ export const StockMovement = memo(function StockMovement() {
         .sort(([firstLocation], [secondLocation]) =>
           firstLocation.localeCompare(secondLocation),
         )
-        .map(([locationCode, quantity]) => ({
+        .map(([locationCode]) => ({
           value: locationCode,
-          label: `${locationCode} - Qty ${quantity}`,
+          label: locationCode,
         }));
     },
     [selectedAllottedLocation],
@@ -644,6 +644,14 @@ export const StockMovement = memo(function StockMovement() {
                     }
                     disabled={adjustmentForm.productId <= 0}
                   />
+                  {adjustmentForm.locationCode && selectedAllottedLocation ? (
+                    <Text size="10px" fw={700} c="cyan.3" mt={4}>
+                      On hand at {adjustmentForm.locationCode}:{" "}
+                      <Text span fw={800} c="green.3">
+                        {selectedLocationQuantity}
+                      </Text>
+                    </Text>
+                  ) : null}
                 </Box>
 
                 <Box>
